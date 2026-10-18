@@ -17,6 +17,8 @@ import {
 
 const VERCEL_API_ORIGIN = "https://api.vercel.com";
 const REQUEST_TIMEOUT_MS = 20_000;
+/** Local metadata budget, not a Vercel limit or universal capacity guarantee. */
+const MAX_RESPONSE_BYTES = 16 * 1024 * 1024;
 
 export type VercelPreviewApiSettings = {
   readonly token: string;
@@ -111,26 +113,135 @@ function readIsProductionTarget(payload: unknown): boolean {
   return (payload as Record<string, unknown>).target === "production";
 }
 
-async function readStrictJsonResponse(response: Response, message: string): Promise<unknown> {
+type RequestPhase = "deployment lookup" | "alias lookup" | "alias assignment" | "alias deletion" | "deployment deletion";
+type RequestAttempt = { readonly signal: AbortSignal; readonly expiresAt: number; readonly phase: RequestPhase };
+
+function phaseMessage(phase: RequestPhase, detail: string): string {
+  const mutation = phase === "alias assignment" || phase === "alias deletion" || phase === "deployment deletion";
+  return `Vercel ${phase} ${detail}${mutation ? "; outcome unverified" : ""}`;
+}
+
+/** Only locally generated budget failures may bypass the fixed JSON error. */
+class ResponseFailure extends VercelApiError {}
+
+function observeCleanup(cleanup: () => unknown): void {
+  try { void Promise.resolve(cleanup()).catch(() => {}); }
+  catch { /* Cleanup never replaces or delays a classified result. */ }
+}
+
+function cancelResponse(response: Response): void {
+  observeCleanup(() => response.body?.cancel());
+}
+
+/** One removable listener per wait; the monotonic clock also bounds timer starvation. */
+function waitForOperation<T>(operation: () => Promise<T>, attempt: RequestAttempt, onLateValue?: (value: T) => void): Promise<T> {
+  const { signal, expiresAt, phase } = attempt;
+  const expired = () => signal.aborted || performance.now() >= expiresAt;
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = () => { settled = true; signal.removeEventListener("abort", abort); };
+    const abort = () => {
+      if (settled) return;
+      finish(); reject(new ResponseFailure(phaseMessage(phase, "request timed out")));
+    };
+    if (expired()) { abort(); return; }
+    signal.addEventListener("abort", abort, { once: true });
+    try {
+      // Both handlers remain attached after timeout, observing late rejection
+      // (including releaseLock rejecting a still-pending stream read).
+      void operation().then(value => {
+        if (settled) { observeCleanup(() => onLateValue?.(value)); return; }
+        if (expired()) { abort(); observeCleanup(() => onLateValue?.(value)); return; }
+        finish(); resolve(value);
+      }, cause => {
+        if (settled) return;
+        if (expired()) { abort(); return; }
+        finish(); reject(cause);
+      });
+    } catch (cause) {
+      if (settled) return;
+      if (expired()) { abort(); return; }
+      finish(); reject(cause);
+    }
+  });
+}
+
+async function readStrictJsonResponse(response: Response, attempt: RequestAttempt): Promise<unknown> {
+  const declared = response.headers.get("content-length");
+  if (declared !== null && /^\d+$/.test(declared) && Number(declared) > MAX_RESPONSE_BYTES) {
+    cancelResponse(response);
+    throw new ResponseFailure(phaseMessage(attempt.phase, "response exceeds the local byte limit"));
+  }
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+  let complete = false;
   try {
-    const bytes = await response.arrayBuffer();
-    return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
-  } catch { throw new VercelApiError(message); }
+    reader = response.body?.getReader();
+    const activeReader = reader;
+    let bytes = new Uint8Array(0), length = 0;
+    if (activeReader) for (;;) {
+      const chunk = await waitForOperation(() => activeReader.read(), attempt);
+      if (chunk.done) { complete = true; break; }
+      if (chunk.value.byteLength > MAX_RESPONSE_BYTES - length) {
+        throw new ResponseFailure(phaseMessage(attempt.phase, "response exceeds the local byte limit"));
+      }
+      const nextLength = length + chunk.value.byteLength;
+      if (nextLength > bytes.byteLength) {
+        const next = new Uint8Array(Math.min(MAX_RESPONSE_BYTES, Math.max(64 * 1024, bytes.byteLength * 2, nextLength)));
+        next.set(bytes.subarray(0, length)); bytes = next;
+      }
+      bytes.set(chunk.value, length); length = nextLength;
+    }
+    return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes.subarray(0, length)));
+  } catch (cause) {
+    // Unknown reader failures can be arbitrary objects, including hostile proxies.
+    let owned = false;
+    try { owned = cause instanceof ResponseFailure; } catch { /* untrusted cause */ }
+    if (owned) throw cause;
+    throw new VercelApiError(phaseMessage(attempt.phase, "returned invalid JSON"));
+  } finally {
+    const activeReader = reader;
+    if (activeReader) {
+      if (!complete) observeCleanup(() => activeReader.cancel());
+      observeCleanup(() => activeReader.releaseLock());
+    } else if (!complete) cancelResponse(response);
+  }
+}
+
+/** Own the entire attempt so no caller can accidentally restart its body deadline. */
+async function requestVercel(
+  endpoint: URL,
+  init: RequestInit,
+  fetcher: typeof fetch,
+  phase: RequestPhase,
+  body: "json" | "discard",
+): Promise<{ readonly status: number; readonly ok: boolean; readonly payload?: unknown }> {
+  const attempt: RequestAttempt = {
+    expiresAt: performance.now() + REQUEST_TIMEOUT_MS,
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS), phase,
+  };
+  // Preserve ordinary transport errors: the existing operator formatters already
+  // withhold unknown causes, while retaining project-owned VercelApiError details.
+  const response = await waitForOperation(() => fetcher(endpoint, { ...init, signal: attempt.signal }), attempt, cancelResponse);
+  const { status, ok } = response;
+  if (!ok || body === "discard") {
+    cancelResponse(response);
+    return { status, ok };
+  }
+  return { status, ok, payload: await readStrictJsonResponse(response, attempt) };
 }
 
 async function requestDeployment(
   reference: string,
   settings: VercelPreviewApiSettings,
   fetcher: typeof fetch,
-): Promise<{ readonly response: Response; readonly payload?: unknown }> {
-  const response = await fetcher(deploymentEndpoint(reference, settings.orgId), {
+): Promise<{ readonly status: number; readonly payload?: unknown }> {
+  const response = await requestVercel(deploymentEndpoint(reference, settings.orgId), {
     headers: { Authorization: `Bearer ${settings.token}` },
     cache: "no-store",
     redirect: "error",
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-  });
+  }, fetcher, "deployment lookup", "json");
 
-  if (response.status === 404) return { response };
+  if (response.status === 404) return { status: response.status };
 
   if (!response.ok) {
     throw new VercelApiError(
@@ -139,9 +250,7 @@ async function requestDeployment(
     );
   }
 
-  const payload = await readStrictJsonResponse(response, "Vercel deployment lookup returned invalid JSON");
-
-  return { response, payload };
+  return { status: response.status, payload: response.payload };
 }
 
 /**
@@ -162,7 +271,7 @@ export async function inspectPreviewDeployment(
   const url = parseDeploymentUrl(urlValue);
   const result = await requestDeployment(url.hostname, settings, fetcher);
 
-  if (result.response.status === 404) {
+  if (result.status === 404) {
     throw new VercelApiError(
       "Vercel could not find that deployment in the expected team",
       404,
@@ -209,7 +318,7 @@ export async function assignPreviewAlias(
   const id = parseDeploymentId(deploymentIdValue);
   const aliasHost = parsePreviewAliasHost(aliasHostValue);
 
-  const response = await fetcher(
+  const response = await requestVercel(
     apiEndpoint(`/v2/deployments/${encodeURIComponent(id)}/aliases`, settings.orgId),
     {
       method: "POST",
@@ -220,8 +329,8 @@ export async function assignPreviewAlias(
       body: JSON.stringify({ alias: aliasHost }),
       cache: "no-store",
       redirect: "error",
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     },
+    fetcher, "alias assignment", "json",
   );
 
   if (!response.ok) {
@@ -231,9 +340,7 @@ export async function assignPreviewAlias(
     );
   }
 
-  const payload = await readStrictJsonResponse(response, "Vercel alias assignment returned invalid JSON");
-
-  const record = asRecord(payload, "alias assignment");
+  const record = asRecord(response.payload, "alias assignment");
   const uid = typeof record.uid === "string" ? record.uid.trim() : "";
   if (!uid) {
     throw new VercelApiError("Vercel alias assignment response has no uid");
@@ -242,7 +349,7 @@ export async function assignPreviewAlias(
     typeof record.alias === "string" ? record.alias.trim().toLowerCase() : "";
   if (assignedAlias !== aliasHost) {
     throw new VercelApiError(
-      `Vercel assigned alias "${assignedAlias || "(none)"}", expected "${aliasHost}"`,
+      "Vercel alias assignment returned a different alias; outcome unverified",
     );
   }
 
@@ -276,14 +383,14 @@ export async function readAliasCurrentTarget(
 > {
   const aliasHost = parsePreviewAliasHost(aliasHostValue);
 
-  const aliasResponse = await fetcher(
+  const aliasResponse = await requestVercel(
     apiEndpoint(`/v4/aliases/${encodeURIComponent(aliasHost)}`, settings.orgId),
     {
       headers: { Authorization: `Bearer ${settings.token}` },
       cache: "no-store",
       redirect: "error",
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     },
+    fetcher, "alias lookup", "json",
   );
 
   if (aliasResponse.status === 404) return null;
@@ -295,9 +402,7 @@ export async function readAliasCurrentTarget(
     );
   }
 
-  const aliasPayload = await readStrictJsonResponse(aliasResponse, "Vercel alias lookup returned invalid JSON");
-
-  const aliasRecord = asRecord(aliasPayload, "alias lookup");
+  const aliasRecord = asRecord(aliasResponse.payload, "alias lookup");
   const aliasUid =
     typeof aliasRecord.uid === "string" ? aliasRecord.uid.trim() : "";
   if (!aliasUid) {
@@ -319,7 +424,7 @@ export async function readAliasCurrentTarget(
   const deploymentId = parseDeploymentId(deploymentReference);
 
   const inspected = await requestDeployment(deploymentId, settings, fetcher);
-  if (inspected.response.status === 404) return null;
+  if (inspected.status === 404) return null;
 
   validateDeploymentIdentity(inspected.payload, {
     projectId: settings.projectId,
@@ -348,7 +453,7 @@ export async function resolveDeploymentIfLive(
 ): Promise<{ readonly id: string; readonly createdAt: number | null } | null> {
   const id = parseDeploymentId(deploymentIdValue);
   const result = await requestDeployment(id, settings, fetcher);
-  if (result.response.status === 404) return null;
+  if (result.status === 404) return null;
 
   validateDeploymentIdentity(result.payload, {
     projectId: settings.projectId,
@@ -374,15 +479,15 @@ export async function deleteAlias(
     throw new Error("Vercel alias uid must be a non-empty id, not a hostname");
   }
 
-  const response = await fetcher(
+  const response = await requestVercel(
     apiEndpoint(`/v2/aliases/${encodeURIComponent(aliasUid)}`, settings.orgId),
     {
       method: "DELETE",
       headers: { Authorization: `Bearer ${settings.token}` },
       cache: "no-store",
       redirect: "error",
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     },
+    fetcher, "alias deletion", "discard",
   );
 
   if (response.status === 404) return { removed: false };
@@ -408,7 +513,7 @@ export async function deletePreviewDeployment(
   const id = parseDeploymentId(deploymentIdValue);
   const inspected = await requestDeployment(id, settings, fetcher);
 
-  if (inspected.response.status === 404) {
+  if (inspected.status === 404) {
     return { deleted: false, id };
   }
 
@@ -427,13 +532,12 @@ async function deleteExactDeploymentId(
   fetcher: typeof fetch,
 ): Promise<{ readonly deleted: boolean; readonly id: string }> {
   const id = parseDeploymentId(deploymentId);
-  const response = await fetcher(deploymentEndpoint(id, settings.orgId), {
+  const response = await requestVercel(deploymentEndpoint(id, settings.orgId), {
     method: "DELETE",
     headers: { Authorization: `Bearer ${settings.token}` },
     cache: "no-store",
     redirect: "error",
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-  });
+  }, fetcher, "deployment deletion", "json");
 
   if (response.status === 404) return { deleted: false, id };
   if (!response.ok) {
@@ -443,7 +547,7 @@ async function deleteExactDeploymentId(
     );
   }
 
-  const payload = await readStrictJsonResponse(response, "Vercel deployment deletion returned invalid JSON");
+  const payload = response.payload;
   if (typeof payload !== "object" || payload === null || Array.isArray(payload) ||
       (payload as Record<string, unknown>).uid !== id || (payload as Record<string, unknown>).state !== "DELETED") {
     throw new VercelApiError("Vercel deployment deletion returned an unverified acknowledgement");

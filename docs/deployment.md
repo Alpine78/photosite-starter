@@ -1980,6 +1980,19 @@ never passes a captured value to the multi-purpose `vercel remove` command, wher
 project name would mean a much broader operation. These scripts run on the Node major
 pinned in `package.json`, which executes TypeScript directly.
 
+The release API client applies a **16 MiB decoded JSON-response budget** and one
+original **20-second deadline per network attempt**, including headers and body
+reads (AB#347). These are local engineering budgets, not Vercel limits or proof
+that arbitrary deployment metadata fits. An alias lookup followed by a deployment
+lookup still consists of two separate attempts. Unused and late bodies receive
+observed, nonblocking cleanup; cleanup never authorizes another request.
+Malformed, oversized or timed-out mutation acknowledgements leave the remote
+outcome unverified. They do not establish that assignment/deletion was unapplied,
+and they do not authorize resubmission. The existing fresh-read conditional alias
+recovery and exact deployment `DELETED`/UID acknowledgement checks remain in force.
+Diagnostics exclude provider-controlled alias prose. Offline regression evidence
+does not establish live provider behavior or complete AB#18/117 acceptance.
+
 ## Promotion and rollback
 
 **Recorded; AB#18 still owns the first production build.** AB#118 exercises rollback
