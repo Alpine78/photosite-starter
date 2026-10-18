@@ -29,7 +29,7 @@
  * draft that appeared.
  */
 
-import { chmod, lstat, mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { chmod, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -38,12 +38,13 @@ import {
   findVersionConflicts,
   INTRO_SUMMARY_DOCUMENT_TYPES,
   planIntroSummaries,
-  recomputeIntroSummaryDigest,
   reconcileIntroSummaries,
   type IntroSummaryPlan,
   type IntroSummaryReconciliation,
   type IntroSummarySourceDocument,
 } from "./joomla-intro-summary.mts";
+import { readRecoveryRecord, recoveryFileName } from "./intro-summary-recovery.mts";
+export { readRecoveryRecord } from "./intro-summary-recovery.mts";
 import { parsePublicReadTarget, runPublicReadQuery } from "./sanity-read-http.mts";
 import {
   parseSeedConnection,
@@ -157,32 +158,6 @@ async function writeReport(outDir: string, fileName: string, data: unknown): Pro
   await writeFile(filePath, `${JSON.stringify(data, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
   await chmod(filePath, 0o600);
   return filePath;
-}
-
-const recoveryFileName = (digest: string) => `intro-summary-approved-${digest}.json`;
-
-export async function readRecoveryRecord(outDir: string, digest: string): Promise<IntroSummaryPlan | undefined> {
-  const filePath = path.join(outDir, recoveryFileName(digest));
-  try {
-    if (!(await stat(filePath)).isFile()) fail("The intro recovery entry must resolve to a regular file");
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      try { await lstat(filePath); } catch (entryError) {
-        if ((entryError as NodeJS.ErrnoException).code === "ENOENT") return undefined;
-      }
-    }
-    fail("The intro recovery entry cannot be read; restore it before continuing");
-  }
-  try {
-    const text = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(await readFile(filePath));
-    const plan = JSON.parse(text) as IntroSummaryPlan;
-    if (plan.digest !== digest || recomputeIntroSummaryDigest(plan) !== digest) {
-      fail("The intro recovery record does not match its digest; restore it before continuing");
-    }
-    return plan;
-  } catch {
-    fail("The intro recovery record is invalid or unreadable; restore it before continuing");
-  }
 }
 
 /** Saves the approved plan once. An existing record must be byte-for-byte the same plan. */
@@ -324,9 +299,10 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
     return;
   }
   console.error(
-    writeError === undefined
+    (writeError === undefined
       ? `The write reported success but not every page reads back as planned. See ${reportPath}.`
-      : `The write failed (${writeError instanceof Error ? writeError.message : String(writeError)}). See ${reportPath}; re-run the same command to reconcile.`,
+      : `The write failed (${writeError instanceof Error ? writeError.message : String(writeError)}). See ${reportPath}.`) +
+    " Use npm run reconcile:joomla-intro with this recovery directory and approved digest for read-only diagnosis. Do not automatically retry the writer.",
   );
   process.exitCode = 1;
 }
