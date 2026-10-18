@@ -2833,6 +2833,8 @@ an activation never cancels the native caption action while the viewer is unavai
 Body and mini-gallery figures keep their separate existing enhancement contract.
 The curated test helper follows occurrence identities within `#gallery`, including
 passive images, while retaining exact result order and continuation boundaries.
+Enhanced end-gallery row measurements wait for all 24 real image controls before
+sampling; scriptless rendering and exact geometry/append assertions stay intact.
 Implementation is in review; this does not close the parent gallery work.
 
 Both new layouts, and `grid`'s new `overlay` caption option, share one figure component
