@@ -77,6 +77,7 @@ Two conventions on top of the template:
 | [0034](0034-ongoing-unlisted-client-delivery.md) | AB#29 / AB#145 / AB#130 | Final reference-deployment choice: ongoing unlisted client delivery in existing Sanity; protected S3/Postgres development deferred | Accepted |
 | [0035](0035-unlisted-delivery-zip-proposal.md) | AB#309 / AB#29 | Proposed whole processed-JPEG ZIP in existing Sanity; new-file exception, account capacity and upload verification remain pending | Proposed |
 | [0036](0036-article-end-section-filtering-proposal.md) | AB#360 / AB#27 / AB#321 | Owner-accepted optional article-end sections with bounded authenticated filtering; 41-item identity/text preflight complete, implementation/content acceptance pending | Accepted |
+| [0037](0037-cookieless-site-analytics.md) | AB#371 | Cookieless site analytics as an off-by-default adapter with Vercel Web Analytics as the reference provider; route exclusion and URL reduction; Speed Insights not adopted | Proposed |
 
 Expected further entries:
 
