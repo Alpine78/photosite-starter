@@ -3,8 +3,20 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { ArticleEndGallery } from "@/components/article-end-gallery";
 import { getBuiltInLabels } from "@/lib/deployment-config";
+import { mockImages } from "@/lib/mock-media";
 
 describe("server-rendered article filters before hydration", () => {
+  it.each(["fi", "en-GB"])("uses count-neutral result copy for one loaded image (%s)", locale => {
+    const labels = getBuiltInLabels(locale), media = mockImages.coastalLandscape;
+    const html = renderToStaticMarkup(createElement(ArticleEndGallery, {
+      articlePath: "/stories/notes/one", articleTitle: "A note", initialSliceKey: "single", labels,
+      presentation: { layout: "grid", captionPlacement: "below" },
+      sections: [{ sectionId: "one", slug: "soft-light", label: "Soft light", order: 0 }], sectionHeading: "Image themes",
+      slice: { items: [{ itemId: "one", mediaId: media.mediaId, media }], slides: [{ itemId: "one", mediaId: media.mediaId, src: media.rendition.src, width: media.rendition.width, height: media.rendition.height, alt: media.alt }], nextCursor: null },
+    }));
+    expect(html).toContain(locale === "fi" ? "Ladattuja kuvia: 1" : "Loaded images: 1");
+    expect(html).not.toMatch(/1 images loaded|1 kuvaa ladattu/);
+  });
   it("offers All plus one declared section and visible empty result copy with one initially empty live region", () => {
     const labels = getBuiltInLabels("en-GB");
     const html = renderToStaticMarkup(

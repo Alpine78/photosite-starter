@@ -6,6 +6,7 @@ import {
 } from "@/lib/article-end-gallery";
 import { resolveArticleEndGalleryRequestTarget } from "@/lib/article-end-gallery-request";
 import { resolveArticleEndSection } from "@/lib/article-end-gallery-selection";
+import { UnknownGallerySectionError } from "@/lib/gallery-sections";
 import { MAX_ITEM_ID_LENGTH } from "@/lib/gallery-pagination";
 import { MAX_GALLERY_CURSOR_LENGTH } from "@/lib/gallery-pagination";
 import { projectGallerySlice } from "@/lib/gallery-slice-server";
@@ -73,7 +74,7 @@ export async function GET(request: Request): Promise<Response> {
       ? response({ status: "not-found" }, 404)
       : response(projectGallerySlice(page), 200);
   } catch (error) {
-    if (error instanceof GalleryCursorError) {
+    if (error instanceof GalleryCursorError || error instanceof UnknownGallerySectionError) {
       return response({ status: "not-found" }, 404);
     }
     throw error;

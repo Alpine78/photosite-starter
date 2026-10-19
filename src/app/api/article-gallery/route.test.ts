@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MAX_ITEM_ID_LENGTH, GalleryCursorError } from "@/lib/gallery-pagination";
+import { UnknownGallerySectionError } from "@/lib/gallery-sections";
 
 const dependencies = vi.hoisted(() => ({
   resolveTarget: vi.fn(),
@@ -93,5 +94,14 @@ describe("GET /api/article-gallery", () => {
     const response = await GET(request());
     expect(response.status).toBe(404);
     expect(await response.json()).toEqual({ status: "not-found" });
+  });
+  it("returns a no-store 404 when the selected catalog entry disappears between reads", async () => {
+    dependencies.resolveTarget.mockResolvedValue({ locale: "en-GB", contentId: "article-one", endGalleryId: "ending-one", sections: [{ sectionId: "stable-one", slug: "soft-light", label: "Soft light", order: 0 }] });
+    dependencies.getPage.mockRejectedValue(new UnknownGallerySectionError("stable-one"));
+    const response = await GET(request(`path=${encodeURIComponent(path)}&cursor=${cursor}&section=soft-light`));
+    expect(response.status).toBe(404);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.json()).toEqual({ status: "not-found" });
+    expect(dependencies.getPage).toHaveBeenCalledTimes(1);
   });
 });

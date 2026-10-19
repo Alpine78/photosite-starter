@@ -447,7 +447,7 @@ async function resolveArticleEndGallery(
       ...(selection.kind === "selected" ? [selection.section.sectionId] as const : []),
     );
   } catch (error) {
-    if (error instanceof GalleryCursorError) return undefined;
+    if (error instanceof GalleryCursorError || error instanceof UnknownGallerySectionError) return undefined;
     throw error;
   }
 }

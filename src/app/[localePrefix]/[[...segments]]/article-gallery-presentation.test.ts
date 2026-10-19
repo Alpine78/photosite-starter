@@ -14,7 +14,8 @@ vi.mock("@/lib/content", () => content);
 vi.mock("@/lib/article-end-gallery", () => gallery);
 vi.mock("@/lib/deployment-config", async (original) => ({ ...await original<typeof import("@/lib/deployment-config")>(), ...deployment }));
 
-import Page from "./page";
+import Page, { generateMetadata } from "./page";
+import { UnknownGallerySectionError } from "@/lib/gallery-sections";
 import { ContentArticle } from "@/components/content-article";
 import { ArticleEndGalleryContinuation } from "@/components/article-end-gallery";
 
@@ -40,6 +41,14 @@ beforeEach(() => {
 });
 
 describe("article end-gallery route presentation", () => {
+  it.each([undefined, "selected-cursor"])("uses not-found for a stale catalog on first/continued pages and metadata (%s)", async cursor => {
+    settings.getSiteSettings.mockResolvedValue({ photographerName: "Example" });
+    content.getContentPage.mockResolvedValue({ contentId: "article", variant: "article", title: "A story", publishedAt: "2026-01-01T00:00:00Z", body: [], endGalleryId: "end-gallery", endGallerySectionHeading: "Image themes", endGallerySections: [{ sectionId: "stable-one", slug: "soft-light", label: "Soft light", order: 0 }] });
+    gallery.getArticleEndGalleryPage.mockRejectedValue(new UnknownGallerySectionError("stable-one"));
+    const props = { params: Promise.resolve({ localePrefix: "stories", segments: ["article"] }), searchParams: Promise.resolve({ section: "soft-light", ...(cursor === undefined ? {} : { cursor }) }) };
+    await expect(generateMetadata(props)).resolves.toEqual({});
+    await expect(Page(props)).rejects.toThrow("NEXT_HTTP_ERROR_FALLBACK;404");
+  });
   for (const galleryLayout of ["grid", "masonry", "justified"] as const) {
     it(`keeps the authored ${galleryLayout}/overlay setting on first and direct continuation pages`, async () => {
       settings.getSiteSettings.mockResolvedValue({ photographerName: "Example", galleryLayout, galleryCaptionPlacement: "overlay" });
