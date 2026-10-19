@@ -3936,6 +3936,15 @@ Synthetic authoring/parity tests and Studio typecheck/schema/static build cover 
 implementation; authenticated real-content creation and owner editorial acceptance
 remain unexercised, and the story stays Active pending review/merge and acceptance.
 
+**Language-version action always disabled, 2026-10-19 (AB#125, Active):** the owner found
+"Luo kieliversio" greyed out in the hosted Studio on every article. Sanity reports an idle
+document's `transactionSyncLock` as the object `{ enabled: false }`; the action tested it with
+truthiness, so every loaded document counted as locked. A pure `transactionSyncLocked` helper
+(`studio/editor-lock.ts`) now blocks only an enabled or unreadable lock, and the same flaw in the
+client-gallery share action's handle gate is corrected. Unit tests cover the idle, active and
+malformed states; the earlier synthetic tests had passed `null`. Hosted verification after Studio
+republication remains owner-run and unperformed; AB#125 stays Active.
+
 **Localized draft source review, 2026-10-05 (AB#125, Active):** the pure planner
 now checks selected gallery and article end-gallery source placements as well as
 the source page. Pending or malformed localization reviews refuse another derived
