@@ -262,6 +262,8 @@ AB#321 public article-end sections, 2026-10-18 (AB#367, Active): optional declar
 
 AB#367 review follow-up, 2026-10-19: selected-section empty and completion messages name the section in both languages, including the grid footer, with sentence punctuation preserved. Hydrated selector links serialize their query without depending on `URLSearchParams.size`; regressions remove that getter and check selected/All links, repeated carried values and fragments. These corrections do not classify or publish CMS content. Current review, test and CI evidence remains with PR#523.
 
+AB#368 adds an offline, first-adoption article-end section planner on the reviewed AB#365 contract. It pins supplied raw snapshot bytes/counts, checks selected identities, variants, public eligibility and reference closure, and emits private non-executable evidence only. The task remains Active pending review/merge; actual classification, owner approval, CMS activation and AB#321/27 acceptance remain separate.
+
 This is a running implementation history and a starting point for finding relevant
 code and decisions. Read the part relevant to the task; the current code and the
 Azure Boards work item are authoritative for scope, acceptance criteria and state.
