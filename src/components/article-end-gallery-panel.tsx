@@ -50,13 +50,20 @@ export function ArticleEndGalleryPanel({
           hasMore: slice.nextCursor !== null,
           state: "idle",
         };
-  const selected =
-    sections.find((section) => section.slug === activeSection)?.label ??
-    labels.gallery.allSections;
+  const selectedSection = sections.find((section) => section.slug === activeSection);
+  const selected = selectedSection?.label ?? labels.gallery.allSections;
+  const resultLabels = selectedSection ? {
+    ...labels,
+    gallery: {
+      ...labels.gallery,
+      empty: labels.gallery.emptySection,
+      allLoaded: labels.gallery.sectionAllLoaded,
+    },
+  } : labels;
   const summary = [
     selected,
     result.count === 0
-      ? labels.gallery.empty
+      ? resultLabels.gallery.empty
       : labels.gallery.loadedSummary.replace("{count}", String(result.count)),
     result.state === "loading"
       ? labels.gallery.loadingMore
@@ -64,8 +71,8 @@ export function ArticleEndGalleryPanel({
         ? labels.gallery.loadFailed
         : result.hasMore
           ? labels.gallery.moreAvailable
-          : labels.gallery.allLoaded,
-  ].join(". ");
+          : resultLabels.gallery.allLoaded,
+  ].map((sentence) => /[.!?…]$/u.test(sentence) ? sentence : `${sentence}.`).join(" ");
   return (
     <>
       <GallerySectionControls
@@ -86,7 +93,7 @@ export function ArticleEndGalleryPanel({
             activeSection={activeSection}
             continuationKind="article-end-gallery"
             presentation={presentation}
-            labels={labels}
+            labels={resultLabels}
             onResultChange={receive}
           />
         </div>

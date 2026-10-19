@@ -48,7 +48,11 @@ for (const f of fixtures) {
     page,
   }) => {
     const [selected] = f.sections;
-    await page.goto(`${f.path}?section=${selected.slug}`);
+    // Supported older Safari lacks this getter; exercise real hydrated links.
+    await page.addInitScript(() => {
+      Reflect.deleteProperty(URLSearchParams.prototype, "size");
+    });
+    await page.goto(`${f.path}?section=${selected.slug}&keep=one&keep=two`);
     const gallery = page.locator("[data-article-end-gallery]");
     const controls = gallery.getByRole("navigation", {
       name: f.content.endGallerySectionHeading,
@@ -56,6 +60,10 @@ for (const f of fixtures) {
     });
     const triggers = gallery.locator("button[data-item-id]");
     await expect(triggers).toHaveCount(24);
+    await expect(controls.getByRole("link", { name: f.labels.gallery.allSections, exact: true }))
+      .toHaveAttribute("href", `${f.path}?keep=one&keep=two`);
+    await expect(controls.getByRole("link", { name: f.sections[1].label, exact: true }))
+      .toHaveAttribute("href", `${f.path}?section=${f.sections[1].slug}&keep=one&keep=two`);
     await expect(triggers.last()).toHaveAttribute(
       "data-item-id",
       "image-note-27",
@@ -93,6 +101,9 @@ for (const f of fixtures) {
     await expect(triggers).toHaveCount(27);
     await expect(controls.getByRole("status")).toContainText(
       f.labels.gallery.loadedSummary.replace("{count}", "27"),
+    );
+    await expect(controls.getByRole("status")).toContainText(
+      f.labels.gallery.sectionAllLoaded,
     );
     expect(new URL(page.url()).searchParams.has("cursor")).toBe(false);
     const dialog = page.getByRole("dialog", { name: f.labels.lightbox.viewer });
@@ -157,8 +168,8 @@ for (const f of fixtures) {
       .getByRole("link", { name: f.sections[2].label, exact: true })
       .focus();
     await page.keyboard.press("Enter");
-    await expect(controls.getByRole("status")).toContainText(
-      f.labels.gallery.empty,
+    await expect(controls.getByRole("status")).toHaveText(
+      `${f.sections[2].label}. ${f.labels.gallery.emptySection} ${f.labels.gallery.sectionAllLoaded}`,
     );
     await expect(
       page.locator("[data-article-end-gallery] button[data-item-id]"),

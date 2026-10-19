@@ -64,5 +64,6 @@ export function articleSectionHref(
     for (const value of typeof values === "string" ? [values] : values)
       params.append(key, value);
   }
-  return path + (params.size ? `?${params}` : "") + hash;
+  const query = params.toString();
+  return path + (query ? `?${query}` : "") + hash;
 }

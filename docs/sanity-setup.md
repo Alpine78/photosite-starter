@@ -771,7 +771,7 @@ empty state. No collection-wide totals are queried or promised.
 Selected first pages and every continuation remain `noindex`, canonicalize to
 the parameter-free article and omit hreflang. The visible language switch opens
 the translated first article without section/cursor state. Unknown or repeated
-selectors on catalogued articles return404 before path normalization or window
+selectors on catalogued articles return HTTP 404 before path normalization or window
 reads. Articles without catalogs retain incidental section-query behavior.
 `section=all` and an empty selector normalize to All on the page; the strict
 append API accepts only a named slug or omission, with a mandatory cursor.
@@ -783,7 +783,7 @@ repeated values. Hydrated links also follow the current article fragment, includ
 updates made by the reading-address observer. JavaScript-free links navigate to
 real bounded server pages. Hydrated selection preserves the controls' viewport
 and focus through grid replacement, including a continuation-to-initial transition.
-A browser-only pending intent expires after8seconds and is cancelled by reader
+A browser-only pending intent expires after 8 seconds and is cancelled by reader
 input/history events; it is never persisted or populated by server rendering.
 Article filter navigation takes priority over automatic saved-position restore.
 The ordinary back-to-article link remains a fresh reading visit and may restore.
@@ -793,6 +793,6 @@ The selected viewer contains only loaded selected placements; body photographs
 and minigalleries keep their independent groups. Catalog and placement reads remain
 separate, as described above. Mock-mode journeys use a separate bilingual synthetic
 article with interleaved selected/unassigned occurrences, leaving the earlier
-reading fixture intact. They do not classify the actual retained41-item collection.
+reading fixture intact. They do not classify the actual retained 41-item collection.
 That collection still needs its reviewed heading/labels, rendered-image/text approval
 and a concrete revision-bound content plan with owner approval before any CMS write.

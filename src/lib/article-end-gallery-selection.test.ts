@@ -62,6 +62,21 @@ describe("article selectors and intact query carry", () => {
       articleSectionHref("/notes", { section: "old", cursor: "old" }),
     ).toBe("/notes");
   });
+  it("keeps hydrated section and All links intact without URLSearchParams.size", () => {
+    const descriptor = Object.getOwnPropertyDescriptor(URLSearchParams.prototype, "size");
+    expect(descriptor).toBeDefined();
+    expect(Reflect.deleteProperty(URLSearchParams.prototype, "size")).toBe(true);
+    try {
+      expect(articleSectionHref("/notes", { keep: ["one two", "&"], cursor: "old" }, "soft-light", "#chapter"))
+        .toBe("/notes?section=soft-light&keep=one+two&keep=%26#chapter");
+      expect(articleSectionHref("/notes", { keep: "one" }, undefined, "#chapter"))
+        .toBe("/notes?keep=one#chapter");
+      expect(articleSectionHref("/notes", { cursor: "old" }, undefined, "#chapter"))
+        .toBe("/notes#chapter");
+    } finally {
+      if (descriptor) Object.defineProperty(URLSearchParams.prototype, "size", descriptor);
+    }
+  });
 });
 
 describe("actual selected mock source uses the complete interleaved collection", () => {
