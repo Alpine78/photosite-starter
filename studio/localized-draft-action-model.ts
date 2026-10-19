@@ -74,7 +74,16 @@ function refs(value: unknown, found = new Set<string>()): Set<string> {
   }
   return found;
 }
-export type PreparedLocalizedDraft = { plan: LocalizedDraftPlan; signature: string; sourceSnapshot: string };
+/** `names` maps referenced category and media IDs to source-language text, so notices can name them. */
+export type PreparedLocalizedDraft = { plan: LocalizedDraftPlan; signature: string; sourceSnapshot: string; names: Readonly<Record<string, string>> };
+
+function localizedText(value: unknown, language: string): string | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const entries = value.filter((entry): entry is { language?: unknown; value: string } =>
+    isDocument(entry) && typeof entry.value === "string" && entry.value.trim().length > 0);
+  const text = (entries.find((entry) => entry.language === language) ?? entries[0])?.value.trim();
+  return text && text.length > 80 ? `${text.slice(0, 79)}…` : text;
+}
 export async function prepareLocalizedDraft(
   port: LocalizedDraftPort, editorSource: Document, targetLanguage: string,
   languages: readonly string[], signal: AbortSignal,
@@ -110,7 +119,11 @@ export async function prepareLocalizedDraft(
     const input: LocalizedDraftInput = { source, targetLanguage, configuredLanguages: languages, existingVersions: versions, placements, categories, media };
     const plan = await planBrowserLocalizedDraft(input);
     if (new TextEncoder().encode(JSON.stringify({ mutations: [plan.draft, ...plan.placementDrafts].map((create) => ({ create })) })).length > MUTATION_BYTES_LIMIT) throw new DraftActionError("bounds");
-    return { plan, signature: documentSnapshot(input), sourceSnapshot: documentSnapshot(source) };
+    const language = String(source.language);
+    const names: Record<string, string> = {};
+    for (const row of categories) { const text = localizedText(row.label, language); if (text) names[idOf(String(row._id))] = text; }
+    for (const row of media) { const text = localizedText(row.caption, language) ?? localizedText(row.alt, language); if (text) names[idOf(String(row._id))] = text; }
+    return { plan, signature: documentSnapshot(input), sourceSnapshot: documentSnapshot(source), names };
   } catch (error) { throw actionFailure(error); }
 }
 

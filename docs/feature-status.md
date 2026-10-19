@@ -3936,6 +3936,18 @@ Synthetic authoring/parity tests and Studio typecheck/schema/static build cover 
 implementation; authenticated real-content creation and owner editorial acceptance
 remain unexercised, and the story stays Active pending review/merge and acceptance.
 
+**Language-version dialog redesign, 2026-10-19 (AB#125, Active):** the owner created an EN
+draft of a test article with the hosted action after the lock fix (the draft appeared as
+"EN · tetetet"), then asked for a dialog that needs no instructions. It now uses Sanity UI with
+three numbered steps: the only remaining language is preselected, the read-only check starts by
+itself and lists copied texts in author terms (title, path segment, short lead, content items)
+instead of field paths, notices name categories and images by their source-language text, and
+success offers "Open draft". Behaviour, guards and writes are unchanged. A contained wrapper keeps
+Sanity UI's absolutely positioned radio input from covering the dialog, which a local preview
+showed would otherwise intercept the create button. Verified with unit tests and an isolated
+preview with synthetic data in light and dark themes; the hosted Studio needs republication and an
+owner check. AB#125 stays Active.
+
 **Language-version action always disabled, 2026-10-19 (AB#125, Active):** the owner found
 "Luo kieliversio" greyed out in the hosted Studio on every article. Sanity reports an idle
 document's `transactionSyncLock` as the object `{ enabled: false }`; the action tested it with
