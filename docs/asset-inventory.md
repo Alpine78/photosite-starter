@@ -30,6 +30,10 @@ SVGs in `docs/architecture/`. Counts were not recounted.
 **Amended:** 2026-08-24 — the vendored `architecture` and `security-review` skills were
 adapted to the repository's own ADR, security, privacy, CMS, media, and deployment
 boundaries; their upstream licenses and attribution remain in place.
+**Amended:** 2026-10-19 — `@vercel/analytics` 2.0.1 added (AB#371, ADR-0037). MIT, no
+transitive dependencies; its client code is bundled into the build and served to visitors,
+so it is in the shipped table and `NOTICE`. It loads only on a production deployment that
+sets `SITE_ANALYTICS=vercel`. Counts were not recounted.
 **Re-verified 2026-09-13 (AB#43):** a fresh audit pass against the current dependency
 tree and `public/`/`src/app/` assets. Two new production dependencies since the original
 audit — `@sanity/webhook` (MIT, AB#83's webhook signature verification) and the `vercel`
@@ -97,15 +101,16 @@ and none of its own code ends up in them.
 | Geist Mono typeface | `vercel/geist-font` via `next/font/google` | The Geist Project Authors | OFL-1.1 | **Yes** — notice + license must accompany redistribution | Yes |
 | Next.js, React, React DOM client runtime | `vercel/next.js`, `facebook/react` via npm | Vercel, Meta and contributors | MIT | **Yes** — copyright + permission notice | Yes |
 | PhotoSwipe 5.4.4 (JS + CSS) | `dimsemenov/PhotoSwipe` via npm | Dmitry Semenov | MIT | **Yes** — copyright + permission notice | Yes |
+| `@vercel/analytics` 2.0.1 (client, opt-in, AB#371) | `vercel/analytics` via npm | Vercel, Inc. | MIT | **Yes** — copyright + permission notice | Yes |
 | `architecture` skill (project-adapted derivative) | `anthropics/knowledge-work-plugins` | Anthropic | Apache-2.0 | **Yes** — license copy, retained notices, state changes | Yes |
 | `security-review` skill (project-adapted derivative) | `affaan-m/ECC` | Affaan Mustafa | MIT | **Yes** — copyright + permission notice | Yes |
 | Source Sans Pro subsets embedded in `docs/architecture/*.svg` | Adobe Source Sans Pro, vendored by D2 and subset into each generated SVG | Adobe | OFL-1.1 | **Yes** — notice + license must accompany redistribution | Yes |
 | Demo photographs (`public/gallery/`, 7 demo files) | OpenAI services | Project author (assigned) | Project MIT | No | Yes — see below |
 
-Attribution for all seven is in the root `NOTICE` file; full license texts are in
+Attribution for all of them is in the root `NOTICE` file; full license texts are in
 `licenses/`.
 
-These are the only npm packages whose bytes reach a browser. The framework runtime is
+These (with `@vercel/analytics`, which is bundled but inert unless a deployment opts in) are the only npm packages whose bytes reach a browser. The framework runtime is
 listed because the test above is where code ends up, not who emitted it: a deployed site
 serves React and the Next.js client runtime to every visitor, so their MIT notice has to
 travel with it exactly as PhotoSwipe's does. PhotoSwipe is the one this project chose

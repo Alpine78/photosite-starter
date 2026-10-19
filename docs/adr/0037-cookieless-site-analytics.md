@@ -133,8 +133,9 @@ with **Vercel Web Analytics** as the reference deployment's provider.
 
 1. [x] Owner accepts this ADR (2026-10-19); status is `Accepted`.
 2. [ ] Verify the CSP and cookie/storage assumptions against a production build.
-3. [ ] Implement the pure decision module, the opt-in component and its tests.
-4. [ ] Write `docs/analytics-data-flow.md`; update `docs/asset-inventory.md`,
+3. [x] Implement the pure decision module, the opt-in component and its tests
+       (AB#371, `src/lib/site-analytics.ts`, `src/components/site-analytics.tsx`).
+4. [x] Write `docs/analytics-data-flow.md`; update `docs/asset-inventory.md`,
        `docs/security-privacy-review.md`, README and `docs/feature-status.md`.
 5. [ ] Owner enables Web Analytics in the Vercel dashboard and sets a notify-only
        Spend Management threshold.

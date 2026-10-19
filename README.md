@@ -673,7 +673,7 @@ to Sanity; ordinary changes stay in Studio.
   no chatbot runtime or retrieval index is implemented
 - EXIF display with per-category visibility
 - Service-specific testimonials
-- Cookieless analytics
+- Cookieless analytics: implemented as an opt-in, off-by-default adapter (Vercel Web Analytics, [ADR-0037](docs/adr/0037-cookieless-site-analytics.md), [data flow](docs/analytics-data-flow.md)); not yet enabled on any deployment
 
 Premium distribution is decided in principle (accepted 2026-10-19): [ADR-0025](docs/adr/0025-premium-source-distribution.md)
 compares source archives, private releases and packages, including update and exit

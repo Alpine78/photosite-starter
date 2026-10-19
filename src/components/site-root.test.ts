@@ -1,6 +1,6 @@
 import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { SiteRoot } from "@/components/site-root";
 import { buildLocaleRouteConfig } from "@/lib/locale-routes";
@@ -20,7 +20,11 @@ const config = buildLocaleRouteConfig({
 
 vi.mock("@/lib/deployment-config", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/deployment-config")>(),
-  getDeploymentConfig: () => ({ localeRoutes: config, canonicalBaseUrl: new URL("https://example.test") }),
+  getDeploymentConfig: () => ({
+    localeRoutes: config,
+    canonicalBaseUrl: new URL("https://example.test"),
+    privateGallery: { routePrefix: "private", adminRoutePrefix: "studio-admin" },
+  }),
 }));
 vi.mock("@/lib/static-pages", () => ({ getStaticPageData: seams.staticPage }));
 vi.mock("@/lib/site-settings", async (importOriginal) => ({
@@ -42,6 +46,10 @@ vi.mock("@/components/site-header", () => ({
     ...navigation.map((link) => createElement("a", { key: link.href, href: link.href }, link.label)),
   ),
 }));
+vi.mock("@/components/site-analytics", () => ({
+  SiteAnalytics: ({ policy }: { policy: unknown }) =>
+    createElement("aside", { "data-analytics": JSON.stringify(policy) }),
+}));
 vi.mock("@/components/site-footer", () => ({
   SiteFooter: ({ footerLinks }: { footerLinks: readonly { href: string; label: string }[] }) =>
     createElement("footer", null, ...footerLinks.map((link) =>
@@ -61,6 +69,10 @@ const settings: SiteSettings = {
   copyrightHolder: "Example",
   defaultSeo: { titleTemplate: "%s | Example", titleTemplates: { fi: "%s | Example", en: "%s | Example" }, description: "Example" },
 };
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 beforeEach(() => {
   seams.staticPage.mockReset().mockResolvedValue({ settings });
@@ -91,3 +103,27 @@ for (const locale of ["fi-FI", "en-GB"]) {
     await expect(SiteRoot({ locale, children: "Existing story content" })).rejects.toBe(failure);
   });
 }
+
+it("renders no analytics markup unless a provider is enabled (ADR-0037)", async () => {
+  vi.stubEnv("SITE_DEPLOYMENT_STAGE", "production");
+  const html = renderToStaticMarkup(await SiteRoot({ locale: "fi-FI", children: "Content" }));
+  expect(html).not.toContain("data-analytics");
+});
+
+it("renders no analytics markup outside production even when the setting is inherited", async () => {
+  vi.stubEnv("SITE_DEPLOYMENT_STAGE", "preview");
+  vi.stubEnv("SITE_ANALYTICS", "vercel");
+  const html = renderToStaticMarkup(await SiteRoot({ locale: "fi-FI", children: "Content" }));
+  expect(html).not.toContain("data-analytics");
+});
+
+it("hands the enabled analytics script the deployment's reserved prefixes and locale prefixes", async () => {
+  vi.stubEnv("SITE_DEPLOYMENT_STAGE", "production");
+  vi.stubEnv("SITE_ANALYTICS", "vercel");
+  const html = renderToStaticMarkup(await SiteRoot({ locale: "en-GB", children: "Content" }));
+  const policy = /data-analytics="([^"]*)"/.exec(html)?.[1]?.replaceAll("&quot;", '"');
+  expect(JSON.parse(policy ?? "null")).toEqual({
+    excludedRootSegments: ["client-gallery", "api", "private", "studio-admin"],
+    localePrefixes: ["en"],
+  });
+});
