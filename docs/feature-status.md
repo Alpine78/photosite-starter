@@ -4187,6 +4187,15 @@ records the confirmed environment and checks separately from the remaining
 acceptance observations. This does not verify the protected candidate. AB#141
 remains Active following its earlier New → Active transition; it is not Closed.
 
+### AB#141 — owner confirms remaining physical-device checks (2026-10-19)
+
+The owner reports that all AB#141 lightbox behaviours (tap, double-tap, pinch within
+the ADR-0005 cap, bounded pan, caption out of the way, reset on close) worked on
+iPhone 16 Pro Max, Safari, iOS 26.7.1. The deployment and gallery path were not
+supplied. The [ADR record](adr/0001-lightbox-library.md#2026-10-19-owner-confirmation-of-the-remaining-physical-checks-ab141)
+closes the pending maximum-pinch confirmation. No defect or code change. AB#141 stays
+Active until this record is merged and accepted.
+
 ### AB#117 — authorized webhook-signing maintenance and scoped retirement (2026-10-08)
 
 The owner approved replacing the two signing keys, current-runtime maintenance and

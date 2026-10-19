@@ -344,6 +344,22 @@ maximum-pinch/unchanged-ratio confirmation is still pending. AB#141 remains Acti
 with no defect reported or lightbox code change. The historical automated-vs-physical
 coverage distinction remains valid.
 
+### 2026-10-19 owner confirmation of the remaining physical checks (AB#141)
+
+The owner reports that every AB#141 behaviour worked on a physical **iPhone 16 Pro
+Max**, using **Safari on iOS 26.7.1** (reported by the owner). The report covers
+single-tap chrome toggle; double-tap zoom without cropping or an aspect-ratio change;
+two-finger pinch to a chosen magnification that does not exceed ADR-0005's cap;
+dragged pan staying within the image bounds with no gap; the caption out of the way
+while zoomed; and close resetting zoom and pan without trapping page interaction. No
+defect was reported and no lightbox code changed. This closes the maximum-pinch and
+unchanged-ratio confirmation left pending above.
+
+The owner did not supply the deployment or gallery path for this report, so neither is
+recorded or inferred; it is an owner observation, not an automated gesture test, and
+does not by itself certify a specific build. The historical automated-vs-physical
+coverage distinction remains valid.
+
 ## What implementation found (AB#147 — content-body images)
 
 This ADR framed the wrapper as the gallery grid's single contact surface with the
