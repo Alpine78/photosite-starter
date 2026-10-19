@@ -264,6 +264,8 @@ AB#367 review follow-up, 2026-10-19: selected-section empty and completion messa
 
 AB#368 adds an offline, first-adoption article-end section planner on the reviewed AB#365 contract. It pins supplied raw snapshot bytes/counts, checks selected identities, variants, public eligibility and reference closure, and emits private non-executable evidence only. The task remains Active pending review/merge; actual classification, owner approval, CMS activation and AB#321/27 acceptance remain separate.
 
+AB#369 adds offline pre-write revalidation of an article-end adoption proposal against a second supplied manifest and capture. The baseline digest must match; only snapshot pins and a nondecreasing supplied observation time may differ. Complete scoped records, including advisory references, and all proposed changes must remain identical. Unrelated records may change. The private evidence is not approval, a capture, a writer or proof of live state. Task remains Active pending review and accepted merge; AB#321/27 remain open.
+
 This is a running implementation history and a starting point for finding relevant
 code and decisions. Read the part relevant to the task; the current code and the
 Azure Boards work item are authoritative for scope, acceptance criteria and state.

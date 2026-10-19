@@ -51,6 +51,7 @@
     "plan:identity-aliases": "node scripts/plan-identity-aliases.mts",
     "plan:identity-changes": "node scripts/plan-identity-changes.mts",
     "plan:article-end-sections": "node scripts/plan-article-end-adoption.mts",
+    "revalidate:article-end-sections": "node scripts/revalidate-article-end-adoption.mts",
     "verify:sanity-live": "vitest run --config vitest.live.config.mts",
     "verify:sanity-adapters": "vitest run --config vitest.live-adapters.config.mts",
     "benchmark:keywords": "node scripts/keyword-benchmark.mts",
