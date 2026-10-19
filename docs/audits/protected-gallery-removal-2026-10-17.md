@@ -227,6 +227,58 @@ work. Never drop `privateOnly`/sales restrictions, relax CMS projections, create
 public proof writes, split ZIPs, mutate retained legacy bytes/metadata or silently
 reactivate protected delivery as a recovery action.
 
+## Slice A1 deletion-patch dossier — 2026-10-19
+
+Preparation only. **No file is deleted and no clearance row above is answered.** This
+section records what the later A1 patch would touch so its reviewers need not rediscover
+it. It is bound to `origin/main` at `67e5c8a2c74cbacad207eecc7c33740fb50a88e0`; the
+original audit baseline above is unchanged.
+
+**Source evidence (re-run on that revision).** A tracked-string search for
+`private-gallery-source`, `plan-private-gallery-upload`, `verify-private-gallery-sources`,
+`plan:private-gallery-upload` and `verify:private-upload-sources`, and an import search
+over `scripts`, `src`, `sanity` and `e2e`, show the ten script files below reference only
+each other. Outside them only `package.json`, `README.md` and `docs/deployment.md`
+mention the commands; `AGENTS.md` does not. This is source-import evidence. It does not
+show that no operator, scheduler, pipeline or clone invokes the commands.
+
+| Group | Files |
+| --- | --- |
+| Entry points | `scripts/plan-private-gallery-upload.mts`, `scripts/verify-private-gallery-sources.mts` |
+| Modules | `scripts/private-gallery-source-plan.mts`, `private-gallery-source-files.mts`, `private-gallery-source-verification.mts` |
+| Tests | `scripts/plan-private-gallery-upload.test.mts`, `verify-private-gallery-sources.test.mts`, `private-gallery-source-plan.test.mts`, `private-gallery-source-verification.test.mts`, `private-gallery-source-streaming.test.mts` |
+
+**Edits the deletion patch would also make.**
+
+- `package.json`: remove the `plan:private-gallery-upload` and `verify:private-upload-sources`
+  scripts. No dependency change is expected; recheck whether `sharp` or another package
+  becomes unused only on the actual patch.
+- `README.md`: remove the "independent offline source check" paragraph that names both
+  commands.
+- `docs/deployment.md`: dispose of the whole "Offline private upload source check"
+  subsection (lines 1316-1384 at this revision), not only its two command examples, since
+  its input format, guarantees and future-uploader instructions would otherwise be left
+  describing a missing tool. The only incoming link found is the README paragraph above;
+  recheck anchors on the actual patch.
+
+**Replacement and artifacts.** A1 has no replacement. Retiring the commands removes the
+offline source check for protected-gallery uploads, which ADR-0034 has put out of scope
+for this owner. The selected unlisted and legacy-delivery tools are different workflows
+and are not substitutes. Private plans or reports an operator already produced are
+local files outside this repository; the patch neither reads nor deletes them.
+
+**Recovery.** Reverting the removal commit restores the source and documentation. It does
+not reactivate protected delivery or any service.
+
+**Gates.** This preparation PR needs documentation and link checks only. The deletion
+patch needs the remaining root `npm test` (Vitest already discovers `scripts/**/*.test.mts`),
+`npm run lint` and `npm run build`, plus a fresh run of the searches above.
+
+**Still open for A1** (unchanged from the clearance table): deployment owner, pipeline
+owner, operator and clone-owner confirmation of non-use, and the actual patch's
+architecture/security and Claude review. A review of this documentation does not satisfy
+the patch review.
+
 ## Retained work and recovery limits
 
 GitHub PRs [#446](https://github.com/Alpine78/photosite-starter/pull/446) through
