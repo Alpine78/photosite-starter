@@ -2,7 +2,7 @@
    their existing native fragment/hydration boundary outside containment. */
 .content-reading-intro,
 .content-reading-body,
-.content-reading-nav-column > .content-reading-nav {
+.content-reading-nav-column .content-reading-nav {
   min-inline-size: 0;
   max-inline-size: 48rem;
 }
@@ -13,7 +13,7 @@
 
 .content-reading-layout--centered > .content-reading-intro,
 .content-reading-layout--centered .content-reading-body,
-.content-reading-layout--centered .content-reading-nav-column > .content-reading-nav {
+.content-reading-layout--centered .content-reading-nav-column .content-reading-nav {
   margin-inline: auto;
 }
 
@@ -40,7 +40,7 @@
   min-inline-size: 0;
 }
 
-.content-reading-nav-column > .content-reading-nav {
+.content-reading-nav-column .content-reading-nav {
   margin-block-start: 0;
 }
 
@@ -56,7 +56,7 @@
   @container content-reading-nav (width >= 14rem) and (width < 16rem) {
     /* Keep cold/scriptless navigation in natural flow until the existing
        header has measured and enabled its own sticky enhancement. */
-    body:has(.site-header.sticky) .content-reading-nav-column > .content-reading-nav {
+    body:has(.site-header.sticky) .content-reading-nav-column .content-reading-nav {
       position: sticky;
       top: calc(var(--site-header-offset, 0px) + 1rem);
       max-block-size: calc(100svh - var(--site-header-offset, 0px) - 2rem);
@@ -66,4 +66,481 @@
       scroll-padding-block: 0.5rem;
     }
   }
+}
+
+/* AB#372: the article contents list is the reading-position surface. Its
+   wrappers stay out of layout, so the navigation itself remains the sticky
+   pane of the stretched column exactly like the gallery variant's list. */
+.reading-contents,
+.reading-contents__panel {
+  display: contents;
+}
+
+.reading-contents__bar,
+.reading-contents__sheet-head,
+.reading-contents__backdrop {
+  display: none;
+}
+
+.reading-contents__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.reading-contents__progress {
+  block-size: 2px;
+  margin-block: 0.75rem 0.5rem;
+  background: var(--border);
+}
+
+.reading-contents__progress > i {
+  display: block;
+  block-size: 100%;
+  background: var(--foreground);
+}
+
+.reading-contents__list {
+  position: relative;
+  margin: 0;
+  padding: 0 0 0.5rem;
+  list-style: none;
+}
+
+/* The timeline: one rule, and a dot per top-level section. Read, current and
+   upcoming differ in fill as well as text weight/colour and the "reading now"
+   label, so the state is not carried by colour alone. */
+.reading-contents__list::before {
+  content: "";
+  position: absolute;
+  inset-block: 1rem 1.5rem;
+  inset-inline-start: 5px;
+  inline-size: 1px;
+  background: var(--border);
+}
+
+.reading-contents__list > li {
+  position: relative;
+  padding-inline-start: 1.75rem;
+}
+
+.reading-contents__list > li::before {
+  content: "";
+  position: absolute;
+  inset-block-start: 0.9rem;
+  inset-inline-start: 0;
+  inline-size: 11px;
+  block-size: 11px;
+  border: 1.5px solid var(--border-control);
+  border-radius: 50%;
+  background: var(--surface);
+}
+
+.reading-contents__list > li[data-reading-state="read"]::before {
+  background: var(--border-control);
+}
+
+.reading-contents__list > li[data-reading-state="current"]::before {
+  border-color: var(--foreground);
+  background: var(--foreground);
+  box-shadow: 0 0 0 3px var(--surface), 0 0 0 4px var(--foreground);
+}
+
+.reading-contents__row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.reading-contents__link {
+  display: block;
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  padding-block: 0.5rem;
+  color: var(--foreground);
+  font-size: 0.9375rem;
+  line-height: 1.35;
+  text-decoration: none;
+}
+
+.reading-contents__link:hover > span:first-child {
+  text-decoration: underline;
+  text-decoration-color: var(--border-control);
+  text-underline-offset: 4px;
+}
+
+.reading-contents__list > li[data-reading-state="read"] > .reading-contents__row > .reading-contents__link {
+  color: var(--muted);
+}
+
+.reading-contents__list > li[data-reading-state="current"] > .reading-contents__row > .reading-contents__link {
+  font-weight: 600;
+}
+
+.reading-contents__toggle {
+  flex: none;
+  min-inline-size: 2rem;
+  min-block-size: 2rem;
+  border-radius: 0.25rem;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.reading-contents__toggle:hover {
+  background: var(--surface-hover);
+  color: var(--foreground);
+}
+
+.reading-contents__sub {
+  margin: 0;
+  padding: 0 0 0.5rem;
+  list-style: none;
+}
+
+.reading-contents__sub .reading-contents__sub {
+  padding-inline-start: 0.75rem;
+}
+
+.reading-contents__sub .reading-contents__link {
+  margin-inline-start: -0.75rem;
+  padding: 0.4375rem 0.75rem;
+  border-radius: 0.25rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+
+.reading-contents__sub .reading-contents__link:hover {
+  background: var(--surface-hover);
+  color: var(--foreground);
+}
+
+.reading-contents__sub .reading-contents__link:has([aria-current]) {
+  background: var(--surface-muted);
+  box-shadow: inset 2px 0 0 var(--foreground);
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.reading-contents__now {
+  display: block;
+  margin-block-start: 1px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.reading-contents__footer {
+  margin-block-start: 0.25rem;
+  padding-block-start: 1rem;
+  border-block-start: 1px solid var(--border);
+}
+
+.reading-settings__switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.875rem;
+  min-block-size: 2.75rem;
+  color: var(--foreground);
+  font-size: 0.9375rem;
+  cursor: pointer;
+}
+
+/* A native checkbox drawn as a switch: the knob position, not only its
+   colour, shows the state, and forced colours fall back to the system box. */
+.reading-settings__switch input {
+  position: relative;
+  flex: none;
+  inline-size: 2.5rem;
+  block-size: 1.5rem;
+  margin: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 0.75rem;
+  background: var(--border-control);
+  appearance: none;
+  cursor: pointer;
+}
+
+.reading-settings__switch input::before {
+  content: "";
+  position: absolute;
+  inset-block-start: 2px;
+  inset-inline-start: 2px;
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+  border-radius: 50%;
+  background: var(--surface);
+  transition: transform 0.2s;
+}
+
+.reading-settings__switch input:checked {
+  border-color: var(--foreground);
+  background: var(--foreground);
+}
+
+.reading-settings__switch input:checked::before {
+  transform: translateX(1rem);
+}
+
+.reading-settings__switch input:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reading-settings__switch input::before {
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .reading-settings__switch input {
+    appearance: auto;
+    inline-size: auto;
+    block-size: auto;
+  }
+
+  .reading-settings__switch input::before {
+    content: none;
+  }
+}
+
+.reading-settings__clear {
+  padding-block: 0.25rem;
+  color: var(--muted);
+  text-decoration: underline;
+  text-decoration-color: var(--border-control);
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
+/* Below the two-column width the list is not page navigation chrome but the
+   story's own: a sticky bar under the site header names the current chapter
+   and opens the same list as a bottom sheet. The scriptless fallback in the
+   component restores the complete inline list instead. */
+@media (width < 64rem) {
+  /* Reserve the bar in native fragment and focus scrolling (globals.css). */
+  html:has(.content-reading-row--reading) {
+    --reading-bar-height: 3.5rem;
+  }
+
+  .content-reading-row--reading > .content-reading-nav-column {
+    position: sticky;
+    top: var(--site-header-offset, 0px);
+    z-index: 10;
+    margin-inline: -1rem;
+    container-type: normal;
+  }
+
+  .content-reading-row--reading > .content-reading-nav-column:has(.reading-contents--open) {
+    z-index: 30;
+  }
+
+  .reading-contents__bar {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    inline-size: 100%;
+    min-block-size: 3.5rem;
+    padding: 0.5rem 1rem;
+    border-block-end: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--foreground);
+    text-align: start;
+    cursor: pointer;
+  }
+
+  .reading-contents__bar::after {
+    content: "";
+    position: absolute;
+    inset-block-end: -1px;
+    inset-inline-start: 0;
+    block-size: 2px;
+    inline-size: var(--reading-progress, 0%);
+    background: var(--foreground);
+  }
+
+  .reading-contents__bar-text {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-inline-size: 0;
+    line-height: 1.3;
+  }
+
+  .reading-contents__bar-text > small {
+    color: var(--muted);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .reading-contents__bar-text > span {
+    overflow: hidden;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .reading-contents__bar > em {
+    color: var(--muted);
+    font-size: 0.8125rem;
+    font-style: normal;
+  }
+
+  .reading-contents__panel {
+    display: none;
+  }
+
+  .reading-contents--open .reading-contents__backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    background: color-mix(in oklab, var(--background) 75%, transparent);
+  }
+
+  .reading-contents--open .reading-contents__panel {
+    position: fixed;
+    inset-inline: 0;
+    inset-block-end: 0;
+    z-index: 41;
+    display: flex;
+    flex-direction: column;
+    max-block-size: 82svh;
+    border: 1px solid var(--border);
+    border-block-end: 0;
+    border-radius: 1rem 1rem 0 0;
+    background: var(--surface);
+    box-shadow: 0 -10px 40px color-mix(in oklab, var(--foreground) 20%, transparent);
+  }
+
+  .reading-contents--open .reading-contents__sheet-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.25rem 0.75rem;
+  }
+
+  .reading-contents__sheet-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+  }
+
+  .reading-contents__close {
+    display: grid;
+    flex: none;
+    place-items: center;
+    inline-size: 2.75rem;
+    block-size: 2.75rem;
+    margin-inline-end: -0.625rem;
+    cursor: pointer;
+  }
+
+  .reading-contents--open .content-reading-nav {
+    flex: 1 1 auto;
+    max-inline-size: none;
+    min-block-size: 0;
+    margin: 0;
+    padding: 0 1.25rem;
+    overflow: auto;
+    overscroll-behavior: contain;
+    border: 0;
+  }
+
+  .reading-contents--open .reading-contents__head,
+  .reading-contents--open .reading-contents__progress {
+    display: none;
+  }
+
+  .reading-contents--open .reading-contents__footer {
+    position: sticky;
+    inset-block-end: 0;
+    padding-block: 0.875rem 1.25rem;
+    background: var(--surface);
+  }
+
+  .reading-contents--open .reading-contents__link {
+    min-block-size: 2.75rem;
+  }
+
+  .reading-contents--open .reading-contents__toggle {
+    min-inline-size: 2.75rem;
+    min-block-size: 2.75rem;
+  }
+}
+
+@media (width >= 40rem) and (width < 64rem) {
+  .content-reading-row--reading > .content-reading-nav-column {
+    margin-inline: -1.5rem;
+  }
+
+  .reading-contents__bar {
+    padding-inline: 1.5rem;
+  }
+}
+
+/* AB#372: shown once after an automatic restore. The persistent live region
+   stays an empty in-flow element; only the visible panel is fixed, and it
+   exists only while there is something to say (a permanently fixed empty
+   region measurably moved WebKit's scroll position during hydration). */
+.reading-resume__panel {
+  position: fixed;
+  inset-inline: 0.75rem;
+  inset-block-end: 1rem;
+  z-index: 35;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem 1.25rem;
+  inline-size: fit-content;
+  max-inline-size: calc(100% - 1.5rem);
+  margin-inline: auto;
+  padding: 0.625rem 0.375rem 0.625rem 1.25rem;
+  border-radius: 0.875rem;
+  background: var(--accent);
+  box-shadow: 0 10px 30px color-mix(in oklab, var(--foreground) 25%, transparent);
+  color: var(--accent-foreground);
+  font-size: 0.9375rem;
+}
+
+.reading-resume__text {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+.reading-resume__actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.reading-resume__button {
+  min-block-size: 2.75rem;
+  padding-inline: 0.875rem;
+  border-radius: 999px;
+  color: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.reading-resume__button:hover {
+  background: color-mix(in oklab, var(--accent-foreground) 18%, transparent);
+}
+
+.reading-resume__button:focus-visible {
+  outline-color: var(--accent-foreground);
+}
+
+.reading-resume__dismiss {
+  inline-size: 2.75rem;
+  padding: 0;
+  font-size: 1.125rem;
 }

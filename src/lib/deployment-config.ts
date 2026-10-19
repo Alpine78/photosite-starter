@@ -582,6 +582,20 @@ export type BuiltInLabels = {
     readonly updated: string;
     readonly failure: string;
     readonly javascript: string;
+    /** AB#372: the contents list footer's short device-only retention note. */
+    readonly note: string;
+    /** `{percent}` is replaced with a whole number. */
+    readonly progress: string;
+    readonly readingNow: string;
+    /** Accessible name prefix of a sub-heading disclosure, followed by the heading. */
+    readonly subsections: string;
+    /** Plural forms of the section count; `{count}` is replaced. */
+    readonly sections: { readonly one: string; readonly other: string };
+    readonly open: string;
+    readonly close: string;
+    /** `{chapter}` is replaced with the restored heading's text. */
+    readonly resumed: string;
+    readonly backToStart: string;
   };
   /**
    * The article content-page variant only (AB#151) — a curated gallery has no
@@ -1071,12 +1085,21 @@ const englishLabels = {
   readingPosition: {
     heading: "Reading preferences",
     description: "Remember the article, language, chapter and save time on this device for up to 90 days. Nothing is synchronized; your browser may clear saved places sooner.",
-    remember: "Remember my reading position",
-    clear: "Clear saved reading positions",
+    remember: "Remember reading position",
+    clear: "Clear",
     cleared: "Saved reading positions cleared.",
     updated: "Reading preference updated.",
     failure: "Your browser could not save this change. Check the option shown here; saved places or settings may return after reopening.",
     javascript: "Reading preferences require JavaScript. You can read the article without it.",
+    note: "Saved only in this browser for up to 90 days: the article, language and chapter. Your browser may remove it sooner.",
+    progress: "{percent}% read",
+    readingNow: "Reading now",
+    subsections: "Subsections",
+    sections: { one: "{count} section", other: "{count} sections" },
+    open: "Open",
+    close: "Close",
+    resumed: "Continuing where you left off: {chapter}",
+    backToStart: "Back to the start",
   },
   article: {
     byline: "By {author}",
@@ -1497,12 +1520,21 @@ const finnishLabels = {
   readingPosition: {
     heading: "Lukemisen asetukset",
     description: "Artikkeli, kieli, luku ja tallennusaika muistetaan tällä laitteella enintään 90 päivää. Tietoja ei synkronoida; selaimesi voi poistaa tallennetut paikat aiemmin.",
-    remember: "Muista lukupaikkani",
-    clear: "Tyhjennä tallennetut lukupaikat",
+    remember: "Muista lukukohta",
+    clear: "Tyhjennä",
     cleared: "Tallennetut lukupaikat tyhjennetty.",
     updated: "Lukemisen asetus päivitetty.",
     failure: "Selaimesi ei voinut tallentaa muutosta. Tarkista tässä näkyvä asetus; tallennetut paikat tai asetukset voivat palata uudelleen avattaessa.",
     javascript: "Lukemisen asetukset tarvitsevat JavaScriptin. Voit lukea artikkelin ilmankin.",
+    note: "Tallennetaan vain tähän selaimeen enintään 90 päiväksi: artikkeli, kieli ja luku. Selain voi poistaa sen aiemmin.",
+    progress: "{percent} % luettu",
+    readingNow: "Luet nyt",
+    subsections: "Alaotsikot",
+    sections: { one: "{count} osio", other: "{count} osiota" },
+    open: "Avaa",
+    close: "Sulje",
+    resumed: "Jatkat siitä mihin jäit: {chapter}",
+    backToStart: "Tarinan alkuun",
   },
   article: {
     byline: "Kirjoittanut {author}",

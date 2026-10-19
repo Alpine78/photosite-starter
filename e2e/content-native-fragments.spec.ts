@@ -6,6 +6,7 @@ import { mockContentTreeInputs } from "../src/lib/mock-content-tree";
 import { getBuiltInLabels } from "../src/lib/deployment-config";
 import { appUnderTestEnvironment, DEFAULT_STORY_NAMESPACE, HARNESS_BASE_URL, PREFIXED_LOCALE } from "./support/harness-environment";
 import { test, expect } from "./support/fixtures";
+import { revealContents } from "./support/reading-contents";
 
 const query = "?tag=a%2Fb&tag=two+words&unused=%23keep";
 const locales = [new Intl.Locale(appUnderTestEnvironment.SITE_LOCALE).language, PREFIXED_LOCALE.prefix];
@@ -113,7 +114,7 @@ for (const language of locales) {
     const [initial, next] = article.headings;
     await page.goto(`${article.path}${query}#${initial.id}`, { waitUntil: "load" });
     await ready(page, article.labels.theme.darkTheme);
-    const link = page.getByRole("navigation", { name: article.labels.contentTree.onThisPage }).locator(`a[href='#${next.id}']`);
+    const link = (await revealContents(page, article.labels.contentTree.onThisPage)).locator(`a[href='#${next.id}']`);
     await link.focus(); await page.keyboard.press("Enter");
     await expectAddress(page, article.path, next.id);
   });

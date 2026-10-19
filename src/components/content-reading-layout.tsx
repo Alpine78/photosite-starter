@@ -18,10 +18,11 @@ export function ContentReadingLayout({
   readonly children: ReactNode;
 }) {
   const hasNavigation = hasContentPageJumpNav(navigation.headings, navigation.leadingLink);
+  const readingBar = hasNavigation && navigation.readingContents !== undefined && navigation.leadingLink === undefined;
   return (
     <div className={`content-reading-layout${centered ? " content-reading-layout--centered" : ""}`}>
       {intro !== undefined && <div className="content-reading-intro">{intro}</div>}
-      <div className={`content-reading-row${hasNavigation ? " content-reading-row--with-nav" : ""}`}>
+      <div className={`content-reading-row${hasNavigation ? " content-reading-row--with-nav" : ""}${readingBar ? " content-reading-row--reading" : ""}`}>
         {hasNavigation && (
           <div className="content-reading-nav-column">
             <ContentPageJumpNav {...navigation} />

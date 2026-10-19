@@ -107,6 +107,28 @@ Settings changes cancel pending restoration and lock saving until new deliberate
 input. Cross-tab disable/clear events also lock the observer; last-writer-wins
 storage remains best effort. No data is transmitted to a server or third party.
 
+### Reading-position interface (AB#372)
+
+The owner's Claude Design "Tarina hi-fi" (frames 01–05) moved the visible
+controls into the article contents list. The list shows percent read, a
+timeline of read/current/upcoming top-level sections and the current chapter's
+expanded sub-headings with a "reading now" marker; other sections' sub-lists
+open on demand. The remember switch, the device-only retention note and clear
+sit in the list footer. Below 64rem a sticky bar under the site header names the
+current chapter, section index and percent, and opens the same navigation
+landmark as a modal bottom sheet with focus containment and Escape. Following a
+link closes the sheet and lets native fragment navigation proceed. Without
+script, the complete inline list remains and the bar is hidden.
+
+Current-chapter state uses the same geometry as the saved chapter, so the
+list never marks a different chapter than the one stored. An automatic restore
+dispatches one event that a bottom status uses to name the chapter and offer the
+start of the story; it closes after eight seconds unless hovered or focused and
+never moves focus by itself. Choosing the start moves focus to the page title
+only when focus was in the notice. Articles without a heading list keep the
+previous settings disclosure. Storage, eligibility and precedence rules above
+are unchanged.
+
 Verification uses the production harness and synthetic content, including
 Chromium/WebKit desktop/mobile emulation, delayed-script scrolling, real
 keyboard/wheel input, actual native Back, FI/EN isolation, image/font layout,
