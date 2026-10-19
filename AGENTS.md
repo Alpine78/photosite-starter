@@ -317,6 +317,7 @@ npm run reconcile:joomla-intro -- --out <recovery-dir> --approved-digest <hash> 
 npm run reconcile:identities -- --map <map.json> --approval <approval.json> --baseline <original.ndjson> --snapshot <current.ndjson> --approved-digest <hash> --out <private-dir> # offline identity reconciliation; report only, never writes CMS
 npm run plan:identity-changes -- --map <map.json> --approval <approval.json> --baseline <original.ndjson> --snapshot <current.ndjson> --approved-digest <hash> --out <private-dir> # offline revision-bound change batches; never writes CMS
 npm run plan:article-end-sections -- --manifest <private.json> --snapshot <complete-raw.ndjson> --out <new-private-directory> # offline first-adoption evidence only; never writes CMS
+npm run revalidate:article-end-sections -- --baseline-manifest <private.json> --baseline-snapshot <raw.ndjson> --baseline-digest <sha256> --current-manifest <private.json> --current-snapshot <raw.ndjson> --out <new-private-directory> # offline pre-write comparison only; never writes CMS
 npm run admin:secret # owner-run: generate the private-gallery administrator credential (ADR-0015 §4)
 ```
 
