@@ -6149,6 +6149,16 @@ readyToDelete and readyToWrite always remain false. See
 [the inventory workflow](gallery-removal-impact.md). AB#326 is Active pending
 owner review/merge; source/operator removal acceptance and AB#29 remain open.
 
+### AB#43 — asset inventory currency check (2026-10-19, Active)
+
+A comparison of direct `package.json` and `studio/package.json` dependencies with
+`docs/asset-inventory.md` found six not individually recorded: root `vitest`,
+`@playwright/test`, `tailwindcss` and `@tailwindcss/postcss`, and Studio
+`@dnd-kit/core` and `groq-js`. All six are now listed with the lockfile version,
+declared licence and need. No new dependency was added; no sample-photograph,
+contribution-policy or commercial-use finding changed. AB#43 stays Active, and the
+package-count tables were not recomputed.
+
 ### AB#313 — Inactive protected-gallery removal audit (2026-10-17, Active)
 
 The [removal-readiness audit](audits/protected-gallery-removal-2026-10-17.md)
