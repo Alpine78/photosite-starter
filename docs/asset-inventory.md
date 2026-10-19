@@ -201,6 +201,19 @@ into a build error. Its bytes therefore never reach a browser by construction, s
 not cross the redistribution line drawn above. Its MIT notice would apply if the
 distribution model ever changed to shipping the dependency tree.
 
+**Root development tooling not individually named above (AB#43 currency check,
+2026-10-19).** Versions and licence declarations are those in `package-lock.json`;
+none is copied into the repository or served to browsers as a package, and each is
+covered by the licence distribution below.
+
+| Package | Locked version | License | Need |
+| --- | --- | --- | --- |
+| `vitest` | 4.1.11 | MIT | Browser-free TypeScript test runner (CI gate) |
+| `@playwright/test` | 1.63.0 | Apache-2.0 | Public-journey tests run against a production build |
+| `tailwindcss`, `@tailwindcss/postcss` | 4.1.18 | MIT | Build-time CSS generation |
+
+The package counts below are an older audited snapshot and are not recomputed here.
+
 394 packages are installed in the audited Windows x64 dependency tree. Platform-specific
 optional packages for other targets remain recorded in `package-lock.json` but are not
 included in this installed-tree count. Licence distribution:
@@ -353,8 +366,10 @@ dependency tree. Direct dependencies and verified package license declarations:
 | `@sanity/image-url` | 2.1.1 | MIT | Bounded full-frame editor thumbnails; already present transitively |
 | `@sanity/locale-fi-fi` | 1.1.40 | MIT | Optional Finnish core-UI language choice (AB#255); authored content and project interface text remain separate |
 | `react`, `react-dom` | 19.3.0 | MIT | Sanity's required compatible React runtime |
+| `@dnd-kit/core` | 6.3.1 | MIT | Already installed through Sanity; declared directly so the Studio build aliases its drag context to a localized wrapper (AB#255, `studio/localized-dnd-context.tsx`) |
 | `styled-components` | 6.5.3 | MIT | Sanity's required styling peer |
 | `typescript` | 7.0.2 | Apache-2.0 | Independent Studio type check |
+| `groq-js` | 2.0.0 | MIT | Development dependency: evaluates Studio GROQ query-contract tests (`studio/*.test.ts`); not part of the Studio bundle |
 | `@types/node` | 24.10.9 | MIT | Studio configuration/tool types |
 | `@types/react`, `@types/react-dom` | 19.2.14 / 19.2.3 | MIT | Studio component types |
 | `braces` | vendored 3.0.4-photosite.1 | MIT | Existing repository security fork, reused as the transitive override |
