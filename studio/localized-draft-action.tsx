@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useClient, useCurrentLocale, type DocumentActionComponent, type DocumentActionProps } from "sanity";
 import { createLocalizedDraftPort } from "./localized-draft-port";
+import { transactionSyncLocked } from "./editor-lock";
 import { studioSettings } from "./environment";
 import { localizedDraftActionCopy, localizedDraftNotice } from "./localized-draft-action-copy";
 import {
@@ -26,7 +27,7 @@ function LanguageDraftDialog({ props, onClose }: { props: DocumentActionProps; o
   const resultRef = useRef<HTMLParagraphElement>(null);
   const errorRef = useRef<HTMLParagraphElement>(null);
   const sourceSnapshot = documentSnapshot(source);
-  const available = !!source && !props.version && !props.release && !props.transactionSyncLock && props.ready;
+  const available = !!source && !props.version && !props.release && !transactionSyncLocked(props.transactionSyncLock) && props.ready;
   const availableRef = useRef(available);
   const portRef = useRef<ReturnType<typeof createLocalizedDraftPort> | null>(null);
   // Imperative guards must observe committed editor props, never a render
@@ -118,7 +119,7 @@ export const CreateLanguageVersionAction: DocumentActionComponent = (props) => {
   if (!["article", "gallery"].includes(props.type)) return null;
   return {
     label: copy.action,
-    disabled: !props.ready || !!props.version || !!props.release || !!props.transactionSyncLock || !(props.draft ?? props.published),
+    disabled: !props.ready || !!props.version || !!props.release || transactionSyncLocked(props.transactionSyncLock) || !(props.draft ?? props.published),
     onHandle: () => setOpen(true),
     dialog: open ? {
       type: "dialog", header: copy.action, onClose: () => setOpen(false),

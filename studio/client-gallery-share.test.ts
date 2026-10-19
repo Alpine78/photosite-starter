@@ -32,10 +32,11 @@ describe("published-only URL handoff", () => {
   it("takes only the published handle, regardless of pending draft fields", () => {
     const edited = { ...state, draft: { ...published, handle: "b".repeat(32), available: false } };
     expect(publishedClientGalleryHandle(edited)).toBe(handle);
+    expect(publishedClientGalleryHandle({ ...state, transactionSyncLock: { enabled: false } })).toBe(handle); // Sanity's idle lock state.
     const paused = { ...state, published: { ...published, available: false, expiryInstant: "2020-01-01T00:00:00Z" } };
     expect(publishedClientGalleryHandle(paused)).toBe(handle); // URL identity is not availability.
   });
-  it.each([{ ready: false }, { type: "legacyDeliveryGallery" }, { published: null }, { published: [] }, { published: { ...published, _id: "other" } }, { published: { ...published, _type: "gallery" } }, { id: "drafts.client-one", published: { ...published, _id: "drafts.client-one" } }, { id: "versions.release.client-one", published: { ...published, _id: "versions.release.client-one" } }, { release: "release" }, { version: {} }, { transactionSyncLock: {} }])("refuses unavailable or foreign editor state %#", (patch) => {
+  it.each([{ ready: false }, { type: "legacyDeliveryGallery" }, { published: null }, { published: [] }, { published: { ...published, _id: "other" } }, { published: { ...published, _type: "gallery" } }, { id: "drafts.client-one", published: { ...published, _id: "drafts.client-one" } }, { id: "versions.release.client-one", published: { ...published, _id: "versions.release.client-one" } }, { release: "release" }, { version: {} }, { transactionSyncLock: {} }, { transactionSyncLock: { enabled: true } }])("refuses unavailable or foreign editor state %#", (patch) => {
     expect(publishedClientGalleryHandle({ ...state, ...patch })).toBeUndefined();
   });
   it.each([handle, "0".repeat(32), "f".repeat(32), "A".repeat(32), "a".repeat(31), "a".repeat(33), handle + "\n", "ä".repeat(32), "a/../b", ""])("matches the real reader's exact handle contract %#", (candidate) => {

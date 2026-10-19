@@ -1,4 +1,5 @@
 /** Pure URL handoff; no CMS client, mutations, credentials or browser globals. */
+import { transactionSyncLocked } from "./editor-lock";
 export type ClientGallerySite = Readonly<{ origin: string; locales: readonly string[] }>;
 export function clientGallerySiteOrigin(value: string | undefined): string | undefined {
   if (value === undefined || value === "") return undefined;
@@ -17,7 +18,7 @@ export function publishedClientGalleryHandle(state: {
   version?: unknown; release?: unknown; transactionSyncLock?: unknown;
 }): string | undefined {
   if (state.type !== "clientDeliveryGallery" || state.ready !== true || state.version != null ||
-    state.release !== undefined || state.transactionSyncLock != null) return undefined;
+    state.release !== undefined || transactionSyncLocked(state.transactionSyncLock)) return undefined;
   const source = state.published;
   if (!source || typeof source !== "object" || Array.isArray(source)) return undefined;
   const document = source as Record<string, unknown>;
