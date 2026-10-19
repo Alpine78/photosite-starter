@@ -1,8 +1,8 @@
 # ADR-0037: Cookieless site analytics as an opt-in adapter
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-19
-**Deciders:** Project owner (acceptance pending)
+**Deciders:** Project owner (accepted 2026-10-19; the open assumptions below remain implementation checks)
 **Work item:** AB#371
 
 ## Context
@@ -68,7 +68,7 @@ Repository rules that bound the decision:
 
 ## Decision
 
-Proposed: provide site analytics as an **optional adapter that is off by default**,
+Provide site analytics as an **optional adapter that is off by default**,
 with **Vercel Web Analytics** as the reference deployment's provider.
 
 1. **Opt-in.** One server-side setting enables it. Development, Preview and the
@@ -94,7 +94,7 @@ with **Vercel Web Analytics** as the reference deployment's provider.
 
 | Option                                      | Cost                              | Cookies           | Infra the owner runs | Verdict                                                                           |
 | ------------------------------------------- | --------------------------------- | ----------------- | -------------------- | --------------------------------------------------------------------------------- |
-| Vercel Web Analytics (opt-in adapter)       | Within Pro credit at expected use | None (per vendor) | None                 | Proposed                                                                          |
+| Vercel Web Analytics (opt-in adapter)       | Within Pro credit at expected use | None (per vendor) | None                 | Chosen                                                                            |
 | Plausible cloud                             | Paid subscription                 | None              | None                 | Rejected: owner will not pay                                                      |
 | Umami or Plausible self-hosted              | Hosting plus database             | None              | Server and database  | Rejected: owner excluded servers and databases                                    |
 | GoatCounter hosted service                  | Donation-based                    | None              | None                 | Not evaluated: terms (including commercial use) unverified, third-party-run       |
@@ -131,7 +131,7 @@ with **Vercel Web Analytics** as the reference deployment's provider.
 
 ## Action Items
 
-1. [ ] Owner accepts or amends this ADR; status becomes `Accepted`.
+1. [x] Owner accepts this ADR (2026-10-19); status is `Accepted`.
 2. [ ] Verify the CSP and cookie/storage assumptions against a production build.
 3. [ ] Implement the pure decision module, the opt-in component and its tests.
 4. [ ] Write `docs/analytics-data-flow.md`; update `docs/asset-inventory.md`,
