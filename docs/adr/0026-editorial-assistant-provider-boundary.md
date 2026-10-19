@@ -1,8 +1,9 @@
 # ADR-0026: Provider-neutral editorial suggestions
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-05
-**Deciders:** Project owner, pending acceptance
+**Accepted:** 2026-10-19
+**Deciders:** Project owner (Ilkka Rytkönen)
 **Work item:** AB#126
 
 ## Context
@@ -159,6 +160,27 @@ server-only. Environment-specific IaC and pipeline stages must reproduce resourc
 identity, secret isolation, budgets and evaluation settings without credentials in
 public PR jobs. Run the normal repository gates on each implementation slice.
 
+## Owner decision — 2026-10-19
+
+The owner accepted the author-initiated, suggestion-only boundary: no text is applied
+without an explicit author acceptance, and a provider-neutral port keeps the model
+replaceable. Microsoft Foundry is confirmed as the default provider. The owner
+confirmed AB#125's authoring integration comes first and that the provider's
+data-processing agreement, deployment geography and retention are reviewed before
+enablement.
+
+- **Text classes that may leave the CMS:** articles, service texts, gallery texts,
+  image captions and alternative text. Images and image bytes never leave. Per this
+  ADR's boundary, shared media alt and caption text is not changed through a page
+  request; it needs the separately authorized media-text request described above.
+- **Monthly spend cap:** €15 per month, as the configured site-wide limit that the
+  atomic reservation enforces; the feature stays off if no cap is configured.
+- **Evaluation:** the owner is the accountable reviewer of the Finnish/English dataset,
+  rubrics and thresholds, which must be agreed and recorded before enablement.
+
+Acceptance does not add an SDK, infrastructure, credential, endpoint or UI, does not
+finish AB#126 or its AB#125 prerequisite, and enables nothing.
+
 ## Options Considered
 
 | Option | Benefit | Cost / reason |
@@ -183,7 +205,8 @@ and a deterministic adapter alone cannot establish usable translation quality.
 
 ## Action Items
 
-1. Owner accepts/revises this proposal and completes AB#125's authoring integration.
+1. ~~Owner accepts/revises this proposal~~ (accepted 2026-10-19) and completes AB#125's
+   authoring integration.
 2. Implement the neutral port, allowlist/session and conditional-acceptance contract
    with deterministic and fault-injecting adapters; review Studio authorization.
 3. Agree the versioned evaluation dataset and thresholds; select/reverify GA API,

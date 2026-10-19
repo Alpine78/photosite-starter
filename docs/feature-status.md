@@ -3940,6 +3940,18 @@ customization baselines, and records a synthetic WSL three-way merge experiment
 (including conflicts and CRLF). Native Windows delivery remains unverified. AB#42
 and this decision still need acceptance; no Premium artifact or service is built.
 
+**Owner decisions on post-MVP ADRs, 2026-10-19 (AB#42, AB#44, AB#126, AB#127, all Active):**
+the owner accepted [ADR-0024](adr/0024-free-core-and-premium-boundary.md) (Free Core
+boundary; price and demand remain with AB#45), [ADR-0025](adr/0025-premium-source-distribution.md)
+(manual ZIP delivery from owner-controlled cloud storage, migration threshold decided
+later; a Windows verification procedure was added and has not been run) and
+[ADR-0026](adr/0026-editorial-assistant-provider-boundary.md) (suggestion-only editorial
+assistant; €15 monthly cap, text classes including captions and alt text, AB#125 first).
+[ADR-0027](adr/0027-public-chat-and-knowledge-boundary.md) was **deferred** and stays
+Proposed, with the owner's provisional answers recorded. No Premium artifact, AI port,
+SDK, provider, infrastructure or chat feature exists; acceptance builds none of them,
+and each ticket stays Active for its remaining criteria.
+
 **Commercial terms preparation, 2026-10-05 (AB#49, Active):** the
 [requirements worksheet](commercial-policy-requirements.md) maps separate
 software/digital delivery and service/bundle classification, MIT and third-party

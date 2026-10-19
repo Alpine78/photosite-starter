@@ -675,7 +675,7 @@ to Sanity; ordinary changes stay in Studio.
 - Service-specific testimonials
 - Cookieless analytics
 
-Premium distribution remains a proposal: [ADR-0025](docs/adr/0025-premium-source-distribution.md)
+Premium distribution is decided in principle (accepted 2026-10-19): [ADR-0025](docs/adr/0025-premium-source-distribution.md)
 compares source archives, private releases and packages, including update and exit
 responsibility. No paid delivery service is implemented.
 
