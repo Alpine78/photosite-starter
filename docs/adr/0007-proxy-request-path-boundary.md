@@ -505,6 +505,31 @@ does not renew it. A new owner decision with impact, reason, review date and fol
 item, or a released fix, is still needed before AB#18 promotion. AB#132 stays Active;
 no application code, Proxy or test marker changed.
 
+## 2026-10-19 owner-renewed temporary residual risk (AB#132)
+
+**Status: Accepted again, limited to the temporary residual described below.** After
+the October 18 recheck above, the owner stated in this session that they accept the
+residual for two months (“Hyväksyn, vaikka 2kk nyt alkuun”). This renews the
+October 7 acceptance, whose October 8 review date had passed, and replaces that
+review date. The measured failures and the wider ADR's status are preserved.
+
+- **Impact:** unchanged from the October 7 decision. Without JavaScript, an unknown
+  public URL or refused gallery continuation returns HTTP 404 with the empty
+  `__next_error__` shell, no rendered h1 and no required gallery return link;
+  scriptless crawlers receive no semantic recovery content. JavaScript-enabled
+  recovery controls pass.
+- **Reason:** as recorded on October 7 and rechecked on October 18, no supported,
+  bounded remedy exists within the retained O(1), adapter-read-free Proxy contract;
+  the upstream reports and candidate fixes were still open. The owner supplied the
+  two-month period but no further reason, and none is inferred here.
+- **Review:** **2026-12-19**, or sooner if a supported upstream fix is released.
+  Retest the exact candidate and the current Next.js release before then.
+- **Follow-up:** [AB#370](https://dev.azure.com/ilkkarytkonen/62b19d48-11f0-4c5a-a41b-58913c123cfd/_workitems/edit/370)
+  tracks the December review. AB#132 remains Active for the semantic fix; keep the
+  expected-failure markers and JavaScript-enabled exceptions until both scriptless
+  probes and recovery controls pass. This acceptance does not close the story or
+  approve any other AB#18 launch gate.
+
 ## 2026-10-18 maintenance matcher amendment (AB#341)
 
 This scoped amendment implements [ADR-0031's accepted maintenance policy](0031-identity-migration-operational-plan.md#4-rehearsal-and-production-sequence).
