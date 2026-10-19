@@ -64,9 +64,9 @@ Two conventions on top of the template:
 | [0021](0021-localized-static-service-routes.md) | AB#164 | Localized static service routes and service hierarchy | Accepted |
 | [0022](0022-capture-sequence-rally-galleries.md) | AB#165 | Capture-sequence rally galleries: media-owned membership, filename-sequence order and section, no placement documents, `itemId = mediaId`; file naming/import contract and per-gallery conversion preconditions (amends ADR-0002 in scope) | Accepted |
 | [0023](0023-customer-customization-and-upstream-updates.md) | AB#41 | Customer customization and upstream update boundary | Proposed |
-| [0024](0024-free-core-and-premium-boundary.md) | AB#42 | Free Core and Premium product boundary | Proposed |
-| [0025](0025-premium-source-distribution.md) | AB#44 | Separate Premium source archives and later private release delivery; no runtime entitlement check | Proposed |
-| [0026](0026-editorial-assistant-provider-boundary.md) | AB#126 | Provider-neutral editorial suggestions, independent text acceptance, server authorization and two-tier evaluation | Proposed |
+| [0024](0024-free-core-and-premium-boundary.md) | AB#42 | Free Core and Premium product boundary | Accepted |
+| [0025](0025-premium-source-distribution.md) | AB#44 | Separate Premium source archives and later private release delivery; no runtime entitlement check | Accepted |
+| [0026](0026-editorial-assistant-provider-boundary.md) | AB#126 | Provider-neutral editorial suggestions, independent text acceptance, server authorization and two-tier evaluation | Accepted |
 | [0027](0027-public-chat-and-knowledge-boundary.md) | AB#127 | Optional grounded public chat, authoritative eligibility, synchronization, privacy and budget boundaries | Proposed |
 | [0028](0028-legacy-unlisted-gallery-continuity.md) | AB#18 / AB#117 | Owner-accepted public Sanity delivery for 21 unlisted legacy galleries; 2026-10-14 scoped whole-ZIP support exception, protected workflow remains separate | Accepted; unlisted workflow direction extended by ADR-0034 |
 | [0029](0029-localized-home-and-contact-pages.md) | AB#255 (first slice) | Locale-owned home/contact routes, authored-copy availability and exact static language switching | Accepted |

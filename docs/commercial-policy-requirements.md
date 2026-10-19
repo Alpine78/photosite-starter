@@ -5,8 +5,8 @@ operative terms or permission to start selling.
 **Evidence checked:** 2026-10-05. Recheck law and guidance before offering payment.
 
 AB#45 has not validated a segment or offer; its existing
-[offer-validation plan](offer-validation.md) supplies the interview/evidence process. ADR-0024's Free Core/Premium split is
-Proposed. This worksheet prepares the questions and evidence needed for AB#49;
+[offer-validation plan](offer-validation.md) supplies the interview/evidence process. ADR-0024's Free Core/Premium split was
+accepted on 2026-10-19. This worksheet prepares the questions and evidence needed for AB#49;
 it does not choose prices, seller identity, customer classification or a payment
 provider. AB#49 stays Active until qualified review and the other acceptance work
 are actually complete. A reviewed draft is not a completed legal launch gate.

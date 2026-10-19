@@ -205,6 +205,27 @@ After acceptance, split the story into reviewable slices without inventing new I
 5. Accessible visitor UI, constrained answer/citation rendering and privacy notice.
 6. End-to-end and live failure/cost/freshness exercises, kill switch and owner handoff.
 
+## Owner position — 2026-10-19 (deferred, not accepted)
+
+The owner **deferred** this proposal. Status stays Proposed; nothing here authorizes
+implementation, an SDK, a provider or infrastructure. The owner gave these answers for
+use when acceptance is revisited; they must be reconfirmed then:
+
+- **Content classes:** all public content except private client galleries and customer
+  data (still subject to this ADR's eligibility rules).
+- **Providers and processing:** the Foundry and Azure AI Search defaults are acceptable,
+  with the processor/DPA, region and retention review before launch.
+- **Freshness:** the proposed 15-minute event-to-index target, 15-minute reconciliation
+  and 30-minute stale alert are acceptable. The proposed numeric request limits are
+  acceptable.
+- **Spend:** daily cap €0.50; chat stays disabled without a configured cap.
+- **Alerts:** the owner, or the site administrator, receives freshness, failure and
+  budget alerts.
+- **Quality:** the owner maintains the Finnish/English evaluation dataset and
+  thresholds; they are not yet agreed.
+- **Privacy:** the privacy notice, processor agreement and applicable AI-transparency
+  review are completed before launch.
+
 ## Options Considered
 
 | Option | Benefit | Cost / reason |

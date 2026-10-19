@@ -1,8 +1,9 @@
 # ADR-0025: Separate Premium source distribution and updates
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-05
-**Deciders:** Project owner, pending acceptance
+**Accepted:** 2026-10-19
+**Deciders:** Project owner (Ilkka Rytkönen)
 **Work item:** AB#44
 
 ## Context
@@ -54,6 +55,23 @@ already downloaded or disable an installed site. Continued use follows the actua
 license and agreement. SHA-256 detects changed bytes; a digest delivered through
 the same channel does not independently authenticate the publisher. Do not market
 it as a signature. No runtime locks, watermarking or customer tracking is proposed.
+
+## Owner decision — 2026-10-19
+
+The owner accepted manual versioned source ZIP delivery as the initial method, private
+release delivery as the migration path, and the three-way (baseline, customer file,
+next release) update review with no automatic replacement on conflict.
+
+- **Delivery channel:** owner-controlled cloud storage with recipient-specific access.
+  The concrete provider is not selected; its privacy, cost and access controls must be
+  verified and an actual authorized delivery exercised before the first sale.
+- **Migration threshold:** not fixed. It is decided later from recorded hours spent on
+  delivery, update requests and access support.
+- **Windows verification:** the owner asked for a test procedure; see
+  [Windows verification procedure](#windows-verification-procedure). It has not been run.
+
+Acceptance sets no price, site limit, refund rule or update term, and builds no
+Premium artifact or service. Those remain with AB#49 and a separate sale decision.
 
 ## Options Considered
 
@@ -149,11 +167,67 @@ and an update entitlement do not create an automatic deployment or a support SLA
 
 ## Action Items
 
-1. Owner accepts AB#42's boundary, validates the offer (AB#45), then accepts or revises
-   this proposal. AB#44 remains Active pending acceptance.
+1. ~~Owner accepts AB#42's boundary, then accepts or revises this proposal.~~ ADR-0024
+   and this record were accepted 2026-10-19; AB#45 offer validation stays open and may
+   revise either. AB#44 remains Active until its remaining criteria are met.
 2. Review the paid license and sales/support terms (AB#49), verify the delivery
    provider's privacy/cost/access controls and exercise actual authorized delivery.
 3. Test Windows download/extraction, the baseline/update process, conflicts and exit
    on synthetic artifacts before first sale. No customer files are needed.
 4. Revisit private releases when recorded manual work warrants it; revisit packages
    only when a stable theme API is established.
+
+## Windows verification procedure
+
+Written for the owner to run on native Windows with PowerShell; it has **not** been
+executed and its results are not recorded. Use only synthetic files in a new empty
+folder outside the repository, e.g. `C:\temp\pkg-test`. Record the Windows version,
+PowerShell version (`$PSVersionTable.PSVersion`), Git for Windows version
+(`git --version`) and each result. Stop and note any failure rather than adapting the
+step. Git's `merge-file` exit status is not a success signal for an overlapping edit.
+
+**A. Archive, hash manifest and extraction**
+
+1. Create folder `artifact\theme` with two small text files and one tiny binary file
+   (any small PNG), including one file name with mixed case (`Readme.TXT`). Also create
+   synthetic `artifact\LICENSE.txt`, `artifact\NOTICES.txt` and a baseline copy
+   `artifact\baseline\theme.txt`, so that section C has real delivery files to check.
+2. Write a manifest: `Get-ChildItem artifact -Recurse -File | Get-FileHash -Algorithm SHA256 | Select-Object Hash,Path | Export-Csv manifest.csv -NoTypeInformation`.
+3. Create the archive: `Compress-Archive -Path artifact\* -DestinationPath release-1.zip`.
+4. Extract to a new folder: `Expand-Archive release-1.zip -DestinationPath extracted`.
+5. Compare: hash every extracted file again and confirm each SHA-256 equals the
+   manifest entry for the same relative path, that the mixed-case name is preserved,
+   and that no extra or missing file exists.
+6. Download the ZIP once through the chosen cloud-storage recipient link in a normal
+   browser session and repeat step 5 on the downloaded copy. Note whether Windows
+   marks it as downloaded from the internet (`Get-Item release-1.zip -Stream *`) and
+   whether extraction still works.
+
+**B. Three-way update, text**
+
+1. Create `baseline.txt`, `local.txt` and `next.txt` as ASCII with Windows line endings,
+   each three lines with an unchanged line **between** the two edited ones:
+   `baseline.txt` is `accent=default`, `margin=1`, `focus=old`; `local.txt` changes only
+   `accent=customer`; `next.txt` changes only `focus=accessible`. For example:
+   `[IO.File]::WriteAllText("$PWD\baseline.txt","accent=default`r`nmargin=1`r`nfocus=old`r`n")`.
+   Adjacent edited lines conflict, so do not put them next to each other here.
+2. Run
+   `git merge-file -p --diff3 local.txt baseline.txt next.txt | Out-File merged.txt -Encoding ascii`.
+   Expect both changes in `merged.txt` and no conflict markers. Confirm
+   `local.txt`, `baseline.txt` and `next.txt` bytes are unchanged (compare hashes
+   before and after).
+3. Make an overlapping edit: change `accent` to different values in both `local.txt`
+   and `next.txt`, rerun, and confirm conflict markers appear and no input changed.
+   Line-ending preservation was checked only in the 2026-10-05 WSL experiment;
+   `Out-File` rewrites line endings, so this step does not cover it.
+
+**C. Exit and baseline**
+
+1. Remove the recipient's access to the cloud-storage link (as the owner would on
+   exit) and confirm the already-extracted folder still contains the baseline copy,
+   license and notices, and that its hashes still match the manifest.
+2. Confirm that after access removal a new download attempt is refused.
+
+Report each step as pass/fail with the exact output for any failure. Binary
+migration, a full customer update and a real site install remain outside this
+procedure.

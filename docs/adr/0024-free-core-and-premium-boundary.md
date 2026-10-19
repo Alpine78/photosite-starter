@@ -1,7 +1,9 @@
 # ADR-0024: Free Core and Premium product boundary
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-09-27
+**Accepted:** 2026-10-19
+**Deciders:** Project owner (Ilkka Rytkönen)
 **Work item:** AB#42
 
 ## Context
@@ -17,6 +19,19 @@ A possible paid offer may contain separately authored themes or design assets, g
 Each customer owns its site repository, CMS content, domain, host account, and provider accounts. Any site-count, modification, redistribution, updates, support, refund, or exit terms for a paid artifact require explicit written terms before sale. This ADR grants none by implication. A customer who stops buying a service retains its MIT Free Core and customer-owned data; continued use of separately licensed assets follows their actual license.
 
 External contributions to this repository remain under its published license. Do not copy proprietary customer code, paid assets, or third-party assets into Free Core without rights to redistribute them. Changing the license of future contributions or combining a proprietary deliverable with existing MIT code requires a separate legal and owner decision; existing MIT grants remain available.
+
+## Owner decision — 2026-10-19
+
+The owner accepted the boundary as written: a complete MIT Free Core with no runtime
+checks, site limits or locked features, and separately licensed paid artifacts and
+services. The owner accepted the principle now. Price and demand stay open and belong
+to AB#45's interview evidence; the ADR may be revised if that evidence shows customers
+value a different boundary. The owner also confirmed that the project accepts no
+external contributions and that any change to the license of future contributions or
+combination with proprietary deliverables is a separate legal and owner decision, and
+that written paid-artifact and service terms are drafted before a first sale through
+AB#49. Acceptance does not set a price, terms, seller identity or channel, and no
+premium implementation begins until AB#44 and AB#49 are ready.
 
 ## Options Considered
 
@@ -37,7 +52,7 @@ The proposed split has simple runtime behavior and a clear exit path. Commercial
 
 ## Action Items
 
-1. Owner accepts or revises the product boundary after AB#45 evidence.
+1. ~~Owner accepts or revises the product boundary after AB#45 evidence.~~ Accepted 2026-10-19; revisit if AB#45 evidence points elsewhere.
 2. Draft actual paid-artifact and service terms with appropriate review before offering them.
 3. Keep release/update promises consistent with AB#41 and AB#46.
 4. Audit assets and notices for each separately distributed artifact (AB#43).
