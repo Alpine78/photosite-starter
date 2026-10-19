@@ -697,3 +697,63 @@ AB#305 adds an optional native customer-link action. Configure the public
 blank/unset configuration keeps copying disabled. It uses declared full locale
 tags, shows a selectable manual fallback, sends no message and makes no availability
 promise. See the [Studio workflow](../studio/README.md#ongoing-client-galleries-ab302--ab145).
+
+
+## Optional article-end sections (AB365)
+
+The backend implements the [accepted ADR-0036 contract](https://github.com/Alpine78/photosite-starter/pull/516)
+for an optional `article.endGallerySections` catalog and `endGallerySectionHeading`.
+The catalog has at most 20 ordered entries with stable section ID, localized slug
+and label; it has no section introduction. A nonempty catalog needs an end-gallery
+ID and a nonblank, content-authored heading of at most 160 characters. Heading and
+labels describe the author's chosen categories, with no built-in rating scale.
+The Studio field labels, help and custom errors support Finnish and English.
+The actual article filter controls and route/API selector integration are a later
+slice; these fields alone do not activate a visible filter.
+
+`articleEndGalleryPlacement.sectionId` is optional free text, validated against the
+**published containing article**, not its draft. An unassigned image belongs to All.
+No dropdown or automatic classification is introduced. Publish a first single-locale
+catalog before assigning its placements, or use an explicitly approved checked batch.
+Among translations declaring catalogs, stable ID sets must match and shared placement
+identities must have matching assignment, including assigned versus unassigned.
+Translations without a catalog stay exempt but cannot publish an assigned section.
+
+Article publication checks use a bounded published snapshot and limit-one conflict
+witnesses; removal checks include hidden placements. Published array keys prevent an
+in-place ID change and an existing section ID prevents an in-place slug change. These
+checks compare the current published snapshot: they do not maintain tombstones or
+prove that a deleted ID was never used historically. Retired IDs must not be reused.
+Malformed snapshot/key data needs a reviewed repair, not silent validation success.
+
+**Coordinated changes to existing multilingual classifications and ID sets require a
+checked batch.** A locale with existing unassigned published placements cannot publish
+a conflicting catalog/assignment first, and placements cannot borrow a draft-only
+catalog. Ordinary Studio publishing cannot perform that cross-document transition.
+A new translation with no published placements can instead publish its reviewed
+catalog before its linked placement drafts, retaining the source's section IDs.
+The shared language-copy planner marks the heading, section slugs and labels for
+target-language review; clearing the other copied texts does not bypass these checks.
+It does not translate text or publish anything automatically. Studio custom validation is a client-side
+consistency check, not a transaction, authorization boundary or an enforcement layer
+for direct API/CLI/MCP writes. A future content writer must verify complete prospective
+state, revisions and backups; this source change authorizes no such operation.
+See [Sanity's validation contract](https://www.sanity.io/docs/studio/validation).
+
+Public article and pagination basics explicitly project only heading and bounded
+ID/slug/label summaries; intros and provider metadata are excluded. Catalog output is
+capped at 21 entries to detect overflow beyond the supported 20 without loading an
+unbounded catalog. Malformed lists are represented as invalid rather than accidentally
+collapsed to absence by GROQ traversal. A declared catalog's dangling returned rows fail
+closed; legacy uncatalogued pages preserve their old window projection and ignore
+membership fields that projection never requested.
+
+The server adapter accepts only a resolved stable section ID and verifies it before
+fetching placements. Its selected predicate applies to both candidate and continuation
+boundary queries **before** the page-size-plus-one window. The core requires an exact
+source acknowledgement. All includes unassigned items and retains its existing token
+scope and manual ordering. The catalog and window are separate reads: an intervening
+edit can yield a refused stale/malformed result; no atomic-snapshot guarantee is claimed.
+Offline tests evaluate the actual queries using the Studio's existing `groq-js/1`
+dependency and synthetic published fixtures. They prove query and projection semantics,
+not a live provider perspective, ACL, CDN freshness or production content classification.
