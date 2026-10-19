@@ -1097,3 +1097,35 @@ CSP, cookies, contact processing and CMS/media projections remain unchanged.
 The [policy and verification boundary](article-reading-position.md) distinguishes
 automated process restart from physical devices/bfcache. This is a functional
 and data-flow review, not a new legal conclusion or launch approval.
+
+## Dependency alert check and temporary residual — 2026-10-19 (AB#160)
+
+Read on 2026-10-19 through the GitHub API and the repository's Security overview:
+Dependabot vulnerability alerts and Dependabot security updates are enabled, and
+secret scanning with push protection is enabled. Dependabot has opened and the owner
+has merged security and version PRs, for example #228, #229, #269 and #270. Security
+policy and private vulnerability reporting are **disabled**; this check changes
+neither and they remain for the launch review.
+
+**Open alert #66** (GHSA-hp3w-g68c-fv3c, medium, CVSS 5.3, CWE-1284): `sprintf-js`
+denial of service through unbounded precision specifiers, affecting versions up to
+1.1.3 with no patched version published. GitHub reports it against
+`studio/package-lock.json` as scope `runtime`. The locked version is 1.0.3, reached
+only through `sanity` → `@sanity/cli` → `@vercel/frameworks` → `js-yaml` →
+`argparse`; the root application lockfile does not contain it. This was read from
+the lockfile, not from an installed tree, and the Studio's use of `argparse` was not
+inspected.
+
+**Owner-accepted temporary residual (2026-10-19):** the owner accepted the open alert
+for one month. *Assessment, not verified:* the dependency sits in the Studio's
+command-line tooling chain, outside the public site's runtime, and no visitor input
+is believed to reach it. *Review:* 2026-11-19, or sooner when a patched version is
+published; re-read the alert and the lockfile then. No code or dependency changed.
+
+**Notification delivery is not demonstrated.** The owner searched their mailbox and
+found no GitHub Dependabot message newer than 2024; the 2024 messages belong to other
+repositories. So no notification email for this repository's alert #66 (opened
+2026-10-11) or for its Dependabot PRs has been seen. Whether that is a GitHub
+notification setting, a mail filter or another cause is unknown and is not inferred
+here. AB#160's notification-delivery acceptance therefore remains open and nothing
+here claims it met.

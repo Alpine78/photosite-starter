@@ -2649,6 +2649,13 @@ UTF-8/byte limits, redacted output and exit statuses are preserved. Actual CLI
 tests use synthetic saved reports without registry calls. This correction is
 Active pending review/merge; AB#160's operational acceptance remains open.
 
+**AB#160 check, 2026-10-19 (Active):** Dependabot alerts/security updates are enabled and
+PRs flow. Open alert #66 (`sprintf-js`, Studio lockfile only, no patched version) is
+an owner-accepted temporary residual until 2026-11-19. **Notification delivery is not
+demonstrated:** no email newer than 2024 for this repository was found, so that
+acceptance criterion stays open. Recorded in the
+[security review](security-privacy-review.md#dependency-alert-check-and-temporary-residual--2026-10-19-ab160).
+
 **Merged dependency verification, 2026-10-07 (AB#186, Closed):** owner-reviewed
 PR #281 merged and exact main CI #655 passed quality gates and the real protected
 Preview deployment with the remediated CLI tree. AB#186 was explicitly moved
