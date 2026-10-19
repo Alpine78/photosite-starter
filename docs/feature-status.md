@@ -258,6 +258,8 @@ AB#20 article continuity integration, 2026-10-18 (AB#364, Active): the owner-acc
 
 AB#321 article-end Sanity sections, 2026-10-18 (AB#365, Active): the optional generic catalog/heading and placement membership now have Studio publication guards, explicit bounded public projections and selected predicates before candidate/boundary windows. Offline actual-GROQ fixtures cover complete collection groups, locale membership, removal and legacy All tokens. Existing uncatalogued routes keep their old behavior. Public controls/URL/API integration and an owner-approved content batch remain separate; no CMS write, automatic translation or production filter activation. See [Sanity setup](sanity-setup.md#optional-article-end-sections-ab365). AB#27/321 remain Active.
 
+AB#368 adds an offline, first-adoption article-end section planner on the reviewed AB#365 contract. It pins supplied raw snapshot bytes/counts, checks selected identities, variants, public eligibility and reference closure, and emits private non-executable evidence only. The task remains Active pending review/merge; actual classification, owner approval, CMS activation and AB#321/27 acceptance remain separate.
+
 This is a running implementation history and a starting point for finding relevant
 code and decisions. Read the part relevant to the task; the current code and the
 Azure Boards work item are authoritative for scope, acceptance criteria and state.
