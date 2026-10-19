@@ -6151,6 +6151,12 @@ owner review/merge; source/operator removal acceptance and AB#29 remain open.
 
 ### AB#313 — Inactive protected-gallery removal audit (2026-10-17, Active)
 
+**Slice A1 preparation, 2026-10-19:** the audit now carries a deletion-patch dossier for the
+smallest slice (offline private-upload source commands): exact files, dependent
+`package.json`/README/runbook edits, gates and recovery, bound to a recorded `origin/main`
+revision. Nothing is deleted and every clearance row stays open. AB#313 stays Active;
+AB#29/145 are not closed.
+
 The [removal-readiness audit](audits/protected-gallery-removal-2026-10-17.md)
 records the merged source tree, reproducible first-party import inventory,
 protected routes/CLI/worker/config/test dependencies and shared modules that
