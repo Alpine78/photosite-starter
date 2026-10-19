@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { planLocalizedDraft, selectCurrentPlacementVersions } from "./localized-draft-plan.mts";
+import { validateLocalizationReview } from "../sanity/schemas/localization-review.ts";
 
 const category = {
   _id: "cat-landscape", _type: "category",
@@ -35,6 +36,25 @@ function input(source: Record<string, unknown> = article, placements: Record<str
 }
 
 describe("planLocalizedDraft", () => {
+  it("keeps article-end classifications stable and blocks unreviewed copied filter text", () => {
+    const source = { ...article, endGallerySectionHeading: "Kirjoittajan arviot", endGallerySections: [
+      { _key: "group-one", sectionId: "one", slug: "ensimmainen", label: "Ensimmäinen" },
+      { _key: "group-two", sectionId: "two", slug: "toinen", label: "Toinen" },
+    ] };
+    const item = { ...placement, _type: "articleEndGalleryPlacement", article: { _ref: source._id }, sectionId: "one" };
+    const before = structuredClone({ source, item }), plan = planLocalizedDraft(input(source, [item]));
+    expect({ source, item }).toEqual(before);
+    expect(plan.draft.endGallerySections).toEqual(source.endGallerySections);
+    expect(plan.draft.endGalleryId).toBe(source.endGalleryId);
+    expect(plan.placementDrafts[0].sectionId).toBe("one");
+    const pending = plan.draft.localizationReview as { pendingFields: string[] };
+    const remaining = pending.pendingFields.filter((path) => path === "endGallerySectionHeading" || /^endGallerySections\[\d+\]\.slug$/.test(path));
+    expect(validateLocalizationReview({ ...plan.draft, localizationReview: { pendingFields: remaining } })).not.toBe(true);
+    expect(remaining).toEqual(expect.arrayContaining(["endGallerySectionHeading", "endGallerySections[0].slug", "endGallerySections[1].slug"]));
+    expect(pending.pendingFields).toEqual(expect.arrayContaining(["endGallerySections[0].label", "endGallerySections[1].label"]));
+    expect(pending.pendingFields.some((path) => /sectionId|endGalleryId/.test(path))).toBe(false);
+    expect(validateLocalizationReview({ ...plan.draft, localizationReview: { pendingFields: [] } })).toBe(true);
+  });
   it("copies an article into a linked draft without mutating its source or media", () => {
     const before = structuredClone(article);
     const plan = planLocalizedDraft(input());

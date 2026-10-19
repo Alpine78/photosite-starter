@@ -50,6 +50,7 @@
  */
 
 import { validateArticlePublication } from "./article-validation";
+import { articleEndGallerySectionsField, MAX_ARTICLE_END_SECTION_HEADING_LENGTH, validateArticleEndSections } from "./article-end-sections";
 import {
   CONTENT_BLOCK_KINDS,
   defineContentBodyField,
@@ -161,11 +162,14 @@ export const articleType: SchemaTypeDefinition = {
   type: "document",
   description:
     "One editorial page, in one language. Its body is the page — it does not gain a gallery result set from media placed in it (ADR-0003 decision 1).",
-  validation: (rule) =>
+  validation: (rule) => [
     rule.custom<Readonly<Record<string, unknown>>>((value, context) => {
       const review = validateLocalizationReview(value);
       return review === true ? validateArticlePublication(value, context, ARTICLE_TYPE_NAME) : review;
     }),
+    rule.custom<Readonly<Record<string, unknown>>>((value, context) =>
+      validateArticleEndSections(value ?? context.document, context)),
+  ],
   fields: [
     {
       name: "contentId",
@@ -235,6 +239,14 @@ export const articleType: SchemaTypeDefinition = {
       description:
         "Optional stable identity for a large ordered gallery rendered after the article body (AB#161). Leave empty when the article has none; never rename it after publication.",
       validation: (rule) => rule.custom(validateEndGalleryIdentity),
+    },
+    articleEndGallerySectionsField,
+    {
+      name: "endGallerySectionHeading",
+      title: "End-gallery filter heading",
+      type: "string",
+      description: "Required with sections. Describe what these groups mean in this article's language.",
+      validation: (rule) => rule.max(MAX_ARTICLE_END_SECTION_HEADING_LENGTH),
     },
     {
       name: "publishedAt",
