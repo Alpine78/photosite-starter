@@ -22,6 +22,27 @@ import { DocumentRoot } from "@/components/document-root";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { ReadingNavigationObserver } from "@/components/reading-navigation-observer";
+import { SiteAnalytics } from "@/components/site-analytics";
+import { buildSiteAnalyticsPolicy, readSiteAnalyticsProvider } from "@/lib/site-analytics";
+
+/**
+ * The opt-in analytics script (ADR-0037), or nothing. The deployment settings
+ * are read only when a provider is enabled, so an off deployment adds no markup
+ * and no client code path.
+ */
+function siteAnalyticsElement() {
+  if (readSiteAnalyticsProvider(process.env) === "off") return null;
+  const { privateGallery, localeRoutes } = getDeploymentConfig();
+  return (
+    <SiteAnalytics
+      policy={buildSiteAnalyticsPolicy({
+        privateRoutePrefix: privateGallery.routePrefix,
+        privateAdminRoutePrefix: privateGallery.adminRoutePrefix,
+        localePrefixes: localeRoutes.locales.map((route) => route.prefix),
+      })}
+    />
+  );
+}
 
 /** This locale's descriptor with the name it sits beside, or nothing. */
 function brandDescriptorProps(settings: SiteSettings, locale: string) {
@@ -126,6 +147,7 @@ export async function SiteRoot({ children, locale }: SiteRootProps) {
         copyrightHolder={settings.copyrightHolder}
         labels={labels}
       />
+      {siteAnalyticsElement()}
     </DocumentRoot>
   );
 }

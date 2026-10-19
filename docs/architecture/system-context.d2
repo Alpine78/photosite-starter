@@ -80,6 +80,7 @@ unlisted -> sanity: "Fresh publication / deadline / manifest reads"
 visitor -> sanity: "Public JPEG / ZIP URLs in legacy page markup;\nfile downloads / integrity verification pending.\nNew batches require their own review." {class: pending-flow}
 
 visitor -> site: "Reads pages,\nbrowses galleries"
+visitor -> vercel: "Optional cookieless page-view statistics\n(ADR-0037; off by default, not yet enabled)" {class: pending-flow}
 visitor -> site: Sends an enquiry
 
 owner -> repo: Commits

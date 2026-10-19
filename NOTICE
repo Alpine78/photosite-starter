@@ -74,6 +74,18 @@ visitors' browsers, so a deployed site redistributes them and the MIT license
 requires this notice to accompany that redistribution.
 
 -------------------------------------------------------------------------------
+@vercel/analytics (optional page-view statistics client)
+-------------------------------------------------------------------------------
+Copyright (c) 2026 Vercel, Inc.
+Source: https://github.com/vercel/analytics
+Licensed under the MIT License — see licenses/MIT-vercel-analytics.txt
+
+Installed unmodified as an npm dependency. Its client code is bundled into the
+build output and served to visitors' browsers (it only does anything when a
+production deployment sets SITE_ANALYTICS=vercel), so a deployed site
+redistributes it and the MIT license requires this notice to accompany it.
+
+-------------------------------------------------------------------------------
 Source Sans Pro (embedded in docs/architecture/*.svg)
 -------------------------------------------------------------------------------
 Copyright 2010-2018 Adobe (http://www.adobe.com/), with Reserved Font Name

@@ -1,5 +1,16 @@
 # Feature implementation status
 
+Cookieless site analytics, 2026-10-19 — AB#371 **Active**: ADR-0037 is Accepted
+([PR #534](https://github.com/Alpine78/photosite-starter/pull/534)) and the first
+slice is implemented on `feature/371-site-analytics`: an opt-in
+`SITE_ANALYTICS=vercel` adapter honored only on a production stage, loaded by
+`SiteRoot` alone, with private/administrator/legacy namespaces excluded and event
+URLs reduced to the pathname (`src/lib/site-analytics.ts`). **Off on every
+deployment**: nothing is collecting until the owner sets the variable and enables
+Web Analytics in the Vercel dashboard. Verification on a deployed site (CSP,
+Proxy, storage, namespace exclusion) is recorded in
+[the data-flow record](analytics-data-flow.md) once it has been done.
+
 Production refresh, 2026-10-18 — AB#18/117/137 remain **Active**:
 [the site and Studio publication audit](audits/ab18-production-refresh-2026-10-18.md)
 records accepted main `33cb41a` deployed to the existing production site and

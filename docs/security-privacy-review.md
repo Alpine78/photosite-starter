@@ -1129,3 +1129,32 @@ repositories. So no notification email for this repository's alert #66 (opened
 notification setting, a mail filter or another cause is unknown and is not inferred
 here. AB#160's notification-delivery acceptance therefore remains open and nothing
 here claims it met.
+
+## Optional site analytics — 2026-10-19 (AB#371 / AB#117)
+
+ADR-0037 adds an off-by-default page-view statistics adapter. It changes AC6's
+"zero matches for `analytics` in `src/`" statement: `src/lib/site-analytics.ts`,
+`src/components/site-analytics.tsx` and the `SiteRoot` wiring now exist, and
+`@vercel/analytics` 2.0.1 (MIT, no transitive dependencies) is a production
+dependency whose client code is bundled. It is inert unless a production
+deployment sets `SITE_ANALYTICS=vercel`; development, Preview and the
+Playwright harness stay off even if the value is inherited, and an unknown value
+fails the build.
+
+Controls: the script is rendered only by the public shell, never by the private,
+client or administrator document shells; a second layer drops events from the
+reserved namespaces (derived from the Proxy's configured prefixes, with
+locale-prefixed, encoded and mixed-case aliases) and reduces every other URL to
+its pathname, so no query string or fragment token reaches the provider
+(ADR-0004). The CSP is unchanged. The package's client code contains no cookie
+or web-storage use (checked in the installed build), and the default
+no-script/no-cookie state is pinned by a public-journey test.
+
+Open and **not** claimed here: the provider's own script behaviour on a deployed
+site (CSP, Proxy handling of `/_vercel/*`, absence of cookie and storage
+writes, namespace exclusion in the dashboard) is verified after the first
+Production deployment and recorded in [analytics-data-flow.md](analytics-data-flow.md);
+Vercel's role for Web Analytics data under its current DPA is still to be
+recorded; and whether the processing is exempt from consent is a legal question
+this review does not answer. No tracking cookie, banner or third-party origin is
+introduced by this change.

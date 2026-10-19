@@ -381,6 +381,7 @@ time; the Production set is never fetched by the Preview job.
 | `SITE_CANONICAL_BASE_URL`                      | a fixed non-production origin — see below            | the production origin                   |
 | `SITE_DEFAULT_SOCIAL_IMAGE` and its dimensions | same as production                                   | the launch social image                 |
 | `SITE_ROBOTS_DISALLOWED_AGENTS`                | unset (Preview's `robots.txt` already disallows everyone) | optional: crawlers to keep off the whole site — see below |
+| `SITE_ANALYTICS`                               | unset (a `preview` stage ignores it)                 | unset, or `vercel` once the owner enables page-view statistics — see below |
 | `CONTACT_DELIVERY_ADAPTER`                     | `sink`                                               | `resend`                                |
 | `CONTACT_DELIVERY_FROM`, `CONTACT_DELIVERY_TO` | unset                                                | the owner's verified sender and mailbox |
 | `RESEND_API_KEY`                               | unset                                                | Production-only secret                  |
@@ -390,6 +391,13 @@ time; the Production set is never fetched by the Preview job.
 | `SANITY_DATASET_VISIBILITY`                    | that dataset's actual visibility                     | that dataset's actual visibility        |
 | `SANITY_READ_TOKEN`                            | a Preview runtime token in Vercel, required if private | a separate Production runtime token in Vercel, required if private |
 | `SANITY_WEBHOOK_SECRET`                        | one stable Preview secret                            | a separate, stable Production secret    |
+
+**Site analytics (AB#371, ADR-0037).** `SITE_ANALYTICS=vercel` loads Vercel Web Analytics and
+is honored only on a `production` stage; Preview ignores it even if the value is copied across.
+It is a build-time setting, so changing it takes effect on the next build. Enabling it also needs
+the Web Analytics switch in the Vercel dashboard (included in Pro, billed per event from the
+shared monthly credit) and a notify-only Spend Management threshold. The processing record is
+[analytics-data-flow.md](analytics-data-flow.md).
 
 **Site-search route (AB#299, ADR-0033).** The fifth field of a `SITE_LOCALE_ROUTES` entry
 is the locale's search namespace and defaults to `search`, so a deployment whose value
