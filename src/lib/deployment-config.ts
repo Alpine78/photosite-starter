@@ -474,6 +474,7 @@ export type BuiltInLabels = {
     readonly images: string;
     /** Accessible state of a published gallery with no public items yet. */
     readonly empty: string;
+    readonly emptySection: string;
     /** Names the link that continues into the gallery's next bounded page. */
     readonly showMore: string;
     /** Names the link back to the gallery's first page from a continuation. */
@@ -490,8 +491,11 @@ export type BuiltInLabels = {
     readonly retry: string;
     /** Announced once the last slice has been appended and nothing follows. */
     readonly allLoaded: string;
+    readonly sectionAllLoaded: string;
     /** Accessible name of the section-controls landmark. */
     readonly sectionsNav: string;
+    readonly loadedSummary: string;
+    readonly moreAvailable: string;
     /** Visible label of the unfiltered `All` section filter. */
     readonly allSections: string;
     /** Singular and plural labels for an exact section photograph count. */
@@ -1009,6 +1013,7 @@ const englishLabels = {
   gallery: {
     images: "images",
     empty: "This gallery has no images yet.",
+    emptySection: "This section has no images yet.",
     showMore: "Show more images",
     backToStart: "Back to the start of this gallery",
     continued: "continued",
@@ -1016,7 +1021,10 @@ const englishLabels = {
     loadFailed: "More images could not be loaded.",
     retry: "Try again",
     allLoaded: "All images in this gallery are loaded.",
+    sectionAllLoaded: "All images in this section are loaded.",
     sectionsNav: "Gallery sections",
+    loadedSummary: "Loaded images: {count}",
+    moreAvailable: "More images are available.",
     allSections: "All",
     photoSingular: "photo",
     photoPlural: "photos",
@@ -1430,6 +1438,7 @@ const finnishLabels = {
   gallery: {
     images: "kuvaa",
     empty: "Tässä galleriassa ei ole vielä kuvia.",
+    emptySection: "Tässä osiossa ei ole vielä kuvia.",
     showMore: "Näytä lisää kuvia",
     backToStart: "Takaisin gallerian alkuun",
     continued: "jatkuu",
@@ -1437,7 +1446,10 @@ const finnishLabels = {
     loadFailed: "Lisää kuvia ei voitu ladata.",
     retry: "Yritä uudelleen",
     allLoaded: "Gallerian kaikki kuvat on ladattu.",
+    sectionAllLoaded: "Kaikki tämän osion kuvat on ladattu.",
     sectionsNav: "Gallerian osiot",
+    loadedSummary: "Ladattuja kuvia: {count}",
+    moreAvailable: "Lisää kuvia on saatavilla.",
     allSections: "Kaikki",
     photoSingular: "kuva",
     photoPlural: "kuvaa",

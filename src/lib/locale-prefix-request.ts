@@ -1,3 +1,4 @@
+import type { ArticleEndSectionSelection } from "@/lib/article-end-gallery-selection";
 import {
   resolveContentRedirect,
   type ContentRedirects,
@@ -43,7 +44,7 @@ export type LocalePrefixRequestResolution =
       readonly cursor?: string;
       /**
        * The gallery-local section filter this request carries, when the route
-       * is a gallery. `undefined` means the unfiltered `All` view — including
+       * is a gallery or a catalogued article. `undefined` means the unfiltered `All` view — including
        * when the raw parameter was absent, empty, or the reserved `all` token,
        * all three of which decision 8 normalizes to the same thing before this
        * value is ever set. A section name reaching here has already survived
@@ -117,6 +118,7 @@ type ArticleEndGalleryCursorNamesASlice = (
   locale: string,
   contentId: string,
   cursor: string,
+  sectionSlug?: string,
 ) => boolean | "ignore" | Promise<boolean | "ignore">;
 
 /**
@@ -251,20 +253,10 @@ function cursorDisposition(route: StoryRoute): "carry" | "reject" {
   return "carry";
 }
 
-/**
- * What a `section` parameter means at this route.
- *
- * ADR-0003 decision 8 gives `section` exactly one meaning: a gallery-local
- * filter of that gallery's own curated result. Unlike `cursor`, no other route
- * kind recognizes it even in principle — a category listing, the story root,
- * and an article all treat it as an ordinary unrecognized parameter, which
- * decision 8 reads and ignores rather than 404s on. So this has only two
- * states, never `cursorDisposition`'s "reject": a gallery `carry`s the value
- * to the adapter, and everything else `ignore`s it.
- */
-function sectionDisposition(route: StoryRoute): "carry" | "ignore" {
+/** A declared article catalog opts into ADR-0036; other articles keep incidental parameters. */
+function sectionDisposition(route: StoryRoute, articleSelection?: ArticleEndSectionSelection): "carry" | "ignore" {
   if (route.kind !== "content") return "ignore";
-  return route.variant === "gallery" ? "carry" : "ignore";
+  return route.variant === "gallery" || (route.variant === "article" && articleSelection !== undefined && articleSelection.kind !== "legacy-ignore") ? "carry" : "ignore";
 }
 
 /**
@@ -315,8 +307,9 @@ function enquiryDisposition(
 function normalizedCarriedSection(
   route: StoryRoute,
   rawSection: string | readonly string[] | undefined,
+  articleSelection?: ArticleEndSectionSelection,
 ): string | undefined {
-  if (sectionDisposition(route) !== "carry") return undefined;
+  if (sectionDisposition(route, articleSelection) !== "carry") return undefined;
   if (typeof rawSection !== "string") return undefined;
   if (rawSection === "" || rawSection === RESERVED_ALL_SECTION_SLUG) {
     return undefined;
@@ -353,13 +346,17 @@ async function refusesSection(
   {
     normalizing,
     sectionExists,
+    articleSelection,
   }: {
     readonly normalizing: boolean;
     readonly sectionExists: GallerySectionExists | undefined;
+    readonly articleSelection?: ArticleEndSectionSelection;
   },
 ): Promise<boolean> {
   if (rawSection === undefined) return false;
-  if (sectionDisposition(route) !== "carry") return false;
+  if (articleSelection?.kind === "not-found") return true;
+  if (articleSelection !== undefined && articleSelection.kind !== "legacy-ignore") return false;
+  if (sectionDisposition(route, articleSelection) !== "carry") return false;
   if (typeof rawSection !== "string") return true;
   if (rawSection === "" || rawSection === RESERVED_ALL_SECTION_SLUG) {
     return false;
@@ -422,7 +419,7 @@ async function refusesCursor(
     // Only articles declaring an end gallery recognize cursor. Check opt-in
     // before multiplicity, including before any normalization redirect.
     const result = await articleEndGalleryNamesASlice(locale, route.contentId,
-      typeof cursor === "string" ? cursor : "");
+      typeof cursor === "string" ? cursor : "", ...(section === undefined ? [] : [section]));
     if (result === "ignore") return false;
     if (!result || typeof cursor !== "string") return true;
     return false;
@@ -453,6 +450,7 @@ async function refusesCursor(
       locale,
       route.contentId,
       cursor,
+      ...(section === undefined ? [] : [section]),
     ));
   }
   return true;
@@ -493,6 +491,7 @@ export async function resolveLocalePrefixRequest({
   categoryListingCursorNamesASlice,
   articleEndGalleryCursorNamesASlice,
   gallerySectionExists,
+  articleSectionSelection,
   pathHasTrailingSlash = false,
 }: {
   readonly config: LocaleRouteConfig;
@@ -526,6 +525,8 @@ export async function resolveLocalePrefixRequest({
    * default {@link galleryCursorNamesASlice} takes when it is absent.
    */
   readonly gallerySectionExists?: GallerySectionExists;
+  /** Declared article catalogs give section meaning; absence preserves legacy behavior. */
+  readonly articleSectionSelection?: (locale: string, contentId: string, raw: string | readonly string[] | undefined) => ArticleEndSectionSelection | Promise<ArticleEndSectionSelection>;
   /**
    * Whether the original pathname ended in `/` (apart from the site root).
    * Proxy carries the original bounded path because App Router params omit
@@ -538,6 +539,14 @@ export async function resolveLocalePrefixRequest({
   const defaultRoute = config.byLocale.get(config.defaultLocale);
   if (defaultRoute === undefined) return NOT_FOUND;
 
+  const articleSelections = new Map<StoryRoute, ArticleEndSectionSelection>();
+  const selectArticle = async (locale: string, route: StoryRoute) => {
+    if (route.kind !== "content" || route.variant !== "article" || articleSectionSelection === undefined) return undefined;
+    if (!articleSelections.has(route)) articleSelections.set(route, await articleSectionSelection(locale, route.contentId, searchParams.section));
+    return articleSelections.get(route);
+  };
+  const selectedFor = (route?: StoryRoute) => route === undefined ? undefined : articleSelections.get(route);
+
   /**
    * The redirect target's query string, for one destination route.
    *
@@ -547,10 +556,10 @@ export async function resolveLocalePrefixRequest({
    * Everywhere else `section` is an ordinary unrecognized parameter, and
    * decision 8's own rule for those is to preserve them through a redirect
    * happening for another reason, not to strip them — so stripping is scoped
-   * to exactly the gallery case, never applied by default.
+   * to galleries and opted-in article catalogs, never applied by default.
    */
   const buildRedirectQuery = (route?: StoryRoute): string => {
-    if (route === undefined || sectionDisposition(route) !== "carry") {
+    if (route === undefined || sectionDisposition(route, selectedFor(route)) !== "carry") {
       return buildQueryString(searchParams);
     }
     const raw = searchParams.section;
@@ -592,7 +601,9 @@ export async function resolveLocalePrefixRequest({
       if (enquiryDisposition(story, searchParams).kind === "conflict") {
         return NOT_FOUND;
       }
-      const section = normalizedCarriedSection(story, searchParams.section);
+      const articleSelection = await selectArticle(defaultRoute.locale, story);
+      if (articleSelection?.kind === "not-found") return NOT_FOUND;
+      const section = normalizedCarriedSection(story, searchParams.section, articleSelection);
       if (
         (await refusesCursor(
           defaultRoute.locale,
@@ -609,7 +620,7 @@ export async function resolveLocalePrefixRequest({
         )) ||
         (await refusesSection(defaultRoute.locale, story, searchParams.section, {
           normalizing: true,
-          sectionExists: gallerySectionExists,
+          sectionExists: gallerySectionExists, articleSelection,
         }))
       ) {
         return NOT_FOUND;
@@ -630,9 +641,11 @@ export async function resolveLocalePrefixRequest({
       ) {
         return NOT_FOUND;
       }
+      const articleSelection = await selectArticle(defaultRoute.locale, historical.route);
+      if (articleSelection?.kind === "not-found") return NOT_FOUND;
       const section = normalizedCarriedSection(
         historical.route,
-        searchParams.section,
+        searchParams.section, articleSelection,
       );
       if (
         (await refusesCursor(
@@ -652,7 +665,7 @@ export async function resolveLocalePrefixRequest({
           defaultRoute.locale,
           historical.route,
           searchParams.section,
-          { normalizing: true, sectionExists: gallerySectionExists },
+          { normalizing: true, sectionExists: gallerySectionExists, articleSelection },
         ))
       ) {
         return NOT_FOUND;
@@ -711,9 +724,11 @@ export async function resolveLocalePrefixRequest({
     ) {
       return NOT_FOUND;
     }
+    const articleSelection = await selectArticle(localeRoute.locale, historical.route);
+    if (articleSelection?.kind === "not-found") return NOT_FOUND;
     const section = normalizedCarriedSection(
       historical.route,
-      searchParams.section,
+      searchParams.section, articleSelection,
     );
     const refused =
       (await refusesCursor(
@@ -733,14 +748,16 @@ export async function resolveLocalePrefixRequest({
         localeRoute.locale,
         historical.route,
         searchParams.section,
-        { normalizing: true, sectionExists: gallerySectionExists },
+        { normalizing: true, sectionExists: gallerySectionExists, articleSelection },
       ));
     return refused ? NOT_FOUND : redirectTo(historical.path, historical.route);
   }
 
+  const articleSelection = await selectArticle(localeRoute.locale, route);
+  if (articleSelection?.kind === "not-found") return NOT_FOUND;
   const rawSection = searchParams.section;
   const isRedundantSectionAlias =
-    sectionDisposition(route) === "carry" &&
+    sectionDisposition(route, articleSelection) === "carry" &&
     typeof rawSection === "string" &&
     (rawSection === "" || rawSection === RESERVED_ALL_SECTION_SLUG);
 
@@ -750,7 +767,7 @@ export async function resolveLocalePrefixRequest({
     pathHasTrailingSlash ||
     isRedundantSectionAlias;
 
-  const section = normalizedCarriedSection(route, rawSection);
+  const section = normalizedCarriedSection(route, rawSection, articleSelection);
 
   // ADR-0003 §8 (2026-08-30): `?enquire=` with a `cursor` or `section` is a 404
   // before any normalization, exactly like a bad cursor. A recognized `enquire`
@@ -774,7 +791,7 @@ export async function resolveLocalePrefixRequest({
     })) ||
     (await refusesSection(localeRoute.locale, route, rawSection, {
       normalizing,
-      sectionExists: gallerySectionExists,
+      sectionExists: gallerySectionExists, articleSelection,
     }))
   ) {
     return NOT_FOUND;
@@ -790,7 +807,7 @@ export async function resolveLocalePrefixRequest({
   const ignoresArticleCursor = route.kind === "content" && route.variant === "article" &&
     articleEndGalleryCursorNamesASlice !== undefined && searchParams.cursor !== undefined &&
     await articleEndGalleryCursorNamesASlice(localeRoute.locale, route.contentId,
-      typeof searchParams.cursor === "string" ? searchParams.cursor : "") === "ignore";
+      typeof searchParams.cursor === "string" ? searchParams.cursor : "", ...(section === undefined ? [] : [section])) === "ignore";
   const cursor =
     !ignoresArticleCursor && cursorDisposition(route) === "carry" &&
     typeof searchParams.cursor === "string"

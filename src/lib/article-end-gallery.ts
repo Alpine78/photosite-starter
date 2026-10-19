@@ -18,6 +18,7 @@ export const getArticleEndGalleryPage = cache(async function getArticleEndGaller
   contentId: string,
   endGalleryId: string,
   cursor?: string,
+  sectionId?: string,
 ): Promise<GalleryPage<CuratedGalleryResultItem> | undefined> {
   const { contentSource } = getDeploymentConfig();
   const options = {
@@ -26,6 +27,7 @@ export const getArticleEndGalleryPage = cache(async function getArticleEndGaller
       contentId,
       endGalleryId,
       ...(cursor === undefined ? {} : { cursor }),
+      ...(sectionId === undefined ? {} : { sectionId }),
     },
     cursorCodec: galleryCursorCodec,
   };

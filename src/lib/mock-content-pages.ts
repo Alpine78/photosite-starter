@@ -1,3 +1,5 @@
+import type { ArticleEndGalleryCatalogFields } from "@/lib/article-end-gallery-catalog";
+import { mockArticleEndSections, FILTER_END_GALLERY_ID } from "@/lib/mock-article-end-sections";
 import { mockPolls } from "@/lib/mock-polls";
 import type { GalleryPresentationFields } from "@/lib/gallery-presentation";
 /**
@@ -43,7 +45,7 @@ import { mockGalleryEnquiryPermission } from "@/lib/mock-enquiry-policy";
 import { miniGalleryBoundaryBlock } from "@/lib/mock-mini-gallery-boundaries";
 
 /** What a page adds to the record a card already carries. */
-type AuthoredPage = GalleryPresentationFields & {
+type AuthoredPage = GalleryPresentationFields & ArticleEndGalleryCatalogFields & {
   readonly allowPhotoEnquiries?: boolean;
   readonly variant: ContentVariant;
   readonly endGalleryId?: string;
@@ -319,6 +321,19 @@ const englishPages: Readonly<Record<string, AuthoredPage>> = {
   "content-layout-single": { variant: "gallery", allowPhotoEnquiries: mockGalleryEnquiryPermission("content-layout-single"), galleryLayout: "justified", galleryCaptionPlacement: "below", body: [] },
   "content-layout-pair": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "overlay", body: [] },
   "content-capture-sequence": { variant: "gallery", body: [] },
+  "content-filtered-image-notes": {
+    variant: "article", endGalleryId: FILTER_END_GALLERY_ID,
+    endGallerySectionHeading: "Image themes",
+    endGallerySections: mockArticleEndSections("en"),
+    body: [
+      { type: "heading", level: 2, text: "Notes on light" },
+      { type: "heading", level: 3, text: "Details" },
+      ...Array.from({ length: 5 }, (_, i): ContentBlock[] => [
+        { type: "heading", level: 4, text: `Observing light ${i + 1}` },
+        ...Array.from({ length: 5 }, (): ContentBlock => ({ type: "paragraph", text: "Light and small details on a surface are the subject of this synthetic example article. ".repeat(4) })),
+      ]).flat(),
+    ],
+  },
   "content-reading-coastal-light": {
     variant: "article",
     endGalleryId: "coastal-light-end-gallery",
@@ -765,6 +780,19 @@ const finnishPages: Readonly<Record<string, AuthoredPage>> = {
   "content-layout-single": { variant: "gallery", allowPhotoEnquiries: mockGalleryEnquiryPermission("content-layout-single"), galleryLayout: "justified", galleryCaptionPlacement: "below", body: [] },
   "content-layout-pair": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "overlay", body: [] },
   "content-capture-sequence": { variant: "gallery", body: [] },
+  "content-filtered-image-notes": {
+    variant: "article", endGalleryId: FILTER_END_GALLERY_ID,
+    endGallerySectionHeading: "Kuvan aiheet",
+    endGallerySections: mockArticleEndSections("fi"),
+    body: [
+      { type: "heading", level: 2, text: "Valon muistiinpanoja" },
+      { type: "heading", level: 3, text: "Yksityiskohdat" },
+      ...Array.from({ length: 5 }, (_, i): ContentBlock[] => [
+        { type: "heading", level: 4, text: `Valon havainto ${i + 1}` },
+        ...Array.from({ length: 5 }, (): ContentBlock => ({ type: "paragraph", text: "Valo ja pinnan pienet yksityiskohdat muodostavat tämän synteettisen esimerkkiartikkelin aiheen. ".repeat(4) })),
+      ]).flat(),
+    ],
+  },
   "content-reading-coastal-light": {
     variant: "article",
     endGalleryId: "coastal-light-end-gallery",
@@ -950,6 +978,8 @@ function compose(
           // including these independently viewed inline media fixtures.
           { type: "heading", level: language === "fi" ? 2 : 3, text: language === "fi" ? "Galleria" : "Gallery" },
         ]
+        : contentId === "content-filtered-image-notes"
+          ? [...page.body, { type: "media", media: images.forestStream }, { type: "mini-gallery", items: miniItems }]
         : language === "fi" && contentId === "content-coastal-mornings"
           ? [
             { type: "media", media: images.coastalLandscape },

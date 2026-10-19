@@ -1,3 +1,4 @@
+import { FILTER_ARTICLE_ID, FILTER_END_GALLERY_ID, mockSectionedArticlePlacements, mockArticleEndSections } from "@/lib/mock-article-end-sections";
 /** In-memory AB#161 reference source. Real reads use the same bounded window. */
 
 import {
@@ -42,7 +43,14 @@ export async function getMockArticleEndGalleryPage({
   return readArticleEndGalleryPage({
     query,
     cursorCodec,
-    source: async ({ contentId, endGalleryId, locale, window }) => {
+    source: async ({ contentId, endGalleryId, locale, window, sectionId }) => {
+      if (contentId === FILTER_ARTICLE_ID && endGalleryId === FILTER_END_GALLERY_ID) {
+        if (sectionId !== undefined && !mockArticleEndSections(locale).some((x) => x.sectionId === sectionId)) return undefined;
+        const placements = mockSectionedArticlePlacements(locale);
+        return { ...selectGalleryWindow(sectionId === undefined ? placements : placements.filter((x) => x.sectionId === sectionId), window),
+          ...(sectionId === undefined ? {} : { appliedSectionId: sectionId }) };
+      }
+      if (sectionId !== undefined) return undefined;
       if (
         contentId !== FIXTURE_CONTENT_ID ||
         endGalleryId !== FIXTURE_END_GALLERY_ID

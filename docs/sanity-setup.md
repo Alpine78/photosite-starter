@@ -708,8 +708,8 @@ and label; it has no section introduction. A nonempty catalog needs an end-galle
 ID and a nonblank, content-authored heading of at most 160 characters. Heading and
 labels describe the author's chosen categories, with no built-in rating scale.
 The Studio field labels, help and custom errors support Finnish and English.
-The actual article filter controls and route/API selector integration are a later
-slice; these fields alone do not activate a visible filter.
+AB367 adds the [public controls and route/API integration](#article-end-filter-controls-ab367).
+An article without a published catalog keeps its existing behavior.
 
 `articleEndGalleryPlacement.sectionId` is optional free text, validated against the
 **published containing article**, not its draft. An unassigned image belongs to All.
@@ -757,3 +757,58 @@ edit can yield a refused stale/malformed result; no atomic-snapshot guarantee is
 Offline tests evaluate the actual queries using the Studio's existing `groq-js/1`
 dependency and synthetic published fixtures. They prove query and projection semantics,
 not a live provider perspective, ACL, CDN freshness or production content classification.
+
+
+## Article-end filter controls (AB367)
+
+An article declaring `endGallerySections` uses its authored
+`endGallerySectionHeading` to name real All/section links. The optional catalog
+reuses the gallery controls, including a single section plus All; it does not
+introduce a numeric rating model. FI/EN application copy reports the selected
+label, actually loaded images and whether more are available, with an explicit
+empty state. No collection-wide totals are queried or promised.
+
+Selected first pages and every continuation remain `noindex`, canonicalize to
+the parameter-free article and omit hreflang. The visible language switch opens
+the translated first article without section/cursor state. Unknown or repeated
+selectors on catalogued articles return HTTP 404 before path normalization or window
+reads. Articles without catalogs retain incidental section-query behavior.
+`section=all` and an empty selector normalize to All on the page; the strict
+append API accepts only a named slug or omission, with a mandatory cursor.
+A stale catalog-selected ID returns404 when the source no longer declares it;
+malformed CMS/source acknowledgements remain server defects, never All fallback.
+
+Filter links clear continuation state and carry unrelated query values, including
+repeated values. Hydrated links also follow the current article fragment, including
+updates made by the reading-address observer. JavaScript-free links navigate to
+real bounded server pages. Hydrated selection preserves the controls' viewport
+and focus through grid replacement, including a continuation-to-initial transition.
+A browser-only pending intent expires after 8 seconds and is cancelled by reader
+input/history events; it is never persisted or populated by server rendering.
+Article filter navigation takes priority over automatic saved-position restore.
+The ordinary back-to-article link remains a fresh reading visit and may restore.
+No localStorage schema or application-owned history.state field is added.
+
+The selected viewer contains only loaded selected placements; body photographs
+and minigalleries keep their independent groups. Catalog and placement reads remain
+separate, as described above. Mock-mode journeys use a separate bilingual synthetic
+article with interleaved selected/unassigned occurrences, leaving the earlier
+reading fixture intact. They do not classify the actual retained 41-item collection.
+That collection still needs its reviewed heading/labels, rendered-image/text approval
+and a concrete revision-bound content plan with owner approval before any CMS write.
+
+### Offline first adoption of article-end sections (AB#368)
+
+`npm run plan:article-end-sections -- --manifest <private.json> --snapshot <complete-raw.ndjson> --out <new-private-directory>` prepares evidence only. It has no apply mode, provider client or credential. The target Studio must separately deploy the ADR-0036 article-end schema; `schemaContract` identifies the expected contract, not deployment proof.
+
+The strict manifest uses `format: "article-end-adoption-intent-v1"`, `snapshot: {sha256, documentCount, observedAt}`, `article: {documentId, expectedRevision, contentId, language, endGalleryId}`, `sourceEvidenceSha256`, `heading`, ordered `sections: [{sectionId, slug, label}]` and `members: [{sourceItemId, sourceImageSha256, documentId, expectedRevision, placementId, mediaDocumentId, mediaRevision, mediaId, assetRef, sectionId}]`. `observedAt` is an explicit UTC ISO timestamp with milliseconds. Classifications and localized copy must be supplied, never inferred. Array keys are derived deterministically; empty sections are permitted and report zero members.
+
+The NDJSON must be a complete raw capture, including drafts, releases, hidden placements and assets. The supplied raw SHA-256 and document count are pinned; a matching file alone cannot prove completeness, capture atomicity, freshness or source authenticity. Validate its independent capture receipt before real use. The tool checks the selected reference closure and refuses absent references, draft/release counterparts, duplicate or foreign identities and inconsistent shared occurrences. A missing `visible` is excluded as in the public predicate; visible rows must point to publicly renderable, non-private image media. Article expiry is checked at the supplied observation time, not the later execution time. Other public-media projection and real asset bytes are not revalidated.
+
+This is first adoption only: any existing catalog, heading or membership field in the target/peer scope, even null or empty, is refused. Uncatalogued published language peers can remain unassigned. Catalogued or partially assigned peers require a separately coordinated plan. The only proposed changes are the target article catalog/heading and each visible placement's `sectionId`. Body, captions, media, identities, hidden placements and ordering remain unchanged.
+
+`plan.json` is private (directory 0700, file 0600), exclusive and refused in Git-visible or already tracked output paths. A refused attempt can leave a private empty directory or partial evidence; these are preserved, so use a new output directory for a retry. Logs contain only counts, a digest and refusal codes. Keep inputs owner-private as well. The 64 MiB snapshot, 100,000-document, 2 MiB manifest, 2,000-member and 8 MiB report limits are local resource bounds, not transaction-capacity guarantees.
+
+The canonical plan digest covers the complete report except `planSha256`. The manifest digest uses canonical keys and document-ID-sorted member bindings; catalog order remains meaningful. The snapshot digest binds exact raw bytes. Every changed document carries its expected revision, absent before-fields and after-fields. Unchanged-value hashes exclude only the changed fields, `_rev` and `_updatedAt`; read conditions for unmodified documents are advisory. A future writer must re-read and reconcile the entire selected closure, detect newly added variants/members/peers, enforce change revisions and a reviewed atomic-request budget. This artifact is neither a writer nor approval, backup, absence guarantee or transactional guard for unchanged documents.
+
+First adoption makes incidental `section` parameters meaningful, unknown selectors return HTTP 404 and published section IDs/slugs become immutable. The star-rating use case also requires an owner-reviewed heading naming the author's rating. Real source-image bindings, review-text parity, translated labels, content approval and rendered results remain separate checks; AB#321/27 do not close from this planner.

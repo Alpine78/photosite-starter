@@ -1,3 +1,4 @@
+import type { GallerySectionSummary } from "@/lib/gallery-sections";
 import Link from "next/link";
 import { Breadcrumbs, type BreadcrumbStep } from "@/components/breadcrumbs";
 import { ContentBody } from "@/components/content-body";
@@ -54,6 +55,10 @@ type ContentArticleProps = {
     readonly articlePath: string;
     readonly initialSliceKey: string;
     readonly presentation: GalleryPresentation;
+    readonly sections?: readonly GallerySectionSummary[];
+    readonly sectionHeading?: string;
+    readonly activeSection?: string;
+    readonly carriedQuery?: Readonly<Record<string, string | readonly string[] | undefined>>;
   };
 };
 
@@ -191,6 +196,10 @@ export function ContentArticle({
               labels={labels}
               presentation={endGallery.presentation}
               headingId={endGalleryHeadingId}
+              sections={endGallery.sections}
+              sectionHeading={endGallery.sectionHeading}
+              activeSection={endGallery.activeSection}
+              carriedQuery={endGallery.carriedQuery}
             />
           )}
 

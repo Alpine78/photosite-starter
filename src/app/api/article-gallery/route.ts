@@ -5,6 +5,9 @@ import {
   getArticleEndGalleryPage,
 } from "@/lib/article-end-gallery";
 import { resolveArticleEndGalleryRequestTarget } from "@/lib/article-end-gallery-request";
+import { resolveArticleEndSection } from "@/lib/article-end-gallery-selection";
+import { UnknownGallerySectionError } from "@/lib/gallery-sections";
+import { MAX_ITEM_ID_LENGTH } from "@/lib/gallery-pagination";
 import { MAX_GALLERY_CURSOR_LENGTH } from "@/lib/gallery-pagination";
 import { projectGallerySlice } from "@/lib/gallery-slice-server";
 import { isCarryableRequestPath } from "@/lib/request-path";
@@ -35,12 +38,16 @@ export async function GET(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const paths = url.searchParams.getAll("path");
   const cursors = url.searchParams.getAll("cursor");
+  const sections = url.searchParams.getAll("section");
+  const [section] = sections;
   const [path] = paths;
   const [cursor] = cursors;
   if (
     [...url.searchParams.keys()].some(
-      (key) => key !== "path" && key !== "cursor",
+      (key) => key !== "path" && key !== "cursor" && key !== "section",
     ) ||
+    sections.length > 1 ||
+    (section !== undefined && (section.length > MAX_ITEM_ID_LENGTH || section === "all" || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(section))) ||
     paths.length !== 1 ||
     cursors.length !== 1 ||
     path === undefined ||
@@ -53,18 +60,21 @@ export async function GET(request: Request): Promise<Response> {
   }
   const target = await resolveArticleEndGalleryRequestTarget(path);
   if (target === undefined) return response({ status: "not-found" }, 404);
+  const selection = resolveArticleEndSection({ endGallerySections: target.sections }, section);
+  if (selection.kind === "not-found" || (section !== undefined && selection.kind !== "selected")) return response({ status: "not-found" }, 404);
   try {
     const page = await getArticleEndGalleryPage(
       target.locale,
       target.contentId,
       target.endGalleryId,
       cursor,
+      ...(selection.kind === "selected" ? [selection.section.sectionId] as const : []),
     );
     return page === undefined
       ? response({ status: "not-found" }, 404)
       : response(projectGallerySlice(page), 200);
   } catch (error) {
-    if (error instanceof GalleryCursorError) {
+    if (error instanceof GalleryCursorError || error instanceof UnknownGallerySectionError) {
       return response({ status: "not-found" }, 404);
     }
     throw error;

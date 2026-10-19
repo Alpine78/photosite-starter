@@ -1,3 +1,4 @@
+import { resolveArticleEndSection, type ArticleEndSectionSelection } from "@/lib/article-end-gallery-selection";
 import { isLegacyFallbackNotice, LEGACY_FALLBACK_NOTICE_PARAM } from "@/lib/legacy-redirects";
 import { effectiveGalleryPresentation } from "@/lib/gallery-presentation";
 import type { Metadata } from "next";
@@ -310,6 +311,7 @@ async function resolveRequest({ params, searchParams }: LocalePrefixPageProps) {
       galleryCursorNamesASlice,
       categoryListingCursorNamesASlice,
       articleEndGalleryCursorNamesASlice,
+      articleSectionSelection,
       gallerySectionExists,
       pathHasTrailingSlash:
         requestPath !== undefined &&
@@ -431,19 +433,28 @@ async function resolveArticleEndGallery(
   locale: string,
   page: ArticleContentPage,
   cursor?: string,
+  sectionSlug?: string,
 ) {
   if (page.endGalleryId === undefined) return undefined;
+  const selection = resolveArticleEndSection(page, sectionSlug);
+  if (selection.kind === "not-found") return undefined;
   try {
     return await getArticleEndGalleryPage(
       locale,
       page.contentId,
       page.endGalleryId,
       cursor,
+      ...(selection.kind === "selected" ? [selection.section.sectionId] as const : []),
     );
   } catch (error) {
-    if (error instanceof GalleryCursorError) return undefined;
+    if (error instanceof GalleryCursorError || error instanceof UnknownGallerySectionError) return undefined;
     throw error;
   }
+}
+
+async function articleSectionSelection(locale: string, contentId: string, raw: string | readonly string[] | undefined): Promise<ArticleEndSectionSelection> {
+  const page = asArticlePage(contentId, await getContentPage(locale, contentId, "article"));
+  return page === undefined ? { kind: "not-found" } : resolveArticleEndSection(page, raw);
 }
 
 /** Validate a token before any canonical path normalization redirect. */
@@ -451,6 +462,7 @@ async function articleEndGalleryCursorNamesASlice(
   locale: string,
   contentId: string,
   cursor: string,
+  sectionSlug?: string,
 ): Promise<boolean | "ignore"> {
   const page = asArticlePage(
     contentId,
@@ -458,7 +470,7 @@ async function articleEndGalleryCursorNamesASlice(
   );
   if (page?.endGalleryId === undefined && page !== undefined) return "ignore";
   return page !== undefined &&
-    (await resolveArticleEndGallery(locale, page, cursor)) !== undefined;
+    (await resolveArticleEndGallery(locale, page, cursor, sectionSlug)) !== undefined;
 }
 
 /**
@@ -678,7 +690,7 @@ export async function generateMetadata(
   if (route.kind === "content" && page === undefined) return {};
 
   const articleEndGallery = page?.variant === "article"
-    ? await resolveArticleEndGallery(locale, page, resolution.cursor)
+    ? await resolveArticleEndGallery(locale, page, resolution.cursor, resolution.section)
     : undefined;
   if (page?.variant === "article" &&
       page.endGalleryId !== undefined &&
@@ -762,7 +774,7 @@ export async function generateMetadata(
     });
   }
 
-  if (page.variant === "article" && page.endGalleryId !== undefined && resolution.cursor !== undefined) {
+  if (page.variant === "article" && page.endGalleryId !== undefined && (resolution.cursor !== undefined || resolution.section !== undefined)) {
     // Supporting article slices are noindex and canonicalize to their owner
     // (ADR-0003, AB#161 amendment), unlike standalone gallery/category slices.
     return getPageMetadata({
@@ -997,14 +1009,18 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
       getStoryRoutePath(tree, route),
     );
     if (article.endGalleryId !== undefined && resolution.cursor !== undefined) {
-      const endGallery = await resolveArticleEndGallery(locale, article, resolution.cursor);
+      const endGallery = await resolveArticleEndGallery(locale, article, resolution.cursor, resolution.section);
       if (endGallery === undefined) notFound();
       return (
         <ArticleEndGalleryContinuation
           articlePath={articlePath}
           articleTitle={article.title}
+          sections={article.endGallerySections}
+          sectionHeading={article.endGallerySectionHeading}
+          activeSection={resolution.section}
+          carriedQuery={await props.searchParams}
           slice={projectGallerySlice(endGallery)}
-          initialSliceKey={`cursor:${resolution.cursor}`}
+          initialSliceKey={`cursor:${resolution.cursor}:section:${resolution.section ?? ""}`}
           presentation={effectiveGalleryPresentation({}, await getSiteSettings())}
           languages={languages}
           labels={labels}
@@ -1020,7 +1036,7 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
     const [{ previous, next }, settings, endGallery] = await Promise.all([
       getAdjacentContent(locale, route.contentId),
       getSiteSettings(),
-      resolveArticleEndGallery(locale, article),
+      resolveArticleEndGallery(locale, article, undefined, resolution.section),
     ]);
     if (article.endGalleryId !== undefined && endGallery === undefined) notFound();
     const authorName = effectiveArticleAuthor(article, settings);
@@ -1076,7 +1092,11 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
                 endGallery: {
                   slice: projectGallerySlice(endGallery),
                   articlePath,
-                  initialSliceKey: `first:${articlePath}`,
+                  initialSliceKey: `first:${articlePath}:section:${resolution.section ?? ""}`,
+                  sections: article.endGallerySections,
+                  sectionHeading: article.endGallerySectionHeading,
+                  activeSection: resolution.section,
+                  carriedQuery: await props.searchParams,
                   presentation: effectiveGalleryPresentation({}, settings),
                 },
               })}

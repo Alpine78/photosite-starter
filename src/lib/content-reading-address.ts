@@ -1,3 +1,6 @@
+/** Emitted after the existing address observer updates a fragment without native hashchange. */
+export const CONTENT_READING_ADDRESS_EVENT = "photosite-content-reading-address-change";
+
 /** Geometry only: existing authored heading ids are never generated here. */
 export type ReadingHeading = {
   readonly id: string;

@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { articleSectionHref, rememberArticleSectionNavigation, consumeArticleSectionNavigation } from "@/lib/article-section-navigation";
+import { CONTENT_READING_ADDRESS_EVENT } from "@/lib/content-reading-address";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { BuiltInLabels } from "@/lib/deployment-config";
 import { buildGalleryHref } from "@/lib/gallery-slice";
 import type { GallerySectionSummary } from "@/lib/gallery-sections";
@@ -17,6 +19,7 @@ type GallerySectionControlsProps = {
   readonly labels: BuiltInLabels;
   /** A localized result summary, including an exact count or the empty state. */
   readonly resultSummary: string;
+  readonly articleContext?: { readonly heading: string; readonly carriedQuery: Readonly<Record<string, string | readonly string[] | undefined>>; readonly isContinuation: boolean };
 };
 
 const focusRing =
@@ -52,7 +55,8 @@ function layoutTop(element: HTMLElement): number {
  * A gallery's section controls: real links, one per declared section plus
  * `All`, that select ADR-0003's gallery-local filter.
  *
- * Renders nothing when the gallery declares fewer than two sections — the condition
+ * By default renders nothing for fewer than two sections; article catalogs opt in with one.
+ * The default gallery condition
  * that has to hold everywhere a gallery renders, so it lives here rather than
  * being duplicated at every call site.
  *
@@ -85,8 +89,26 @@ export function GallerySectionControls({
   galleryPath,
   labels,
   resultSummary,
+  articleContext,
 }: GallerySectionControlsProps) {
-  const showControls = sections.length > 1;
+  const articleMode = articleContext !== undefined;
+  const isContinuation = articleContext?.isContinuation ?? false;
+  const showControls = sections.length > (articleMode ? 0 : 1);
+  const [hash, setHash] = useState("");
+  const [announcement, setAnnouncement] = useState("");
+  useEffect(() => {
+    if (!articleMode) return;
+    const update = () => setHash(window.location.hash);
+    update();
+    for (const name of ["hashchange", "popstate", CONTENT_READING_ADDRESS_EVENT]) window.addEventListener(name, update);
+    return () => { for (const name of ["hashchange", "popstate", CONTENT_READING_ADDRESS_EVENT]) window.removeEventListener(name, update); };
+  }, [articleMode]);
+  useEffect(() => {
+    if (!articleMode) return;
+    const frame = requestAnimationFrame(() => setAnnouncement(resultSummary));
+    return () => cancelAnimationFrame(frame);
+  }, [articleMode, resultSummary]);
+  const href = (slug?: string) => articleContext === undefined ? buildGalleryHref(galleryPath, { section: slug }) : articleSectionHref(galleryPath, articleContext.carriedQuery, slug, hash);
   const { ref: navRef, hidden } = useScrollReveal({ enabled: showControls });
   const pendingRef = useRef<{
     readonly galleryPath: string;
@@ -187,18 +209,20 @@ export function GallerySectionControls({
 
   const rememberNavigation = (slug?: string) => {
     const nav = navRef.current;
-    if (nav === null || slug === activeSlug) {
+    if (nav === null || (slug === activeSlug && !articleContext?.isContinuation)) {
       pendingRef.current = null;
       return;
     }
-    pendingRef.current = { galleryPath, slug, top: layoutTop(nav),
+    const value = { galleryPath, slug, top: layoutTop(nav),
       scrollY: window.scrollY, focusAtStart: document.activeElement, moved: false };
+    if (articleContext !== undefined) rememberArticleSectionNavigation(value);
+    else pendingRef.current = value;
   };
 
   useLayoutEffect(() => {
-    const pending = pendingRef.current;
+    const pending = !articleMode ? pendingRef.current : isContinuation ? undefined : consumeArticleSectionNavigation(galleryPath, activeSlug);
     const nav = navRef.current;
-    if (pending === null || nav === null) return;
+    if (pending == null || nav === null) return;
     if (pending.galleryPath !== galleryPath) {
       pendingRef.current = null;
       return;
@@ -223,7 +247,7 @@ export function GallerySectionControls({
     if (rect.top < headerOffset || rect.bottom > window.innerHeight) {
       selected.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "instant" });
     }
-  }, [activeSlug, galleryPath, navRef]);
+  }, [activeSlug, galleryPath, navRef, articleMode, isContinuation]);
   useLayoutEffect(() => {
     const nav = navRef.current;
     if (!showControls || nav === null) return;
@@ -245,15 +269,17 @@ export function GallerySectionControls({
   return (
     <nav
       ref={navRef}
-      aria-label={labels.gallery.sectionsNav}
+      aria-label={articleContext?.heading ?? labels.gallery.sectionsNav}
+      data-article-section-controls={articleContext === undefined ? undefined : ""}
       className={`sticky top-[var(--site-header-offset,0px)] z-10 -mx-4 border-y border-border bg-surface/95 px-4 backdrop-blur transition-transform duration-200 motion-reduce:transition-none sm:-mx-6 sm:px-6 ${
         hidden ? "-translate-y-full" : "translate-y-0"
       }`}
     >
       <p className="px-4 pt-3 text-xs font-semibold uppercase tracking-widest text-muted">
-        {labels.gallery.sectionsNav} · {sections.length}
+        {articleContext?.heading ?? `${labels.gallery.sectionsNav} · ${sections.length}`}
       </p>
-      <p role="status" aria-atomic="true" className="sr-only">{resultSummary}</p>
+      {articleMode && <p className="px-4 pt-2 text-sm text-muted">{resultSummary}</p>}
+      <p role="status" aria-atomic="true" className="sr-only">{articleMode ? announcement : resultSummary}</p>
       <ul className="flex flex-wrap">
         {/* `min-w-0` overrides the flex item's automatic min-content floor:
             without it, a section label with one long unbroken word can widen
@@ -265,7 +291,7 @@ export function GallerySectionControls({
             prefetch={false}
             scroll={false}
             onNavigate={() => rememberNavigation()}
-            href={buildGalleryHref(galleryPath, {})}
+            href={href()}
             aria-current={activeSlug === undefined ? "true" : undefined}
             className={optionClassName(activeSlug === undefined)}
           >
@@ -278,7 +304,7 @@ export function GallerySectionControls({
               prefetch={false}
               scroll={false}
               onNavigate={() => rememberNavigation(section.slug)}
-              href={buildGalleryHref(galleryPath, { section: section.slug })}
+              href={href(section.slug)}
               aria-current={activeSlug === section.slug ? "true" : undefined}
               className={optionClassName(activeSlug === section.slug)}
             >

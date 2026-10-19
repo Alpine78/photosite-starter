@@ -159,6 +159,8 @@ export default defineConfig({
   // Firefox is left out deliberately: it shares no rendering behaviour that the
   // other two would miss here, and it would cost install time on every run.
   projects: [
+    { name: "desktop-webkit-article-sections", use: { ...devices["Desktop Safari"] }, testMatch: "**/article-end-sections.spec.ts" },
+    { name: "mobile-chromium-article-sections", use: { ...devices["Pixel 7"] }, testMatch: "**/article-end-sections.spec.ts" },
     { name: "desktop-webkit-reading-position", use: { ...devices["Desktop Safari"] }, testMatch: "**/article-reading-position.spec.ts" },
     { name: "mobile-chromium-reading-position", use: { ...devices["Pixel 7"] }, testMatch: "**/article-reading-position.spec.ts" },
     { name: "desktop-webkit-contents", use: { ...devices["Desktop Safari"] }, testMatch: "**/content-reading-layout.spec.ts" },

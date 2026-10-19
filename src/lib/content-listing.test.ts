@@ -139,6 +139,7 @@ describe("listCategoryContentIds", () => {
     expect(listCategoryContentIds(english, "cat-landscape")).toEqual([
       "content-coastal-mornings",
       "content-reading-coastal-light",
+      "content-filtered-image-notes",
     ]);
   });
 
@@ -160,6 +161,7 @@ describe("listCategoryContentIds", () => {
       "content-selected-work",
       "content-coastal-mornings",
       "content-reading-coastal-light",
+      "content-filtered-image-notes",
       "content-polar-night-sessions",
       "content-awaiting-selection",
       "content-large-archive",
@@ -185,6 +187,7 @@ describe("listCategoryContentIds", () => {
       "content-selected-work",
       "content-coastal-mornings",
       "content-reading-coastal-light",
+      "content-filtered-image-notes",
       "content-polar-night-sessions",
       "content-awaiting-selection",
       "content-large-archive",
@@ -265,10 +268,11 @@ describe("buildCategoryListing", () => {
     expect(branch.childCategories.map((child) => child.path)).toEqual([
       ["landscape", "coastal"],
     ]);
-    // Its own article, newest first, then the child category's gallery.
+    // Its articles and the child category's gallery, newest first.
     expect(branch.content.map((entry) => entry.contentId)).toEqual([
       "content-reading-coastal-light",
       "content-coastal-mornings",
+      "content-filtered-image-notes",
     ]);
   });
 
@@ -484,6 +488,7 @@ describe("buildContentListingQuery", () => {
       "content-selected-work",
       "content-coastal-mornings",
       "content-reading-coastal-light",
+      "content-filtered-image-notes",
       "content-polar-night-sessions",
       "content-awaiting-selection",
       "content-large-archive",
@@ -634,6 +639,7 @@ describe("buildAdjacentContentQuery", () => {
         ?.contentIds,
     ).toEqual([
       "content-reading-coastal-light",
+      "content-filtered-image-notes",
       "content-choosing-a-telephoto-lens",
       "content-understanding-exposure-triangle",
       "content-field-guide",

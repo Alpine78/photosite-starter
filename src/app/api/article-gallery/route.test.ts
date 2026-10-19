@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { GalleryCursorError } from "@/lib/gallery-pagination";
+import { MAX_ITEM_ID_LENGTH, GalleryCursorError } from "@/lib/gallery-pagination";
+import { UnknownGallerySectionError } from "@/lib/gallery-sections";
 
 const dependencies = vi.hoisted(() => ({
   resolveTarget: vi.fn(),
@@ -59,7 +60,7 @@ describe("GET /api/article-gallery", () => {
     ["missing path", `cursor=${cursor}`],
     ["repeated cursor", `path=${encodeURIComponent(path)}&cursor=a&cursor=b`],
     ["empty cursor", `path=${encodeURIComponent(path)}&cursor=`],
-    ["unknown field", `path=${encodeURIComponent(path)}&cursor=${cursor}&section=x`],
+    ["unknown field", `path=${encodeURIComponent(path)}&cursor=${cursor}&unsupported=x`],
     ["unsafe path", `path=${encodeURIComponent("//attacker.example/x")}&cursor=${cursor}`],
   ])("rejects %s", async (_label, query) => {
     const response = await GET(request(query));
@@ -73,10 +74,34 @@ describe("GET /api/article-gallery", () => {
     expect(dependencies.resolveTarget).not.toHaveBeenCalled();
   });
 
+  it("resolves an exact section ID before passing a selected cursor to the reader", async () => {
+    dependencies.resolveTarget.mockResolvedValue({ locale: "en-GB", contentId: "article-one", endGalleryId: "ending-one", sections: [{ sectionId: "stable-one", slug: "soft-light", label: "Soft light", order: 0 }] });
+    expect((await GET(request(`path=${encodeURIComponent(path)}&cursor=${cursor}&section=soft-light`))).status).toBe(200);
+    expect(dependencies.getPage).toHaveBeenCalledWith("en-GB", "article-one", "ending-one", cursor, "stable-one");
+  });
+  it.each(["", "all", "UPPER", "a/b", "x".repeat(MAX_ITEM_ID_LENGTH + 1)])("refuses noncanonical API section %j before lookup", async (value) => {
+    expect((await GET(request(`path=${encodeURIComponent(path)}&cursor=${cursor}&section=${encodeURIComponent(value)}`))).status).toBe(400);
+    expect(dependencies.resolveTarget).not.toHaveBeenCalled();
+  });
+  it("refuses repeated section state before lookup and unknown/uncatalogued state before window", async () => {
+    expect((await GET(request(`path=${encodeURIComponent(path)}&cursor=${cursor}&section=a&section=b`))).status).toBe(400);
+    expect(dependencies.resolveTarget).not.toHaveBeenCalled();
+    expect((await GET(request(`path=${encodeURIComponent(path)}&cursor=${cursor}&section=missing`))).status).toBe(404);
+    expect(dependencies.getPage).not.toHaveBeenCalled();
+  });
   it("returns 404 without exposing cursor failure details", async () => {
     dependencies.getPage.mockRejectedValue(new GalleryCursorError("tampered"));
     const response = await GET(request());
     expect(response.status).toBe(404);
     expect(await response.json()).toEqual({ status: "not-found" });
+  });
+  it("returns a no-store 404 when the selected catalog entry disappears between reads", async () => {
+    dependencies.resolveTarget.mockResolvedValue({ locale: "en-GB", contentId: "article-one", endGalleryId: "ending-one", sections: [{ sectionId: "stable-one", slug: "soft-light", label: "Soft light", order: 0 }] });
+    dependencies.getPage.mockRejectedValue(new UnknownGallerySectionError("stable-one"));
+    const response = await GET(request(`path=${encodeURIComponent(path)}&cursor=${cursor}&section=soft-light`));
+    expect(response.status).toBe(404);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.json()).toEqual({ status: "not-found" });
+    expect(dependencies.getPage).toHaveBeenCalledTimes(1);
   });
 });
