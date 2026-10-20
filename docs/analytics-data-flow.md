@@ -85,7 +85,8 @@ the first Production deployment with `SITE_ANALYTICS=vercel`, and recorded here:
 
 ## Speed Insights (AB#376)
 
-**Status:** implemented, **off everywhere**. It is a separate switch,
+**Status:** enabled on the reference Production deployment on 2026-10-20 after the
+checks below (owner decision). Other clones stay off unless they opt in. It is a separate switch,
 `SITE_SPEED_INSIGHTS=vercel`, with the same production-only, public-shell-only
 and `scrubAnalyticsEvent` rules as page-view statistics above.
 
@@ -113,20 +114,39 @@ and the retention period for Speed Insights data under the current terms are
 shared across the team, after which collection pauses for at least 14 days.
 There is no charge on this tier.
 
-**Checks before enabling** (on an unpromoted production-target deployment built
-with `SITE_SPEED_INSIGHTS=vercel`, in clean browser contexts, comparing with the
-setting off so deployment-protection cookies are not mistaken for the collector's):
+**Checks before enabling** (run on 2026-10-20 against the unpromoted production-target
+deployment `photosite-starter-623p0fy72`, built from `main` `ce67756` with
+`SITE_SPEED_INSIGHTS=vercel`, compared with the then-current production deployment
+with it off, in clean Chromium contexts with the protection bypass sent as a header):
 
-1. The script and every intake request go to this origin, through the Proxy, with
-   successful responses and no CSP violation; record the actual paths.
-2. No cookie, `Set-Cookie` header, `localStorage`, `sessionStorage` or IndexedDB
-   entry is created by the collector.
-3. Emitted payloads carry bare paths, and private, administrator, legacy client
-   and their locale-prefixed pages send nothing, including after client-side
-   navigation, in both locales.
-4. After promotion, data appears in the Vercel dashboard.
-5. The owner records the consent (no-banner) assessment. If a banner would be
-   needed, `SITE_SPEED_INSIGHTS` stays unset and the feature is removed.
+1. **Origins:** the script (`/_vercel/speed-insights/script.js`) and the intake
+   (`POST /_vercel/speed-insights/vitals`, 200) are same-origin; no other origin was
+   contacted; no CSP violation. Passed.
+2. **Device storage:** no cookie, `Set-Cookie` header, `localStorage`,
+   `sessionStorage` or IndexedDB entry in either deployment; the served collector
+   contains no cookie or web-storage code. Passed.
+3. **Payload:** network class, SDK name/version, and per metric (FCP, TTFB, LCP,
+   FID, INP, CLS) the route template, the URL without query string or fragment,
+   the value, and for some metrics a CSS selector of the page element (for example
+   `figure…>img…`). Client-gallery and private pages load no script and send
+   nothing. The collector sends nothing from automation browsers
+   (`navigator.webdriver` or a "Headless" user agent), so this check used a normal
+   user agent. Passed.
+4. **Dashboard:** the project reported received data after the check. Recheck
+   after enablement.
+5. **Consent assessment (owner, 2026-10-20):** nothing is stored on the device, so
+   the wording of section 205 of the Act on Electronic Communications Services
+   (917/2014), "storing … on the user's terminal equipment and the use of this
+   information", does not appear to apply. Whether reading browser-provided
+   measurements counts as using information stored on the device under Article 5(3)
+   of Directive 2002/58/EC is an interpretive question this record does not settle.
+   The owner accepted the same residual position as the already enabled Web
+   Analytics and enabled Speed Insights without a banner. This is not a legal
+   opinion; revisit it in the AB#117 launch review. If a banner is ever found
+   necessary, Speed Insights is removed rather than gated behind one.
+
+Still to record before the AB#117 review closes: Vercel's role (processor or
+controller) and the retention period for Speed Insights data under the current terms.
 
 ## For a clone and the launch review
 

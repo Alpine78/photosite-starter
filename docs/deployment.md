@@ -382,7 +382,7 @@ time; the Production set is never fetched by the Preview job.
 | `SITE_DEFAULT_SOCIAL_IMAGE` and its dimensions | same as production                                   | the launch social image                 |
 | `SITE_ROBOTS_DISALLOWED_AGENTS`                | unset (Preview's `robots.txt` already disallows everyone) | optional: crawlers to keep off the whole site — see below |
 | `SITE_ANALYTICS`                               | unset (a `preview` stage ignores it)                 | unset, or `vercel` once the owner enables page-view statistics — see below |
-| `SITE_SPEED_INSIGHTS`                          | unset (a `preview` stage ignores it)                 | unset until the AB#376 checks and no-banner assessment pass, then `vercel` — see below |
+| `SITE_SPEED_INSIGHTS`                          | unset (a `preview` stage ignores it)                 | `vercel` on the reference deployment since 2026-10-20 (AB#376); unset for a clone until it runs the same checks — see below |
 | `CONTACT_DELIVERY_ADAPTER`                     | `sink`                                               | `resend`                                |
 | `CONTACT_DELIVERY_FROM`, `CONTACT_DELIVERY_TO` | unset                                                | the owner's verified sender and mailbox |
 | `RESEND_API_KEY`                               | unset                                                | Production-only secret                  |
@@ -405,7 +405,8 @@ Speed Insights under the same rules: production stage only, build-time, so enabl
 disabling it needs a rebuild and redeploy. It also needs Speed Insights enabled for the
 project in the Vercel dashboard (free tier: Real Experience Score only, 10,000 events per
 rolling 30 days shared across the team). Keep it unset until the checks in
-[analytics-data-flow.md](analytics-data-flow.md#speed-insights-ab376) pass.
+[analytics-data-flow.md](analytics-data-flow.md#speed-insights-ab376) pass. The reference Production
+environment sets it to `vercel` from 2026-10-20.
 
 **Site-search route (AB#299, ADR-0033).** The fifth field of a `SITE_LOCALE_ROUTES` entry
 is the locale's search namespace and defaults to `search`, so a deployment whose value
