@@ -1122,6 +1122,14 @@ command-line tooling chain, outside the public site's runtime, and no visitor in
 is believed to reach it. *Review:* 2026-11-19, or sooner when a patched version is
 published; re-read the alert and the lockfile then. No code or dependency changed.
 
+**Enforced by the scheduled audit (AB#380, 2026-10-20):** the daily audit failed on this
+accepted chain (#1279, #1311). `sanity` 6.20.0, the latest release, resolves the same
+chain, so no update removes it. The acceptance is now a dated exception in
+`scripts/npm-audit-accepted-advisories.json` bound to advisory source 1241202
+(GHSA-hp3w-g68c-fv3c), the nine reviewed Studio install paths (the eight chain packages plus `@sanity/locale-fi-fi`, which inherits the same advisory only through its peer dependency on `sanity`; one npm audit run reported it and local runs did not, for a reason not determined) and a moderate ceiling.
+It turns the Studio audit green as `accepted` until 2026-11-19 00:00 UTC; after that,
+or on a new advisory, package, install path or severity, the audit fails again.
+
 **Notification delivery is not demonstrated.** The owner searched their mailbox and
 found no GitHub Dependabot message newer than 2024; the 2024 messages belong to other
 repositories. So no notification email for this repository's alert #66 (opened

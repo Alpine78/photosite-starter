@@ -1,9 +1,10 @@
 /** Bounded POSIX subprocess and filesystem adapter; no child output is streamed. */
 import { spawn } from "node:child_process";
 import { constants, type Stats } from "node:fs";
-import { chmod, lstat, mkdir, mkdtemp, open, realpath, rename, rm } from "node:fs/promises";
+import { chmod, lstat, mkdir, mkdtemp, open, readFile, realpath, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import { AUDIT_TRIAGE_LIMITS } from "./npm-audit-triage.mts";
+import { evaluateAcceptance, parseAcceptedAdvisories } from "./npm-audit-acceptance.mts";
 import {
   AUDIT_CAPTURE_LIMITS, AUDIT_TARGETS, AuditCaptureError, captureManifest,
   classifyAuditCapture, digestBytes, type AuditChildResult, type AuditTarget, type CaptureTargetSummary,
@@ -107,6 +108,8 @@ async function exclusiveFile(filePath: string, bytes: Buffer) {
 export type AuditCaptureOptions = {
   root: string; temporaryRoot: string; artifactRoot: string; npmCli: string;
   buildId: string; jobAttempt: string; signal: AbortSignal;
+  /** AB#380: the evaluation instant for dated exceptions; injected by tests. */
+  now?: Date;
   ready(): void; status(target: AuditTarget, status: CaptureTargetSummary["status"], gateExit: number): void;
 };
 export type AuditCaptureRunner = (options: Parameters<typeof runAuditChild>[0]) => Promise<AuditChildResult>;
@@ -131,6 +134,12 @@ export async function captureAudits(options: AuditCaptureOptions, runner: AuditC
     await mkdir(artifactDirectory, { mode: 0o700 }); // Exclusive leaf, never recursive/reused.
     createdArtifact = true;
     artifactIdentity = await lstat(artifactDirectory);
+    // AB#380: reviewed, dated exceptions. A missing or malformed file fails
+    // closed as a configuration error rather than silently accepting nothing.
+    let accepted: ReturnType<typeof parseAcceptedAdvisories>;
+    try { accepted = parseAcceptedAdvisories(JSON.parse(await readFile(path.join(root, "scripts", "npm-audit-accepted-advisories.json"), "utf8"))); }
+    catch { throw new AuditCaptureError("configuration"); }
+    const now = options.now ?? new Date();
     const targets: CaptureTargetSummary[] = [];
     const safeReports: { file: string; bytes: Buffer }[] = [];
     for (const target of AUDIT_TARGETS) {
@@ -156,12 +165,17 @@ export async function captureAudits(options: AuditCaptureOptions, runner: AuditC
         const bytes = Buffer.from(JSON.stringify(decision.triage)), file = `${target}.triage.json`;
         safeReports.push({ file, bytes });
         checkAbort(options.signal);
-        targets.push({ target, status: decision.triage.status as "clean" | "findings", gateExit: decision.gateExit, reason: null, lockfileSha256,
-          report: { file, sha256: digestBytes(bytes), bytes: bytes.length } });
+        const acceptance = decision.gateExit === 1
+          ? evaluateAcceptance(target, decision.triage.entries, accepted, now) : undefined;
+        targets.push({ target,
+          status: acceptance?.allAccepted ? "accepted" : decision.triage.status as "clean" | "findings",
+          gateExit: acceptance?.allAccepted ? 0 : decision.gateExit, reason: null, lockfileSha256,
+          report: { file, sha256: digestBytes(bytes), bytes: bytes.length },
+          acceptance: acceptance?.allAccepted ? { evaluatedAt: now.toISOString(), applied: [...acceptance.applied] } : null });
       } catch (error) {
         checkAbort(options.signal);
         if (error instanceof AuditCaptureError && error.code === "canceled") throw error;
-        targets.push({ target, status: "tool-error", gateExit: 2, reason: error instanceof AuditCaptureError ? error.code : "internal", lockfileSha256, report: null });
+        targets.push({ target, status: "tool-error", gateExit: 2, reason: error instanceof AuditCaptureError ? error.code : "internal", lockfileSha256, report: null, acceptance: null });
       }
       const result = targets.at(-1)!; options.status(target, result.status, result.gateExit);
     }

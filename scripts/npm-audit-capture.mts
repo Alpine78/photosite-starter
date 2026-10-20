@@ -42,9 +42,11 @@ export function classifyAuditCapture(before: Uint8Array, after: Uint8Array, chil
 }
 
 export type CaptureTargetSummary = {
-  target: AuditTarget; status: "clean" | "findings" | "tool-error"; gateExit: number;
+  target: AuditTarget; status: "clean" | "findings" | "accepted" | "tool-error"; gateExit: number;
   reason: CaptureCode | null; lockfileSha256: string | null;
   report: { file: string; sha256: string; bytes: number } | null;
+  /** AB#380: the dated exceptions that turned every finding green, and when. */
+  acceptance: { evaluatedAt: string; applied: { ghsa: string; advisorySource: number; workItem: string; expiresOn: string }[] } | null;
 };
 export function captureManifest(buildId: string, attempt: string, targets: CaptureTargetSummary[]) {
   return {

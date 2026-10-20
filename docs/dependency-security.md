@@ -16,7 +16,16 @@ a dependency update automatically.
   checks run after ordinary findings or tooling errors; cancellation stops the
   sequence. The existing `--audit-level=low` policy remains: info-only findings
   pass the gate while staying labelled findings; low or higher fails with 1,
-  and tooling/input failure fails with 2. Logs contain fixed statuses only;
+  and tooling/input failure fails with 2. **Dated exceptions (AB#380):** a finding
+  passes as `accepted` only when `scripts/npm-audit-accepted-advisories.json` names its
+  target, every advisory reported directly on that package (its npm advisory source
+  and GHSA must both match one exception; the triage report carries the validated
+  GHSA for this), every reviewed install path, a severity ceiling and an `expiresOn` date;
+  acceptance ends at 00:00 UTC on that date. A new advisory, package, install path or
+  higher severity, or an expired exception, fails with 1 again; a missing or malformed
+  exceptions file fails with 2. Accepted findings stay in the redacted triage report and
+  the manifest records the applied exception and evaluation time. Every entry needs an
+  owner decision recorded in [the security review](security-privacy-review.md). Logs contain fixed statuses only;
   allowlisted details are in the current redacted audit artifact. A scheduled run skips the normal quality gates and
   Preview deployment; push and PR runs retain them.
   The audit uses the `Default` self-hosted pool, so it does not consume the
