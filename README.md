@@ -469,10 +469,9 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   pinch/pan check that ADR-0001 records as an outstanding gap*
 - [ ] Scriptless 404 recovery (AB#132) — Next.js 16.4.2
   still needs JavaScript to show the 404 heading and invalid-continuation return
-  link. [ADR-0007](docs/adr/0007-proxy-request-path-boundary.md#scriptless-404-recheck--2026-10-18-ab132)
-  records the October 18 recheck and the October 7 temporary acceptance. Its
-  October 8 review date has passed; the recheck does not renew that acceptance.
-  A new owner decision or verified fix is required before AB#18 promotion;
+  link; the upstream fix is unreleased. The owner renewed the temporary residual-risk
+  acceptance on 2026-10-19 for review by 2026-12-19 (AB#370), recorded in
+  [ADR-0007](docs/adr/0007-proxy-request-path-boundary.md#2026-10-19-owner-renewed-temporary-residual-risk-ab132);
   known-failure probes keep the unresolved behavior visible.
 - [x] Contact form — *accessible `/contact` page and bounded `POST /api/contact`
   handler, a replaceable delivery adapter (Resend over its HTTP API, plus a sink adapter
@@ -595,8 +594,10 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   fully automated pipeline was verified by build 144 on 2026-08-24: the pinned runtime and
   region, gated deploy stage, project/team ownership, access protection, and non-indexability
   checks all ran against a real release-candidate URL
-  ([deployment](docs/deployment.md)). Production promotion and exercised rollback remain
-  pending under AB#18 and AB#118*
+  ([deployment](docs/deployment.md)). The public domains serve a Production deployment,
+  released with the staged, owner-run `npm run release:production` sequence
+  ([scripted release](docs/deployment.md#scripted-release-ab379)); AB#18's acceptance of
+  the reference promotion and AB#118's exercised rollback and handoff remain open*
 - [ ] Redirects for important legacy URLs (first implementation) — *the registry decides all
   415 inventoried paths: 232 direct redirects, 179 justified `410` responses, three
   excluded error paths and one already-live root; none is pending (AB#271 resolved the
