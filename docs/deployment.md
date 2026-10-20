@@ -1797,6 +1797,22 @@ runs under the operator's Unix account and can read credentials stored on that h
 It must admit only trusted same-repository code (see AB#184 below), and it must never
 share its host with `DeployPreview` or another secret-bearing job.
 
+**Quality-gate timing and concurrency (AB#378, 2026-10-20).** Baseline from PR runs
+1316/1320/1325: Verify stage 1 391/1 507/1 387 s, of which end-to-end 1 176/1 298/1 178 s;
+install 22 s, lint 16 s, unit tests 73 s, deployment-settings build 18 s, Studio job 32 s in
+parallel. The harness build inside the Playwright `webServer` takes about 6 s, so the two
+builds are kept: they check different settings and together cost about 24 s. Main run 1326
+summed 2 311 s of test time across 1 847 tests into 1 183 s of wall time on two workers, with
+no test over 16 s. Measured on this agent (24 CPUs, 31 GB) with CI settings: four workers
+805 s, 0 failed, 0 flaky, at least 7.5 GB free; six workers 662 s but 9 failed and 2 flaky,
+5.6 GB free. `ciE2eWorkers` is therefore 4 and applies to Playwright only; Vitest keeps
+`ciTestWorkers` (2) until it is measured separately. AB#293's unexplained agent disconnects
+are why this stays a one-line, reversible setting: set `ciE2eWorkers` back to `"2"` if an
+agent disconnect or new contention flake appears. Main CI runs are batched
+(`trigger: batch: true`): merges that land during a run are built once, as the newest
+commit, after the whole current run (DeployPreview included) has finished. PR validation is
+not batched.
+
 `DeployPreview` was briefly moved to the same self-hosted agent on 2026-09-16 to avoid
 the $40/month Microsoft-hosted cost entirely, then moved back the same day once an
 independent Codex review caught what that shared: `Verify` also runs pull-request code
