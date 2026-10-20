@@ -137,6 +137,9 @@ export default defineConfig({
     ["html", { open: "never", outputFolder: "playwright-report" }],
     // Consumed by the pipeline's PublishTestResults task.
     ["junit", { outputFile: "test-results/junit.xml" }],
+    // AB#377: the pipeline reads `stats.flaky` to keep the traces of tests that
+    // only passed on retry, which a green run would otherwise discard.
+    ["json", { outputFile: "test-results/results.json" }],
   ],
 
   use: {

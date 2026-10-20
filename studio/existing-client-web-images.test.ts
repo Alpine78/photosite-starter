@@ -181,7 +181,10 @@ describe("explicit older-image UTC search", () => {
     expect(h.append).toHaveBeenCalledOnce(); expect(h.append.mock.calls[0][0].map((x: { image: { asset: { _ref: string } } }) => x.image.asset._ref)).toEqual([asset(2)._id, asset(1)._id]);
     expect(h.requests.mock.calls.at(-1)![0]).toMatchObject({ query: SELECTED_EXISTING_IMAGES_QUERY, ids: [asset(2)._id, asset(1)._id] });
     expect(h.requests.mock.calls.at(-1)![0]).not.toHaveProperty("before");
-  });
+  // AB#377: evaluates the real GROQ query over 302 documents (~3 s alone), so the
+  // default 5 s limit was hit under the full parallel suite. The size is the point:
+  // the older set must fall outside the newest page.
+  }, 20_000);
   it("refuses malformed and partial-native input before IO and restores newest search when explicitly cleared", async () => {
     const h = harness(); await h.controller.open();
     for (const [value, partial] of [["2026-02-30T00:00", false], ["", true], ["2026", false], ["x".repeat(1000), false]] as const) {
