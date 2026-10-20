@@ -9,6 +9,7 @@ import { getMockGalleryResult } from "../src/lib/mock-gallery";
 import { mockContentTreeInputs } from "../src/lib/mock-content-tree";
 import { appUnderTestEnvironment, DEFAULT_STORY_NAMESPACE, PREFIXED_LOCALE } from "./support/harness-environment";
 import { expect, test } from "./support/fixtures";
+import { revealContents } from "./support/reading-contents";
 
 const locales = [
   { locale: appUnderTestEnvironment.SITE_LOCALE, prefix: "" },
@@ -66,7 +67,7 @@ for (const javaScriptEnabled of [true, false]) {
         await expect(gallery).toHaveAccessibleName(labels.article.endGallery);
         await expect(gallery).toHaveAttribute("aria-labelledby", id!);
         await expect(page.locator("#article-end-gallery")).toHaveCount(1);
-        const jump = page.getByRole("navigation", { name: labels.contentTree.onThisPage }).locator(`a[href="#${id}"]`);
+        const jump = (await revealContents(page, labels.contentTree.onThisPage)).locator(`a[href="#${id}"]`);
         await jump.click();
         await expect.poll(() => new URL(page.url()).hash).toBe(`#${id}`);
         await expect(heading).toBeInViewport();

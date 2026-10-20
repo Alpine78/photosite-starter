@@ -19,6 +19,9 @@ const article = pathOf("content-choosing-a-telephoto-lens");
 const gallery = pathOf("content-polar-night-sessions");
 const longArticle = pathOf("content-field-guide");
 const contents = (page: Page) => page.getByRole("navigation", { name: labels.contentTree.onThisPage });
+// AB#372: below the two-column width an article's list sits behind a sticky bar.
+const readingBar = (page: Page) => page.locator("[aria-haspopup='dialog'][aria-controls]");
+const sheet = (page: Page) => page.getByRole("dialog", { name: labels.contentTree.onThisPage });
 
 async function rootSize(page: Page, baseURL: string | undefined, size: number) {
   if (!baseURL) throw new Error("[e2e] The contents matrix needs the harness origin.");
@@ -91,29 +94,70 @@ test("wide article and gallery contents remain beside their own reading column",
 });
 
 for (const width of [390, 768, 1000]) {
-  test(`a ${width}px reading container keeps one inline list before the body`, async ({ page }) => {
+  test(`a ${width}px article collapses its contents into a sticky bar that opens one list`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto(article, { waitUntil: "load" });
-    await expect(contents(page)).toHaveCount(1);
-    await expect(contents(page)).toHaveCSS("position", "static");
-    const nav = await box(contents(page)), body = await box(page.locator("[data-content-body]"));
-    expect(nav.y + nav.height).toBeLessThan(body.y);
-    expect(nav.x).toBeCloseTo(body.x, 0);
+    const bar = readingBar(page);
+    await expect(bar).toBeVisible();
+    await expect(contents(page)).toHaveCount(0);
+    const strip = await box(bar), body = await box(page.locator("[data-content-body]"));
+    expect(strip.y + strip.height).toBeLessThanOrEqual(body.y);
+    expect(strip.x).toBeGreaterThanOrEqual(0);
+    expect(strip.x + strip.width).toBeLessThanOrEqual(width);
     expect(body.width).toBeLessThanOrEqual(768);
-    expect(body.x).toBeGreaterThanOrEqual(0);
     expect(body.x + body.width).toBeLessThanOrEqual(width);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+
+    await bar.click();
+    await expect(sheet(page)).toBeVisible();
+    await expect(bar).toHaveAttribute("aria-expanded", "true");
+    await expect(contents(page)).toHaveCount(1);
+    // Focus starts on the sheet's close control and wraps within the sheet.
+    await expect(sheet(page).getByRole("button", { name: labels.readingPosition.close })).toBeFocused();
+    await page.keyboard.press("Shift+Tab");
+    await expect.poll(() => sheet(page).evaluate((node) => node.contains(document.activeElement))).toBe(true);
+    await page.keyboard.press("Escape");
+    await expect(sheet(page)).toHaveCount(0);
+    await expect(bar).toBeFocused();
+
+    await bar.click();
+    const link = contents(page).getByRole("link").last();
+    const href = await link.getAttribute("href");
+    await link.click();
+    await expect(sheet(page)).toHaveCount(0);
+    await expect(page.locator(href!)).toBeInViewport();
+    // While reading, the bar stays in view beneath the (possibly hidden) site header.
+    await expect.poll(() => bar.evaluate((node) => {
+      const rect = node.getBoundingClientRect();
+      const offset = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--site-header-offset")) || 0;
+      return rect.top >= offset - 1 && rect.top <= offset + 1;
+    })).toBe(true);
   });
 }
 
+test("a narrow gallery keeps its one inline list before the body", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  await page.goto(gallery, { waitUntil: "load" });
+  await expect(readingBar(page)).toHaveCount(0);
+  await expect(contents(page)).toHaveCount(1);
+  await expect(contents(page)).toHaveCSS("position", "static");
+  const nav = await box(contents(page)), body = await box(page.locator("[data-content-body]"));
+  expect(nav.y + nav.height).toBeLessThan(body.y);
+});
+
 for (const width of [320, 390, 1280]) {
-  test(`enlarged text at ${width}px falls back inline when the two columns no longer fit`, async ({ page, baseURL }) => {
+  test(`enlarged text at ${width}px falls back to a single column when the two columns no longer fit`, async ({ page, baseURL }) => {
     await page.setViewportSize({ width, height: 900 });
     await rootSize(page, baseURL, 32);
     await page.goto(article, { waitUntil: "load" });
     await expect(page.locator("html")).toHaveCSS("font-size", "32px");
-    await expect(contents(page)).toHaveCSS("position", "static");
-    const nav = await box(contents(page)), body = await box(page.locator("[data-content-body]"));
-    expect(nav.y + nav.height).toBeLessThan(body.y);
+    const body = await box(page.locator("[data-content-body]"));
+    // The bar follows the viewport width (64rem at the initial 16px); the list
+    // itself wraps inline wherever an enlarged text no longer fits beside the body.
+    const first = width < 1024 ? readingBar(page) : contents(page);
+    if (width >= 1024) await expect(contents(page)).toHaveCSS("position", "static");
+    const nav = await box(first);
+    expect(nav.y + nav.height).toBeLessThanOrEqual(body.y);
     expect(nav.x).toBeGreaterThanOrEqual(0);
     expect(nav.x + nav.width).toBeLessThanOrEqual(width);
     expect(body.x).toBeGreaterThanOrEqual(0);
@@ -126,7 +170,11 @@ test("an overflowing contents pane exposes its last and first links by native Ta
   test.skip(Boolean(info.project.use.isMobile), "Native desktop Tab traversal is tested in both desktop engines.");
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto(longArticle, { waitUntil: "load" });
-  const nav = contents(page), links = nav.getByRole("link");
+  const nav = contents(page);
+  // AB#372 collapses other sections' sub-headings: open them all, then walk
+  // every control the pane offers, sub-list toggles and settings included.
+  for (let toggle = nav.getByRole("button", { expanded: false }); await toggle.count() > 0;) await toggle.first().click();
+  const links = nav.locator(":is(a, button, input):visible");
   await expect(nav).toHaveCSS("position", "sticky");
   const body = await box(page.locator("[data-content-body]"));
   await page.mouse.move(10, 300);
@@ -193,6 +241,7 @@ for (const locale of [language, PREFIXED_LOCALE.prefix]) {
     const localeLabels = getBuiltInLabels(locale);
     for (const id of ["content-understanding-exposure-triangle", "content-coastal-mornings"]) {
       await page.goto(pathOf(id, locale), { waitUntil: "load" });
+      if (await readingBar(page).isVisible()) await readingBar(page).click();
       const nav = page.getByRole("navigation", { name: localeLabels.contentTree.onThisPage });
       await expect(nav).toHaveCount(1);
       expect(await nav.getByRole("link").count()).toBeGreaterThan(0);

@@ -6,6 +6,7 @@ import { ContentReadingLayout } from "@/components/content-reading-layout";
 import { ReadingPositionSettings } from "@/components/reading-position-settings";
 import { CONTENT_HERO_TITLE_CLASSNAME, HeroOverlay } from "@/components/hero-overlay";
 import { ArticleEndGallery } from "@/components/article-end-gallery";
+import { ReadingResumeNotice } from "@/components/reading-resume-notice";
 import {
   LanguageSwitch,
   type LanguageLink,
@@ -144,6 +145,11 @@ export function ContentArticle({
             label={labels.contentTree.onThisPage}
             headings={headings}
             readingPosition={{ contentId: page.contentId, locale }}
+            readingContents={{
+              labels: labels.readingPosition,
+              locale,
+              footer: <ReadingPositionSettings labels={labels.readingPosition} compact />,
+            }}
             centered
             intro={
               <>
@@ -180,13 +186,16 @@ export function ContentArticle({
                   </p>
                 )}
 
-                <ReadingPositionSettings labels={labels.readingPosition} />
+                {/* AB#372: with a contents list the switch lives in its footer;
+                    an article without headings keeps clear/disable here. */}
+                {headings.length === 0 && <ReadingPositionSettings labels={labels.readingPosition} />}
 
               </>
             }
           >
             <ContentBody blocks={page.body} labels={labels} miniGalleryLayout={miniGalleryLayout} standaloneImages />
           </ContentReadingLayout>
+          {headings.length > 0 && <ReadingResumeNotice labels={labels.readingPosition} />}
           {endGallery !== undefined && (
             <ArticleEndGallery
               articlePath={endGallery.articlePath}

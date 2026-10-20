@@ -46,9 +46,16 @@ async function aligned(page: Page, id: string) {
     return Math.abs(heading.getBoundingClientRect().top - offset);
   })).toBeLessThan(4);
 }
+// AB#372: the controls sit in the contents list footer. Below the two-column
+// width that list is behind the sticky bar, which opens it as a modal sheet.
 async function settings(page: Page, labels = article.labels) {
   await ready(page, labels);
-  await page.getByText(labels.heading, { exact: true }).click();
+  const bar = page.locator("[aria-haspopup='dialog'][aria-controls]");
+  if (await bar.isVisible()) {
+    await bar.click();
+    await expect(page.getByRole("dialog", { name: getBuiltInLabels(locale).contentTree.onThisPage })).toBeVisible();
+  }
+  await expect(page.getByRole("checkbox", { name: labels.remember })).toBeVisible();
 }
 
 test("fresh persisted-state visit restores H4 without changing address, history or focus", async ({ page }) => {
@@ -134,6 +141,27 @@ test("missing and expired positions leave a fresh article at its beginning", asy
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
     expect(new URL(page.url()).hash).toBe("");
   }
+});
+
+test("an automatic restore names its chapter and offers the start of the story", async ({ page }) => {
+  await seed(page);
+  await page.goto(article.path, { waitUntil: "load" });
+  await ready(page);
+  await aligned(page, savedHeading.id);
+  // The live region itself is an empty in-flow element; its panel is what shows.
+  const notice = page.getByRole("status").getByText(article.labels.resumed.replace("{chapter}", savedHeading.text));
+  await expect(notice).toBeVisible();
+  await page.getByRole("status").getByRole("button", { name: article.labels.backToStart }).click();
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+  await expect(notice).toHaveCount(0);
+  expect(new URL(page.url()).hash).toBe("");
+  expect(JSON.parse((await positions(page))!)[0].headingId).toBe(savedHeading.id);
+});
+
+test("a visit without a saved place shows no resume notice", async ({ page }) => {
+  await page.goto(article.path, { waitUntil: "load" });
+  await ready(page);
+  await expect(page.getByRole("button", { name: article.labels.backToStart })).toHaveCount(0);
 });
 
 test("clear and disable controls persist accurately without affecting ordinary reading", async ({ page }) => {
@@ -368,7 +396,6 @@ test.describe("without JavaScript", () => {
   test.use({ javaScriptEnabled: false });
   test("reading remains native and settings explain their script requirement", async ({ page }) => {
     await page.goto(article.path, { waitUntil: "load" });
-    await page.getByText(article.labels.heading, { exact: true }).click();
     await expect(page.getByText(article.labels.javascript, { exact: true })).toBeVisible();
     await expect(page.getByRole("checkbox", { name: article.labels.remember })).toHaveCount(0);
     await page.getByRole("navigation", { name: getBuiltInLabels(locale).contentTree.onThisPage }).locator(`a[href='#${explicitHeading.id}']`).click();

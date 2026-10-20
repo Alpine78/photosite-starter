@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+import { ArticleReadingContents } from "@/components/article-reading-contents";
 import { ContentFragmentLink } from "@/components/content-fragment-link";
 import { ContentReadingAddress } from "@/components/content-reading-address";
 import {
@@ -5,6 +7,7 @@ import {
   type ContentHeading,
   type ContentHeadingNode,
 } from "@/lib/content-headings";
+import type { BuiltInLabels } from "@/lib/deployment-config";
 
 export type ContentPageJumpNavProps = {
   /** Accessible name of the nav landmark, and its own visible heading. */
@@ -19,6 +22,15 @@ export type ContentPageJumpNavProps = {
    * article variant, which has no grid to jump to, omits it.
    */
   leadingLink?: { readonly href: `#${string}`; readonly label: string };
+  /**
+   * AB#372: article variants render the reading-position contents list, with
+   * these labels and an optional footer (the remember switch).
+   */
+  readingContents?: {
+    readonly labels: BuiltInLabels["readingPosition"];
+    readonly locale: string;
+    readonly footer?: ReactNode;
+  };
 };
 
 /** The layout and navigation share the same empty/leading-link rule. */
@@ -76,10 +88,24 @@ export function ContentPageJumpNav({
   headings,
   leadingLink,
   readingPosition,
+  readingContents,
 }: ContentPageJumpNavProps) {
   if (!hasContentPageJumpNav(headings, leadingLink)) return null;
 
   const tree = nestContentHeadings(headings);
+
+  if (readingContents !== undefined && leadingLink === undefined && tree.length > 0) {
+    const { labels, locale, footer } = readingContents;
+    const forms = labels.sections;
+    const sections = (new Intl.PluralRules(locale).select(tree.length) === "one" ? forms.one : forms.other)
+      .replace("{count}", String(tree.length));
+    return (
+      <>
+        <ContentReadingAddress headingIds={headings.map(({ id }) => id)} readingPosition={readingPosition} />
+        <ArticleReadingContents label={label} tree={tree} labels={labels} sectionsLabel={sections} footer={footer} />
+      </>
+    );
+  }
 
   return (
     <>

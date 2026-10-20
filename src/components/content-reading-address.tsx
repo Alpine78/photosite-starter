@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
-import { currentReadingChapter, CONTENT_READING_ADDRESS_EVENT } from "@/lib/content-reading-address";
-import { browserReadingStore, readingInputGeneration, readingRestorationAllowed, READING_SETTINGS_EVENT } from "@/lib/browser-reading-position";
+import { CONTENT_READING_ADDRESS_EVENT } from "@/lib/content-reading-address";
+import { measureReadingChapter } from "@/lib/browser-reading-geometry";
+import { browserReadingStore, readingInputGeneration, readingRestorationAllowed, READING_RESTORED_EVENT, READING_SETTINGS_EVENT } from "@/lib/browser-reading-position";
 import { READING_DISABLED_KEY, READING_POSITIONS_KEY } from "@/lib/reading-position-store";
 
 const SCROLL_KEYS = new Set(["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "]);
@@ -83,15 +84,8 @@ export function ContentReadingAddress({ headingIds, readingPosition }: {
       if (modalOpen()) { lock(); return; }
       if (window.location.pathname !== pathname || window.location.search !== search ||
           !body.isConnected || elements.some((heading) => !heading.isConnected)) { lock(); return; }
-      const rect = body.getBoundingClientRect();
       // Native fragment alignment combines the root scroll padding with the target margin.
-      const rootPadding = window.getComputedStyle(document.documentElement).scrollPaddingTop;
-      const padding = rootPadding === "auto" ? 0 : Number.parseFloat(rootPadding);
-      const chapter = currentReadingChapter(elements.map((heading) => {
-        const bounds = heading.getBoundingClientRect();
-        return { id: heading.id, top: bounds.top, height: bounds.height,
-          margin: padding + Number.parseFloat(window.getComputedStyle(heading).scrollMarginTop) };
-      }), rect);
+      const chapter = measureReadingChapter(body, elements);
       // The address observer accepts at most one chapter every 500ms. Save every
       // accepted chapter change immediately; only repeated same-chapter refreshes
       // wait a minute. Intro/outside/modal/programmatic movement never saves.
@@ -149,6 +143,8 @@ export function ContentReadingAddress({ headingIds, readingPosition }: {
           if (!target?.isConnected || target.getClientRects().length === 0) return;
           try {
             target.scrollIntoView({ block: "start", behavior: "instant" });
+            // AB#372: the visible resume notice names the chapter; nothing else listens.
+            window.dispatchEvent(new CustomEvent(READING_RESTORED_EVENT, { detail: saved }));
             const top = target.getBoundingClientRect().top;
             const generation = readingInputGeneration();
             if (typeof ResizeObserver !== "undefined") {

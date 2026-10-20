@@ -1,5 +1,6 @@
 import type { Locator, Page } from "@playwright/test";
 import { getBuiltInLabels } from "../src/lib/deployment-config";
+import { revealContents } from "./support/reading-contents";
 import { buildContentRedirects } from "../src/lib/content-redirects";
 import {
   buildAdjacentContentQuery,
@@ -536,6 +537,7 @@ test("a content page opens from its listing and states where it lives", async ({
   });
 
   await test.step("its table of contents jumps to a heading in the body", async () => {
+    await revealContents(page, getBuiltInLabels(appUnderTestEnvironment.SITE_LOCALE).contentTree.onThisPage);
     const contents = page
       .getByRole("main")
       .getByRole("navigation")

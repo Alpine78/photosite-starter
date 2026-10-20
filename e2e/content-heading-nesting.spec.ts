@@ -10,6 +10,7 @@ import {
   PREFIXED_LOCALE,
 } from "./support/harness-environment";
 import { expect, test } from "./support/fixtures";
+import { revealContents } from "./support/reading-contents";
 
 /**
  * AB#21: the three-level (h2/h3/h4) body heading model and the nested
@@ -79,7 +80,7 @@ test("the article's nested table of contents follows the h2 > h3 > h4 hierarchy,
   await page.goto(ARTICLE_PATH, { waitUntil: "load" });
   await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
 
-  const nav = page.getByRole("navigation", { name: defaultLabels.contentTree.onThisPage });
+  const nav = await revealContents(page, defaultLabels.contentTree.onThisPage);
   await expect(nav).toHaveCount(1);
 
   await expectEveryLinkToResolveToOneHeadingAtItsLevel(
@@ -152,7 +153,7 @@ test("the gallery's nested table of contents keeps the #gallery leading link bef
 
 test("a nested table-of-contents entry is keyboard-operable", async ({ page }) => {
   await page.goto(ARTICLE_PATH, { waitUntil: "load" });
-  const nav = page.getByRole("navigation", { name: defaultLabels.contentTree.onThisPage });
+  const nav = await revealContents(page, defaultLabels.contentTree.onThisPage);
   const link = nav.getByRole("link", { name: "Build and handling" });
 
   await link.focus();
@@ -218,6 +219,7 @@ test("the article's and gallery's table of contents carry the correct accessible
 
   for (const { path, labels } of cases) {
     await page.goto(path, { waitUntil: "load" });
+    await revealContents(page, labels.contentTree.onThisPage);
     await expect(
       page.getByRole("navigation", { name: labels.contentTree.onThisPage }),
     ).toHaveCount(1);

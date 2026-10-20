@@ -2,6 +2,8 @@ import { createReadingPositionStore, type ReadingPositionStorage } from "@/lib/r
 import { mayRestoreReadingPosition } from "@/lib/reading-restoration";
 
 export const READING_SETTINGS_EVENT = "photosite-reading-settings-change";
+/** Dispatched once after an automatic restore; `detail` is the restored heading id. */
+export const READING_RESTORED_EVENT = "photosite-reading-position-restored";
 let store: ReturnType<typeof createReadingPositionStore> | undefined;
 let initialDocumentHref: string | undefined;
 let initialNavigationType: string | undefined;
