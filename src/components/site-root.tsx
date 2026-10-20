@@ -23,7 +23,22 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { ReadingNavigationObserver } from "@/components/reading-navigation-observer";
 import { SiteAnalytics } from "@/components/site-analytics";
-import { buildSiteAnalyticsPolicy, readSiteAnalyticsProvider } from "@/lib/site-analytics";
+import { SiteSpeedInsights } from "@/components/site-speed-insights";
+import {
+  buildSiteAnalyticsPolicy,
+  readSiteAnalyticsProvider,
+  readSiteSpeedInsightsProvider,
+} from "@/lib/site-analytics";
+
+/** The shared exclusion policy, read only when a measurement is enabled. */
+function measurementPolicy() {
+  const { privateGallery, localeRoutes } = getDeploymentConfig();
+  return buildSiteAnalyticsPolicy({
+    privateRoutePrefix: privateGallery.routePrefix,
+    privateAdminRoutePrefix: privateGallery.adminRoutePrefix,
+    localePrefixes: localeRoutes.locales.map((route) => route.prefix),
+  });
+}
 
 /**
  * The opt-in analytics script (ADR-0037), or nothing. The deployment settings
@@ -32,16 +47,13 @@ import { buildSiteAnalyticsPolicy, readSiteAnalyticsProvider } from "@/lib/site-
  */
 function siteAnalyticsElement() {
   if (readSiteAnalyticsProvider(process.env) === "off") return null;
-  const { privateGallery, localeRoutes } = getDeploymentConfig();
-  return (
-    <SiteAnalytics
-      policy={buildSiteAnalyticsPolicy({
-        privateRoutePrefix: privateGallery.routePrefix,
-        privateAdminRoutePrefix: privateGallery.adminRoutePrefix,
-        localePrefixes: localeRoutes.locales.map((route) => route.prefix),
-      })}
-    />
-  );
+  return <SiteAnalytics policy={measurementPolicy()} />;
+}
+
+/** The opt-in Speed Insights script (AB#376), under the same rules. */
+function siteSpeedInsightsElement() {
+  if (readSiteSpeedInsightsProvider(process.env) === "off") return null;
+  return <SiteSpeedInsights policy={measurementPolicy()} />;
 }
 
 /** This locale's descriptor with the name it sits beside, or nothing. */
@@ -148,6 +160,7 @@ export async function SiteRoot({ children, locale }: SiteRootProps) {
         labels={labels}
       />
       {siteAnalyticsElement()}
+      {siteSpeedInsightsElement()}
     </DocumentRoot>
   );
 }

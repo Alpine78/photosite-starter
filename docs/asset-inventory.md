@@ -34,6 +34,11 @@ boundaries; their upstream licenses and attribution remain in place.
 transitive dependencies; its client code is bundled into the build and served to visitors,
 so it is in the shipped table and `NOTICE`. It loads only on a production deployment that
 sets `SITE_ANALYTICS=vercel`. Counts were not recounted.
+**Amended:** 2026-10-20 — `@vercel/speed-insights` 2.0.0 added (AB#376, ADR-0037
+amendment). Apache-2.0, no runtime dependencies (framework peers only); its client code
+is bundled and served to visitors, so it is in the shipped table and `NOTICE`, with the
+license text in `licenses/Apache-2.0.txt`. It loads only on a production deployment that
+sets `SITE_SPEED_INSIGHTS=vercel`. Counts were not recounted.
 **Re-verified 2026-09-13 (AB#43):** a fresh audit pass against the current dependency
 tree and `public/`/`src/app/` assets. Two new production dependencies since the original
 audit — `@sanity/webhook` (MIT, AB#83's webhook signature verification) and the `vercel`
@@ -102,6 +107,7 @@ and none of its own code ends up in them.
 | Next.js, React, React DOM client runtime | `vercel/next.js`, `facebook/react` via npm | Vercel, Meta and contributors | MIT | **Yes** — copyright + permission notice | Yes |
 | PhotoSwipe 5.4.4 (JS + CSS) | `dimsemenov/PhotoSwipe` via npm | Dmitry Semenov | MIT | **Yes** — copyright + permission notice | Yes |
 | `@vercel/analytics` 2.0.1 (client, opt-in, AB#371) | `vercel/analytics` via npm | Vercel, Inc. | MIT | **Yes** — copyright + permission notice | Yes |
+| `@vercel/speed-insights` 2.0.0 (client, opt-in, AB#376) | `vercel/speed-insights` via npm | Vercel, Inc. | Apache-2.0 (`licenses/Apache-2.0.txt`) | **Yes** — license copy and retained notices | Yes |
 | `architecture` skill (project-adapted derivative) | `anthropics/knowledge-work-plugins` | Anthropic | Apache-2.0 | **Yes** — license copy, retained notices, state changes | Yes |
 | `security-review` skill (project-adapted derivative) | `affaan-m/ECC` | Affaan Mustafa | MIT | **Yes** — copyright + permission notice | Yes |
 | Source Sans Pro subsets embedded in `docs/architecture/*.svg` | Adobe Source Sans Pro, vendored by D2 and subset into each generated SVG | Adobe | OFL-1.1 | **Yes** — notice + license must accompany redistribution | Yes |
