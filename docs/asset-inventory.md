@@ -429,7 +429,10 @@ not by its library entry used by the framework detector. This is a standalone YA
 CLI formatting path, outside the public-site dependency tree and the editor's
 content request path. The formatter has no patched release in the audited range;
 do not apply audit's proposed Sanity downgrade as a fix. The scheduled pipeline
-audits the Studio lock independently and will still report this moderate chain.
+audits the Studio lock independently; since AB#380 it reports this chain as
+`accepted` until the 2026-11-19 review date, from the dated exception in
+`scripts/npm-audit-accepted-advisories.json`, and fails again after it or on any change
+to the chain.
 
 
 ### Pinned Studio core locale additions (AB#255)

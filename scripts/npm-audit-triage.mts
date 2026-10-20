@@ -89,6 +89,14 @@ function triage(envelopeValue: unknown, lockfileBytes: Uint8Array) {
     const via = entry.via as unknown[]; // summarizeNpmAudit validated the graph.
     const details = { name, severity: entry.severity as string, isDirect: entry.isDirect as boolean,
       directAdvisoryIds: [...new Set(via.filter(value => typeof value !== "string").map(value => object(value).source as number))].sort((a, b) => a - b),
+      // AB#380: each direct advisory's GHSA identity, or null when npm did not
+      // name a GitHub advisory URL. Validated, never a raw provider string.
+      directAdvisories: [...new Map(via.filter(value => typeof value !== "string").map(value => {
+        const advisory = object(value), source = advisory.source as number;
+        const match = typeof advisory.url === "string" &&
+          /^https:\/\/github\.com\/advisories\/(GHSA-[23456789cfghjmpqrvwx]{4}-[23456789cfghjmpqrvwx]{4}-[23456789cfghjmpqrvwx]{4})$/.exec(advisory.url);
+        return [source, { source, ghsa: match ? match[1] : null }] as const;
+      })).values()].sort((a, b) => a.source - b.source),
       inheritedVia: [...new Set(via.filter((value): value is string => typeof value === "string").map(packageName))].sort(),
       fixProposal: fixProposal(entry.fixAvailable) };
     outputBytes += Buffer.byteLength(JSON.stringify(details)) + 16;

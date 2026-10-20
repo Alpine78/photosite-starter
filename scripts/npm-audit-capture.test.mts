@@ -34,6 +34,8 @@ async function environment() {
   const npmCli = path.join(base, "npm-fixture.mjs"); await writeFile(npmCli, "process.stdout.write('{}');");
   const value = fixture();
   await Promise.all([writeFile(path.join(root, "package-lock.json"), value.lock), writeFile(path.join(root, "studio/package-lock.json"), value.lock)]);
+  await mkdir(path.join(root, "scripts"));
+  await writeFile(path.join(root, "scripts/npm-audit-accepted-advisories.json"), JSON.stringify({ schemaVersion: 1, accepted: [] }));
   const controller = new AbortController(), statuses: string[] = []; let ready = false;
   const options: AuditCaptureOptions = { root, temporaryRoot, artifactRoot, npmCli, buildId: "123", jobAttempt: "1", signal: controller.signal,
     ready() { ready = true; }, status(target, status, code) { statuses.push(`${target}:${status}:${code}`); } };
@@ -298,6 +300,58 @@ describe("actual redacted capture CLI", () => {
       expect(out).not.toContain("dependencyAuditReady]true"); expect(err).toBe("Dependency audit failed: canceled\n");
       await expect(stat(second)).rejects.toMatchObject({ code: "ENOENT" });
       expect(await readdir(e.options.temporaryRoot)).toEqual([]); expect(await readdir(e.options.artifactRoot)).toEqual([]);
+    } finally { await e.close(); }
+  });
+});
+
+describe("dated accepted advisories in the capture (AB#380)", () => {
+  const acceptedFile = (expiresOn: string) => JSON.stringify({ schemaVersion: 1, accepted: [{
+    target: "studio", advisorySource: 100, ghsa: "GHSA-hp3w-g68c-fv3c", workItem: "AB#160", expiresOn,
+    maxSeverity: "high", reason: "Reviewed residual.", affected: { dep: ["node_modules/dep"], top: ["node_modules/top"] },
+  }] });
+  const studioAudit = (ghsa: string) => {
+    const child = fixture("high", true).child;
+    child.stdout = Buffer.from(child.stdout.toString().replace(`https://example.test/${marker}`, `https://github.com/advisories/${ghsa}`));
+    return child;
+  };
+  const run = async (file: string, now: Date, ghsa = "GHSA-hp3w-g68c-fv3c") => {
+    const e = await environment();
+    try {
+      await writeFile(path.join(e.options.root, "scripts/npm-audit-accepted-advisories.json"), file);
+      e.options.now = now;
+      const manifest = await captureAudits(e.options, async request => request.target === "studio" ? studioAudit(ghsa) : fixture().child);
+      return { manifest, statuses: e.statuses };
+    } finally { await e.close(); }
+  };
+
+  it("turns covered Studio findings green while npm itself exits 1, and records why", async () => {
+    const { manifest, statuses } = await run(acceptedFile("2026-11-19"), new Date("2026-10-20T06:00:00Z"));
+    expect(manifest.gateExit).toBe(0);
+    expect(statuses).toEqual(["root:clean:0", "studio:accepted:0"]);
+    expect(manifest.targets[1].acceptance).toEqual({ evaluatedAt: "2026-10-20T06:00:00.000Z",
+      applied: [{ ghsa: "GHSA-hp3w-g68c-fv3c", advisorySource: 100, workItem: "AB#160", expiresOn: "2026-11-19" }] });
+    expect(manifest.targets[1].report).not.toBeNull();
+  });
+
+  it("stays red when the reported GHSA differs from the accepted one", async () => {
+    const { manifest, statuses } = await run(acceptedFile("2026-11-19"), new Date("2026-10-20T06:00:00Z"), "GHSA-2222-3333-4444");
+    expect(manifest.gateExit).toBe(1);
+    expect(statuses).toEqual(["root:clean:0", "studio:findings:1"]);
+  });
+
+  it("goes red again once the exception has expired", async () => {
+    const { manifest, statuses } = await run(acceptedFile("2026-11-19"), new Date("2026-11-19T00:00:00Z"));
+    expect(manifest.gateExit).toBe(1);
+    expect(statuses).toEqual(["root:clean:0", "studio:findings:1"]);
+    expect(manifest.targets[1].acceptance).toBeNull();
+  });
+
+  it("fails closed as a tool error when the exceptions file is malformed or missing", async () => {
+    await expect(run("{", new Date())).rejects.toThrow("configuration");
+    const e = await environment();
+    try {
+      await rm(path.join(e.options.root, "scripts/npm-audit-accepted-advisories.json"));
+      await expect(captureAudits(e.options, async () => fixture().child)).rejects.toThrow("configuration");
     } finally { await e.close(); }
   });
 });
