@@ -371,6 +371,7 @@ dependency tree. Direct dependencies and verified package license declarations:
 | `@sanity/image-url` | 2.1.1 | MIT | Bounded full-frame editor thumbnails; already present transitively |
 | `@sanity/locale-fi-fi` | 1.1.40 | MIT | Optional Finnish core-UI language choice (AB#255); authored content and project interface text remain separate |
 | `react`, `react-dom` | 19.3.0 | MIT | Sanity's required compatible React runtime |
+| `@sanity/ui` | ^4.3.1 (locked 4.4.0) | MIT | Already installed through Sanity; declared directly for the language-version dialog (AB#125) so Studio controls follow the Studio theme, including dark mode. The range deliberately matches `sanity`'s own so npm keeps one shared copy: a second copy of a different 4.4.x would collide on class names |
 | `@dnd-kit/core` | 6.3.1 | MIT | Already installed through Sanity; declared directly so the Studio build aliases its drag context to a localized wrapper (AB#255, `studio/localized-dnd-context.tsx`) |
 | `styled-components` | 6.5.3 | MIT | Sanity's required styling peer |
 | `typescript` | 7.0.2 | Apache-2.0 | Independent Studio type check |

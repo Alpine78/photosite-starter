@@ -132,8 +132,8 @@ describe("localized action copy", () => {
   it("uses Finnish for Finnish locales and English fallback for other UI locales", () => {
     expect(localizedDraftActionCopy("fi-FI").action).toBe("Luo kieliversio");
     expect(localizedDraftActionCopy("de-DE").action).toBe("Create language version");
-    expect(localizedDraftNotice("Canonical category category lacks a published en label and slug. Localize it before publishing.", "fi")).toContain("Ensisijaiselta");
-    expect(localizedDraftNotice("Shared media photo needs a en alt entry; this action does not clone media.", "fi")).toContain("vaihtoehtoisen tekstin");
+    expect(localizedDraftNotice("Canonical category category lacks a published en label and slug. Localize it before publishing.", "fi")).toContain("Pääkategorialta");
+    expect(localizedDraftNotice("Shared media photo needs a en alt entry; this action does not clone media.", "fi")).toContain("vaihtoehtoinen teksti");
     expect(actionFailure({ statusCode: 403, message: "secret" }).message).toBe("permission");
   });
 });
