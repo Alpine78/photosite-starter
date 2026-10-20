@@ -161,6 +161,21 @@ const englishContentTree: ContentTreeInput = {
       canonicalCategoryId: "cat-portfolio",
     },
     {
+      // AB#374: one gallery per automatic continuation mode.
+      contentId: "content-endless-archive",
+      variant: "gallery",
+      slug: "endless-archive",
+      published: true,
+      canonicalCategoryId: "cat-portfolio",
+    },
+    {
+      contentId: "content-automatic-archive",
+      variant: "gallery",
+      slug: "automatic-archive",
+      published: true,
+      canonicalCategoryId: "cat-portfolio",
+    },
+    {
       // The seeded-random gallery (AB#129): more than one page, so its keyset
       // walk under the shuffle crosses a real page boundary.
       contentId: "content-shuffled-showcase",
@@ -355,6 +370,20 @@ const finnishContentTree: ContentTreeInput = {
       contentId: "content-large-archive",
       variant: "gallery",
       slug: "suuri-arkisto",
+      published: true,
+      canonicalCategoryId: "cat-portfolio",
+    },
+    {
+      contentId: "content-endless-archive",
+      variant: "gallery",
+      slug: "loputon-arkisto",
+      published: true,
+      canonicalCategoryId: "cat-portfolio",
+    },
+    {
+      contentId: "content-automatic-archive",
+      variant: "gallery",
+      slug: "automaattinen-arkisto",
       published: true,
       canonicalCategoryId: "cat-portfolio",
     },

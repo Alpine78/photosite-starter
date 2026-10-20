@@ -56,16 +56,24 @@ describe("article end-gallery route presentation", () => {
       const first = await Page({ params, searchParams: Promise.resolve({}) });
       expect(findProps(first, ContentArticle)?.endGallery).toMatchObject({ presentation: { layout: galleryLayout, captionPlacement: "overlay" } });
       const continued = await Page({ params, searchParams: Promise.resolve({ cursor: "valid-cursor" }) });
-      expect(findProps(continued, ArticleEndGalleryContinuation)?.presentation).toEqual({ layout: galleryLayout, captionPlacement: "overlay" });
+      expect(findProps(continued, ArticleEndGalleryContinuation)?.presentation).toEqual({ layout: galleryLayout, captionPlacement: "overlay", continuation: "endless" });
       expect(gallery.getArticleEndGalleryPage).toHaveBeenLastCalledWith("en", "article", "end-gallery", "valid-cursor");
     });
   }
-  it("uses justified/below for both routes when the site has no presentation fields", async () => {
+  it("passes the site's continuation mode to both article routes (AB#374)", async () => {
+    settings.getSiteSettings.mockResolvedValue({ photographerName: "Example", galleryContinuation: "automatic-then-button" });
+    const params = Promise.resolve({ localePrefix: "stories", segments: ["article"] });
+    const first = await Page({ params, searchParams: Promise.resolve({}) });
+    const continued = await Page({ params, searchParams: Promise.resolve({ cursor: "valid-cursor" }) });
+    expect(findProps(first, ContentArticle)?.endGallery).toMatchObject({ presentation: { continuation: "automatic-then-button" } });
+    expect(findProps(continued, ArticleEndGalleryContinuation)?.presentation).toMatchObject({ continuation: "automatic-then-button" });
+  });
+  it("uses justified/below/endless for both routes when the site has no presentation fields", async () => {
     settings.getSiteSettings.mockResolvedValue({ photographerName: "Example" });
     const params = Promise.resolve({ localePrefix: "stories", segments: ["article"] });
     const first = await Page({ params, searchParams: Promise.resolve({}) });
     const continued = await Page({ params, searchParams: Promise.resolve({ cursor: "valid-cursor" }) });
     expect(findProps(first, ContentArticle)?.endGallery).toMatchObject({ presentation: { layout: "justified", captionPlacement: "below" } });
-    expect(findProps(continued, ArticleEndGalleryContinuation)?.presentation).toEqual({ layout: "justified", captionPlacement: "below" });
+    expect(findProps(continued, ArticleEndGalleryContinuation)?.presentation).toEqual({ layout: "justified", captionPlacement: "below", continuation: "endless" });
   });
 });

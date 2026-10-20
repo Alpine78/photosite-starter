@@ -158,6 +158,7 @@ export const GALLERY_DETAIL_PROJECTION = `{
   allowPhotoEnquiries,
   galleryLayout,
   galleryCaptionPlacement,
+  galleryContinuation,
   contentId,
   title,
   summary,
@@ -220,6 +221,7 @@ export type RawGalleryDetailDocument = {
   readonly allowPhotoEnquiries?: unknown;
   readonly galleryLayout?: unknown;
   readonly galleryCaptionPlacement?: unknown;
+  readonly galleryContinuation?: unknown;
   readonly contentId?: unknown;
   readonly title?: unknown;
   readonly summary?: unknown;

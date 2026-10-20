@@ -320,6 +320,9 @@ const englishPages: Readonly<Record<string, AuthoredPage>> = {
   "content-justified-overlay": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "overlay", body: [] },
   "content-layout-single": { variant: "gallery", allowPhotoEnquiries: mockGalleryEnquiryPermission("content-layout-single"), galleryLayout: "justified", galleryCaptionPlacement: "below", body: [] },
   "content-layout-pair": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "overlay", body: [] },
+  // AB#374: the two automatic continuation modes, as per-gallery overrides.
+  "content-endless-archive": { variant: "gallery", galleryContinuation: "endless", body: [] },
+  "content-automatic-archive": { variant: "gallery", galleryContinuation: "automatic-then-button", body: [] },
   "content-capture-sequence": { variant: "gallery", body: [] },
   "content-filtered-image-notes": {
     variant: "article", endGalleryId: FILTER_END_GALLERY_ID,
@@ -779,6 +782,9 @@ const finnishPages: Readonly<Record<string, AuthoredPage>> = {
   "content-justified-overlay": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "overlay", body: [] },
   "content-layout-single": { variant: "gallery", allowPhotoEnquiries: mockGalleryEnquiryPermission("content-layout-single"), galleryLayout: "justified", galleryCaptionPlacement: "below", body: [] },
   "content-layout-pair": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "overlay", body: [] },
+  // AB#374: the two automatic continuation modes, as per-gallery overrides.
+  "content-endless-archive": { variant: "gallery", galleryContinuation: "endless", body: [] },
+  "content-automatic-archive": { variant: "gallery", galleryContinuation: "automatic-then-button", body: [] },
   "content-capture-sequence": { variant: "gallery", body: [] },
   "content-filtered-image-notes": {
     variant: "article", endGalleryId: FILTER_END_GALLERY_ID,

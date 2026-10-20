@@ -2759,7 +2759,7 @@ also applies to article end galleries, so splitting a large import into batches
 cannot send a placement before its parent document exists.
 
 On a rerun, preflight also refuses to replace a gallery carrying an editor-authored
-`galleryLayout`, `galleryCaptionPlacement` or section `intro`. These fields are
+`galleryLayout`, `galleryCaptionPlacement`, `galleryContinuation` or section `intro`. These fields are
 outside this importer's allowed input, so replacing the document would erase them.
 Resolve such a conflict with the owner before retrying; do not clear authored
 fields just to make the import pass. The refusal occurs before any asset upload.

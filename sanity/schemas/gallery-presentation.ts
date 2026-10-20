@@ -28,5 +28,22 @@ export function galleryPresentationFields(inherit: boolean): readonly SchemaFiel
       validation: (rule) => rule.custom((value) => value == null ||
         ["below", "overlay"].includes(value as string) || "Choose a supported caption placement."),
     },
+    {
+      // AB#374. Every mode keeps the real continuation link for visitors without JavaScript.
+      name: "galleryContinuation",
+      title: "Loading more images",
+      type: "string",
+      description: inherit
+        ? "Clear to inherit the site setting for loading more images."
+        : "When empty, loads more images endlessly while scrolling.",
+      options: { list: [
+        { title: "Endlessly while scrolling", value: "endless" },
+        { title: "Three pages while scrolling, then a button", value: "automatic-then-button" },
+        { title: "Show more button", value: "button" },
+      ] },
+      validation: (rule) => rule.custom((value) => value == null ||
+        ["endless", "automatic-then-button", "button"].includes(value as string) ||
+        "Choose a supported way to load more images."),
+    },
   ];
 }

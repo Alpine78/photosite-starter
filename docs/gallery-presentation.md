@@ -8,14 +8,16 @@ see the Documentation table in `AGENTS.md`.
 
 ## What is authored, and where
 
-Two independent, optional fields:
+Three independent, optional fields:
 
 - **Layout** — `grid`, `masonry`, or `justified` (the default).
 - **Caption placement** — `below` (the default) or `overlay`.
+- **Continuation** (AB#374) — `endless` (the default), `automatic-then-button`,
+  or `button`. See "Loading more images" below.
 
-Both are authored site-wide on `SiteSettings` and may be overridden per
+All three are authored site-wide on `SiteSettings` and may be overridden per
 gallery. Clearing a gallery's override restores inheritance for that field
-alone — the two fields never travel together. An absent site-wide value falls
+alone — the fields never travel together. An absent site-wide value falls
 back to `justified` / `below`. All six combinations are offered; nothing about the
 resolution is layout-specific, so a future seventh layout only has to extend
 `GALLERY_LAYOUTS`.
@@ -218,6 +220,34 @@ cropped. In landscape, the existing bands already compose an equal-height row
 (for example three photographs in a 54rem phone viewport). Masonry keeps its own
 column thresholds, so a landscape phone below 56rem of container shows two
 masonry columns.
+
+## Loading more images (AB#374)
+
+A gallery longer than one bounded page (24 items) continues in one of three
+authored modes. Every mode keeps the server-rendered `?cursor=` continuation
+link of ADR-0003 decision 8, so visitors without JavaScript, crawlers and a
+failed script still reach every page.
+
+- **`endless`** (the default when nothing is authored): once hydrated, the link
+  is hidden and the next page is appended whenever a sentinel after the list is
+  within one viewport below the visible area or has already been scrolled past.
+  Loading continues page by page until the gallery is complete, however long it
+  is. The footer and anything after the gallery are reached once every image has
+  loaded; landmark navigation reaches them at any time.
+- **`automatic-then-button`**: the same until
+  `AUTOMATIC_CONTINUATION_PAGE_LIMIT` (3) pages, 72 images at the current page
+  size, are shown; then the link appears as the familiar control and automatic
+  loading does not resume.
+- **`button`**: the pre-AB#374 behaviour, unchanged.
+
+Automatic loading requests one page at a time through the grid's existing
+single-flight loader and never moves focus. The polite status line announces
+loading. A failure stops automatic loading at once and reveals the link as a
+retry; a successful retry hands control back to scrolling. The address bar is
+not updated, as before. Article end galleries inherit the site value and have no
+per-article field. The mock content layer authors `button` site-wide so the
+existing continuation journeys keep testing the control;
+`content-endless-archive` and `content-automatic-archive` override it per gallery.
 
 ## Out of scope
 

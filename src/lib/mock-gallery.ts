@@ -401,6 +401,21 @@ function masonryPlacements(prefix: string): readonly MockPlacementInput[] {
  * renditions; the fixture exercises ordering, sections, and pagination, not
  * photograph reuse.
  */
+/**
+ * AB#374: two unsectioned galleries five mock pages long, one per automatic
+ * continuation mode (their per-gallery overrides live in mock-content-pages).
+ * The mock site settings keep `button`, so every other fixture continues to
+ * exercise the button contract.
+ */
+const CONTINUATION_MODE_GALLERY_SIZE = 120;
+
+function continuationModePlacements(prefix: string): readonly MockPlacementInput[] {
+  return Array.from({ length: CONTINUATION_MODE_GALLERY_SIZE }, (_unused, index) => ({
+    placementId: `${prefix}-${String(index + 1).padStart(4, "0")}`,
+    image: archiveImageCycle[index % archiveImageCycle.length],
+  }));
+}
+
 const CAPTURE_SEQUENCE_GALLERY_SIZE = 40;
 const CAPTURE_SEQUENCE_FIRST_SECTION_END = 28;
 
@@ -456,6 +471,8 @@ const authoredGalleries: Readonly<Record<string, MockGalleryInput>> = {
     sections: captureSequenceSections,
     orderingRule: "capture-sequence",
   },
+  "content-endless-archive": { placements: continuationModePlacements("endless-archive") },
+  "content-automatic-archive": { placements: continuationModePlacements("automatic-archive") },
   "content-layout-single": { placements: [{ placementId: "layout-single-1", image: "portrait" }] },
   "content-layout-pair": { placements: [{ placementId: "layout-pair-1", image: "portrait", caption: { en: "A narrow portrait frame", fi: "Kapea pystykuva" } }, { placementId: "layout-pair-2", image: "panorama", caption: { en: "A very wide frame", fi: "Erittäin leveä kuva" } }] },
 };
