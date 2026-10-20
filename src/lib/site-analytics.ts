@@ -42,6 +42,29 @@ export function readSiteAnalyticsProvider(
   return stage === "production" ? (value as SiteAnalyticsProvider) : "off";
 }
 
+const SITE_SPEED_INSIGHTS_SETTING = "SITE_SPEED_INSIGHTS";
+
+/**
+ * Whether this deployment reports Web Vitals to Vercel Speed Insights
+ * (ADR-0037 amendment, AB#376). The same contract as `SITE_ANALYTICS`: unset
+ * means off, only a production stage honors it, and an unknown value is a
+ * configuration error. It is a separate switch, so analytics and performance
+ * measurement are enabled, disabled and assessed independently.
+ */
+export function readSiteSpeedInsightsProvider(
+  environment: Record<string, string | undefined>,
+  stage: DeploymentStage = readDeploymentStage(environment),
+): SiteAnalyticsProvider {
+  const value = environment[SITE_SPEED_INSIGHTS_SETTING]?.trim();
+  if (!value) return "off";
+  if (!PROVIDERS.includes(value as SiteAnalyticsProvider)) {
+    throw new Error(
+      `[site-analytics] Invalid ${SITE_SPEED_INSIGHTS_SETTING}: expected one of ${PROVIDERS.join(", ")}, received "${value}"`,
+    );
+  }
+  return stage === "production" ? (value as SiteAnalyticsProvider) : "off";
+}
+
 export type SiteAnalyticsPolicy = Readonly<{
   /** Root segments whose whole subtree is excluded (see `isAnalyticsExcludedPath`). */
   excludedRootSegments: readonly string[];

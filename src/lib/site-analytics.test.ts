@@ -3,6 +3,7 @@ import {
   buildSiteAnalyticsPolicy,
   isAnalyticsExcludedPath,
   readSiteAnalyticsProvider,
+  readSiteSpeedInsightsProvider,
   scrubAnalyticsEvent,
 } from "@/lib/site-analytics";
 
@@ -140,5 +141,31 @@ describe("scrubAnalyticsEvent", () => {
     const event = { type: "pageview" as const, url: "https://example.test/a?b=1#c" };
     scrubAnalyticsEvent(event, policy);
     expect(event.url).toBe("https://example.test/a?b=1#c");
+  });
+});
+
+describe("readSiteSpeedInsightsProvider (AB#376)", () => {
+  it.each([undefined, "", " ", "off"])("is off when the setting is %j", (value) => {
+    expect(readSiteSpeedInsightsProvider({ SITE_DEPLOYMENT_STAGE: "production", SITE_SPEED_INSIGHTS: value })).toBe("off");
+  });
+
+  it("is on only in production and independent of SITE_ANALYTICS", () => {
+    expect(readSiteSpeedInsightsProvider({ SITE_DEPLOYMENT_STAGE: "production", SITE_SPEED_INSIGHTS: "vercel" })).toBe("vercel");
+    expect(readSiteSpeedInsightsProvider({ SITE_DEPLOYMENT_STAGE: "production", SITE_ANALYTICS: "vercel" })).toBe("off");
+    for (const stage of ["development", "preview"]) {
+      expect(readSiteSpeedInsightsProvider({ SITE_DEPLOYMENT_STAGE: stage, SITE_SPEED_INSIGHTS: "vercel" })).toBe("off");
+    }
+  });
+
+  it.each(["on", "true", "Vercel"])("rejects %j as a configuration error", (value) => {
+    expect(() => readSiteSpeedInsightsProvider({ SITE_DEPLOYMENT_STAGE: "production", SITE_SPEED_INSIGHTS: value }))
+      .toThrow(/Invalid SITE_SPEED_INSIGHTS/);
+  });
+
+  it("drops a vital from an excluded namespace and strips the query from others", () => {
+    const policy = { excludedRootSegments: ["private"], localePrefixes: ["en"] };
+    expect(scrubAnalyticsEvent({ type: "vital" as const, url: "https://example.test/en/private/x" }, policy)).toBeNull();
+    expect(scrubAnalyticsEvent({ type: "vital" as const, url: "https://example.test/stories?q=a#b", route: "/stories" }, policy))
+      .toMatchObject({ url: "https://example.test/stories", route: "/stories" });
   });
 });

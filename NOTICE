@@ -86,6 +86,19 @@ production deployment sets SITE_ANALYTICS=vercel), so a deployed site
 redistributes it and the MIT license requires this notice to accompany it.
 
 -------------------------------------------------------------------------------
+@vercel/speed-insights (optional Web Vitals client)
+-------------------------------------------------------------------------------
+Copyright Vercel, Inc.
+Source: https://github.com/vercel/speed-insights
+Licensed under the Apache License, Version 2.0 — see licenses/Apache-2.0.txt
+
+Installed unmodified as an npm dependency; the package ships no NOTICE file.
+Its client code is bundled into the build output and served to visitors'
+browsers (it only does anything when a production deployment sets
+SITE_SPEED_INSIGHTS=vercel), so a deployed site redistributes it under the
+Apache License, which requires a copy of the license to accompany it.
+
+-------------------------------------------------------------------------------
 Source Sans Pro (embedded in docs/architecture/*.svg)
 -------------------------------------------------------------------------------
 Copyright 2010-2018 Adobe (http://www.adobe.com/), with Reserved Font Name

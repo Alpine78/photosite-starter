@@ -5,6 +5,38 @@
 **Deciders:** Project owner (accepted 2026-10-19; the open assumptions below remain implementation checks)
 **Work item:** AB#371
 
+## Amendments
+
+### 2026-10-20 — Speed Insights as a second, independent opt-in (AB#376)
+
+Decision 7 is superseded: the owner chose Vercel Speed Insights on its **free tier**
+(2026-10-20) and asked for this amendment rather than a new ADR. It reuses this
+decision's adapter shape with its own switch, `SITE_SPEED_INSIGHTS` (`off` | `vercel`),
+under the same contract: unset is off, only a `production` stage honors it, an unknown
+value fails the build, the script is rendered by the public shell only, and
+`scrubAnalyticsEvent` drops the reserved namespaces and strips query strings and
+fragments from every Web Vital before it leaves the browser.
+
+Facts at adoption: `@vercel/speed-insights` 2.0.0 (Apache-2.0) contains no
+`document.cookie`, `localStorage`, `sessionStorage` or IndexedDB use; in production it
+injects `/_vercel/speed-insights/script.js` from the site's own origin. The collection
+script itself is served by Vercel and is not in the package. Vercel's
+[Speed Insights privacy page](https://vercel.com/docs/speed-insights/privacy-policy)
+(updated 2026-03-18) states data points are anonymous and not tied to a visitor or IP
+address, and lists route, URL, network speed, browser, device type/OS, country, Web
+Vital, its attribution selector, SDK version and server time. Version 2 may build the
+script and intake URLs from a build-time seed ("resilient intake"). The free tier
+reports only the Real Experience Score, 10,000 events over a rolling 30 days shared
+across the team, and pauses collection for at least 14 days when that is reached.
+
+**Owner condition:** if Speed Insights would require a cookie or consent banner, it is
+not enabled and is removed. The technical checks above do not settle that by
+themselves; as with Web Analytics, consent applicability under the ePrivacy rules is a
+separate assessment. `SITE_SPEED_INSIGHTS` therefore stays unset until (1) the runtime
+verification in [analytics-data-flow.md](../analytics-data-flow.md#speed-insights-ab376)
+passes on an unpromoted production-target deployment and (2) the owner records the
+no-banner assessment. Either failing means removal.
+
 ## Context
 
 The owner wants visitor statistics (page views and visitors) for the public site.

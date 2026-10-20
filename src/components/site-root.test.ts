@@ -50,6 +50,10 @@ vi.mock("@/components/site-analytics", () => ({
   SiteAnalytics: ({ policy }: { policy: unknown }) =>
     createElement("aside", { "data-analytics": JSON.stringify(policy) }),
 }));
+vi.mock("@/components/site-speed-insights", () => ({
+  SiteSpeedInsights: ({ policy }: { policy: unknown }) =>
+    createElement("aside", { "data-speed-insights": JSON.stringify(policy) }),
+}));
 vi.mock("@/components/site-footer", () => ({
   SiteFooter: ({ footerLinks }: { footerLinks: readonly { href: string; label: string }[] }) =>
     createElement("footer", null, ...footerLinks.map((link) =>
@@ -126,4 +130,23 @@ it("hands the enabled analytics script the deployment's reserved prefixes and lo
     excludedRootSegments: ["client-gallery", "api", "private", "studio-admin"],
     localePrefixes: ["en"],
   });
+});
+
+it("loads Speed Insights only when its own setting is on in production (AB#376)", async () => {
+  vi.stubEnv("SITE_DEPLOYMENT_STAGE", "production");
+  vi.stubEnv("SITE_ANALYTICS", "vercel");
+  let html = renderToStaticMarkup(await SiteRoot({ locale: "fi-FI", children: "Content" }));
+  expect(html).not.toContain("data-speed-insights");
+
+  vi.stubEnv("SITE_SPEED_INSIGHTS", "vercel");
+  html = renderToStaticMarkup(await SiteRoot({ locale: "en-GB", children: "Content" }));
+  const policy = /data-speed-insights="([^"]*)"/.exec(html)?.[1]?.replaceAll("&quot;", '"');
+  expect(JSON.parse(policy ?? "null")).toEqual({
+    excludedRootSegments: ["client-gallery", "api", "private", "studio-admin"],
+    localePrefixes: ["en"],
+  });
+
+  vi.stubEnv("SITE_DEPLOYMENT_STAGE", "preview");
+  html = renderToStaticMarkup(await SiteRoot({ locale: "fi-FI", children: "Content" }));
+  expect(html).not.toContain("data-speed-insights");
 });

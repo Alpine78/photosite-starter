@@ -83,6 +83,51 @@ the first Production deployment with `SITE_ANALYTICS=vercel`, and recorded here:
    administrator or legacy client-gallery page does not.
 4. A page view reached with a query string and fragment arrives as a bare path.
 
+## Speed Insights (AB#376)
+
+**Status:** implemented, **off everywhere**. It is a separate switch,
+`SITE_SPEED_INSIGHTS=vercel`, with the same production-only, public-shell-only
+and `scrubAnalyticsEvent` rules as page-view statistics above.
+
+**What is sent.** For each page load the provider's script reports the visitor's
+[Web Vitals](https://vercel.com/docs/speed-insights/metrics) measured with native
+browser APIs. Per the provider's
+[privacy page](https://vercel.com/docs/speed-insights/privacy-policy) (updated
+2026-03-18) each data point stores: route, URL, network speed class, browser,
+device type and OS, country, the Web Vital, its **attribution selector** (a CSS
+path to the element concerned, such as `html>body img.header`, which describes page
+structure rather than the visitor), SDK version and server-received time. Data
+points are anonymous and not tied to a visitor or IP address. The application
+removes query strings and fragments and sends nothing from the reserved
+namespaces; the provider adds the country from the request.
+
+**Storage and origins.** The npm package (2.0.0) writes no cookie or web storage
+and, in production, injects its script from this site's own origin. The script it
+loads is served by Vercel; its behaviour is verified at runtime below.
+
+**Processor and retention.** Vercel receives and stores the data points. Its role
+and the retention period for Speed Insights data under the current terms are
+**not yet recorded here** and must be stated before enabling.
+
+**Free tier.** Real Experience Score only; 10,000 events per rolling 30 days
+shared across the team, after which collection pauses for at least 14 days.
+There is no charge on this tier.
+
+**Checks before enabling** (on an unpromoted production-target deployment built
+with `SITE_SPEED_INSIGHTS=vercel`, in clean browser contexts, comparing with the
+setting off so deployment-protection cookies are not mistaken for the collector's):
+
+1. The script and every intake request go to this origin, through the Proxy, with
+   successful responses and no CSP violation; record the actual paths.
+2. No cookie, `Set-Cookie` header, `localStorage`, `sessionStorage` or IndexedDB
+   entry is created by the collector.
+3. Emitted payloads carry bare paths, and private, administrator, legacy client
+   and their locale-prefixed pages send nothing, including after client-side
+   navigation, in both locales.
+4. After promotion, data appears in the Vercel dashboard.
+5. The owner records the consent (no-banner) assessment. If a banner would be
+   needed, `SITE_SPEED_INSIGHTS` stays unset and the feature is removed.
+
 ## For a clone and the launch review
 
 A clone can leave `SITE_ANALYTICS` unset and ship no statistics, or point it at

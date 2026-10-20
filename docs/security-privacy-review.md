@@ -1132,6 +1132,12 @@ here claims it met.
 
 ## Optional site analytics — 2026-10-19 (AB#371 / AB#117)
 
+**2026-10-20 (AB#376):** `@vercel/speed-insights` 2.0.0 (Apache-2.0) adds a second,
+independent opt-in, `SITE_SPEED_INSIGHTS`, with the same production-only,
+public-shell-only and URL-scrubbing controls and an unchanged CSP. It is off until
+the runtime checks and the owner's no-banner assessment in
+[analytics-data-flow.md](analytics-data-flow.md#speed-insights-ab376) pass.
+
 ADR-0037 adds an off-by-default page-view statistics adapter. It changes AC6's
 "zero matches for `analytics` in `src/`" statement: `src/lib/site-analytics.ts`,
 `src/components/site-analytics.tsx` and the `SiteRoot` wiring now exist, and

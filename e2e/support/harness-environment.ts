@@ -123,6 +123,9 @@ export const appUnderTestEnvironment: Record<string, string> = {
   // below is refused outright in one, because accepting a message and sending
   // nothing is silent data loss there.
   SITE_DEPLOYMENT_STAGE: "development",
+  // AB#376: explicit, so an inherited value can neither load Speed Insights
+  // nor fail validation inside the harness.
+  SITE_SPEED_INSIGHTS: "off",
   SITE_MAINTENANCE_MODE: "off",
   NEXT_PUBLIC_SITE_MAINTENANCE_MODE: "",
   VERCEL_ENV: "",
