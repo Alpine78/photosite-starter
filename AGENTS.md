@@ -319,6 +319,7 @@ npm run plan:identity-changes -- --map <map.json> --approval <approval.json> --b
 npm run plan:article-end-sections -- --manifest <private.json> --snapshot <complete-raw.ndjson> --out <new-private-directory> # offline first-adoption evidence only; never writes CMS
 npm run revalidate:article-end-sections -- --baseline-manifest <private.json> --baseline-snapshot <raw.ndjson> --baseline-digest <sha256> --current-manifest <private.json> --current-snapshot <raw.ndjson> --out <new-private-directory> # offline pre-write comparison only; never writes CMS
 npm run admin:secret # owner-run: generate the private-gallery administrator credential (ADR-0015 §4)
+npm run task:start -- <branch> [--no-install] # new linked task worktree: create, publish, verify, install (AB#381)
 ```
 
 `npm run test:e2e` needs the browsers once: `npx playwright install chromium webkit`
@@ -362,6 +363,9 @@ npm run admin:secret # owner-run: generate the private-gallery administrator cre
 ### Branch publication and VS Code worktrees
 
 These rules apply to **every new work branch**, with or without a linked worktree.
+`npm run task:start -- <branch>` carries out steps 1–6 and the step 7 check for a new
+linked worktree and refuses anything it would have to reuse or repair; the rules below
+still govern every branch, including ones it does not create.
 The branch used as the starting point and the upstream used for synchronization are
 separate choices: start from `origin/main`, but track `origin/<the work branch name>`.
 

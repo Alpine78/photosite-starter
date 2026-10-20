@@ -19,6 +19,7 @@
     "repoint:preview": "node scripts/repoint-preview-alias.mts",
     "revalidate:public-cache": "node scripts/revalidate-public-cache.mts",
     "verify:preview": "node scripts/verify-preview-deployment.mts",
+    "task:start": "node scripts/start-task.mts",
     "verify:release-source": "node scripts/verify-release-source.mts",
     "verify:rollback-readiness": "node scripts/verify-rollback-readiness.mts",
     "check:dns-cutover": "node scripts/check-dns-cutover.mts",
