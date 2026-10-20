@@ -98,6 +98,7 @@ export async function POST(request: Request): Promise<Response> {
       sessionStore: stores.sessionStore,
       ipLimiter,
       environment: stores.environment,
+      ...(stores.rateConfig === undefined ? {} : { rateConfig: stores.rateConfig }),
     },
     { submittedSecret: secret, clientKey: deriveClientKey(request), now: new Date() },
   );

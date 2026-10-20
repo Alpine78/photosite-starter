@@ -61,6 +61,7 @@ import {
   checkPrivateGalleryAdminLoginRequestHeaders,
   consumePrivateGalleryAdminLoginAttempt,
   PrivateGalleryAdminLoginError,
+  PRIVATE_GALLERY_ADMIN_LOGIN_WINDOW_MS,
   type PrivateGalleryAdminLoginRateConfig,
   type PrivateGalleryAdminLoginStore,
 } from "@/lib/private-gallery-admin-login";
@@ -1271,6 +1272,21 @@ export type PrivateGalleryAdminStores = {
    * never reads the deployment's capability keyring.
    */
   readonly environment: Record<string, string | undefined>;
+  /** Omitted for a real deployment, which keeps the default global login policy. */
+  readonly rateConfig?: PrivateGalleryAdminLoginRateConfig;
+};
+
+/**
+ * The development fixture's global sign-in cap (AB#377). The fixture credential
+ * is published and the `memory` store is refused outside the `development`
+ * stage, so the default cap protects nothing here — while a production-build
+ * journey suite at full speed makes about thirty sign-ins in under fifteen
+ * minutes and would trip the cap meant for real deployments. The per-address
+ * limiter is unchanged.
+ */
+export const PRIVATE_GALLERY_FIXTURE_ADMIN_LOGIN_RATE_CONFIG: PrivateGalleryAdminLoginRateConfig = {
+  maxAttempts: 1000,
+  windowMs: PRIVATE_GALLERY_ADMIN_LOGIN_WINDOW_MS,
 };
 
 /**
@@ -1286,6 +1302,7 @@ export function getPrivateGalleryAdminStores(): PrivateGalleryAdminStores {
   if (store === "memory") {
     const memory = getPrivateGalleryMemoryStore();
     return {
+      rateConfig: PRIVATE_GALLERY_FIXTURE_ADMIN_LOGIN_RATE_CONFIG,
       loginStore: memory.adminLoginStore,
       sessionStore: memory.adminSessionStore,
       proofStore: memory.proofStore,

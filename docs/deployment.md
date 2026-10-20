@@ -1043,7 +1043,9 @@ need the private stores this runbook's provisioning section describes.
 #### Consider platform access control in front of the administrator namespace
 
 The administrator login will carry a **deployment-wide** persisted rate limit (ADR-0015
-§3): thirty attempts per fifteen minutes, for the whole site rather than per client. That
+§3): thirty attempts per fifteen minutes, for the whole site rather than per client (the
+development-only `memory` fixture, whose credential is published, uses a larger cap so the
+production-build journey suite cannot exhaust it — AB#377). That
 is the right shape for what it protects — one operator, one shared CPU budget, and a
 counter whose key nothing a caller sends can influence, so it cannot be used to grow a
 table — but it has an accepted cost the ADR does not discuss:

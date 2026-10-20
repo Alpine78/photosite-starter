@@ -16,8 +16,10 @@
  * cost**: verification is `scrypt` at roughly 74 ms of CPU per attempt on the
  * pinned Node major (ADR-0015 §4's own measurement), so an unbounded login
  * endpoint is a cheap way to burn a Function's CPU from anywhere on the
- * internet. Thirty attempts per fifteen minutes caps that path at a couple of
- * seconds of CPU per window.
+ * internet. The default policy, thirty attempts per fifteen minutes, caps that
+ * path at a couple of seconds of CPU per window. Only the development-only
+ * `memory` fixture, whose credential is published, uses a larger cap
+ * (`PRIVATE_GALLERY_FIXTURE_ADMIN_LOGIN_RATE_CONFIG`, AB#377).
  *
  * The second thing it bounds is the case the rule is meant to prevent but
  * cannot enforce: an operator who ignores §4 and configures a memorable
