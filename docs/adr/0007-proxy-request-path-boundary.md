@@ -530,6 +530,29 @@ review date. The measured failures and the wider ADR's status are preserved.
   probes and recovery controls pass. This acceptance does not close the story or
   approve any other AB#18 launch gate.
 
+## Hosted Production and upstream recheck — 2026-10-20 (AB#132)
+
+Observed on the public Production domain, which serves `dpl_ARuiTPxfvhAsn7D4foP2ajzfchVE`
+(main `90543d5`, Next.js 16.4.2), in desktop Chromium. Four unknown addresses were
+requested — an unmatched default-locale path, an unmatched English path, and an unknown
+story under each locale's story namespace:
+
+- **JavaScript disabled:** all four answer HTTP 404 with the empty document — no
+  `lang`, no rendered h1, no link in `main`. This is the hosted form of the known
+  defect, not a fixture build.
+- **JavaScript enabled:** all four render the site shell in the requested locale
+  (`lang` `fi` or `en-GB`, localized header, navigation and footer) with the
+  language-neutral `404` heading within about 1.5 s.
+
+Upstream on 2026-10-20: issues #62228, #99287 and #99793 are open, candidate fixes
+#98455 and #98583 are open and unmerged, and npm `latest` is still 16.4.2 (`canary`
+16.5.0-canary.20, not built). The newest #99287 report (2026-10-20) traces a separate
+up-to-60-second blank on the client render to a React DOM preload-removal bug with an
+upstream fix proposed (react#37906); the 1.5 s JavaScript-enabled render above did not
+show it. No supported remedy within the retained Proxy contract has appeared, so nothing
+changed in code, Proxy or test markers. The 2026-10-19 acceptance and its 2026-12-19
+review (AB#370) stand; AB#132 stays Active.
+
 ## 2026-10-18 maintenance matcher amendment (AB#341)
 
 This scoped amendment implements [ADR-0031's accepted maintenance policy](0031-identity-migration-operational-plan.md#4-rehearsal-and-production-sequence).
