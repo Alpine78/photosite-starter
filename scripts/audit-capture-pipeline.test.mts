@@ -24,8 +24,8 @@ describe("scheduled audit capture wiring", () => {
     expect(audit.indexOf("capture:audit")).toBeLessThan(audit.indexOf("PublishPipelineArtifact@1"));
     expect(audit).not.toMatch(/continueOnError|always\(|^\s+npm audit|npm (?:install|ci)|registry=|variable.?group|AGENT_TEMPDIRECTORY.*targetPath/m);
   });
-  it("keeps accepted AB333 browser diagnostic guards separate and unchanged", () => {
-    expect(yaml).toContain("condition: and(failed(), eq(variables['browserDiagnosticsAvailable'], 'true'))");
+  it("keeps the browser diagnostic guards separate from the audit job", () => {
+    expect(yaml).toContain("condition: and(succeededOrFailed(), eq(variables['browserDiagnosticsAvailable'], 'true'))");
     expect(yaml).toContain('targetPath: "playwright-report"');
     expect(audit).not.toContain("browserDiagnosticsAvailable");
   });

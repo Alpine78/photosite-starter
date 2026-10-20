@@ -134,23 +134,34 @@ stages:
 
           # A failure before Playwright starts produces no browser report. Discover
           # it in the artifact task's own base directory without creating a report.
+          # AB#377: a green run with a test that only passed on retry (flaky) also
+          # publishes its report, so the failed attempt's trace is kept for diagnosis.
           - bash: |
               set -eu
-              if [ -d playwright-report ]; then
+              flaky=0
+              if [ -f test-results/results.json ]; then
+                flaky=`node -e 'const s=JSON.parse(require("fs").readFileSync("test-results/results.json","utf8")).stats||{};process.stdout.write(String(Number(s.flaky)||0))' 2>/dev/null || echo 0`
+              fi
+              case "${AGENT_JOBSTATUS:-}" in Succeeded|SucceededWithIssues) failed=0 ;; *) failed=1 ;; esac
+              if [ -d playwright-report ] && { [ "$failed" -eq 1 ] || [ "$flaky" -gt 0 ]; }; then
                 echo '##vso[task.setvariable variable=browserDiagnosticsAvailable]true'
+                echo "Publishing browser diagnostics (failed job: $failed, flaky tests: $flaky)."
+              elif [ -d playwright-report ]; then
+                echo '##vso[task.setvariable variable=browserDiagnosticsAvailable]false'
+                echo 'No failed or flaky browser test; diagnostic publication is skipped.'
               else
                 echo '##vso[task.setvariable variable=browserDiagnosticsAvailable]false'
                 echo 'No browser report directory was produced; diagnostic publication is skipped.'
               fi
-            condition: failed()
-            displayName: "Discover end-to-end failure diagnostics"
+            condition: succeededOrFailed()
+            displayName: "Discover end-to-end diagnostics"
             workingDirectory: "$(System.DefaultWorkingDirectory)"
 
-          # Traces, screenshots, and server logs for a failed run only. They contain
-          # mock content and harness settings, never credentials or personal data.
+          # Traces, screenshots, and server logs for a failed or flaky run only. They
+          # contain mock content and harness settings, never credentials or personal data.
           - task: PublishPipelineArtifact@1
-            condition: and(failed(), eq(variables['browserDiagnosticsAvailable'], 'true'))
-            displayName: "Publish end-to-end failure diagnostics"
+            condition: and(succeededOrFailed(), eq(variables['browserDiagnosticsAvailable'], 'true'))
+            displayName: "Publish end-to-end diagnostics"
             inputs:
               targetPath: "playwright-report"
               artifact: "playwright-report"

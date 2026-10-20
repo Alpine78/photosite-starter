@@ -46,6 +46,14 @@ for (const fixture of cases) {
 type ScrollEvidence = { sameHref: boolean; sameState: boolean; sameLength: boolean; sameFocus: boolean; phase: DocumentReadyState };
 type ProbeWindow = typeof window & { tabScrollEvidence: ScrollEvidence[] };
 
+/** Resolves once the window scroll position holds still across animation frames. */
+async function settledScroll(page: Page) {
+  await expect.poll(() => page.evaluate(() => new Promise<boolean>((resolve) => {
+    const start = window.scrollY;
+    requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => resolve(window.scrollY === start), 150)));
+  }))).toBe(true);
+}
+
 async function observeCorrections(page: Page) {
   await page.addInitScript(() => {
     const probe = window as ProbeWindow;
@@ -165,7 +173,12 @@ for (const fixture of cases) {
       await gate.wait();
       await expect(page.locator(`[id='${id}']`)).toBeInViewport();
       await page.keyboard.press("Home");
-      await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+      // AB#377: WebKit animates keyboard scrolling and can settle a few pixels
+      // short of the top. Wait for the keyboard scroll to finish (so it cannot
+      // overwrite the programmatic position below) and check it left the target;
+      // the exact landing pixel is not what this journey proves.
+      await settledScroll(page);
+      await expect(page.locator(`[id='${id}']`)).not.toBeInViewport();
       await page.evaluate(() => window.scrollTo(0, 80));
       await expect(page.locator(`[id='${id}']`)).not.toBeInViewport();
       gate.release();

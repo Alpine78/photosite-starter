@@ -1639,7 +1639,11 @@ its canonical home is one indexing accident away from competing with it.
 suite, the architecture-diagram check, the production build, and the Playwright journey suites.
 
 After a failed Verify step, browser diagnostics are published only when the
-`playwright-report` directory exists (AB#333). Discovery uses the artifact task's
+`playwright-report` directory exists (AB#333). Since AB#377 they are also published
+after a green run in which a test passed only on retry: the JSON reporter writes
+`test-results/results.json`, and a nonzero `stats.flaky` keeps the failed attempt's
+trace and screenshot, which a green run previously discarded. A missing or unreadable
+results file counts as no flaky tests. Discovery uses the artifact task's
 `System.DefaultWorkingDirectory`, so its relative path matches the unchanged
 publication target. An earlier unit/build failure with no report emits a fixed
 skip note and retains the original failure. Existing directories (including
