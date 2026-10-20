@@ -1,4 +1,10 @@
+# Batched (AB#378): merges that land while a main run is in progress are built
+# together as one run of the newest commit instead of one queued run each. The
+# next batch starts only when the whole current run, DeployPreview included, has
+# finished. PR validation runs are unaffected, and DeployPreview's main-tip check
+# still applies to the commit a batch selected.
 trigger:
+  batch: true
   branches:
     include:
       - main
@@ -31,6 +37,14 @@ variables:
   # stabilization. Keep both test gates on the same small, reversible limit.
   - name: ciTestWorkers
     value: "2"
+  # Playwright only (AB#378). The suite is bounded by worker parallelism: run
+  # 1326 summed 2 311 s of test time into 1 183 s of wall time on 2 workers, no
+  # test longer than 16 s. On this 24-CPU/31 GB agent, 4 workers took 805 s with
+  # 0 failed and 0 flaky, at least 7.5 GB memory still free. AB#293 lowered
+  # concurrency after unexplained agent disconnects, so this stays a separate,
+  # one-line reversible setting; Vitest keeps ciTestWorkers until measured.
+  - name: ciE2eWorkers
+    value: "4"
 
 stages:
   - stage: Verify
@@ -120,7 +134,7 @@ stages:
           # step before is the deployment build gate, this one is the journey gate. No
           # pipeline secret is passed in: the suite must reach no external service.
           - script: |
-              npm run test:e2e -- --workers=$(ciTestWorkers)
+              npm run test:e2e -- --workers=$(ciE2eWorkers)
             displayName: "End-to-end smoke tests"
 
           - task: PublishTestResults@2
