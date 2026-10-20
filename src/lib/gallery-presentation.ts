@@ -1,20 +1,35 @@
 /** Authored presentation only; never changes gallery membership, order or cursors. */
 export const GALLERY_LAYOUTS = ["grid", "masonry", "justified"] as const;
 export const GALLERY_CAPTION_PLACEMENTS = ["below", "overlay"] as const;
+/**
+ * How a gallery reaches the images after its first bounded page (AB#374).
+ * `endless` appends the next page as the visitor scrolls near the end until
+ * the gallery is complete; `automatic-then-button` does the same until
+ * `AUTOMATIC_CONTINUATION_PAGE_LIMIT` pages are shown, then offers the control;
+ * `button` always waits for the control. Every mode keeps the real `?cursor=`
+ * link (ADR-0003 decision 8) for visitors without JavaScript.
+ */
+export const GALLERY_CONTINUATIONS = ["endless", "automatic-then-button", "button"] as const;
 export type GalleryLayout = (typeof GALLERY_LAYOUTS)[number];
 export type GalleryCaptionPlacement = (typeof GALLERY_CAPTION_PLACEMENTS)[number];
+export type GalleryContinuation = (typeof GALLERY_CONTINUATIONS)[number];
 export type GalleryPresentation = {
   readonly layout: GalleryLayout;
   readonly captionPlacement: GalleryCaptionPlacement;
+  readonly continuation: GalleryContinuation;
 };
 export type GalleryPresentationFields = {
   readonly galleryLayout?: GalleryLayout;
   readonly galleryCaptionPlacement?: GalleryCaptionPlacement;
+  readonly galleryContinuation?: GalleryContinuation;
 };
 export const DEFAULT_GALLERY_PRESENTATION: GalleryPresentation = {
   layout: "justified",
   captionPlacement: "below",
+  continuation: "endless",
 };
+/** Pages shown, the first included, before `automatic-then-button` offers the control. */
+export const AUTOMATIC_CONTINUATION_PAGE_LIMIT = 3;
 
 /**
  * Unknown CMS values are defects, never CSS classes or silently accepted
@@ -29,10 +44,14 @@ export const DEFAULT_GALLERY_PRESENTATION: GalleryPresentation = {
  * than smuggled through as an unchecked cast.
  */
 export function readGalleryPresentationFields(
-  source: { readonly galleryLayout?: unknown; readonly galleryCaptionPlacement?: unknown },
+  source: {
+    readonly galleryLayout?: unknown;
+    readonly galleryCaptionPlacement?: unknown;
+    readonly galleryContinuation?: unknown;
+  },
   reject: (detail: string) => never,
 ): GalleryPresentationFields {
-  const { galleryLayout, galleryCaptionPlacement } = source;
+  const { galleryLayout, galleryCaptionPlacement, galleryContinuation } = source;
   const layoutIsValid =
     galleryLayout == null || GALLERY_LAYOUTS.some((value) => value === galleryLayout);
   if (!layoutIsValid) reject("galleryLayout is not a supported layout");
@@ -42,6 +61,10 @@ export function readGalleryPresentationFields(
   if (!captionPlacementIsValid) {
     reject("galleryCaptionPlacement is not a supported caption placement");
   }
+  const continuationIsValid =
+    galleryContinuation == null ||
+    GALLERY_CONTINUATIONS.some((value) => value === galleryContinuation);
+  if (!continuationIsValid) reject("galleryContinuation is not a supported continuation mode");
 
   return {
     ...(layoutIsValid && galleryLayout != null
@@ -49,6 +72,9 @@ export function readGalleryPresentationFields(
       : {}),
     ...(captionPlacementIsValid && galleryCaptionPlacement != null
       ? { galleryCaptionPlacement: galleryCaptionPlacement as GalleryCaptionPlacement }
+      : {}),
+    ...(continuationIsValid && galleryContinuation != null
+      ? { galleryContinuation: galleryContinuation as GalleryContinuation }
       : {}),
   };
 }
@@ -97,5 +123,7 @@ export function effectiveGalleryPresentation(
     layout: gallery.galleryLayout ?? settings.galleryLayout ?? DEFAULT_GALLERY_PRESENTATION.layout,
     captionPlacement: gallery.galleryCaptionPlacement ?? settings.galleryCaptionPlacement ??
       DEFAULT_GALLERY_PRESENTATION.captionPlacement,
+    continuation: gallery.galleryContinuation ?? settings.galleryContinuation ??
+      DEFAULT_GALLERY_PRESENTATION.continuation,
   };
 }

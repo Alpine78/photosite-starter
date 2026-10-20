@@ -143,6 +143,18 @@ const englishRecords: readonly AuthoredContentRecord[] = [
     publishedAt: "2024-01-05",
   },
   {
+    contentId: "content-endless-archive",
+    title: "Endless archive",
+    summary: "A gallery that keeps loading while you scroll. Placeholder gallery content.",
+    publishedAt: "2018-01-02",
+  },
+  {
+    contentId: "content-automatic-archive",
+    title: "Automatic archive",
+    summary: "A gallery that loads three pages while you scroll, then offers a button. Placeholder gallery content.",
+    publishedAt: "2018-01-01",
+  },
+  {
     // The cover doubles as the AB#149 fixture proving a continuation slice
     // never shows a hero, whatever the gallery's own cover: this is the one
     // gallery both long enough to continue and carrying an authored cover
@@ -295,6 +307,18 @@ const finnishRecords: readonly AuthoredContentRecord[] = [
     summary:
       "Galleria, joka jatkuu ensimmäisen sivunsa yli. Paikkamerkkisisältöä.",
     publishedAt: "2024-01-05",
+  },
+  {
+    contentId: "content-endless-archive",
+    title: "Loputon arkisto",
+    summary: "Galleria, joka latautuu lisää vierittäessä. Paikkamerkkisisältöä.",
+    publishedAt: "2018-01-02",
+  },
+  {
+    contentId: "content-automatic-archive",
+    title: "Automaattinen arkisto",
+    summary: "Galleria, joka lataa vierittäessä kolme sivua ja tarjoaa sitten painikkeen. Paikkamerkkisisältöä.",
+    publishedAt: "2018-01-01",
   },
   {
     contentId: "content-shuffled-showcase",

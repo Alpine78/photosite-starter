@@ -244,10 +244,13 @@ are language-keyed arrays rather than fields named after this deployment's langu
 ## Gallery presentation (AB#157)
 
 `siteSettings` and each per-language `gallery` document expose optional
-`galleryLayout` (`grid`, `masonry`, `justified`) and `galleryCaptionPlacement`
-(`below`, `overlay`). Both are independently clearable dropdowns. No initial value
+`galleryLayout` (`grid`, `masonry`, `justified`), `galleryCaptionPlacement`
+(`below`, `overlay`) and `galleryContinuation` (`endless`, `automatic-then-button`,
+`button`; AB#374). All three are independently clearable dropdowns. No initial value
 creates a gallery override: empty means inherit that field from site settings;
-empty site settings mean `justified` and `below` (AB#322). Existing documents need no migration.
+empty site settings mean `justified`, `below` (AB#322) and `endless`. Article end
+galleries inherit all three from site settings. Existing documents need no migration;
+the Studio must be redeployed to show the continuation field.
 Unknown stored enum values are rejected as malformed content by their adapter,
 not converted to CSS or silently replaced. Both content sources use
 `effectiveGalleryPresentation` after projection. Presentation never enters a

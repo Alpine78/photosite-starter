@@ -229,6 +229,7 @@ describe('existing curated gallery contents', () => {
  it.each([
   ['galleryLayout', 'masonry'],
   ['galleryCaptionPlacement', 'below'],
+  ['galleryContinuation', 'button'],
   ['allowPhotoEnquiries', false],
   ['allowPhotoEnquiries', true],
  ] as const)('refuses erasing editor-owned %s on a rerun', async (field, value) => {

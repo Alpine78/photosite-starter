@@ -240,6 +240,11 @@ function buildMockSiteSettings(locale: string): SiteSettings {
       "An overview of what I offer and how we can work together. Placeholder copy; replaced with real wording from the CMS.",
     servicesContactCallToAction: mockServicesContactCallToAction(locale),
     featuredGalleryId: FEATURED_GALLERY_ID,
+    // AB#374: the code default is endless loading. The mock layer authors the
+    // button so the existing continuation journeys keep exercising its
+    // contract; `content-endless-archive` and `content-automatic-archive`
+    // override it per gallery.
+    galleryContinuation: "button",
     // These labels describe application-owned static routes, so they come from
     // deployment config rather than authored CMS content. Only routes that exist
     // are listed; a nav entry without a route is a 404 on every page of the site.

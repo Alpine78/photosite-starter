@@ -15,7 +15,7 @@ describe("server-rendered article filters before hydration", () => {
     const labels = getBuiltInLabels(locale), media = mockImages.coastalLandscape;
     const html = renderToStaticMarkup(createElement(ArticleEndGallery, {
       articlePath: "/stories/notes/one", articleTitle: "A note", initialSliceKey: "selected", labels,
-      presentation: { layout: "grid", captionPlacement: "below" },
+      presentation: { layout: "grid", captionPlacement: "below", continuation: "button" },
       sections: [{ sectionId: "one", slug: "soft-light", label: sectionLabel, order: 0 }],
       sectionHeading: "Image themes", activeSection: "soft-light",
       slice: {
@@ -32,7 +32,7 @@ describe("server-rendered article filters before hydration", () => {
     const labels = getBuiltInLabels(locale), media = mockImages.coastalLandscape;
     const html = renderToStaticMarkup(createElement(ArticleEndGallery, {
       articlePath: "/stories/notes/one", articleTitle: "A note", initialSliceKey: "single", labels,
-      presentation: { layout: "grid", captionPlacement: "below" },
+      presentation: { layout: "grid", captionPlacement: "below", continuation: "button" },
       sections: [{ sectionId: "one", slug: "soft-light", label: "Soft light", order: 0 }], sectionHeading: "Image themes",
       slice: { items: [{ itemId: "one", mediaId: media.mediaId, media }], slides: [{ itemId: "one", mediaId: media.mediaId, src: media.rendition.src, width: media.rendition.width, height: media.rendition.height, alt: media.alt }], nextCursor: null },
     }));
@@ -47,7 +47,7 @@ describe("server-rendered article filters before hydration", () => {
         articleTitle: "A note",
         initialSliceKey: "first",
         labels,
-        presentation: { layout: "grid", captionPlacement: "below" },
+        presentation: { layout: "grid", captionPlacement: "below", continuation: "button" },
         slice: { items: [], slides: [], nextCursor: null },
         sections: [
           {

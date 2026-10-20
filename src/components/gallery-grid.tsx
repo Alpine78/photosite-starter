@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import {
   GalleryLightbox,
 } from "@/components/gallery-lightbox";
@@ -8,7 +8,11 @@ import { GalleryFigure } from "@/components/gallery-figure";
 import { GalleryJustifiedList } from "@/components/gallery-justified-list";
 import { GalleryMasonryList } from "@/components/gallery-masonry-list";
 import type { BuiltInLabels } from "@/lib/deployment-config";
-import type { GalleryPresentation } from "@/lib/gallery-presentation";
+import {
+  AUTOMATIC_CONTINUATION_PAGE_LIMIT,
+  type GalleryContinuation,
+  type GalleryPresentation,
+} from "@/lib/gallery-presentation";
 import {
   appendGallerySlice,
   galleryContinuationHref,
@@ -47,6 +51,13 @@ export type GalleryGridResult = { readonly count: number; readonly hasMore: bool
 
 type ContinuationState = "idle" | "loading" | "failed";
 
+const subscribeNothing = () => () => {};
+
+/** Whether scrolling may still append after `pages` loaded pages (AB#374). */
+function continuesAutomatically(mode: GalleryContinuation, pages: number): boolean {
+  return mode === "endless" || (mode === "automatic-then-button" && pages < AUTOMATIC_CONTINUATION_PAGE_LIMIT);
+}
+
 /**
  * How long a `GalleryGrid` instance waits, once a click or `popstate`
  * predicts it is about to be replaced by a real navigation, before
@@ -69,6 +80,8 @@ type ContinuationOutcome = {
   readonly appended: boolean;
   /** True once nothing follows, so the control is about to leave the document. */
   readonly complete: boolean;
+  /** The request failed; the control stays as a retry. */
+  readonly failed: boolean;
 };
 
 /**
@@ -93,9 +106,17 @@ type ContinuationOutcome = {
  * with no JavaScript at all. Script only intercepts that link and puts the next
  * slice into the page instead of navigating to it.
  *
- * The grid waits for its continuation control. An open lightbox requests one
- * bounded next page near the loaded end; there is no grid scroll observer or
- * eager retrieval of a whole archive (AB#251).
+ * The authored continuation mode (AB#374) decides what script does with that
+ * link. `button` waits for it. `endless` hides it and appends the next bounded
+ * page whenever a sentinel after the list comes within one viewport of view (or
+ * has been scrolled past), until
+ * the gallery is complete; `automatic-then-button` does the same until
+ * `AUTOMATIC_CONTINUATION_PAGE_LIMIT` pages are shown and then reveals the
+ * link. Every mode loads one page at a time through the same single-flight
+ * loader, a failure stops automatic loading and reveals the link as a retry,
+ * and an automatic append never moves focus. An open lightbox also requests
+ * one bounded next page near the loaded end (AB#251); nothing retrieves a
+ * whole archive eagerly.
  *
  * **The address bar is deliberately left alone.** Replacing it with the last
  * appended slice's URL would name a page that shows *only* that slice, while
@@ -124,6 +145,28 @@ export function GalleryGrid({
   useEffect(() => {
     onResultChange?.({ count: slice.items.length, hasMore: slice.nextCursor !== null, state });
   }, [slice.items.length, slice.nextCursor, state, onResultChange]);
+  // Pages loaded so far, the first included: `automatic-then-button` stops
+  // scrolling appends at its limit. The ref is read synchronously by focus
+  // decisions made in the same tick as the append.
+  const [loadedPages, setLoadedPages] = useState(1);
+  const pagesRef = useRef(1);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  // Automatic loading is an enhancement: before hydration the real link is
+  // the only way on.
+  const hydrated = useSyncExternalStore(subscribeNothing, () => true, () => false);
+  const continuation = presentation.continuation;
+  const continuationRef = useRef(continuation);
+  useEffect(() => { continuationRef.current = continuation; }, [continuation]);
+  /**
+   * Where focus belongs after a visitor-initiated append: the control while it
+   * stays visible, otherwise the status line. Automatic loading hides the
+   * control again once a retry succeeds, and a hidden control cannot hold focus.
+   */
+  const focusTargetAfterAppend = (
+    { complete, failed }: { readonly complete: boolean; readonly failed: boolean },
+  ): "control" | "completion" =>
+    complete || (!failed && continuesAutomatically(continuationRef.current, pagesRef.current))
+      ? "completion" : "control";
   const continueRef = useRef<HTMLAnchorElement | null>(null);
   const completionRef = useRef<HTMLParagraphElement | null>(null);
   // The request callback reads and advances the current slice synchronously.
@@ -132,6 +175,9 @@ export function GalleryGrid({
   const sliceRef = useRef(slice);
   // A second activation while one slice is in flight must not start another.
   const inFlightRef = useRef(false);
+  // Set synchronously by a failed request so a scroll frame that runs before
+  // the failure renders cannot start another one (AB#374); cleared by success.
+  const failedRef = useRef(false);
   // Selecting a different section remounts this component (a fresh
   // `initialSliceKey` in `ContentGallery`), but not synchronously: React keeps
   // this instance mounted and running until the new section's navigation
@@ -165,6 +211,10 @@ export function GalleryGrid({
   // *which* attempt this was, only whether the most recent one succeeded or
   // failed.
   const pendingStaleOutcomeRef = useRef<"success" | "failed" | undefined>(undefined);
+  // Whether that attempt came from the control. Only a visitor's own
+  // activation may move focus once recovery applies it; a scroll-triggered or
+  // lightbox append never does (AB#374).
+  const pendingStaleFromControlRef = useRef(false);
   useEffect(() => {
     isStaleRef.current = false;
 
@@ -189,14 +239,17 @@ export function GalleryGrid({
         // *most recent* attempt is the one being reported. Only `state`
         // depends on which was most recent.
         setSlice(sliceRef.current);
+        setLoadedPages(pagesRef.current);
         setState(outcome === "failed" ? "failed" : "idle");
         // Mirrors `onContinue`'s own post-success focus handling below,
         // which this reconciled attempt was unable to run at the time
         // because it was still (correctly, at that moment) considered
         // stale: focus stays on the control for as long as it exists, and
         // moves to the completion notice only once it doesn't.
-        if (outcome === "success") {
-          setFocusRequest({ target: sliceRef.current.nextCursor === null ? "completion" : "control" });
+        if (outcome === "success" && pendingStaleFromControlRef.current) {
+          setFocusRequest({ target: focusTargetAfterAppend({
+            complete: sliceRef.current.nextCursor === null, failed: false,
+          }) });
         }
       }, STALE_RECOVERY_TIMEOUT_MS);
     };
@@ -273,10 +326,12 @@ export function GalleryGrid({
    * result — the lightbox, continuing past its last loaded slide — can wait for
    * this rather than watch state it does not own.
    */
-  const loadNext = useCallback(async (): Promise<ContinuationOutcome> => {
+  const loadNext = useCallback(async (
+    origin: "control" | "automatic" | "lightbox",
+  ): Promise<ContinuationOutcome> => {
     const cursor = sliceRef.current.nextCursor;
     if (inFlightRef.current || cursor === null) {
-      return { appended: false, complete: cursor === null };
+      return { appended: false, complete: cursor === null, failed: false };
     }
 
     inFlightRef.current = true;
@@ -298,27 +353,41 @@ export function GalleryGrid({
       // same item on screen twice.
       const loaded = sliceRef.current;
       const merged = appendGallerySlice(loaded, next);
+      // A response that neither adds an item nor advances the cursor would let
+      // scrolling request the same page forever (AB#374): treat it as a
+      // failure, which stops automatic loading and offers the retry.
+      if (merged.items.length === loaded.items.length && merged.nextCursor !== null &&
+          merged.nextCursor === loaded.nextCursor) {
+        throw new Error("Gallery continuation made no progress");
+      }
       sliceRef.current = merged;
       const outcome = {
         appended: merged.items.length > loaded.items.length,
         complete: merged.nextCursor === null,
+        failed: false,
       };
+      failedRef.current = false;
+      if (outcome.appended) pagesRef.current += 1;
       if (!isStaleRef.current) {
         setSlice(merged);
+        setLoadedPages(pagesRef.current);
         setState("idle");
       } else {
         pendingStaleOutcomeRef.current = "success";
+        pendingStaleFromControlRef.current = origin === "control";
       }
       return outcome;
     } catch {
+      failedRef.current = true;
       // The failure is announced and the control becomes a retry. Nothing that
       // was already loaded is discarded: a visitor keeps everything they had.
       if (!isStaleRef.current) {
         setState("failed");
       } else {
         pendingStaleOutcomeRef.current = "failed";
+        pendingStaleFromControlRef.current = origin === "control";
       }
-      return { appended: false, complete: false };
+      return { appended: false, complete: false, failed: true };
     } finally {
       inFlightRef.current = false;
     }
@@ -327,7 +396,7 @@ export function GalleryGrid({
   /** The lightbox needs to know whether it grew or reached a clean end. */
   const continueForLightbox = useCallback(
     async () => {
-      const outcome = await loadNext();
+      const outcome = await loadNext("lightbox");
       // Reaching a duplicate-only final slice is still a successful end, even
       // though the viewer did not grow. A non-final slice that adds nothing
       // remains retryable, now from the cursor that response advanced to.
@@ -370,7 +439,7 @@ export function GalleryGrid({
       }
 
       event.preventDefault();
-      void loadNext().then((outcome) => {
+      void loadNext("control").then((outcome) => {
         // Never on a stale instance: moving focus here after a visitor has
         // already clicked away to another section would pull it back into a
         // subtree on its way out, exactly the "steals focus" failure mode
@@ -379,7 +448,7 @@ export function GalleryGrid({
         // Focus is predictable: it stays on the control a visitor activated for
         // as long as that control exists, and moves to the completion notice
         // only when the control itself goes away — never to the document body.
-        setFocusRequest({ target: outcome.complete ? "completion" : "control" });
+        setFocusRequest({ target: focusTargetAfterAppend(outcome) });
       });
     },
     [loadNext],
@@ -387,6 +456,38 @@ export function GalleryGrid({
 
   const isLoading = state === "loading";
   const hasFailed = state === "failed";
+  const automatic = hydrated && nextCursor !== null && !hasFailed &&
+    continuesAutomatically(continuation, loadedPages);
+
+  // One check per settled slice and per scroll frame: within one viewport
+  // below the visible area, or already scrolled past (a fling to the footer
+  // jumps over a small sentinel without ever intersecting it). Re-running after
+  // each append keeps a short page whose end is still in view loading without
+  // another scroll. A failure, the limit or the end removes the sentinel and
+  // with it every further request.
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!automatic || isLoading || sentinel === null) return;
+    let frame: number | undefined;
+    const check = () => {
+      frame = undefined;
+      // Refs, not render state: a fast response can complete between this
+      // listener's registration and the render that would remove it.
+      if (isStaleRef.current || inFlightRef.current || failedRef.current ||
+          sliceRef.current.nextCursor === null ||
+          !continuesAutomatically(continuationRef.current, pagesRef.current)) return;
+      if (sentinel.getBoundingClientRect().top <= window.innerHeight * 2) void loadNext("automatic");
+    };
+    const schedule = () => { if (frame === undefined) frame = requestAnimationFrame(check); };
+    schedule();
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule, { passive: true });
+    return () => {
+      if (frame !== undefined) cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+    };
+  }, [automatic, isLoading, slice.items.length, loadNext]);
 
   return (
     <GalleryLightbox
@@ -433,6 +534,8 @@ export function GalleryGrid({
         </ul>
       )}
 
+      {automatic && <div ref={sentinelRef} aria-hidden="true" className="h-px" data-gallery-continuation-sentinel="" />}
+
       <div className="mt-10 flex flex-col items-center gap-3">
         {/*
           One polite region for every state this control can be in. It is always
@@ -454,7 +557,9 @@ export function GalleryGrid({
             ? labels.gallery.loadFailed
             : nextCursor === null
               ? labels.gallery.allLoaded
-              : ""}
+              : automatic && isLoading
+                ? labels.gallery.loadingMore
+                : ""}
         </p>
 
         {nextCursor !== null && (
@@ -462,6 +567,9 @@ export function GalleryGrid({
             ref={continueRef}
             href={galleryContinuationHref(galleryPath, nextCursor, activeSection)}
             rel="next"
+            // Automatic modes keep the real link for script failures and
+            // retries; while scrolling loads, it is out of the way entirely.
+            hidden={automatic || undefined}
             onClick={onContinue}
             aria-describedby={statusId}
             aria-busy={isLoading}

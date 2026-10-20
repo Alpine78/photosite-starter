@@ -53,6 +53,7 @@ describe("the site settings and home schemas", () => {
     expect(fieldNames(siteSettingsType)).toEqual([
       "galleryLayout",
       "galleryCaptionPlacement",
+      "galleryContinuation",
       "siteName",
       "logo",
       "logoDark",

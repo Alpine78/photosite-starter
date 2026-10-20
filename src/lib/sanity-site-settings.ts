@@ -47,6 +47,7 @@ export const PROJECTED_SITE_SETTINGS_FIELDS = [
   "featuredGalleryId",
   "galleryLayout",
   "galleryCaptionPlacement",
+  "galleryContinuation",
   "navigation",
   "contact",
   "socialLinks",
@@ -80,6 +81,7 @@ export const SITE_SETTINGS_PROJECTION = `{
   featuredGalleryId,
   galleryLayout,
   galleryCaptionPlacement,
+  galleryContinuation,
   navigation[]{label[]{language, value}, target, href, categoryId},
   contact{
     "portrait": portrait->${PUBLIC_MEDIA_PROJECTION},

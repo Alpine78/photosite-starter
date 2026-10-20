@@ -22,6 +22,7 @@ export const validationFinnish = {
   "Choose a static route, the generated story root, or the featured gallery": "Valitse staattinen reitti, luotu tarinajuuri tai esittelygalleria",
   "Choose a supported caption placement.": "Valitse tuettu kuvatekstin sijoittelu.",
   "Choose a supported gallery layout.": "Valitse tuettu galleriaasettelu.",
+  "Choose a supported way to load more images.": "Valitse tuettu tapa ladata lisää kuvia.",
   "Choose before or after the name": "Valitse ennen nimeä tai nimen jälkeen",
   "Choose either plain text or linked text": "Valitse joko pelkkä teksti tai linkitetty teksti",
   "Choose either the story root or a canonical category, not both.": "Valitse joko tarinajuuri tai kanoninen kategoria, ei molempia.",
