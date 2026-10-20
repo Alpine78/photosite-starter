@@ -371,6 +371,12 @@ test.describe("responsive image source at an enlarged root font size", () => {
 
         const main = page.getByRole("main");
         await expect(galleryItems(main)).toHaveCount(24);
+        // AB#375: before hydration a below-caption photograph sits in a passive
+        // <div data-item-id>; enhancement swaps it for a <button> and React
+        // recreates the <img>. Scrolling during that swap detached the image, so
+        // wait for the first trigger's enhanced form before touching it.
+        await expect(galleryItems(main).first().locator("[data-item-id]"))
+          .toHaveJSProperty("tagName", "BUTTON");
         // A narrative mini-gallery can put the curated result below the fold.
         // Real lazy images select a source when the visitor reaches that result.
         const first = galleryItems(main).first().locator("img");
