@@ -110,7 +110,7 @@ for (const javaScriptEnabled of [true, false]) {
             for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
               if (Math.abs(boxes[i].y - boxes[j].y) <= 1) expect(Math.abs(boxes[i].height - boxes[j].height)).toBeLessThan(1);
             }
-            for (const box of boxes) expect(box.sizes).toBe("calc(100vw - 32px)");
+            for (const box of boxes) expect(box.sizes).toBe("100vw");
             if (width === 1280) expect(Math.abs(boxes[9].y - boxes[10].y)).toBeLessThan(1);
             // A singleton's full caption is not forced into its tiny picture.
             expect(await captions.filter({ hasText: images[6].caption! }).count()).toBeGreaterThan(0);

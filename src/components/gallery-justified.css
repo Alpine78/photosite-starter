@@ -24,3 +24,24 @@
     margin-left: var(--j3-left);
   }
 }
+
+/* AB#373: below the first band an article's end gallery shows each image at
+   the full column width and native ratio, bounded only by the viewport height. */
+@container (width < 34rem) {
+  [data-article-end-gallery] .gallery-justified__item {
+    width: var(--j-single-full-width, var(--j-single-width));
+  }
+}
+
+/* AB#373: an article's end gallery runs edge to edge on a phone, like its
+   mini galleries (content-mini-gallery.css); captions sit inside the figure. */
+@media (width < 40rem) {
+  [data-article-end-gallery] :is(.gallery-justified, .gallery-masonry) {
+    margin-inline: -1rem;
+  }
+
+  [data-article-end-gallery] :is(.gallery-justified, .gallery-masonry) .gallery-figure,
+  [data-article-end-gallery] :is(.gallery-justified, .gallery-masonry) .gallery-figure > :first-child {
+    border-radius: 0;
+  }
+}

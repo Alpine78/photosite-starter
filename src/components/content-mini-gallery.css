@@ -9,3 +9,21 @@
 @container (min-width: 56rem) {
   .mini-gallery-justified__picture { width: var(--j3-image-width); }
 }
+
+/* AB#373: on a phone an article's images run edge to edge, one per row at the
+   screen width and their native ratio; captions keep the page gutter. 40rem is
+   where the page container's 1rem side padding ends. */
+@media (width < 40rem) {
+  .content-reading-body .content-mini-gallery {
+    margin-inline: -1rem;
+  }
+
+  .content-reading-body .content-mini-gallery > p,
+  .content-reading-body .content-mini-gallery figcaption {
+    padding-inline: 1rem;
+  }
+
+  .content-reading-body .content-mini-gallery img {
+    border-radius: 0;
+  }
+}

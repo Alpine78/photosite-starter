@@ -40,13 +40,15 @@ function boundedImageSizes(
  * A safe upper bound on the width of `.gallery-masonry`/`.gallery-justified`'s
  * bounded, rem-container-queried content at *any* viewport and *any* root
  * font-size: that container can never exceed the viewport itself minus its
- * smallest reachable padding, so this alone — no per-column-count or
+ * smallest reachable padding (none, for an edge-to-edge article gallery), so this alone — no per-column-count or
  * per-band conditional branch — stays correct however far a visitor's root
  * font-size pushes the container's own column count or width down. See
  * `imageRenderProfiles.galleryMasonry`'s own doc comment for why a
  * conditional branch (in `px` or `rem`) was tried and measured wrong.
  */
-const boundedRemContainerSizes = "calc(100vw - 32px)";
+// AB#373: an article's galleries run edge to edge below 40rem, so the whole
+// viewport is now the reachable width.
+const boundedRemContainerSizes = "100vw";
 
 /**
  * Two-column card grid inside the bounded 1152px content container (AB#173):
@@ -72,7 +74,7 @@ export const imageRenderProfiles = {
     sizes: boundedImageSizes(
       1152,
       358,
-      "(min-width: 1024px) calc(33.333vw - 26.667px), (min-width: 640px) calc(50vw - 32px), calc(100vw - 32px)",
+      "(min-width: 1024px) calc(33.333vw - 26.667px), (min-width: 640px) calc(50vw - 32px), 100vw",
     ),
   },
   /**
@@ -125,7 +127,7 @@ export const imageRenderProfiles = {
     sizes: boundedImageSizes(
       768,
       348,
-      "(min-width: 640px) calc(50vw - 36px), calc(100vw - 32px)",
+      "(min-width: 640px) calc(50vw - 36px), 100vw",
     ),
   },
   /** Same grid inside the gallery body's 768px reading column. */
@@ -133,7 +135,7 @@ export const imageRenderProfiles = {
     sizes: boundedImageSizes(
       816,
       372,
-      "(min-width: 640px) calc(50vw - 36px), calc(100vw - 32px)",
+      "(min-width: 640px) calc(50vw - 36px), 100vw",
     ),
   },
   /** The services listing: the same two-column card grid as stories (AB#173). */

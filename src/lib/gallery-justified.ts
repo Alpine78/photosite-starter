@@ -13,6 +13,11 @@
  */
 export const JUSTIFIED_MAX_HEIGHT_REM = 16;
 export const JUSTIFIED_TAIL_HEIGHT_REM = 12;
+/**
+ * AB#373: below the first band an image fills the column at its native ratio,
+ * bounded only so a tall portrait never exceeds this share of the viewport.
+ */
+export const JUSTIFIED_SINGLE_MAX_HEIGHT_SVH = 80;
 export const JUSTIFIED_GAP_REM = 1;
 export const JUSTIFIED_BANDS = [
   { minContainerRem: 34, maxContainerRem: 56 },

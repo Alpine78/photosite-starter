@@ -108,7 +108,7 @@ test("mini-gallery keeps full frames, row-major order, and bounded responsive si
     expect(box.width / box.height).toBeCloseTo(box.intrinsicWidth / box.intrinsicHeight, 2);
     expect(box.width).toBeLessThanOrEqual(box.intrinsicWidth);
     expect(box.fit).not.toBe("cover");
-    if (DEFAULT_GALLERY_PRESENTATION.layout === "justified") expect(box.sizes).toBe("calc(100vw - 32px)");
+    if (DEFAULT_GALLERY_PRESENTATION.layout === "justified") expect(box.sizes).toBe("100vw");
     else expect(box.sizes).toContain("348px");
   }
   await list.screenshot({ path: testInfo.outputPath("mini-gallery.png") });
