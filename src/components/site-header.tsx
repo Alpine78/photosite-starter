@@ -312,7 +312,7 @@ export function SiteHeader({
   };
   const closeSearch = () => {
     setSearchOpen(false);
-    searchOpenerRef.current?.focus();
+    searchOpenerRef.current?.focus({ preventScroll: true });
   };
 
   // Navigating ends the interaction that opened the panel. Keyed on the route
@@ -356,7 +356,8 @@ export function SiteHeader({
      */
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
-      toggleRef.current?.focus();
+      // The toggle sits in the sticky header: see SiteNavigation's Escape.
+      toggleRef.current?.focus({ preventScroll: true });
       setMenuOpen(false);
     };
 

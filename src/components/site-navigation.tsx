@@ -170,7 +170,9 @@ export function SiteNavigation({
       // document: someone who dismissed it has not left the menu. After a
       // pointer activation it also puts focus where the visitor already is, so
       // the next Tab continues through the menu instead of from the top.
-      toggles.current.get(openKey)?.focus();
+      // Without preventScroll, focusing a control in the sticky header from
+      // elsewhere scrolls the page by the header's scroll-padding (AB#377).
+      toggles.current.get(openKey)?.focus({ preventScroll: true });
       setOpenKey(null);
     };
 
