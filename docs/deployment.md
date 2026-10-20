@@ -2076,6 +2076,62 @@ vercel deploy --prebuilt --prod --skip-domain --token="$VERCEL_TOKEN"
 vercel promote <deployment-url> --token="$VERCEL_TOKEN"
 ```
 
+### Scripted release (AB#379)
+
+`npm run release:production` runs the sequence above from the **primary checkout**, with the
+owner's own `vercel` and `az` logins; it reads no token and prints no environment value.
+It is bound to the project in `.vercel/project.json`: a `VERCEL_PROJECT_ID`/`VERCEL_ORG_ID` in
+the shell naming anything else is refused, API reads pass that `teamId`, and `vercel curl` and
+`vercel promote` run with `--scope` set to it.
+Two owner-run steps, so the approval between them stays explicit:
+
+```bash
+npm run release:production -- stage
+# review the printed candidate, smoke results and receipt, then:
+npm run release:production -- promote --receipt temp/releases/<run>/03-staged.json --confirm <candidate dpl_id>
+```
+
+`stage` refuses unless the checkout is a clean `main` exactly at the fetched `origin/main`
+**and** a completed, succeeded, non-scheduled main CI run exists for that exact revision (a
+scheduled run is only the dependency audit and skips Verify). The candidate is polled until
+READY, since a prebuilt deploy returns earlier. It reads the
+complete alias inventory and the project's production domains (no Git-branch or custom
+environment binding; every Vercel API read names the linked team) and refuses a split baseline (a project
+domain missing or on a different deployment). It writes `01-prepared.json` with the previous
+production deployment and the documented rollback command **before** deploying. Then it
+runs `npm ci --include=dev`, removes any stale `.vercel/output`, runs `vercel pull --environment=production`
+and `vercel build --prod`, and rechecks the checkout. It deploys with
+`--prebuilt --prod --skip-domain --archive=tgz --meta gitCommitSha=<sha> --meta gitDirty=0`
+and records `02-deployed.json` as soon as the command returns. The candidate is read back
+(`verifyReleaseSource` plus a strict `target: production`), and the alias inventory is compared
+again, and the candidate's own URL must challenge an anonymous request with Vercel's
+authentication redirect (`classifyProtection`; a 401/403 is not proof) and answer an
+authorized request with `X-Robots-Tag: noindex`. Project domains must still serve the previous deployment with unchanged redirects,
+and no other alias may change. A generated alias that followed the candidate is reported
+with its exact `vercel alias set` restore command and recorded as accepted. Smoke paths are
+`/`, `/robots.txt`, `/sitemap.xml` and an evenly spaced sample of the candidate's own sitemap
+(same canonical origin; sitemap indexes refused). Every path must answer 200 through
+`vercel curl`; matching a failing production is not a pass. The result is `03-staged.json`
+with `verdict: pass|fail`; production is not changed.
+
+`promote` accepts only a version-1, passed stage receipt whose candidate id equals
+`--confirm`. It rechecks CI, rereads routing (production still on the previous deployment;
+only the generated aliases recorded at staging may point at the candidate) and the
+candidate. It writes `04-promote-attempted.json` and runs `vercel promote`. A failed or
+timed-out promote is treated as an uncertain outcome and read back either way: every
+production alias must serve the candidate within a minute, and each project domain must
+answer over public HTTPS (200, or the recorded redirect); every other alias, such as the
+stable Preview alias, must be unchanged. It ends with `05-verified.json` or
+`05-failed.json` and always prints `npx vercel rollback https://<previous> --scope <team>`. It never deletes
+deployments, changes environment variables or touches the stable Preview alias.
+
+Evidence lives in a new private directory under the ignored `temp/releases/` (owner-only
+modes, exclusive writes, selected fields rather than raw provider responses); a lock
+directory prevents two local releases at once. Dashboard or manual alias changes during a
+release remain a race the script detects only at its next readback. `vercel pull` writes the
+Production environment file into the ignored `.vercel/` directory exactly as the manual
+sequence did. The rollback caveats below apply unchanged.
+
 Check the public Production domain **and the generated project/team alias** before and
 after staging, using the authenticated deployment API and immutable deployment IDs.
 During the 2026-10-04 AB#137 remote-build rehearsal, `--prod --skip-domain` kept the

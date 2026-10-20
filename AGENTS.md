@@ -320,6 +320,7 @@ npm run plan:article-end-sections -- --manifest <private.json> --snapshot <compl
 npm run revalidate:article-end-sections -- --baseline-manifest <private.json> --baseline-snapshot <raw.ndjson> --baseline-digest <sha256> --current-manifest <private.json> --current-snapshot <raw.ndjson> --out <new-private-directory> # offline pre-write comparison only; never writes CMS
 npm run admin:secret # owner-run: generate the private-gallery administrator credential (ADR-0015 §4)
 npm run task:start -- <branch> [--no-install] # new linked task worktree: create, publish, verify, install (AB#381)
+npm run release:production -- stage | promote --receipt <03-staged.json> --confirm <dpl_id> # owner-run: staged Production release; stage never changes production, promote needs the passed receipt (AB#379)
 ```
 
 `npm run test:e2e` needs the browsers once: `npx playwright install chromium webkit`
