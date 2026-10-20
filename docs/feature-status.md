@@ -2610,6 +2610,15 @@ No provider restore or launch rollback is claimed.
 cache, credentials and mail. AB#118 still needs actual post-promotion recovery and
 owner handoff; no Production mutation was performed.
 
+**Dependabot alert #67, 2026-10-20 (AB#160, Active):** a new medium advisory,
+GHSA-698v-4r3x-3vcv (`launch-editor` `escapeCmdArgs()` omits `%` escaping on Windows),
+affected `vite` 8.2.0–8.2.3, which only the development tree uses (through Vitest). A
+lockfile-only `npm update vite` within Vitest's existing range moved vite 8.2.2 → 8.3.4 and
+its bundled rolldown packages 1.2.8 → 1.2.14; no direct dependency was added and nothing
+shipped changes. Afterwards `npm audit` reports 0 vulnerabilities for the root tree and the
+full unit suite passes (8 527 tests). Alert #66 (Studio `sprintf-js`) remains the dated
+owner-accepted exception from AB#380.
+
 **Next maintenance candidate, 2026-10-16 (AB#160, Active):** Next.js and its
 ESLint configuration are pinned to 16.4.2 for the upstream Turbopack fixes.
 The updated Hooks rules prompted small corrections: gallery focus requests no
