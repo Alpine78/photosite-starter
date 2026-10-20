@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import type { BuiltInLabels } from "@/lib/deployment-config";
+import { focusInPlace } from "@/lib/focus-in-place";
 import {
   resolveNavigationItemState,
   toAriaCurrent,
@@ -170,9 +171,7 @@ export function SiteNavigation({
       // document: someone who dismissed it has not left the menu. After a
       // pointer activation it also puts focus where the visitor already is, so
       // the next Tab continues through the menu instead of from the top.
-      // Without preventScroll, focusing a control in the sticky header from
-      // elsewhere scrolls the page by the header's scroll-padding (AB#377).
-      toggles.current.get(openKey)?.focus({ preventScroll: true });
+      focusInPlace(toggles.current.get(openKey));
       setOpenKey(null);
     };
 
