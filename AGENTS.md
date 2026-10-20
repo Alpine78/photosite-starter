@@ -302,26 +302,13 @@ npm run build     # production build (CI gate)
 npm run test:e2e  # Playwright public-journey smoke tests (CI gate, builds and serves)
 npm run diagrams  # regenerate docs/architecture/*.svg from their .d2 sources
 npm run diagrams:check # CI gate: sources compile and committed SVGs are current
-npm run verify:preview -- <url> <dpl_id> # assert ownership, protection, and noindex
-npm run verify:legacy-redirects -- report [--csv] # AB#19: mapping report or pending review CSV; check <origin> [<canonical-origin>] probes a production build
-npm run benchmark:keywords -- plan # AB#65 spike: fixture + query-strategy benchmark (owner-run for the live matrix)
-npm run convert:joomla -- --source <articles.ndjson> --out <dir> # owner-run: convert legacy content, report only, never writes
-npm run write:joomla -- --plan <import-plan.json> --image-root <dir> --out <dir> --approved-digest <hash> # owner-run: write an approved import plan to Sanity, dry-run by default
-npm run plan:rally -- --folder <rally folder> --out <dir> # owner-run: plan a capture-sequence rally import offline, never writes
-npm run plan:legacy-delivery -- --input <private.json> --image-root <dir> --backup <archive.zip> --out <dir> # owner-run: verify unchanged retained legacy sources offline; no CMS write
-npm run write:rally -- --plan <plan.json> --folder <rally folder> --out <dir> --approved-digest <hash> # owner-run: write an approved rally plan to Sanity, dry-run by default
-npm run plan:rally-conversion -- --gallery <contentId> --folder <renamed copy> --artifacts <dir> --out <dir> # owner-run: plan converting a published rally gallery, read-only
-npm run write:rally-conversion -- --plan <plan.json> --folder <renamed copy> --out <dir> --approved-digest <hash> --backup-archive <path> # owner-run: write an approved rally gallery conversion to Sanity, dry-run by default
-npm run fix:joomla-intro -- --out <dir> [--approved-digest <hash> --yes] # owner-run: move imported Joomla intros into listing-only leads, plan-only by default
-npm run reconcile:joomla-intro -- --out <recovery-dir> --approved-digest <hash> # read-only diagnosis after an intro write; never retries CMS mutations
-npm run reconcile:identities -- --map <map.json> --approval <approval.json> --baseline <original.ndjson> --snapshot <current.ndjson> --approved-digest <hash> --out <private-dir> # offline identity reconciliation; report only, never writes CMS
-npm run plan:identity-changes -- --map <map.json> --approval <approval.json> --baseline <original.ndjson> --snapshot <current.ndjson> --approved-digest <hash> --out <private-dir> # offline revision-bound change batches; never writes CMS
-npm run plan:article-end-sections -- --manifest <private.json> --snapshot <complete-raw.ndjson> --out <new-private-directory> # offline first-adoption evidence only; never writes CMS
-npm run revalidate:article-end-sections -- --baseline-manifest <private.json> --baseline-snapshot <raw.ndjson> --baseline-digest <sha256> --current-manifest <private.json> --current-snapshot <raw.ndjson> --out <new-private-directory> # offline pre-write comparison only; never writes CMS
-npm run admin:secret # owner-run: generate the private-gallery administrator credential (ADR-0015 §4)
 npm run task:start -- <branch> [--no-install] # new linked task worktree: create, publish, verify, install (AB#381)
-npm run release:production -- stage | promote --receipt <03-staged.json> --confirm <dpl_id> # owner-run: staged Production release; stage never changes production, promote needs the passed receipt (AB#379)
 ```
+
+Release verification, migration, CMS-writing and other operational commands — including
+every **owner-run** one, which runs only by or with the owner's explicit authorization —
+are listed with their safety annotations in [`docs/owner-run-commands.md`](docs/owner-run-commands.md).
+**Read that list and the command's own documentation before running or changing any of them.**
 
 `npm run test:e2e` needs the browsers once: `npx playwright install chromium webkit`
 (add `--with-deps` on Linux).
@@ -458,34 +445,10 @@ References: [Git tracking and push settings](https://git-scm.com/docs/git-config
 
 ### Retiring a completed worktree
 
-Removing its directory does not delete its branch. Retire only a checkout the
-user has authorized you to clean up, after inspecting it:
-
-1. Fetch `origin`, confirm the PR is **merged**, and compare its final source
-   branch and head SHA with the checkout's branch and `git rev-parse HEAD`.
-   Preserve checkouts another session or dev server still uses; never unlock one.
-2. Inspect `git status --short --untracked-files=all` and
-   `git ls-files --others --ignored --exclude-standard`. The second check is
-   mandatory: ordinary removal does not protect ignored `.env.local`, private
-   imports, local data, dependencies or test artifacts. Preserve or explicitly
-   authorize disposal of every local file before removing the directory.
-3. For an ordinary merge, verify `git merge-base --is-ancestor HEAD origin/main`
-   in that checkout. A squash merge cannot be proved by this ancestry check;
-   require separate evidence that the exact reviewed patch was integrated, or
-   leave the worktree for the owner. A merged PR alone does not cover later local
-   commits or edits.
-4. From outside that checkout, run `git -C "$primary_root" worktree remove "$worktree_dir"` with both variables set to the inspected repository/path.
-   Never add `--force`, reset changes or delete branch refs as part of retirement.
-   `git worktree prune` cleans stale registrations, not live checkout directories.
-5. Recheck `git worktree list --porcelain`. If VS Code retains the entry, run
-   **Developer: Reload Window**, then **Source Control: Focus on Repositories View**.
-   Check worktree detection/its limit and ignored repositories; use **Git: Open
-   Repository...** to reopen an explicitly closed checkout. Report when the GUI
-   has not been inspected instead of claiming its repository list is verified.
-
-To reattach a retained branch, use `git worktree add "$worktree_dir" "$work_branch"`
-under the canonical `temp/worktrees/` path. The branch must not be checked out
-elsewhere. Do not create a replacement branch or change its same-name upstream.
+Retire only a checkout the user has authorized you to clean up. **Before removing any
+worktree, read and follow [`docs/worktree-retirement.md`](docs/worktree-retirement.md)**
+step by step: it covers the merge proof, the ignored-file check, and the forbidden
+`--force`/reset/branch-deletion shortcuts. Removing its directory does not delete its branch.
 
 ## CI / project management
 
@@ -498,39 +461,10 @@ elsewhere. Do not create a replacement branch or change its same-name upstream.
 
 ## Documentation
 
-This is the complete set — there is no other documentation to hunt for:
-
-| File                                 | Audience                                                           | Update it when                                                                                                                                              |
-| ------------------------------------ | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `README.md`                          | humans evaluating or cloning the project                           | scope, structure, setup, or MVP progress changes                                                                                                            |
-| `AGENTS.md`                          | all AI agents (canonical)                                          | project-level working rules or conventions change                                                                                                           |
-| `docs/feature-status.md`             | maintainers and agents seeking implementation history             | a feature's implementation status changes; verify against code and Azure Boards                                                                              |
-| `CLAUDE.md`                          | Claude Code only                                                   | a Claude-specific skill or workflow changes — it imports this file, so put shared rules here                                                                |
-| `docs/adr/`                          | future maintainers                                                 | a hard-to-reverse technical decision is made (see below)                                                                                                    |
-| `docs/architecture/`                 | anyone forming a mental model of the system                        | a system boundary, layer, external dependency, or the deploy flow changes — edit the `.d2` source and re-run `npm run diagrams`, never the `.svg`           |
-| `docs/theme-contract.md`             | whoever restyles a clone or builds a theme preset (AB#37)          | a semantic design token is added, renamed, or revalued, the light/dark mechanism changes, or a surface moves in or out of the "stays explicit" list         |
-| `docs/gallery-presentation.md`       | whoever authors gallery layout defaults or restyles the gallery grid (AB#157) | the placement rule, a responsive threshold, the caption-access mechanism, or the layout/caption inheritance model changes                                   |
-| `docs/bilingual-page-coverage.md` | maintainers implementing AB#255 | page-family language coverage or remaining ownership changes; source evidence is distinct from live CMS completeness |
-| `docs/article-reading-position.md` | owner refining AB#20 | confirmed scope, open decisions or unapproved implementation slices change; no runtime acceptance is implied |
-| `docs/asset-inventory.md`            | licensing audit                                                    | any third-party asset, font, or shipped dependency is added or removed                                                                                      |
-| `docs/contact-data-flow.md`          | the site owner, a visitor who asks, and the AB#117 launch review   | the contact form's fields, delivery path, processors, logs, or retention change                                                                             |
-| `docs/private-gallery-data-flow.md`  | the site owner, a customer who asks, and the AB#117 launch review  | a private gallery's stored data, the access link or cookie, its processors, logs, or retention change                                                       |
-| `docs/poll-data-flow.md`             | the site owner, a visitor who asks, and the AB#117 launch review   | a poll's stored data, the poll-specific voting cookie, the write credential, logs, or retention change                                                              |
-| `docs/search-data-flow.md`           | the site owner, a visitor who asks, and the AB#117 launch review   | the site search's query transport, what is searched, logs, caches, or processors change |
-| `docs/article-comments-and-ratings.md` | owner refining AB#26 | confirmed scope, open decisions or unapproved implementation slices change; no runtime acceptance is implied |
-| `docs/sanity-setup.md`               | the site owner and whoever provisions a clone's CMS                | the Sanity connection settings, ownership/transfer story, perspective, schemas, media policy, or failure behavior change                                    |
-| `docs/sanity-seeding.md`             | the site owner and whoever seeds a clone's sample or first content | the seed script's fixture content, id/idempotency contract, write-token story, verification steps, or go-live cleanup checklist change                      |
-| `sanity/README.md`                   | whoever wires a clone's Studio to these schemas                    | a document type is added, or how the Studio consumes them changes                                                                                           |
-| `docs/mail-recovery-evidence.md` | owner and recovery operator (AB#131/118) | mailbox, DNS or account recovery evidence requirements change |
-| `docs/rollback-exercise-record.md` | owner and recovery operator (AB#118) | code/content recovery exercise or ownership evidence requirements change |
-| `docs/deployment.md`                 | the site owner and whoever provisions a clone's hosting            | the Preview environment, pipeline deployment stage, environment-variable split, runtime pins, or promotion/rollback mechanism change                        |
-| `docs/security-privacy-review.md`    | the site owner and future launch reviews                           | the launch security/privacy review is rerun, a finding's disposition changes, or the security response headers change (also update ADR-0011)                |
-| `docs/keyword-query-benchmark.md`    | AB#55's taxonomy ADR and whoever runs the AB#65 spike              | the keyword-query benchmark fixture, harness, or matrix changes, or an owner-run live measurement is completed and its numbers/recommendation are filled in |
-| `docs/review-catalog.md` | owner refining AB#27 | confirmed scope, open decisions or unapproved implementation slices change; no runtime acceptance is implied |
-| `docs/commercial-policy-requirements.md` | owner and qualified legal/tax reviewers (AB#49) | proposed offer, licensing boundary, sales channel, buyer classification, processors, law or review evidence changes; this is requirements, not legal advice |
-| `docs/photographer-operations.md` | owner refining AB#28 | confirmed scope, open decisions or unapproved implementation slices change; no runtime acceptance is implied |
-| `NOTICE`, `licenses/`                | anyone receiving the product                                       | a third-party component with an attribution requirement is added                                                                                            |
-| `.claude/skills/`, `.agents/skills/` | agents                                                             | a recurring workflow needs a skill; duplicate into both, no symlinks                                                                                        |
+The complete set of project documentation — each file, its audience, and the change
+that requires updating it — is the map in [`docs/documentation-map.md`](docs/documentation-map.md).
+There is no other documentation to hunt for. **Before finishing any change, read that
+map and update every file whose "Update it when" condition the change meets.**
 
 Rules:
 
