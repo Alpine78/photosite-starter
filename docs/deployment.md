@@ -1811,7 +1811,8 @@ are why this stays a one-line, reversible setting: set `ciE2eWorkers` back to `"
 agent disconnect or new contention flake appears. Main CI runs are batched
 (`trigger: batch: true`): merges that land during a run are built once, as the newest
 commit, after the whole current run (DeployPreview included) has finished. PR validation is
-not batched.
+not batched. Result over 18 four-worker runs (2026-10-20/21): Verify median ~981 s,
+end-to-end ~770 s. Whether merges were actually batched has not been checked yet.
 
 `DeployPreview` was briefly moved to the same self-hosted agent on 2026-09-16 to avoid
 the $40/month Microsoft-hosted cost entirely, then moved back the same day once an
