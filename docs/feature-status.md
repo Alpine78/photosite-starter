@@ -6250,6 +6250,14 @@ was removed or activated. AB#313 moved New → Active before edits; actual
 deployment/operator/clone usage and each deletion patch's architecture/security
 review remain open. AB#29/145 stay Active and proof selection AB#130 stays New.
 
+**Operational evidence, 2026-10-20:** names-only evidence for the clearance table is now in
+the [audit](audits/protected-gallery-removal-2026-10-17.md#operational-evidence-for-the-clearance-table--2026-10-20).
+Vercel Production/Preview define no protected-gallery, admin-secret, object-store or retention
+setting (store `off`), the protected paths answer 404 in Production, the single pipeline and
+its one variable group reference none of them, and this host has no scheduler, shell-history
+or local-environment use. Every clearance row still needs its owner's confirmation; clones and
+other machines were not checked. Nothing was deleted.
+
 ### AB#325 — ordered offline client web-image batches
 
 An explicit owner-selected batch can now prepare up to 256 processed exports
