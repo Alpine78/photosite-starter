@@ -150,8 +150,9 @@ second, independently-rounded number.
 (`imageRenderProfiles.galleryGrid`). `masonry` and `justified` share one
 different profile (`boundedRemContainerSizes`, used by both
 `imageRenderProfiles.galleryMasonry` and `.galleryJustified`):
-`calc(100vw - 32px)`, unconditionally, no viewport-breakpoint branches at
-all.
+`100vw`, unconditionally, no viewport-breakpoint branches at
+all (AB#373 widened it from `calc(100vw - 32px)` when article galleries began
+running edge to edge on phones).
 
 That looks like it gives up the per-column sizing the grid profile has, and
 it does, deliberately. A `sizes` media condition's length — `px` or `rem`
@@ -193,12 +194,30 @@ use the whole row even when its photograph is very narrow. The fitting policy is
 bounded to a root font of 32px; CSS native-size caps still prevent upscaling above
 that bound. Tiny source photographs can remain tiny viewer targets.
 
-Justified inline sets share the `calc(100vw - 32px)` source-size bound and preserve
+Justified inline sets share the `100vw` source-size bound and preserve
 SSR geometry through hydration and image loading: each occurrence retains its source
 aspect ratio even if an optimized tiny image has integer-rounded dimensions. The
 old mini-gallery source-size profiles remain for the grid fallback. No layout changes the 12-image maximum, placement identity,
 viewer isolation, media contract, CMS content, or URL. See ADR-0003's dated AB#334
 amendment for the exact replacement of the historical AB#24 grid clause.
+
+## Phone single column (AB#373)
+
+Below the first justified band (34rem of container), each image in an article's
+mini galleries and end gallery (and in a gallery body's mini galleries) is its own
+row. It fills the column at its native ratio instead of the former 12rem tail
+height; curated gallery pages keep the tail height. The end gallery reads the
+extra `--j-single-full-width` property inside a container query, so the curated
+placement itself is unchanged;
+only a tall portrait is bounded, so its height never exceeds 80svh
+(`JUSTIFIED_SINGLE_MAX_HEIGHT_SVH`). Inline sets stay capped at their rendition
+width, so nothing is upscaled. Below 40rem of viewport, an article's mini
+galleries and end gallery run edge to edge (square corners, captions keep the
+page gutter), and the narrow `sizes` fallback is the whole viewport. Nothing is
+cropped. In landscape, the existing bands already compose an equal-height row
+(for example three photographs in a 54rem phone viewport). Masonry keeps its own
+column thresholds, so a landscape phone below 56rem of container shows two
+masonry columns.
 
 ## Out of scope
 

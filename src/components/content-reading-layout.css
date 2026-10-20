@@ -104,7 +104,8 @@
 .reading-contents__list {
   position: relative;
   margin: 0;
-  padding: 0 0 0.5rem;
+  /* Room for the current dot's 4px ring inside the scrolling pane. */
+  padding: 0 0 0.5rem 0.375rem;
   list-style: none;
 }
 
@@ -115,7 +116,7 @@
   content: "";
   position: absolute;
   inset-block: 1rem 1.5rem;
-  inset-inline-start: 5px;
+  inset-inline-start: calc(0.375rem + 5px);
   inline-size: 1px;
   background: var(--border);
 }

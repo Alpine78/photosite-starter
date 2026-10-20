@@ -2,6 +2,7 @@ import {
   groupJustifiedRows,
   JUSTIFIED_BANDS,
   JUSTIFIED_MAX_HEIGHT_REM,
+  JUSTIFIED_SINGLE_MAX_HEIGHT_SVH,
   JUSTIFIED_TAIL_HEIGHT_REM,
   type JustifiedRow,
 } from "@/lib/gallery-justified";
@@ -49,8 +50,12 @@ export function computeJustifiedLayout(
     styles.push({
       "--j-single-width": options?.fullRowSingletons ? "100cqi"
         : `min(100cqi, ${coefficient(ratios[index] * JUSTIFIED_TAIL_HEIGHT_REM)}rem)`,
+      // AB#373: an article's single column fills its width at the native ratio;
+      // only a tall portrait is bounded, by the viewport rather than a fixed
+      // height. Curated gallery pages keep the tail height (gallery-justified.css).
+      "--j-single-full-width": `min(100cqi, ${coefficient(ratios[index] * JUSTIFIED_SINGLE_MAX_HEIGHT_SVH)}svh)`,
       ...(options === undefined ? {} : {
-        "--j-single-image-width": `min(100cqi, ${coefficient(ratios[index] * JUSTIFIED_TAIL_HEIGHT_REM)}rem, ${items[index].media.rendition.width}px)`,
+        "--j-single-image-width": `min(100cqi, ${coefficient(ratios[index] * JUSTIFIED_SINGLE_MAX_HEIGHT_SVH)}svh, ${items[index].media.rendition.width}px)`,
       }),
     });
   }

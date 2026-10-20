@@ -15,19 +15,19 @@ describe("bounded image render profiles", () => {
     expect(imageRenderProfiles).toEqual({
       galleryGrid: {
         sizes:
-          "(min-width: 1152px) 358px, (min-width: 1024px) calc(33.333vw - 26.667px), (min-width: 640px) calc(50vw - 32px), calc(100vw - 32px)",
+          "(min-width: 1152px) 358px, (min-width: 1024px) calc(33.333vw - 26.667px), (min-width: 640px) calc(50vw - 32px), 100vw",
       },
       galleryMasonry: {
-        sizes: "calc(100vw - 32px)",
+        sizes: "100vw",
       },
       galleryJustified: {
-        sizes: "calc(100vw - 32px)",
+        sizes: "100vw",
       },
       contentMiniGallery: {
-        sizes: "(min-width: 768px) 348px, (min-width: 640px) calc(50vw - 36px), calc(100vw - 32px)",
+        sizes: "(min-width: 768px) 348px, (min-width: 640px) calc(50vw - 36px), 100vw",
       },
       galleryMiniGallery: {
-        sizes: "(min-width: 816px) 372px, (min-width: 640px) calc(50vw - 36px), calc(100vw - 32px)",
+        sizes: "(min-width: 816px) 372px, (min-width: 640px) calc(50vw - 36px), 100vw",
       },
       serviceGrid: {
         sizes:

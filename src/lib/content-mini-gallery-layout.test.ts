@@ -53,3 +53,21 @@ it("keeps the curated style compositor's closed-row output stable when resumed",
     }
   });
 });
+
+describe("single-column width below the first band (AB#373)", () => {
+  const item = (width: number, height: number) => ({ media: { rendition: { width, height } } });
+
+  it("fills the column at the native ratio, bounded by the viewport and the rendition", () => {
+    const { styles } = miniGalleryJustifiedLayout([item(1600, 2400), item(3000, 2000)]);
+    expect(styles[0]["--j-single-image-width"]).toBe("min(100cqi, 53.333333svh, 1600px)");
+    expect(styles[1]["--j-single-image-width"]).toBe("min(100cqi, 120svh, 3000px)");
+    expect(styles[0]["--j-single-width"]).toBe("100cqi");
+  });
+
+  it("keeps curated pages at the tail height and offers articles the full width", () => {
+    const { styles } = computeJustifiedLayout([item(1600, 2400)]);
+    expect(styles[0]["--j-single-width"]).toBe("min(100cqi, 8rem)");
+    expect(styles[0]["--j-single-full-width"]).toBe("min(100cqi, 53.333333svh)");
+    expect(styles[0]["--j-single-image-width"]).toBeUndefined();
+  });
+});
