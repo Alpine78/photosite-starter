@@ -128,9 +128,16 @@ test("an open disclosure stays visible with body focus and Escape closes it", as
   });
   await shown(page);
   await expect(panel).toBeVisible();
+  const main = page.getByRole("main");
+  const beforeEscape = (await bounds(main)).top;
   await page.keyboard.press("Escape");
   await expect(toggle).toHaveAttribute("aria-expanded", "false");
   await expect(toggle).toBeFocused();
+  // Returning focus to the sticky toggle must not move the page (AB#377): the
+  // jump also reversed the next scroll's direction and flaked this test. The
+  // content's viewport position, not scrollY, is the invariant: an in-flow
+  // compact panel shrinks the document as it closes.
+  expect(Math.abs((await bounds(main)).top - beforeEscape)).toBeLessThan(1);
   await page.evaluate(() => {
     (document.activeElement as HTMLElement | null)?.blur();
     window.scrollBy(0, 100);

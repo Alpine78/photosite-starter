@@ -10,6 +10,7 @@ import { SiteNavigation } from "@/components/site-navigation";
 import { SiteSearchDialog } from "@/components/site-search-dialog";
 import { ThemeToggle } from "@/components/theme-toggle";
 import type { BuiltInLabels } from "@/lib/deployment-config";
+import { focusInPlace } from "@/lib/focus-in-place";
 import type { PublicImageRendition } from "@/lib/media";
 import type { BrandDescriptor } from "@/lib/site-settings";
 import { useScrollReveal } from "@/lib/use-scroll-reveal";
@@ -312,7 +313,7 @@ export function SiteHeader({
   };
   const closeSearch = () => {
     setSearchOpen(false);
-    searchOpenerRef.current?.focus();
+    focusInPlace(searchOpenerRef.current);
   };
 
   // Navigating ends the interaction that opened the panel. Keyed on the route
@@ -356,7 +357,7 @@ export function SiteHeader({
      */
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
-      toggleRef.current?.focus();
+      focusInPlace(toggleRef.current);
       setMenuOpen(false);
     };
 
