@@ -624,6 +624,8 @@ candidate. AB#117 remains Active with its independent live privacy/security gate
 
 ## Verification performed
 
+2026-10-21 Production header check: [CSP, frame, MIME, referrer, permissions and HSTS headers on sampled page, API and sitemap responses](audits/ab117-production-headers-2026-10-21.md) match ADR-0011 and `next.config.ts`; no public `Set-Cookie`. It also records that public HTML is served `no-store` (cache, not security) for separate investigation.
+
 2026-10-20 public Production read-only audit: [sitemap and internal-link statuses, document language, h1, alt attributes, heading levels, duplicate ids, computed control names and load timing over 166 pages](audits/ab117-public-production-audit-2026-10-20.md). No defect in those classes; one Finnish alt text on an English listing is AB#255 content work. It does not establish WCAG conformance.
 
 - `npm run lint` — clean (re-run after every fix round).
