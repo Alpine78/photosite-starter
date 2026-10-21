@@ -2,6 +2,26 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+E2E flake root causes, 2026-10-21 — AB#377 **Active**: two full local suites
+(CI settings, 4 workers, no retries) produced traces for two test races, both
+fixed in the specs without application changes.
+`article-end-sections` "keyboard filters…" read the reading hash before focusing
+the filter; focusing scrolls the filter into view, and the reading-address tracker
+publishes the new chapter up to 500 ms later (`-1` read, `-5` after the filter
+change). WebKit also animates the preceding ArrowDown scroll, and a focus during
+that animation was scrolled back, leaving the filter off-screen. The test now
+waits for the tracker to publish the arrow scroll's chapter, focuses, asserts the
+filter is in the viewport, and snapshots only once the URL and the filter link
+carry the chapter `currentReadingChapter` computes for the settled geometry.
+`image-comparison` measured the image and slider boxes in two calls that straddled
+a 54 px page movement; it now waits for the image to load and measures both in one
+frame. Repeats: 48/48 and 72/72 across the affected projects.
+Still open from the same runs, not yet reproduced in isolation: the WebKit
+`content-reading-address` history cases (the same tracker-publication class) and a
+JavaScript-free masonry column count of 1 at 944 px. Timeouts and an aborted
+`goBack` in the second run coincided with other local builds on the same machine
+and are not counted as evidence of a race. AB#377 stays Active.
+
 Cookieless site analytics, 2026-10-19 — AB#371 **Active**: ADR-0037 is Accepted
 ([PR #534](https://github.com/Alpine78/photosite-starter/pull/534)) and the first
 slice is implemented on `feature/371-site-analytics`: an opt-in
