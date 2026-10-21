@@ -236,6 +236,16 @@ describe("theme contract: text + focus contrast is AA (AC5)", () => {
       });
     }
 
+    // AB#384: a gallery caption below its image sits on the figure's
+    // `--surface-muted` fill, not on `--background` (axe on Production: 4.43:1
+    // for `--subtle`). The caption uses `--muted`, which must clear AA there.
+    it(`--muted on --surface-muted meets 4.5:1 (${name})`, () => {
+      const fill = resolveToken("--surface-muted", props);
+      const surface = over(fill.color, background, fill.alpha);
+      const { color, alpha } = resolveToken("--muted", props);
+      expect(contrast(over(color, surface, alpha), surface)).toBeGreaterThanOrEqual(4.5);
+    });
+
     it(`--danger text meets 4.5:1 (${name})`, () => {
       const { color } = resolveToken("--danger", props);
       expect(contrast(color, background)).toBeGreaterThanOrEqual(4.5);

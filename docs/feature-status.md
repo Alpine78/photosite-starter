@@ -32,6 +32,18 @@ Back/Forward case. Timeouts and an aborted
 `goBack` in the second run coincided with other local builds on the same machine
 and are not counted as evidence of a race. AB#377 stays Active.
 
+WCAG findings from an axe audit, 2026-10-21 — AB#384 **Active**: axe-core 4.10.3
+(WCAG 2.0/2.1 A and AA rules) over all 166 sitemap pages on Production, desktop
+Chromium, found two issues and nothing else. Gallery captions below an image used
+`text-subtle` on the figure's `--surface-muted` fill (4.43:1; 30 pages); they now
+use `text-muted`, and the theme contract tests that pairing in every palette (it
+fails for `text-subtle`). The service price list nested `dt`/`dd` two `div`s deep
+with the note as a `p` (14 service pages); each package is now one `div` of `dt`,
+price `dd` and note `dd`, laid out as before. A local axe run on the services
+listing, two service pages and two below-caption galleries reports no violations in
+desktop Chromium and mobile WebKit; `e2e/services.spec.ts` asserts the list
+structure. No other visual change.
+
 Above-the-fold image loading, 2026-10-21 — AB#383 **Active**: a read-only
 Production check (Chromium, desktop 1280 px and Pixel 7) found the Largest
 Contentful Paint element lazy-loaded on gallery pages without a hero, on the

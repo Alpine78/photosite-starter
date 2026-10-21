@@ -169,8 +169,14 @@ test("a service opens from its card and leads back to the listing", async ({
     await expect(main.getByRole("term")).toHaveText(
       pricing.map((packaged) => packaged.name),
     );
+    // A valid description list: one `div` of `dt`/`dd` per package (AB#384,
+    // axe `dlitem`/`definition-list` on Production).
+    expect(await main.locator("dl").evaluateAll((lists) => lists.every((list) =>
+      [...list.children].every((group) => group.tagName === "DIV" &&
+        [...group.children].every((child) => child.tagName === "DT" || child.tagName === "DD"))))).toBe(true);
+    // Each package's definitions: its price, then its note when it has one (AB#384).
     await expect(main.getByRole("definition")).toHaveText(
-      pricing.map((packaged) => packaged.price),
+      pricing.flatMap((packaged) => packaged.note ? [packaged.price, packaged.note] : [packaged.price]),
     );
   });
 

@@ -155,17 +155,16 @@ export default async function ServicePage({ params }: ServicePageProps) {
               </h2>
               <dl className="mt-4 space-y-4">
                 {pricing.map((pkg) => (
-                  <div key={pkg.name}>
-                    <div className="flex items-baseline justify-between gap-4">
-                      <dt className="min-w-0 flex-1 text-sm font-medium wrap-anywhere">{pkg.name}</dt>
-                      <dd className="shrink-0 whitespace-nowrap text-sm font-medium text-body">
-                        {pkg.price}
-                      </dd>
-                    </div>
+                  // One `div` of `dt`/`dd` per package (AB#384); see `ServiceDetail`.
+                  <div key={pkg.name} className="flex flex-wrap items-baseline justify-between gap-x-4">
+                    <dt className="min-w-0 flex-1 text-sm font-medium wrap-anywhere">{pkg.name}</dt>
+                    <dd className="shrink-0 whitespace-nowrap text-sm font-medium text-body">
+                      {pkg.price}
+                    </dd>
                     {pkg.note && (
-                      <p className="mt-1 text-sm text-subtle">
+                      <dd className="mt-1 basis-full text-sm text-subtle">
                         {pkg.note}
-                      </p>
+                      </dd>
                     )}
                   </div>
                 ))}
