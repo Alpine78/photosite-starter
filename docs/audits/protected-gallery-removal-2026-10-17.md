@@ -279,6 +279,28 @@ owner, operator and clone-owner confirmation of non-use, and the actual patch's
 architecture/security and Claude review. A review of this documentation does not satisfy
 the patch review.
 
+## Operational evidence for the clearance table — 2026-10-20
+
+Collected by an agent with the owner's own CLI logins at `origin/main`
+`5639777b7ecfcd79b5179e9c98e5271caf739676`. **Names and statuses only; no value was read or recorded.** This is
+evidence for the owners named in each column, **not their verdict**: every row of the
+clearance table above stays OPEN until that owner confirms it, and no slice is cleared.
+
+| Column | What was checked | Finding |
+| --- | --- | --- |
+| Deployment owner | Vercel Production and Preview environment-variable **names**; anonymous GET of `/private-gallery`, `/private-gallery/admin`, `/api/private-gallery` on the public Production domain | No `PRIVATE_GALLERY_*`, administrator-secret, object-store, bucket, PostgreSQL or retention variable name exists in either environment, so `PRIVATE_GALLERY_STORE` takes its `off` default. All three paths answer 404. Present gallery names are the public cursor key and the retained legacy-delivery settings, which are not protected-gallery settings. |
+| Pipeline owner | Pipeline definitions and variable-group variable **names**; `azure-pipelines.yml` | One pipeline (`Alpine78.photosite-starter`). One variable group, `photosite-starter-vercel-preview`, whose names are all Preview-deployment settings. The YAML references no protected-gallery command, worker, secret generator or store setting. |
+| Operator (this host only) | User crontab, user systemd timers, shell history, and variable **names** in the primary checkout's `.env.local`, `.vercel/.env.*.local` and `studio/.env.local` | No crontab; the user timers are operating-system maintenance only. Shell history has no `plan:private-gallery-upload`, `verify:private-upload-sources`, `admin:secret` or retention-workflow invocation. None of the local environment files defines a protected-gallery, administrator-secret, object-store or retention name. Other machines and operators were not checked. |
+| Clone owner | — | Not checkable from here: only the reference deployment is known. Stays OPEN for any other clone. |
+| Patch review | — | Not applicable until an actual deletion patch exists. |
+
+What this supports, if the owners confirm it: nothing in the reference deployment, its
+pipeline or this host appears to depend on slice A1 (offline source commands) or A2
+(retention worker, secret generator), and the protected routes of B1/B2 are not
+reachable in Production. It does not establish anything about other clones, other
+machines, issued customer links held outside this system, or C/D, whose scope is only
+known after A/B are removed.
+
 ## Retained work and recovery limits
 
 GitHub PRs [#446](https://github.com/Alpine78/photosite-starter/pull/446) through
