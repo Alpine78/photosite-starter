@@ -2,6 +2,17 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Afternoon Production checks, 2026-10-21 — evidence for AB#19, AB#117, AB#132,
+AB#159, AB#160 and AB#255 ([record](audits/production-checks-2026-10-21-afternoon.md)):
+415/415 legacy redirect rows pass; no third-party request, cookie or storage on 332
+anonymous page loads; no load-time layout shift, one 0.12 desktop shift from a
+justified gallery's open last row during continuation (left for an owner decision);
+every keyboard focus stop on nine page types visible; no untranslated built-in
+Finnish copy; the Studio `sprintf-js` exception still has no upstream fix before its
+2026-11-19 review; the Next.js 404 issue is still open upstream. The
+[failure-triage runbook](production-failure-triage.md) now covers `poll.vote` and the
+event-less poll results read. Nothing in the CMS, configuration or deployment changed.
+
 Bounded curated gallery image sizes, 2026-10-21 — AB#385 **Active**: owner
 decision after a Production measurement (three 24-image pages: 3.4–3.9 MB of
 gallery images at 1280@1x, 4.7–5.6 MB at 1440@2x, because every thumbnail
