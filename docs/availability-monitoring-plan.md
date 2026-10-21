@@ -25,11 +25,11 @@ On an alert, verify from another network and inspect deployment status and provi
 
 | Item | Actual value / evidence |
 | --- | --- |
-| Production origin and content URL | Pending AB#18 |
+| Production origin and content URL | Candidate (2026-10-20, owner to confirm): `https://www.ilkansivu.net/` (h1 marker) and `https://www.ilkansivu.net/tarinat/blogi/nikon-df` (h1 marker plus the `Tarinat` → `/tarinat` link). AB#18 acceptance still open |
 | Owner and backup alert recipient | Pending owner setup |
 | Provider, cadence, timeout, redirects | Pending owner setup |
 | Failure and recovery thresholds | Pending owner setup |
-| First healthy probe | Pending live check |
+| First healthy probe | Manual `npm run check:availability` with the candidate pair, 2026-10-20: both `healthy` / `markers-present`, exit 0. A one-off owner-run check, not a monitor |
 | Failure and recovery notification exercise | Pending live exercise |
 
 The document does not claim that monitoring is active. Its criteria need the real production domain and owner account.
@@ -68,3 +68,21 @@ not execute scripts or establish computed CSS/pixel visibility.
 A cached content page proves availability, not a live CMS read or POST delivery.
 AB#158's actual monitoring account, cadence, notification destinations and controlled
 failure/recovery exercise remain pending after AB#18.
+
+## Provider options — decision aid, 2026-10-20
+
+The owner chooses; nothing below is provisioned. Facts were read from each provider's own
+pages on 2026-10-20 and can change; recheck before signing up.
+
+| Option | What the free tier offers (as stated) | Fit with the contract above | Watch out for |
+| --- | --- | --- | --- |
+| [UptimeRobot](https://uptimerobot.com/pricing/) Free | 50 monitors, 5-minute interval, "Keyword monitor" included, "Only 5 integrations" | Keyword check covers the page markers; external to Vercel | Free is described as "Good for hobby and non-profit projects"; SMS/voice not included; the page is inconsistent about SSL monitoring on Free |
+| [Better Stack](https://betterstack.com/pricing) Free | "10 monitors & heartbeats, 1 status page", "Slack & e-mail alerts" | HTTP keyword checks exist in the product; the page does not tie them or an interval to the free tier | "Free for personal projects"; confirm keyword checks and interval on the free tier |
+| GitHub Actions schedule running `npm run check:availability` | Owner-controlled, uses the repository's existing probe and exit codes | Reuses the same markers and redirect rules exactly; no new service account | [Scheduled runs](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows) can be delayed or dropped under load, run at most every 5 minutes, only on the default branch, and are disabled after 60 days without repository activity in a public repository. [Notifications](https://docs.github.com/en/actions/concepts/workflows-and-actions/notifications-for-workflow-runs) go to the user who created (or last changed) the workflow, optionally failed-only; no documented recovery notice. It runs on GitHub, so it is independent of Vercel but not of GitHub |
+| A paid tier of either provider | Removes the personal/hobby framing | Same as above, plus more channels | Recurring cost; compare at the time of choosing |
+
+What the contract needs whichever is chosen: an owner-controlled account, two
+destinations, a documented cadence and timeout, repeated-failure and recovery
+thresholds, and the failure/recovery exercise in "Exercise before relying on alerts".
+For a business site, the free tiers' personal/hobby wording is a reason to read the
+provider's terms before relying on them.
