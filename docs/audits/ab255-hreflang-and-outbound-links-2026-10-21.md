@@ -1,4 +1,4 @@
-# Language alternates, canonicals and outbound links on Production — 2026-10-21
+# Language alternates, canonicals and links on Production — 2026-10-21
 
 Read-only evidence for AB#255 (language versions) and AB#137 (migrated content). Anonymous
 GET requests to the public Production domain (`dpl_ARuiTPxfvhAsn7D4foP2ajzfchVE`), at most
@@ -37,7 +37,25 @@ keep as historical text without a link); this record does not establish why the 
 answer. A 200 from Polar Flow or Garmin Connect shows the address answers, not that the
 activity is publicly visible without signing in.
 
+## Internal links and image sources (AB#137)
+
+Same 166 pages, same deployment, read later the same day.
+
+| Check | Result |
+| --- | --- |
+| Distinct same-host link targets anywhere in the page (navigation, footer and content) | 451 |
+| Targets answering `200` to a `HEAD` request without following redirects | 451 / 451; no redirect, error or missing target |
+| `<img>` URLs (`src` and every `srcset` candidate) | all go through `/_next/image`, all with a `cdn.sanity.io` source; 1 809 distinct sources |
+| Requested optimizer widths | 256 … 2048; none above 2048 |
+| Random sample of 40 distinct sources from 25 random pages, requested directly from `cdn.sanity.io` | 40 / 40 `200 image/jpeg` |
+
+The optimizer URLs themselves were not requested: each distinct width would start a new
+transformation on the hosting provider, and the source check answers the question that
+matters here (the referenced asset exists). The sample covers 40 of the 1 809 sources,
+not all of them.
+
 ## Not covered
 
-Pages outside the sitemap (query variants, search), links inside images or embeds, and
-links in navigation or footer chrome other than the contact profiles above.
+Pages outside the sitemap (query variants, search) and links inside images or embeds.
+Outbound links in navigation or footer chrome other than the contact profiles above;
+same-host links there are covered by the internal-link check.
