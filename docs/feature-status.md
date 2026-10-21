@@ -2,6 +2,36 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+E2E flake root causes, 2026-10-21 — AB#377 **Active**: two full local suites
+(CI settings, 4 workers, no retries) and isolated repeats produced traces for four
+test races, all fixed in the specs without application changes.
+`article-end-sections` "keyboard filters…" read the reading hash before focusing
+the filter; focusing scrolls the filter into view, and the reading-address tracker
+publishes the new chapter up to 500 ms later (`-1` read, `-5` after the filter
+change). WebKit also animates the preceding ArrowDown scroll, and a focus during
+that animation was scrolled back, leaving the filter off-screen. The test now
+waits for the tracker to publish the arrow scroll's chapter, focuses, asserts the
+filter is in the viewport, and snapshots only once the URL and the filter link
+carry the chapter `currentReadingChapter` computes for the settled geometry (on a phone the filter sits below the narrative, the rule reports "outside" and the tracker keeps the address, which the test accepts; CI run 1397 failed on mobile WebKit before that).
+`image-comparison` measured the image and slider boxes in two calls that straddled
+a 54 px page movement; it now waits for the image to load and measures both in one
+frame. Repeats: 48/48 and 72/72 across the affected projects.
+`content-reading-address` "a reading fragment composes with an App Router section
+change…" (desktop WebKit, 1/8 in isolation) turned the wheel right after `load`,
+before hydration on the gallery page, so the observer never saw it and the hash
+stayed empty; its helper now repeats placement plus one real wheel until the
+observer answers (280/280 across three projects, 8×).
+`gallery-masonry` "without JavaScript reads in result order…" (desktop Chromium,
+about 7% in isolation: 1 column at 944/1280 px, or the first image outside its
+item) measured after `domcontentloaded`, which without JavaScript can precede the
+head stylesheets, so it measured the unstyled layout no visitor sees painted
+(Production links every stylesheet in `<head>`). It now waits for `load`
+(320/320, desktop Chromium + mobile WebKit, 10×).
+Still open, not reproduced in isolation: the WebKit `content-reading-address`
+Back/Forward case. Timeouts and an aborted
+`goBack` in the second run coincided with other local builds on the same machine
+and are not counted as evidence of a race. AB#377 stays Active.
+
 WCAG findings from an axe audit, 2026-10-21 — AB#384 **Active**: axe-core 4.10.3
 (WCAG 2.0/2.1 A and AA rules) over all 166 sitemap pages on Production, desktop
 Chromium, found two issues and nothing else. Gallery captions below an image used

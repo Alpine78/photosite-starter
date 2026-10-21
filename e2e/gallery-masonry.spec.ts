@@ -257,7 +257,11 @@ function expectSoundLayout(
 
 async function openAtWidth(page: Page, path: string, width: number): Promise<Locator> {
   await page.setViewportSize({ width, height: 900 });
-  await page.goto(path, { waitUntil: "domcontentloaded" });
+  // `load`, not `domcontentloaded`: without JavaScript nothing delays
+  // DOMContentLoaded until the head stylesheets arrive, and a box measured
+  // before them is the unstyled single column (AB#377: "column count at
+  // 1280px", 1 instead of 3), which no visitor sees painted.
+  await page.goto(path, { waitUntil: "load" });
   const main = page.getByRole("main");
   await expect(galleryItems(main).first()).toBeVisible();
   return main;

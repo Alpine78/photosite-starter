@@ -8,6 +8,7 @@ import { mockContentPages } from "../src/lib/mock-content-pages";
 import { getBuiltInLabels } from "../src/lib/deployment-config";
 import { FILTER_ARTICLE_ID } from "../src/lib/mock-article-end-sections";
 import { listContentHeadings } from "../src/lib/content-headings";
+import { currentReadingChapter } from "../src/lib/content-reading-address";
 import { READING_POSITIONS_KEY } from "../src/lib/reading-position-store";
 import {
   appUnderTestEnvironment,
@@ -138,30 +139,56 @@ for (const f of fixtures) {
     await page
       .locator(`[id='${heading.id}']`)
       .evaluate((el) => el.scrollIntoView({ block: "start" }));
-    await page.keyboard.press("ArrowDown");
-    // The reading-chapter tracker can publish an intermediate chapter before it
-    // settles (CI-load trace, AB#377: "-1" first, then "-5" at an unchanged
-    // viewport). Snapshot only once the reading contents mark a current chapter
-    // and the URL hash matches its link, so the assertion below is about the
-    // filter change, not the tracker settling.
-    const currentChapter = page
-      .getByRole("link", { includeHidden: true })
-      .filter({ has: page.locator('[aria-current="location"]') })
-      .first();
-    await expect.poll(async () => {
-      // No current chapter yet is "not settled", not a reason to block this poll.
-      const href = await currentChapter.getAttribute("href", { timeout: 500 }).catch(() => null);
-      return href !== null && new URL(page.url()).hash === href;
-    }).toBe(true);
-    const hash = new URL(page.url()).hash;
     const controls = page.locator("[data-article-section-controls]");
     const target = controls.getByRole("link", {
       name: f.sections[1].label,
       exact: true,
     });
-    await expect(target).toHaveAttribute("href", new RegExp(`${hash}$`));
+    const headingIds = listContentHeadings(f.content.body).map((x) => x.id);
+    // The chapter the app's own rule gives for the current viewport.
+    const settledChapterHash = async () => {
+      const geometry = await page.evaluate((ids) => {
+        const rootPadding = getComputedStyle(document.documentElement).scrollPaddingTop;
+        const padding = rootPadding === "auto" ? 0 : Number.parseFloat(rootPadding);
+        const elements = ids.map((id) => document.getElementById(id)!);
+        const body = elements[0].closest("[data-content-body]")!.getBoundingClientRect();
+        return {
+          body: { top: body.top, bottom: body.bottom },
+          headings: elements.map((el) => {
+            const bounds = el.getBoundingClientRect();
+            return { id: el.id, top: bounds.top, height: bounds.height,
+              margin: padding + Number.parseFloat(getComputedStyle(el).scrollMarginTop) };
+          }),
+        };
+      }, headingIds);
+      const chapter = currentReadingChapter(geometry.headings, geometry.body);
+      // "outside": the narrative is above the viewport (the filter sits far
+      // below it on a phone), and the tracker deliberately keeps the address.
+      return chapter.kind === "heading" ? `#${encodeURIComponent(chapter.id)}`
+        : chapter.kind === "outside" ? "keep" : null;
+    };
+    const addressSettled = async () => {
+      const expected = await settledChapterHash();
+      const hash = new URL(page.url()).hash;
+      if (expected === null || hash === "" || (expected !== "keep" && hash !== expected)) return false;
+      return ((await target.getAttribute("href")) ?? "").endsWith(hash);
+    };
+    // Two races, both seen in AB#377 traces. WebKit animates the ArrowDown
+    // scroll, and a focus during that animation was scrolled back by it,
+    // leaving the filter off-screen. Then focusing a filter scrolls it into
+    // view, moving the reading chapter, which the tracker publishes up to
+    // 500 ms later, after a hash snapshot taken too early ("-1" vs "-5").
+    // Wait for the tracker to publish the arrow scroll's chapter first, then
+    // focus, and snapshot only once the address and the filter link carry the
+    // chapter of the settled viewport, so the assertions below are about the
+    // filter change.
+    await page.keyboard.press("ArrowDown");
+    await expect.poll(addressSettled).toBe(true);
     await target.focus();
     await expect(controls).toHaveClass(/translate-y-0/);
+    await expect(target).toBeInViewport();
+    await expect.poll(addressSettled).toBe(true);
+    const hash = new URL(page.url()).hash;
     const before = (await controls.boundingBox())!.y;
     await page.keyboard.press("Enter");
     await expect(page).toHaveURL(new RegExp(`section=${f.sections[1].slug}`));
