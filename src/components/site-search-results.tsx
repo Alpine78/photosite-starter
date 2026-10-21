@@ -144,7 +144,9 @@ function Group({
         id={headingId}
         className="text-sm font-semibold uppercase tracking-[0.14em] text-muted"
       >
-        {heading} <span className="font-normal opacity-80">({group.total})</span>
+        {/* The heading's own text-muted, which the theme contract keeps at
+            4.5:1; a further opacity took the count below it (AB#387). */}
+        {heading} <span className="font-normal">({group.total})</span>
       </h2>
       <ul className="mt-2">
         {group.hits.map((hit) => (

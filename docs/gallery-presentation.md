@@ -255,6 +255,10 @@ failed script still reach every page.
 - **`endless`** (the default when nothing is authored): once hydrated, the link
   is hidden and the next page is appended whenever a sentinel after the list is
   within one viewport below the visible area or has already been scrolled past.
+  Once the document has scrolled (AB#386), the distance is two viewports, so the
+  next page normally lands before a justified gallery's open last row is in view
+  and its append does not visibly re-flow that row; a page that is only opened
+  fetches nothing earlier than before.
   Loading continues page by page until the gallery is complete, however long it
   is. The footer and anything after the gallery are reached once every image has
   loaded; landmark navigation reaches them at any time.
