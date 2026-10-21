@@ -51,7 +51,9 @@ describe("POST <admin-prefix>/login with the development fixture (AB#377)", () =
     const response = await login(MEMORY_ADMIN_SECRET);
     expect(response.status).toBe(200);
     expect(response.headers.get("set-cookie")).toMatch(/^__Host-pg_admin_session=/);
-  });
+    // 36 real sign-ins, each a scrypt verification (~74 ms): about 3 s alone,
+    // more under the parallel suite, so Vitest's 5 s default is too tight (AB#377).
+  }, 20_000);
 
   it("uses the larger cap only for the memory fixture, keeping the same window", () => {
     expect(getPrivateGalleryAdminStores().rateConfig).toBe(PRIVATE_GALLERY_FIXTURE_ADMIN_LOGIN_RATE_CONFIG);
