@@ -139,7 +139,20 @@ for (const f of fixtures) {
       .locator(`[id='${heading.id}']`)
       .evaluate((el) => el.scrollIntoView({ block: "start" }));
     await page.keyboard.press("ArrowDown");
-    await expect.poll(() => new URL(page.url()).hash).not.toBe("");
+    // The reading-chapter tracker can publish an intermediate chapter before it
+    // settles (CI-load trace, AB#377: "-1" first, then "-5" at an unchanged
+    // viewport). Snapshot only once the reading contents mark a current chapter
+    // and the URL hash matches its link, so the assertion below is about the
+    // filter change, not the tracker settling.
+    const currentChapter = page
+      .getByRole("link", { includeHidden: true })
+      .filter({ has: page.locator('[aria-current="location"]') })
+      .first();
+    await expect.poll(async () => {
+      // No current chapter yet is "not settled", not a reason to block this poll.
+      const href = await currentChapter.getAttribute("href", { timeout: 500 }).catch(() => null);
+      return href !== null && new URL(page.url()).hash === href;
+    }).toBe(true);
     const hash = new URL(page.url()).hash;
     const controls = page.locator("[data-article-section-controls]");
     const target = controls.getByRole("link", {
