@@ -13,6 +13,20 @@ Finnish copy; the Studio `sprintf-js` exception still has no upstream fix before
 [failure-triage runbook](production-failure-triage.md) now covers `poll.vote` and the
 event-less poll results read. Nothing in the CMS, configuration or deployment changed.
 
+Bounded curated gallery image sizes, 2026-10-21 — AB#385 **Active**: owner
+decision after a Production measurement (three 24-image pages: 3.4–3.9 MB of
+gallery images at 1280@1x, 4.7–5.6 MB at 1440@2x, because every thumbnail
+requested a full-viewport candidate). Curated gallery pages and the home
+portfolio now declare `50vw` for masonry from 1280 px and, for justified, each
+image's own `ratio × 512 px` bound (the 16rem row cap at 200% text); article-end
+galleries keep `100vw`. The plan review moved the masonry threshold from 1152 to
+1280 px (the page padding doubles at a 32px root) and replaced a panorama
+fallback that would have declared more than its bound. The enlarged-root e2e
+matrix (32px root, 375–2000 px, Chromium and WebKit) now measures all 24 images
+and still finds no candidate narrower than its image; a new desktop check
+confirms no column-sized image requests the 1536 px candidate any more. See
+[gallery presentation](gallery-presentation.md#responsive-images-per-layout).
+
 E2E flake root causes, 2026-10-21 — AB#377 **Active**: two full local suites
 (CI settings, 4 workers, no retries) and isolated repeats produced traces for four
 test races, all fixed in the specs without application changes.

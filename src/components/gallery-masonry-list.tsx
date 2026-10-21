@@ -24,6 +24,8 @@ type GalleryMasonryListProps = {
   compactCaptions?: boolean;
   /** Leading items that load eagerly; see `GalleryGrid`'s `eagerCount`. */
   eagerItems?: number;
+  /** In the full-width page column rather than a reading column (AB#385). */
+  curated?: boolean;
   labels: BuiltInLabels;
 };
 
@@ -109,6 +111,7 @@ export function GalleryMasonryList({
   captionPlacement,
   compactCaptions = false,
   eagerItems = 0,
+  curated = false,
   labels,
 }: GalleryMasonryListProps) {
   const [cache, setCache] = useState<{
@@ -156,7 +159,7 @@ export function GalleryMasonryList({
               compactCaptions={compactCaptions}
               eager={index < eagerItems}
               boundedBelow
-              sizes={imageRenderProfiles.galleryMasonry.sizes}
+              sizes={curated ? imageRenderProfiles.curatedGalleryMasonry.sizes : imageRenderProfiles.galleryMasonry.sizes}
               labels={labels}
             />
           </li>

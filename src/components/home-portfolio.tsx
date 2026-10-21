@@ -95,6 +95,7 @@ export function HomePortfolio({
             {...(enquiriesEnabled ? { enquiryBasePath: galleryPath } : {})}
           >
             <GalleryMasonryList
+              curated
               label={labels.homePortfolio.heading}
               items={slice.items}
               captionPlacement="below"

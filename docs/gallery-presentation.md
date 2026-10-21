@@ -178,6 +178,30 @@ deliberate trade: AGENTS.md ranks image quality above bandwidth, and a
 masonry or justified thumbnail is a moderate download at any of these
 widths.
 
+**Curated pages on wide screens (AB#385, owner decision 2026-10-21).** A
+Production measurement showed what that trade cost: at 1280 px every
+masonry/justified thumbnail of about 360 px requested the 1536 px candidate
+(2048 px at 2x), 3.4–5.6 MB per 24-image page. Curated gallery pages and the
+home portfolio sit in the full-width page column, so two bounds hold there up
+to 200% text without assuming a column count from `sizes`:
+
+- **Masonry** declares `50vw` from 1280 px (`curatedGalleryMasonry`). At a 32px
+  root the page's `sm:px-6` padding doubles to 96px and a second column needs a
+  34rem container, so two columns are guaranteed from about 1200 px; 1280 px
+  keeps a margin for the scrollbar.
+- **Justified** declares each image's own bound from 512 px × its ratio
+  (`curatedJustifiedImageSizes`): a row is at most 16rem high (singleton and
+  open rows 12rem), which is 512 px at a 32px root, so the image can never be
+  wider. Below that viewport width the image cannot exceed the viewport, so
+  `100vw` remains, and a panorama whose bound reaches the viewport keeps it.
+
+Article-end galleries keep `100vw`: their narrow column can stay single-column
+on a desktop at enlarged text, and their single-column images use an `80svh`
+height cap instead of the row caps. The enlarged-root e2e matrix now measures
+every first-page image, and a desktop default-size check pins the saving. Beyond
+200% text a curated masonry thumbnail can be softer than before; WCAG 1.4.4's
+200% is the stated bound.
+
 ## Inline mini-galleries (AB#334)
 
 Article body mini-galleries inherit the site's resolved layout. Gallery body

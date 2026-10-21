@@ -1,4 +1,5 @@
 import type { Locator } from "@playwright/test";
+import { curatedJustifiedImageSizes, imageRenderProfiles } from "../src/lib/image-delivery";
 import { test, expect } from "./support/fixtures";
 import { galleryItems, STORY_ROOT } from "./support/gallery";
 import { openLightbox } from "./support/lightbox";
@@ -339,6 +340,58 @@ test.describe("full captions without script", () => {
   });
 });
 
+/**
+ * Brings each of the first page's images into view until it has chosen a
+ * source. Scrolling past the end instead would trigger automatic continuation
+ * and keep appending images, so this walks only the initial items.
+ */
+async function reachEveryGalleryImage(main: Locator, count = 24) {
+  const images = main.locator("#gallery img");
+  await expect(images).toHaveCount(count);
+  await expect.poll(async () => {
+    const pending = await images.evaluateAll((elements) =>
+      elements.findIndex((image) => (image as HTMLImageElement).currentSrc === ""));
+    if (pending === -1) return true;
+    await images.nth(pending).evaluate((image) => image.scrollIntoView({ block: "center" }));
+    return false;
+  }, { timeout: 45_000, intervals: [100] }).toBe(true);
+}
+
+test.describe("curated gallery sources on a wide screen at the default text size (AB#385)", () => {
+  test.use({ javaScriptEnabled: true, viewport: { width: 1280, height: 900 } });
+
+  for (const id of ["masonry-below", "justified-below"] as const) {
+    test(`${id} no longer requests a full-viewport candidate for a column-sized image`, async ({ page, isMobile }) => {
+      test.skip(isMobile, "A desktop-width, device-pixel-ratio-1 check; phones keep the viewport bound.");
+      await page.goto(path(id), { waitUntil: "load" });
+      const main = page.getByRole("main");
+      await expect(galleryItems(main)).toHaveCount(24);
+      await reachEveryGalleryImage(main);
+      const widths: number[] = [];
+      for (const image of await main.locator("#gallery img").all()) {
+        const { candidate, rendered, sizes, rendition } = await image.evaluate((element) => ({
+          candidate: Number(new URL((element as HTMLImageElement).currentSrc).searchParams.get("w")),
+          rendered: element.getBoundingClientRect().width,
+          sizes: element.getAttribute("sizes"),
+          rendition: { width: Number(element.getAttribute("width")), height: Number(element.getAttribute("height")) },
+        }));
+        expect(candidate, `rendered ${rendered}`).toBeGreaterThanOrEqual(Math.round(rendered));
+        // The declared bound itself, exactly (a browser may still reuse a larger
+        // candidate it already holds for the same photograph, at no extra cost).
+        expect(sizes).toBe(id === "masonry-below"
+          ? imageRenderProfiles.curatedGalleryMasonry.sizes
+          : curatedJustifiedImageSizes(rendition));
+        widths.push(candidate);
+      }
+      // 100vw at 1280px chose the 1536px candidate for every image. The
+      // justified fixture's narrative mini-gallery (still 100vw) loads the same
+      // photographs at 1536px first, and the browser reuses those at no extra
+      // cost, so only the masonry fixture can show the saving directly.
+      if (id === "masonry-below") expect(Math.max(...widths)).toBeLessThan(1536);
+    });
+  }
+});
+
 test.describe("responsive image source at an enlarged root font size", () => {
   test.use({ javaScriptEnabled: true });
 
@@ -393,9 +446,10 @@ test.describe("responsive image source at an enlarged root font size", () => {
           .toHaveJSProperty("tagName", "BUTTON");
         // A narrative mini-gallery can put the curated result below the fold.
         // Real lazy images select a source when the visitor reaches that result.
-        const first = galleryItems(main).first().locator("img");
-        await first.scrollIntoViewIfNeeded();
-        await expect.poll(() => first.evaluate(image => (image as HTMLImageElement).currentSrc)).not.toBe("");
+        // Every image, not only those already in view (AB#385): lazy images
+        // select their source when reached, so pass over the whole gallery a
+        // screen at a time, then wait until each one has chosen.
+        await reachEveryGalleryImage(main);
 
         const measured = await main.locator("#gallery img").evaluateAll((images) =>
           images
@@ -410,7 +464,7 @@ test.describe("responsive image source at an enlarged root font size", () => {
             }),
         );
 
-        expect(measured.length, `at ${width}px`).toBeGreaterThan(0);
+        expect(measured.length, `at ${width}px`).toBe(24);
         for (const { candidateWidth, renderedWidth } of measured) {
           // A device-pixel-ratio-1 browser context, so the rendered CSS width
           // itself is the bar a same-or-larger candidate must clear.

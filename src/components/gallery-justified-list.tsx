@@ -4,7 +4,7 @@ import type { BuiltInLabels } from "@/lib/deployment-config";
 import { computeJustifiedLayout, type JustifiedLayout } from "@/lib/gallery-justified-layout";
 import type { GalleryCaptionPlacement } from "@/lib/gallery-presentation";
 import type { GallerySlice } from "@/lib/gallery-slice";
-import { imageRenderProfiles } from "@/lib/image-delivery";
+import { curatedJustifiedImageSizes, imageRenderProfiles } from "@/lib/image-delivery";
 import "@/components/gallery-justified.css";
 
 /**
@@ -21,12 +21,14 @@ import "@/components/gallery-justified.css";
  * rendering, and this component needs exactly that value to decide whether
  * to resume).
  */
-export function GalleryJustifiedList({ label, items, captionPlacement, eagerItems = 0, labels }: {
+export function GalleryJustifiedList({ label, items, captionPlacement, eagerItems = 0, curated = false, labels }: {
   label: string;
   items: GallerySlice["items"];
   captionPlacement: GalleryCaptionPlacement;
   /** Leading items that load eagerly; see `GalleryGrid`'s `eagerCount`. */
   eagerItems?: number;
+  /** In the full-width page column rather than a reading column (AB#385). */
+  curated?: boolean;
   labels: BuiltInLabels;
 }) {
   const [cache, setCache] = useState<{
@@ -50,7 +52,8 @@ export function GalleryJustifiedList({ label, items, captionPlacement, eagerItem
       {items.map((item, index) => <li key={item.itemId} className="gallery-justified__item"
         style={layout.styles[index] as CSSProperties}>
         <GalleryFigure item={item} index={index} captionPlacement={captionPlacement} eager={index < eagerItems}
-          sizes={imageRenderProfiles.galleryJustified.sizes} labels={labels} />
+          sizes={curated ? curatedJustifiedImageSizes(item.media.rendition) : imageRenderProfiles.galleryJustified.sizes}
+          labels={labels} />
       </li>)}
     </ul>
   </div>;
