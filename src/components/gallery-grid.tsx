@@ -524,11 +524,13 @@ export function GalleryGrid({
           items={slice.items}
           captionPlacement={presentation.captionPlacement}
           eagerItems={eagerItems}
+          curated={continuationKind === "curated-gallery"}
           labels={labels}
         />
       ) : presentation.layout === "justified" ? (
         <GalleryJustifiedList label={label} items={slice.items}
-          captionPlacement={presentation.captionPlacement} eagerItems={eagerItems} labels={labels} />
+          captionPlacement={presentation.captionPlacement} eagerItems={eagerItems}
+          curated={continuationKind === "curated-gallery"} labels={labels} />
       ) : (
         <ul
           aria-label={label}

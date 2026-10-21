@@ -1,14 +1,34 @@
 import { describe, expect, it } from "vitest";
 import {
+  curatedJustifiedImageSizes,
   getLightboxImageSizes,
+  JUSTIFIED_ROW_CAP_REM,
   getLightboxZoomCap,
   HERO_CHROME_RESERVE_PX,
   imageRenderProfiles,
   LIGHTBOX_MAX_CSS_WIDTH,
   LIGHTBOX_PRELOAD_WINDOW,
 } from "@/lib/image-delivery";
+import { JUSTIFIED_MAX_HEIGHT_REM } from "@/lib/gallery-justified";
 import { projectPublicImageMedia } from "@/lib/media";
 import { mockImages } from "@/lib/mock-media";
+
+describe("curated justified image sizes (AB#385)", () => {
+  it("bounds by the layout's real row-height cap", () => {
+    expect(JUSTIFIED_ROW_CAP_REM).toBe(JUSTIFIED_MAX_HEIGHT_REM);
+  });
+
+  it("declares the 16rem row cap at a 32px root times the ratio, and the viewport below it", () => {
+    expect(curatedJustifiedImageSizes({ width: 1536, height: 1024 })).toBe("(min-width: 768px) 768px, 100vw");
+    expect(curatedJustifiedImageSizes({ width: 1024, height: 1536 })).toBe("(min-width: 342px) 342px, 100vw");
+    expect(curatedJustifiedImageSizes({ width: 1000, height: 1000 })).toBe("(min-width: 512px) 512px, 100vw");
+  });
+
+  it("never declares a panorama wider than its own bound, however wide the viewport", () => {
+    // 4:1 = 2048px: below that viewport the image cannot be wider than the viewport.
+    expect(curatedJustifiedImageSizes({ width: 2048, height: 512 })).toBe("(min-width: 2048px) 2048px, 100vw");
+  });
+});
 
 describe("bounded image render profiles", () => {
   it("matches the reviewed sizes declarations for current layouts", () => {
@@ -22,6 +42,9 @@ describe("bounded image render profiles", () => {
       },
       galleryJustified: {
         sizes: "100vw",
+      },
+      curatedGalleryMasonry: {
+        sizes: "(min-width: 1280px) 50vw, 100vw",
       },
       contentMiniGallery: {
         sizes: "(min-width: 768px) 348px, (min-width: 640px) calc(50vw - 36px), 100vw",
