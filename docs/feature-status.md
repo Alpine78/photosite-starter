@@ -2,6 +2,15 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Evening Production checks, 2026-10-21 — evidence for AB#86, AB#117, AB#132 and
+ADR-0003 ([record](audits/production-checks-2026-10-21-evening.md)): axe in the dark
+theme over 166 pages finds only the already-fixed AB#384 list structure; axe on
+interactive states finds one search-count contrast issue (AB#387, #584); `Article`
+structured data lacks `author` pending its separate decision; error pages still show
+the known AB#132 empty shell; reduced motion, caching and variant-URL indexing match
+their decisions; the PhotoSwipe launcher costs about 7 kB compressed per page and was
+left as is.
+
 Afternoon Production checks, 2026-10-21 — evidence for AB#19, AB#117, AB#132,
 AB#159, AB#160 and AB#255 ([record](audits/production-checks-2026-10-21-afternoon.md)):
 415/415 legacy redirect rows pass; no third-party request, cookie or storage on 332
