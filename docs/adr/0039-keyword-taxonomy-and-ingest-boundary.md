@@ -93,10 +93,11 @@ Raw import terms can contain anything a photographer typed in Lightroom, includi
 client's name, so they never live on the public medium.
 
 **Re-import is deterministic.** For the new import, map every raw term to a keyword
-(decision 5). Then
+(decision 5). Canonicalize mapped ids and both override sets through merge chains
+(decision 4); removals win over additions for the same canonical id. Then
 
 ```text
-effective = (mapped(newImport) − overrides.removed) ∪ overrides.added
+effective = (mapped(newImport) ∪ overrides.added) − overrides.removed
 ```
 
 restricted to active keywords, then split by visibility into the medium's `keywords` and
@@ -129,7 +130,10 @@ administrator-initiated events, while reads happen on every visitor request.
 - **No cycles.** Validation walks `parent` upwards and rejects a direct or indirect cycle
   and any chain deeper than 6 levels.
 - **Uniqueness.** `keywordId` is globally unique. The normalized match key (decision 5)
-  of a title or alias is unique **within its category** among active keywords; the same
+  of a title or alias is unique **within its category** among active keywords and the
+  merge records that still resolve to them (a merged keyword's `keywordId`, title and
+  aliases stay reserved for its target, so a new keyword cannot capture a term that
+  already maps through a merge); the same
   name in two categories (a car make and a team) is allowed, and an import term that
   matches both is ambiguous and goes to review.
 - **Rename** changes `title`; `keywordId` and references stay, so every page shows the
@@ -140,9 +144,13 @@ administrator-initiated events, while reads happen on every visitor request.
 - **Merge** sets the source to `merged` with `mergedInto`. Its `keywordId` and aliases
   then resolve to the target, so an old URL redirects once to the canonical selection
   (ADR-0012 §8); the re-sync re-points media references. The source document is kept as
-  the redirect record, not deleted.
+  the redirect record, not deleted. The re-sync also canonicalizes and deduplicates both
+  `keywordOverrides.added` and `keywordOverrides.removed` through merge chains in each
+  medium's private keyword record; a removal wins and clears any conflicting addition.
 - **Retire** sets `retired`. A retired keyword is excluded from public resolution
-  (unknown-keyword, ADR-0012 §8) and from effective sets on the next re-sync. A keyword
+  (unknown-keyword, ADR-0012 §8) and from effective sets on the next re-sync. Both private
+  override sets retain entries for the retired canonical id as dormant editor decisions;
+  re-import preserves them but cannot make a retired keyword effective. A keyword
   with active children cannot be retired or merged until they are re-parented, so no
   orphan is created implicitly.
 - **Delete** is allowed only for a keyword nothing references (Sanity reference
@@ -191,8 +199,11 @@ then without merging the vocabularies.
   on a delivery shoot).
 - **Making an internal keyword public** creates a new public `keyword` document with the
   same `keywordId`, moves its assignments from the private records to the media's
-  `keywords`, and deletes the private document; the reverse removes it from public media
-  first. A clone whose dataset is private may keep the same model; the path rule costs
+  `keywords`, and deletes the private document; the reverse is rejected while public
+  children or incoming `mergedInto` references remain. Otherwise it moves assignments to
+  private records, removes them from public media, and completes decision 3's re-sync
+  with a `taxonomyVersion` bump before deleting the public document. A clone whose
+  dataset is private may keep the same model; the path rule costs
   it nothing.
 - Media that is `privateOnly`, belongs to a client delivery gallery, or is not
   `publiclyRenderable` and `dynamicallyDiscoverable` never contributes to a public
