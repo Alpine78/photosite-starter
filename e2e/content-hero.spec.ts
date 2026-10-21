@@ -197,3 +197,25 @@ test("the hero band is sized with dvh, not vh, on a content page too", async ({
   expect(inlineStyle).toContain("dvh");
   expect(inlineStyle).not.toMatch(/(?<!d)vh\b/);
 });
+
+test("the hero credit is the figure's last child and the text overlay still paints above it (AB#388)", async ({ page }) => {
+  let credited = 0;
+  for (const path of [ARTICLE_WITH_HERO, GALLERY_WITH_HERO, GALLERY_MULTI_PAGE_WITH_HERO]) {
+    await page.goto(path, { waitUntil: "load" });
+    const figure = page.locator("figure.\\@container").first();
+    await expect(figure).toBeVisible();
+    const order = await figure.evaluate((element) => ({
+      hasCaption: element.querySelector(":scope > figcaption") !== null,
+      lastIsCaption: element.lastElementChild?.tagName === "FIGCAPTION",
+      overlayZ: getComputedStyle(element.querySelector(":scope > div")!).zIndex,
+    }));
+    if (!order.hasCaption) continue;
+    credited += 1;
+    // A figcaption must be the first or last child; here it is last.
+    expect(order.lastIsCaption).toBe(true);
+    // Moving it last must not lift it above the overlay it used to sit under.
+    expect(order.overlayZ).toBe("10");
+  }
+  expect(credited, "at least one hero fixture carries a credit").toBeGreaterThan(0);
+});
+

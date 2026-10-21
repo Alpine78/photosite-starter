@@ -93,24 +93,8 @@ export function HeroOverlay({
         sizes={HERO_IMAGE_SIZES}
         className="col-start-1 row-start-1 h-auto w-full self-start"
       />
-      {/* Attribution, same rule `MediaFigure` enforces everywhere else an
-          image is placed: a credit is someone else's name, and a surface
-          that quietly drops it is publishing uncredited work. A corner label
-          rather than the in-flow figcaption `MediaFigure` uses, because a
-          full-bleed hero has no in-flow position directly under the image
-          the way a body figure does. */}
-      {(caption || credit) && (
-        <figcaption
-          className="absolute right-2 -mt-2 max-w-[70%] -translate-y-full rounded bg-black/50 px-2 py-1 text-right text-xs text-white/90 sm:right-4 sm:-mt-3"
-          style={{ top: imageHeight }}
-        >
-          {caption}
-          {caption && credit && " — "}
-          {credit}
-        </figcaption>
-      )}
       <div
-        className="relative col-start-1 row-start-1 flex min-w-0 flex-col justify-end self-start overflow-hidden"
+        className="relative z-10 col-start-1 row-start-1 flex min-w-0 flex-col justify-end self-start overflow-hidden"
         style={{
           minHeight: `min(${imageHeight}, calc(100dvh - ${HERO_CHROME_RESERVE_PX}px))`,
         }}
@@ -155,6 +139,24 @@ export function HeroOverlay({
           className="h-8 bg-linear-to-b from-black/60 to-transparent sm:h-14 lg:h-20"
         />
       </div>
+      {/* Attribution, same rule `MediaFigure` enforces everywhere else an
+          image is placed: a credit is someone else's name, and a surface
+          that quietly drops it is publishing uncredited work. A corner label
+          rather than the in-flow figcaption `MediaFigure` uses, because a
+          full-bleed hero has no in-flow position directly under the image
+          the way a body figure does. Last in the figure, as a figcaption must
+          be first or last (AB#388); the overlay's `z-10` keeps the overlay
+          painting above the caption, as when the caption came first. */}
+      {(caption || credit) && (
+        <figcaption
+          className="absolute right-2 -mt-2 max-w-[70%] -translate-y-full rounded bg-black/50 px-2 py-1 text-right text-xs text-white/90 sm:right-4 sm:-mt-3"
+          style={{ top: imageHeight }}
+        >
+          {caption}
+          {caption && credit && " — "}
+          {credit}
+        </figcaption>
+      )}
     </figure>
   );
 }

@@ -251,6 +251,20 @@ for (const locale of [language, PREFIXED_LOCALE.prefix]) {
 
 test.describe("native contents without JavaScript", () => {
   test.use({ javaScriptEnabled: false });
+  test("a narrow viewport keeps the complete inline contents through CSS, with no style element in the body (AB#388)", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(article, { waitUntil: "load" });
+    expect(await page.evaluate(() => document.body.querySelectorAll("style").length)).toBe(0);
+    // `@media (scripting: none)` replaces the former <noscript><style>.
+    await expect(page.locator(".reading-contents__bar")).toBeHidden();
+    await expect(contents(page)).toBeVisible();
+    await expect(page.locator(".content-reading-row--reading > .content-reading-nav-column")).toHaveCSS("position", "static");
+    const id = await page.locator("[data-content-body] h4").first().getAttribute("id");
+    const link = contents(page).locator(`a[href='#${id}']`);
+    await expect(link).toBeVisible();
+    await link.click();
+    await expect(page.locator(`#${id}`)).toBeInViewport();
+  });
   test("the static desktop contents fallback reaches the same full editorial body", async ({ page }, info) => {
     test.skip(Boolean(info.project.use.isMobile), "The desktop scriptless fallback uses native anchors.");
     await page.setViewportSize({ width: 1280, height: 800 });
