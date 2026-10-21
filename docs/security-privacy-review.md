@@ -624,6 +624,8 @@ candidate. AB#117 remains Active with its independent live privacy/security gate
 
 ## Verification performed
 
+2026-10-20 public Production read-only audit: [sitemap and internal-link statuses, document language, h1, alt attributes, heading levels, duplicate ids, computed control names and load timing over 166 pages](audits/ab117-public-production-audit-2026-10-20.md). No defect in those classes; one Finnish alt text on an English listing is AB#255 content work. It does not establish WCAG conformance.
+
 - `npm run lint` — clean (re-run after every fix round).
 - `npm test` — 1616/1616 unit tests pass (re-run after every fix round; +1 from the
   self-review fix round's added coexistence test).
