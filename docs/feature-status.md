@@ -21,9 +21,14 @@ change…" (desktop WebKit, 1/8 in isolation) turned the wheel right after `load
 before hydration on the gallery page, so the observer never saw it and the hash
 stayed empty; its helper now repeats placement plus one real wheel until the
 observer answers (280/280 across three projects, 8×).
-Still open from the same runs, not reproduced in isolation: the WebKit
-`content-reading-address` Back/Forward case and a JavaScript-free masonry column
-count of 1 at 944 px. Timeouts and an aborted
+`gallery-masonry` "without JavaScript reads in result order…" (desktop Chromium,
+about 7% in isolation: 1 column at 944/1280 px, or the first image outside its
+item) measured after `domcontentloaded`, which without JavaScript can precede the
+head stylesheets, so it measured the unstyled layout no visitor sees painted
+(Production links every stylesheet in `<head>`). It now waits for `load`
+(320/320, desktop Chromium + mobile WebKit, 10×).
+Still open, not reproduced in isolation: the WebKit `content-reading-address`
+Back/Forward case. Timeouts and an aborted
 `goBack` in the second run coincided with other local builds on the same machine
 and are not counted as evidence of a race. AB#377 stays Active.
 
