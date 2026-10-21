@@ -2,6 +2,8 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Long one-word titles, 2026-10-21 (AB#382, Active): the Production reflow audit (320/375 px, 166 pages) found `/palvelut/haakuvaus/miljoomuotokuvaus` 11 px too wide at 320 px — its h1 is one 17-letter compound. About twenty h1 styles exist, so the fix is a base rule (`h1`–`h4 { overflow-wrap: break-word }` in `globals.css`), which only affects a word that cannot fit its line, plus `min-w-0` on the two service-detail `<article>` grid items that otherwise grow to their longest word. `e2e/page-title-reflow.spec.ts` replaces the server-rendered title with a long single word (no JavaScript) and requires no horizontal overflow at 320 px on contact, services, a service, the story root, search, an article and a gallery; it fails without the fix.
+
 Cookieless site analytics, 2026-10-19 — AB#371 **Active**: ADR-0037 is Accepted
 ([PR #534](https://github.com/Alpine78/photosite-starter/pull/534)) and the first
 slice is implemented on `feature/371-site-analytics`: an opt-in

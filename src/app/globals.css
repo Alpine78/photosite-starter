@@ -245,6 +245,17 @@ html {
   :focus-visible {
     outline-color: var(--color-focus);
   }
+
+  /* AB#382: a heading that is one long word (a Finnish compound, a product
+     name) breaks inside its box instead of widening a narrow page (WCAG 1.4.10).
+     Only a word that cannot fit its line is affected. A heading inside a grid or
+     flex item also needs that item to allow shrinking (`min-w-0`). */
+  h1,
+  h2,
+  h3,
+  h4 {
+    overflow-wrap: break-word;
+  }
 }
 
 /*
