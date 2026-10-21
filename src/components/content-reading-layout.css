@@ -545,3 +545,26 @@
   padding: 0;
   font-size: 1.125rem;
 }
+
+/* AB#388: without script the bar cannot open anything, so keep the complete
+   inline list. This replaced a <noscript><style> in the body, which HTML does
+   not permit there. `scripting` is supported from Chrome 120, Safari 17 and
+   Firefox 113; an older browser with script disabled shows the inert bar. */
+@media (scripting: none) {
+  html {
+    --reading-bar-height: 0px !important;
+  }
+
+  .reading-contents__bar {
+    display: none !important;
+  }
+
+  .reading-contents__panel {
+    display: contents !important;
+  }
+
+  .content-reading-row--reading > .content-reading-nav-column {
+    position: static !important;
+    margin-inline: 0 !important;
+  }
+}

@@ -55,6 +55,8 @@ test("closed and unanswered polls show their results without JavaScript", async 
     const historical = page.getByRole("region", { name: closed.question });
     await expect(historical.getByRole("status")).toHaveText(labels.closed);
     await expect(historical).toContainText("75.0% (3)");
+    // A labelled group, not a generic div carrying a name (AB#388).
+    await expect(historical.getByRole("group", { name: labels.results, exact: true })).toBeVisible();
     await expect(historical.getByRole("radio")).toHaveCount(0);
     await expect(page.getByRole("region", { name: empty.question })).toContainText(labels.noVotes);
     const ongoing = page.getByRole("region", { name: open.question });

@@ -10,10 +10,6 @@ type Labels = BuiltInLabels["readingPosition"];
 type Reading = { readonly id?: string; readonly percent: number };
 
 const focusRing = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
-const NO_SCRIPT_STYLE = "html{--reading-bar-height:0px!important}" +
-  ".reading-contents__bar{display:none!important}" +
-  ".reading-contents__panel{display:contents!important}" +
-  ".content-reading-row--reading>.content-reading-nav-column{position:static!important;margin-inline:0!important}";
 const FOCUSABLE = "a[href], button:not([disabled]), input:not([disabled])";
 
 const subscribeNothing = () => () => {};
@@ -181,10 +177,8 @@ export function ArticleReadingContents({ label, tree, labels, sectionsLabel, foo
           <path d="M3 6l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="1.6" />
         </svg>
       </button>
-      {/* Without script the bar cannot open anything: keep the complete inline list. */}
-      <noscript>
-        <style>{NO_SCRIPT_STYLE}</style>
-      </noscript>
+      {/* Without script the bar cannot open anything: content-reading-layout.css
+          keeps the complete inline list under @media (scripting: none) (AB#388). */}
       {sheetOpen && <div className="reading-contents__backdrop" aria-hidden="true" onClick={() => closeSheet(true)} />}
       <div ref={panelRef} id={`${id}-panel`} className="reading-contents__panel"
         role={sheetOpen ? "dialog" : undefined} aria-modal={sheetOpen ? true : undefined}
