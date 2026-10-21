@@ -1,9 +1,12 @@
 # Backlog: decision and agent-readiness map
 
-**Last reviewed:** 2026-09-18 (later same day)
+**Last reviewed:** 2026-10-21, against an Azure Boards query of every `New` and
+`Active` user story, task and bug.
 
 **Authoritative source:** Azure Boards. This document is an operational map only: the
 work item supplies current scope, acceptance criteria, discussion, relations, and state.
+The running history is in [`feature-status.md`](feature-status.md); this map does not
+repeat it.
 
 ## How to use this map
 
@@ -14,177 +17,74 @@ work item supplies current scope, acceptance criteria, discussion, relations, an
 4. Treat this map as stale after a Board change; update its date and affected row when
    the order or readiness changes.
 
-## Owner action or decision
-
-| Work item | Current state | Required owner action or decision | Unblocks |
-| --- | --- | --- | --- |
-| AB#141 — Physical-device lightbox check | New | Run the specified tap, double-tap, pinch, pan, and close checks on a real touch device and record device/browser/results in ADR-0001. | The remaining manual lightbox verification. |
-| AB#137 — Production Sanity dataset | Active | Provision the `SANITY_POLL_VOTE_TOKEN` runtime credential (ADR-0018 §7 — verify whether this project's Sanity plan supports a document-type-scoped role before assuming one) and verify the atomic vote mutation against the real dataset. Run `npm run convert:joomla` in review mode over the selected inventory to produce the conversion findings, resolve the exception rows and supply alternative text (including the 9 articles AB#23 unblocked and the 20 articles' historical poll import AB#162 unblocked), approve the launch manifest, verify a recoverable baseline, then run and audit the Production migration with a temporary write credential as described in [the migration handoff](sanity-seeding.md#migrating-approved-content-from-an-existing-site-ab137). Its AB#161 prerequisite is closed, so the 48 source-gallery article imports it was blocking are unblocked. | AB#117. |
-| AB#117 — Production security and privacy review | Active | Review and accept the production evidence after AB#137, including any residual risks. | AB#18. |
-| AB#18 — Production promotion | New | Perform owner-controlled domain, DNS, production secret, rollback, and smoke-test actions only after predecessors pass. | AB#118 handoff and rollback exercise. |
-
-## Dependency order
+## Launch path
 
 ```text
-AB#19 ──> AB#137 ──> AB#117 ──> AB#18 ──> AB#118   (AB#19 reopened 2026-09-18; AB#161 closed 2026-09-16)
-
-AB#54 ──> AB#55 ──> AB#58 ──> AB#71   (AB#65 spike closed 2026-08-27)
+AB#19 ──> AB#137 ──> AB#117 ──> AB#18 ──> AB#118
 ```
 
-AB#150 and AB#151 both closed (merged 2026-09-04); their chain is done.
-AB#136 closed on the board 2026-09-10: its fix merged as PR #141 (2026-09-07), and its
-owner-run AC5 "exercise against Preview" completed 2026-09-07–09, with the evidence
-recorded on the work item by PR #146.
+The reference site is already served from its production domain; these items record
+the launch *acceptance*, not whether the site is up. Every row below is gated on owner
+actions, approvals or accounts; an agent can prepare evidence but cannot close them.
 
-AB#132's owner decision is now made (2026-09-11, PR #151, recorded in ADR-0007): retain
-the Proxy's O(1) boundary rather than let it read content state to trade for initial
-semantic 404 HTML. It is no longer awaiting an owner call — the underlying defect turned
-out to be a known, already-tracked upstream Next.js bug
-([vercel/next.js#62228](https://github.com/vercel/next.js/issues/62228), open since
-February 2024), and this item now stays `Active` and blocked on an upstream fix landing
-(a first attempt, `#88491`, was closed unmerged 2026-09-04; a second, `#98455`, opened
-2026-09-09 and is still open) rather than on anything this project's owner or an agent
-here can move. Re-check before AB#18's production promotion if the upstream issue is
-still open by then.
+| Work item | State | Recorded status | Who moves it next |
+| --- | --- | --- | --- |
+| AB#19 — Legacy URL redirects | Active | 415-row canonical-host report verified on Production 2026-10-18; waits on AB#137's gate and owner acceptance. | Owner |
+| AB#137 — Production dataset | Active | Approved content imported and audited in batches; remaining approvals and post-write evidence are listed in feature-status. 2026-10-21: two dead Movescount links on the Polar M600 quick-test article (FI/EN) need an owner content decision. | Owner |
+| AB#117 — Security and privacy review | Active | 2026-10-21 Production audits: headers match ADR-0011, 166/166 reciprocal hreflang, 451/451 internal links answer 200, no reflow overflow after AB#382. Residual findings and acceptance remain. | Owner |
+| AB#18 — Production promotion | Active | Production serves main `90543d5` (manual release 2026-10-21, deployment `dpl_ARuiTPxfvhAsn7D4foP2ajzfchVE`); provider alias/artifact verification and acceptance remain. | Owner |
+| AB#118 — Rollback and handoff | New | Starts after AB#18; [rollback exercise record](rollback-exercise-record.md) defines the evidence. | Owner, then agent for inventories |
+| AB#131 — Two-domain email migration | Active | Owner-run DNS/mailbox work; [mail recovery evidence](mail-recovery-evidence.md). | Owner |
+| AB#158 — Availability monitoring | Active | Monitor options merged (PR #561); the owner chooses and controls the monitor account. | Owner |
+| AB#159 — Production failure triage | Active | [Runbook](production-failure-triage.md) prepared; the live controlled-failure exercise remains. | Owner with agent |
+| AB#132 / AB#370 — Scriptless 404 HTML | Active | Blocked upstream: [vercel/next.js#62228](https://github.com/vercel/next.js/issues/62228) and its fix PR #98455 were both still open on 2026-10-21, and 16.4.2 is the latest release. Risk acceptance re-review due 2026-12-19 (AB#370). | Upstream |
+| AB#250 — Retained legacy galleries | Active | 21 galleries served from Sanity; whole-ZIP exception accepted 2026-10-14 (ADR-0028 amendment). Acceptance remains. | Owner |
+| AB#255 — FI/EN coverage | Active | Remaining gaps are authored content and owner approvals; see [bilingual page coverage](bilingual-page-coverage.md). | Owner |
 
-A batch of five bugs closed 2026-09-10, all merged to `main` beforehand: AB#152
-(lightbox preload retry, PR #140), AB#153 (admin sign-in secret in the URL before
-hydration, PR #142), AB#154 (Sanity cache reuse under scheduled expiry, PR #143),
-AB#155 (mobile content-hero overflow, PR #144), and AB#156 (Sanity custom warning
-registration, PR #145). None of those PR bodies carried a `Fixes AB#<id>` line, so
-nothing closed automatically and each item sat in `Active` or `Resolved` for up to
-three days after its fix shipped — the failure mode `AGENTS.md` warns about. Carry the
-closing line in the PR body, or close the item explicitly after the merge.
+## Implemented, awaiting owner review or acceptance
 
-## Post-MVP private-gallery branch
+| Work item | State | What exists | What is needed |
+| --- | --- | --- | --- |
+| AB#321 — Gallery layouts, filtering, reading | Active | Every child slice (AB#322–AB#369) is Closed. | Content activation for article-end sections and the mobile contents decision. |
+| AB#301 — Studio identity presentation | Active | Readable previews (PR #339) and grouped identity fields, recorded in feature-status. | Studio deployment and authenticated editor check; stored-identity retirement under ADR-0030/0031. |
+| AB#289 — Public photo enquiries | Active | Default-on setting implemented. | CMS activation and a mailbox receipt check. |
+| AB#252 — Home latest stories, service covers | Active | Implemented. | Public release acceptance. |
+| AB#313 — Protected-gallery removal audit | Active | Audit and a slice A1 deletion dossier. | Owner clearance per slice; nothing is deleted until then. |
+| AB#371 — Cookieless analytics | Active | Opt-in adapter, off everywhere. | The owner enables it, or not. |
 
-The governing private-gallery boundary is already decided by AB#122 and
-[ADR-0014](adr/0014-private-gallery-security-delivery-retention-boundary.md):
-single-site, intentionally shareable capability access, six-month expiry, uncropped
-web derivatives, and one protected full-gallery ZIP for delivery. This is not SaaS and
-is not MVP work.
+## Agent-ready
 
-| Work item | Readiness | Notes |
+| Work item | State | Next step |
 | --- | --- | --- |
-| AB#29 — Customer-facing delivery gallery | Blocked for deployment | Requires the owner-provisioned private S3-compatible object store and PostgreSQL-family metadata store. It owns viewing, protected ZIP access, and the expiry/deletion lifecycle. |
-| AB#145 — Administer delivery galleries | Blocked for deployment | Requires the same stores and a Resend account. It owns admin authentication, publication, notification, resend, revoke, and replace. |
-| AB#130 — Private proof selection | Not ready | Builds on the private-gallery boundary but is separate from delivery; no checkout or automatic payment is in scope. |
-| AB#60 — Enquiry about a public gallery item | Open only for a dynamic entry point or an AC amendment | PR1 (identity/authorization seam), PR2 (`POST /api/enquiry`), PR3 (lightbox surface + `e2e/gallery-enquiry.spec.ts`), and AB#123 (identity/origin smoke) are all merged. What remains is not implementation: a dynamic-result entry point needs AB#58/AB#71 (not built), or the owner amends the acceptance criteria to close it as curated-only. |
+| AB#377 — e2e flake root causes | Active | Two races fixed in PR #576. Open: the WebKit `content-reading-address` history cases and a JavaScript-free masonry column count at 944 px. |
+| AB#160 — Vulnerable dependencies | Active | Continuous; PR #573 updates Tailwind, eslint and @types/node. Sprintf-js (Studio, Dependabot #66) has no patched version and is triaged under AB#278. |
+| AB#382 — Long one-word titles | Active | PR #572. |
+| AB#383 — Above-the-fold image loading | Active | PR #577. |
 
-## Keyword and commerce discovery branches
+## Post-MVP branches
 
-| Work item | Readiness | Required next step |
+**Client delivery (ADR-0034, 2026-10-16):** the reference deployment uses existing
+Sanity and unlisted galleries for client delivery. Protected S3/PostgreSQL work is not
+resumed for this owner (AGENTS.md); AB#313 audits removing that inactive code.
+
+| Work item | State | Readiness |
 | --- | --- | --- |
-| AB#54 — Keyword extraction spike | Owner-run evidence gathering | Export the three specified Lightroom control JPEGs and upload them through the real non-production Sanity path; record exact Lightroom/export settings and observed metadata. |
-| AB#55 — Keyword taxonomy ADR | Blocked on AB#54 evidence | AB#65 spike closed 2026-08-27 (recommends strategy B — ancestor closure materialized on the medium; see `docs/keyword-query-benchmark.md`). Still needs AB#54's Lightroom evidence, then decide the taxonomy, ingest, privacy, hierarchy, and article-tag boundary before implementation. |
-| AB#95 — Sales / checkout / fulfilment ADR | Product discovery | Decide first sales use case and product/provider/privacy boundary. Do not implement checkout, cart, payments, or fulfilment in this item. |
+| AB#29 — Unlisted client galleries and whole-gallery ZIPs | Active | Follows ADR-0034 and the ADR-0035 ZIP proposal; owner decisions first. |
+| AB#145 — Administer unlisted galleries | Active | Same branch; authoring boundaries need their own implementation. |
+| AB#130 — Proof selection without S3 | New | Not ready: needs its own design decision. |
+| AB#60 — Enquiry about a public gallery item | Active | Curated-gallery path is built; a dynamic entry point needs the keyword branch. |
 
-## Current launch preparation
+**Keyword and commerce discovery:**
 
-AB#19 is `Active` on Azure Boards as of 2026-09-18: the owner changed its
-legacy-content retirement policy from `410 Gone` to a reviewed same-language
-category-ancestry fallback. AB#21 and AB#22 remain `Closed`; AB#21's three-level
-heading work and AB#22's shared table block have shipped.
+| Work item | State | Readiness |
+| --- | --- | --- |
+| AB#54 — Keyword extraction spike | Active | Owner-run evidence: Lightroom control exports through the real non-production upload path. |
+| AB#55 — Keyword taxonomy ADR | New | Blocked on AB#54's evidence; AB#65's benchmark recommends ancestor closure on the medium. |
+| AB#56–59, 68–75, 90 — Keyword features | New | Blocked on AB#55. |
+| AB#95 — Sales, checkout and fulfilment boundary | Active | Product discovery; no checkout, cart or payment implementation. |
 
-**AB#23** (before/after image-comparison content block) and **AB#162** (article
-poll voting, ADR-0018) both closed 2026-09-18, PRs #170 and #169. AB#23 was
-the migration blocker recorded for 9 AB#137 exception-row articles (347, 351,
-366, 368, 370, 457, 459, 461, 467); AB#162 unblocks the 20 exception-row
-articles carrying a legacy `{CONTENTPOLL}` marker, whose historical vote data
-was recorded on AB#26's own comment for exactly this import. Neither closure
-by itself advances AB#137 — the actual review-mode conversion run, exception
-resolution, and manifest approval remain entirely open — but AB#137's own row
-above is updated to reflect that both dependencies it was waiting on are gone.
-
-Later the same day, AB#137's own review-mode pass over the real 102-article
-selection surfaced three further, purely technical converter gaps — none a
-content decision, all closed without touching the manifest or any owner
-review: **PR #174** (figcaption → placement caption, `<figure>` recognition,
-closed 470 of 474 `unsupported-element` refusals; known-inert anchor `rel`
-values now drop as lossy instead of refusing, closing 8 of 12
-`behavioural-attribute` refusals) and **AB#163 / PR #173** (the eleventh
-shared body block, `tab-group`, [ADR-0020](adr/0020-tab-group-body-block.md)
-— recognizes the one Bootstrap `nav-tabs`/`tab-content` widget the archive
-carries, article 370's burst-test tabs, closing the archive's last 4
-`behavioural-attribute` refusals). Building the tab-group recognizer surfaced
-a real, different, unrelated gap ADR-0020 recorded as an open action item
-rather than fixed there — a `<h6>` nested inside a table's own `<caption>` —
-and a same-day follow-up closed it: a caption whose entire content is one
-heading now flattens to plain text with a `caption-heading-flattened` lossy
-note, since a caption is not part of the body's heading outline. **Article
-370 itself still does not convert.** Verifying that fix against the real,
-full article (not the isolated tab-widget extract ADR-0020's own measurement
-used) surfaced a second, genuinely different defect no code change should
-paper over: parse5 reports **no closing tag at all** for the article's own
-`<div class="tab-content">` — confirmed by its source-location info, whose
-recorded end offset is the article body's exact byte length. The rest of the
-article is therefore, per real HTML5 parsing rules, nested *inside* the tab
-widget, which is exactly why the recognizer correctly refuses it
-(`tab-group-unsupported-shape`) instead of guessing where the missing tag
-belongs. This is a genuine source-content defect, recorded as an ADR-0020
-action item: either correct the exported HTML before the real migration run,
-or extend `prepare-selected-source.mts`'s existing precedent (it already
-corrected 9 other tables) to insert the one missing tag — an owner decision
-either way, since the corrected body needs its own re-approval through the
-existing source-digest mechanism. That defect, and every remaining
-`heading-level-unsupported`/`heading-order`/`gallery-unresolved`/
-`comparison-unresolved` finding, needs either a further converter fix (if
-technical) or the owner's own review (if a genuine content decision); neither
-AB#163 nor the figcaption/`rel` fixes attempted to tell those apart beyond
-what they each closed.
-
-The immediate launch path is AB#137, already `Active`. Its existing Preview
-verification tooling is ready, and the customer-owned Production project and
-public dataset exist. A local, ignored source inventory and image reconciliation
-have begun, but no public launch manifest has been approved, no Production
-content has been written, and AB#137's live acceptance criteria remain open.
-The selected source content also exposed one implementation prerequisite,
-recorded as **AB#161**: an `article` must be able to carry a large gallery at
-the end of its body, on the same page and in one continuous image order. The
-current 1–12-image mini-gallery cannot represent that case, and reclassifying
-an editorial article as a gallery would change its primary content identity.
-**AB#161 closed 2026-09-16** (PR #164, merged `f0247a1`) with the scoped
-ADR-0003 amendment and the bounded article end-gallery result described in
-`docs/feature-status.md`, so the 48 source-gallery article imports
-it was blocking are unblocked; AB#137 remains `Active` and is now the sole
-predecessor on the launch chain.
-The [migration handoff](sanity-seeding.md#migrating-approved-content-from-an-existing-site-ab137)
-sets the approval, baseline, private-content exclusion, audit, and revocation
-sequence. The source inventory is private and is not part of this repository.
-
-AB#24 shipped in PR #154 and closed on 2026-09-12. Inline mini-galleries are now
-the seventh shared body block, bounded to 12 images, uncropped, unpaginated,
-and isolated into their own lightbox sequences.
-
-Other work still needs an owner decision, credential, physical device,
-infrastructure, or an evidence run before dependent implementation can proceed:
-
-- The **Owner action or decision** table above (AB#141, then the
-  AB#137 → AB#117 → AB#18 launch chain).
-- **AB#132** is decided and blocked externally; re-check the upstream Next.js
-  fix before Production promotion.
-- The **private-gallery branch** (AB#29, AB#145, AB#130) needs its own
-  private stores and is separate from the Joomla source inventory.
-- **AB#60** needs a dynamic-result entry point or an owner amendment to its
-  acceptance criteria.
-- **AB#54 → AB#55** and **AB#95** need owner-run evidence or product decisions.
-
-**Next step:** the whole importer now exists — the conversion half
-(`npm run convert:joomla`, `scripts/joomla-*.mts`), which converts an exported
-article set into the shared content blocks, gates on the owner's approval
-manifest, and reports every refusal and lossy transformation while writing
-nothing anywhere; and the write half (`npm run write:joomla`,
-`scripts/write-joomla-content.mts`, `scripts/joomla-image-derivative.mts`),
-which turns an approved plan into real Sanity documents — dry-run by default,
-never trusting the plan file blindly, generating and uploading each
-photograph's public derivative, resolving category references against the
-target dataset, and running a target-dataset collision preflight before
-writing anything. What remains is entirely owner-run — the review pass over
-the real inventory, the exception-row resolutions and alternative text it will
-call for, the manifest approval, minting the temporary `SANITY_MIGRATION_TOKEN`,
-running the write against the real Production dataset, and then the audit,
-credential revocation, and handoff evidence. Keep AB#137 `Active` until all of
-that is done. Then proceed to AB#117.
+**Other post-MVP items** (AB#25–28, AB#42–49, AB#125–127) are Active or New for
+discovery and owner decisions; read each work item before starting.
 
 ## Handoff checklist for another machine or agent
 
@@ -193,7 +93,8 @@ that is done. Then proceed to AB#117.
   configured; an earlier revision of this checklist described `origin` as a dead Azure
   DevOps URL and named a separate `github` remote, which is no longer the case.
 - Check `git status` before editing; do not overwrite or reset another worker's
-  uncommitted changes. On 2026-09-10 the primary worktree was clean at `main` (`b060e17`).
+  uncommitted changes. Start new work in a linked worktree with
+  `npm run task:start -- <branch>` (AGENTS.md, "Branch publication and VS Code worktrees").
 - How the board is reached depends on the machine. From the WSL/Linux checkout,
   `az boards` works directly against the configured defaults (`az devops configure
   --list` shows organization `ilkkarytkonen` and project `photosite-starter`), for both
