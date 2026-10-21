@@ -335,6 +335,55 @@ test.describe("the results page", () => {
     await expect(main.getByText(copy.prompt)).toBeVisible();
   });
 
+  for (const colorScheme of ["light", "dark"] as const) {
+    test(`group counts meet WCAG AA contrast in the ${colorScheme} theme (AB#387)`, async ({ page }) => {
+      await page.emulateMedia({ colorScheme });
+      await page.goto(`${SEARCH_PATH}?q=${encodeURIComponent(defaultTarget.term)}`);
+      const counts = page.getByRole("main").locator("section > h2 > span");
+      await expect(counts.first()).toBeVisible();
+      const ratios = await counts.evaluateAll((elements) => {
+        // Normalize any CSS colour (the tokens are color-mix() in oklab) to sRGB.
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = 1;
+        const context = canvas.getContext("2d", { willReadFrequently: true })!;
+        const rgba = (color: string) => {
+          context.clearRect(0, 0, 1, 1);
+          context.fillStyle = color;
+          context.fillRect(0, 0, 1, 1);
+          const [r, g, b, a] = context.getImageData(0, 0, 1, 1).data;
+          return { r, g, b, a: a / 255 };
+        };
+        const luminance = ({ r, g, b }: { r: number; g: number; b: number }) => {
+          const channel = (value: number) => {
+            const c = value / 255;
+            return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+          };
+          return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+        };
+        return elements.map((element) => {
+          let opacity = 1;
+          let background = { r: 255, g: 255, b: 255, a: 0 };
+          for (let node: Element | null = element; node; node = node.parentElement) {
+            const style = getComputedStyle(node);
+            opacity *= Number(style.opacity);
+            if (background.a === 0) {
+              const fill = rgba(style.backgroundColor);
+              if (fill.a > 0) background = fill;
+            }
+          }
+          const text = rgba(getComputedStyle(element).color);
+          const alpha = text.a * opacity;
+          const mix = (channel: "r" | "g" | "b") => text[channel] * alpha + background[channel] * (1 - alpha);
+          const shown = { r: mix("r"), g: mix("g"), b: mix("b") };
+          const [light, dark] = [luminance(shown), luminance(background)].sort((x, y) => y - x);
+          return (light + 0.05) / (dark + 0.05);
+        });
+      });
+      expect(ratios.length).toBeGreaterThan(0);
+      for (const ratio of ratios) expect(ratio).toBeGreaterThanOrEqual(4.5);
+    });
+  }
+
   test("shows a hostile query as text, never as markup", async ({ page }) => {
     const hostile = "<img src=x onerror=alert(1)>";
     await page.goto(`${SEARCH_PATH}?q=${encodeURIComponent(hostile)}`);

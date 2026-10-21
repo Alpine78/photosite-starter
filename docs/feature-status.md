@@ -15,6 +15,24 @@ older browser with script disabled shows the inert bar). Poll results are a
 `aria-label`. New structural assertions cover each fix, including the no-script
 layout at 390 px.
 
+Evening Production checks, 2026-10-21 — evidence for AB#86, AB#117, AB#132 and
+ADR-0003 ([record](audits/production-checks-2026-10-21-evening.md)): axe in the dark
+theme over 166 pages finds only the already-fixed AB#384 list structure; axe on
+interactive states finds one search-count contrast issue (AB#387, #584); `Article`
+structured data lacks `author` pending its separate decision; error pages still show
+the known AB#132 empty shell; reduced motion, caching and variant-URL indexing match
+their decisions; the PhotoSwipe launcher costs about 7 kB compressed per page and was
+left as is.
+
+Search count contrast, 2026-10-21 — AB#387 **Active**: an axe run over interactive
+states on Production (lightbox open, menu open, contact errors, search results; light
+and dark, desktop and Pixel 7) found one issue: the search result group's `(n)` count
+was `text-muted` plus `opacity-80`, 4.07:1 in the light theme. The extra opacity is
+removed, so the count uses the heading's contract-tested `text-muted`.
+`e2e/site-search.spec.ts` now computes the rendered contrast of every count in both
+themes (canvas-normalized colours, inherited opacity composited over the background)
+and failed at 4.09:1 before the fix.
+
 Lightbox reopen race and CI trace download, 2026-10-21 — AB#377 **Active**: the
 remaining mobile WebKit "selected source, append, viewer…" failure (CI run 1372) is
 explained by its trace: after Escape the previous PhotoSwipe viewer was still closing
