@@ -1805,8 +1805,9 @@ builds are kept: they check different settings and together cost about 24 s. Mai
 summed 2 311 s of test time across 1 847 tests into 1 183 s of wall time on two workers, with
 no test over 16 s. Measured on this agent (24 CPUs, 31 GB) with CI settings: four workers
 805 s, 0 failed, 0 flaky, at least 7.5 GB free; six workers 662 s but 9 failed and 2 flaky,
-5.6 GB free. `ciE2eWorkers` is therefore 4 and applies to Playwright only; Vitest keeps
-`ciTestWorkers` (2) until it is measured separately. AB#293's unexplained agent disconnects
+5.6 GB free. `ciE2eWorkers` is therefore 4 and applies to Playwright only. Vitest has its own
+`ciTestWorkers`, measured separately on 2026-10-21 (three runs each, 8 527 tests, all passing):
+2 workers 73.8 s, 4 workers 41.6 s, 6 workers 31.0 s; it is 4. AB#293's unexplained agent disconnects
 are why this stays a one-line, reversible setting: set `ciE2eWorkers` back to `"2"` if an
 agent disconnect or new contention flake appears. Main CI runs are batched
 (`trigger: batch: true`): merges that land during a run are built once, as the newest
