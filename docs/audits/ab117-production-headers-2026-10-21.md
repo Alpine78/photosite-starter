@@ -28,9 +28,17 @@ render dynamically), not a finding.
 Every sampled public HTML page answered `cache-control: private, no-cache, no-store,
 max-age=0, must-revalidate` with `x-vercel-cache: MISS`, so the CDN serves no cached HTML
 and each page view renders on demand (CMS reads still use the documented data cache in
-`docs/cache-revalidation.md`). That is not a security issue and pages loaded quickly in the
-[2026-10-20 audit](ab117-public-production-audit-2026-10-20.md); whether it is intended is
-recorded for separate investigation rather than assumed either way.
+`docs/cache-revalidation.md`). That is not a security issue, and pages loaded quickly in the
+[2026-10-20 audit](ab117-public-production-audit-2026-10-20.md).
+
+**Cause (traced in source and in CI run 1364's route table):** only `/services/[slug]` is
+prerendered. The home page reads `searchParams` (`?topic=` for the portfolio section filter
+and the legacy fallback notice parameter, `src/components/home-page.tsx`), and the content
+routes under `[localePrefix]/[[...segments]]` read their cursor and section parameters, so
+Next.js renders them on demand and marks the HTML `no-store`. It follows from query-driven
+pages, not from a missing setting. Changing it would mean restructuring those routes (for
+example moving query handling to the client or to separate cached variants), which is an
+architectural choice, not part of this check.
 
 ## Not covered
 
