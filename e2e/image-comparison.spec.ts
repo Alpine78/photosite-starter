@@ -21,8 +21,16 @@ for (const route of routes) {
       await comparison.scrollIntoViewIfNeeded();
       const slider = comparison.getByRole("slider", { name: labels.position });
       await expect(slider).toBeVisible();
-      const imageBounds = (await comparison.locator("img").first().boundingBox())!;
-      const sliderBounds = (await slider.boundingBox())!;
+      // Measure both boxes in one frame once the image has its final height:
+      // two separate reads straddled a 54 px page movement on mobile WebKit
+      // under load (AB#377), failing the centring check with no real defect.
+      const image = comparison.locator("img").first();
+      await expect.poll(() => image.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0)).toBe(true);
+      const sliderHandle = await slider.elementHandle();
+      const [imageBounds, sliderBounds] = await image.evaluate((el, sliderElement) => {
+        const box = (rect: DOMRect) => ({ x: rect.x, y: rect.y, width: rect.width, height: rect.height });
+        return [box(el.getBoundingClientRect()), box(sliderElement!.getBoundingClientRect())];
+      }, sliderHandle);
       expect(sliderBounds.height).toBeGreaterThanOrEqual(44);
       expect(sliderBounds.y).toBeGreaterThanOrEqual(imageBounds.y);
       expect(sliderBounds.y + sliderBounds.height).toBeLessThanOrEqual(imageBounds.y + imageBounds.height);

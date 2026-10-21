@@ -24,12 +24,17 @@ async function wheelPastHeading(page: Page, level: number) {
   // Its existing cold-fragment layout shift is tracked separately, not caused by this observer.
   if (new URL(page.url()).pathname === article) await expect(page.getByRole("tablist")).toBeVisible();
   const target = page.locator(`[data-content-body] h${level}`).first();
-  await target.evaluate((heading) => heading.scrollIntoView({ block: "start" }));
   const id = await target.getAttribute("id");
   await page.mouse.move(20, 200);
-  // The real input unlocks tracking; the earlier programmatic placement alone cannot.
-  await page.mouse.wheel(0, 24);
-  await expect.poll(() => page.evaluate(() => window.location.hash)).toBe(`#${id}`);
+  // The real input unlocks tracking; the earlier programmatic placement alone
+  // cannot. `load` does not mean hydrated: a wheel before the observer's
+  // listeners exist is never seen (AB#377, WebKit gallery trace: hash stayed
+  // empty). Repeat placement plus one real wheel until the observer answers.
+  await expect(async () => {
+    await target.evaluate((heading) => heading.scrollIntoView({ block: "start" }));
+    await page.mouse.wheel(0, 24);
+    await expect.poll(() => page.evaluate(() => window.location.hash), { timeout: 2000 }).toBe(`#${id}`);
+  }).toPass();
   return `#${id}`;
 }
 
