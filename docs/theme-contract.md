@@ -320,6 +320,9 @@ and the footer brand block.
 - **Contrast** (AC5). `text-body`, `text-muted`, `text-subtle`, and `text-danger`
   clear WCAG 2.1 AA (≥ 4.5:1 for normal text) over `--background` in both
   palettes; the focus ring clears ≥ 3:1. Enforced by both test suites above.
+  Text on the `--surface-muted` fill (a gallery caption below its image) uses
+  `text-muted`, which clears 4.5:1 there; `text-subtle` does not (4.43:1 in the
+  light palette, AB#384). Tested in every palette.
 - **Non-text control borders.** Until AB#173, `--border-control` also edged
   form fields at ~2.1:1, below WCAG 1.4.11's 3:1. Form fields now use
   `--border-strong`, which clears 3:1 in both default palettes (tested).

@@ -32,15 +32,24 @@ for (const locale of ["en-GB", "fi"]) {
       expect(checkedCardPrices).toBeGreaterThan(0);
       for (const { service, path } of priced) {
         await page.goto(buildServicePath(localeRoutes, locale, path));
-        const prices = page.getByRole("main").getByRole("definition");
-        await expect(prices).toHaveText(service.pricing!.map((entry) => entry.price));
+        // A package's definitions are its price, then its note when it has one (AB#384).
+        const definitions = page.getByRole("main").getByRole("definition");
+        await expect(definitions).toHaveText(
+          service.pricing!.flatMap((entry) => entry.note ? [entry.price, entry.note] : [entry.price]));
+        // Each price is the first definition of its package.
+        const priceIndexes = new Set<number>();
+        let position = 0;
+        for (const entry of service.pricing!) {
+          priceIndexes.add(position);
+          position += entry.note ? 2 : 1;
+        }
         // Synthetic stress copy on the actual rendered row; no CMS or fixture catalog change.
         await page.getByRole("main").getByRole("term").first().evaluate((element, language) => {
           element.textContent = language === "fi"
             ? "Pitkäkuvauspalvelunpaketinnimi ja useita lisäpalveluita samalla hinnalla"
             : "Anextendedphotographysessionpackage with additional coverage and delivery";
         }, locale);
-        for (const price of await prices.all()) {
+        for (const price of (await definitions.all()).filter((_, index) => priceIndexes.has(index))) {
           const geometry = await price.evaluate((element) => {
             const range = document.createRange(); range.selectNodeContents(element);
             const box = element.getBoundingClientRect();
