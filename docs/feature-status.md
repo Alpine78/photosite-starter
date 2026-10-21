@@ -2,6 +2,15 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Search count contrast, 2026-10-21 — AB#387 **Active**: an axe run over interactive
+states on Production (lightbox open, menu open, contact errors, search results; light
+and dark, desktop and Pixel 7) found one issue: the search result group's `(n)` count
+was `text-muted` plus `opacity-80`, 4.07:1 in the light theme. The extra opacity is
+removed, so the count uses the heading's contract-tested `text-muted`.
+`e2e/site-search.spec.ts` now computes the rendered contrast of every count in both
+themes (canvas-normalized colours, inherited opacity composited over the background)
+and failed at 4.09:1 before the fix.
+
 Lightbox reopen race and CI trace download, 2026-10-21 — AB#377 **Active**: the
 remaining mobile WebKit "selected source, append, viewer…" failure (CI run 1372) is
 explained by its trace: after Escape the previous PhotoSwipe viewer was still closing
