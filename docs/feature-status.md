@@ -2,6 +2,19 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Proof selection design, 2026-10-21 — AB#130 **Active** (design only): the
+owner-reviewable design its acceptance criteria require is
+[ADR-0038 (Proposed)](adr/0038-proof-selection-in-existing-sanity.md). Public,
+externally watermarked proofs with permanent references in a separate unlisted
+gallery type; terms, working selections and immutable confirmed versions under
+private ID paths in the existing dataset (verified: Sanity never serves `_id`s
+containing a dot to unauthenticated requests); a separate selection key carried in
+the link's fragment and stored only as a hash; one narrow write path with
+`ifRevisionID` toggles and a transactional, retry-safe confirmation; a photographer
+notification recorded separately from the selection. No S3, PostgreSQL or new
+service. Five owner questions are listed in the ADR; nothing is implemented, and
+implementation waits for acceptance.
+
 HTML validity, 2026-10-21 — AB#388 **Active**: html-validate 11.17.0 (standard
 preset) over all 166 Production pages found three invalid patterns besides the
 AB#384 description lists. The hero credit `figcaption` now comes last in its
