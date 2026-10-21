@@ -100,7 +100,7 @@ export function PollVoteForm({ poll, initial, labels }: Props) {
       )}
       {error && (!ready || voted || closed) && <button type="button" disabled={!guard.hydrated || busy} onClick={() => void refresh()} className="mt-3 underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">{labels.retry}</button>}
       {state && (
-        <div className="mt-5" aria-label={labels.results}>
+        <div className="mt-5" role="group" aria-label={labels.results}>
           <p className="font-medium">{labels.results}</p>
           <ul className="mt-3 space-y-3">
             {state.options.map((option) => (

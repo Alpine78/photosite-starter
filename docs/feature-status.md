@@ -2,6 +2,19 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+HTML validity, 2026-10-21 — AB#388 **Active**: html-validate 11.17.0 (standard
+preset) over all 166 Production pages found three invalid patterns besides the
+AB#384 description lists. The hero credit `figcaption` now comes last in its
+`figure` (a figcaption must be first or last), with `z-10` on the text overlay so it
+still paints above the caption. The article reading contents' no-script layout moved
+from a `<noscript><style>` in the body to `@media (scripting: none)` in
+`content-reading-layout.css` (verified to match with script disabled in Playwright's
+Chromium and WebKit; supported from Chrome 120, Safari 17 and Firefox 113, so an
+older browser with script disabled shows the inert bar). Poll results are a
+`role="group"` with their existing name instead of a generic `div` with
+`aria-label`. New structural assertions cover each fix, including the no-script
+layout at 390 px.
+
 Evening Production checks, 2026-10-21 — evidence for AB#86, AB#117, AB#132 and
 ADR-0003 ([record](audits/production-checks-2026-10-21-evening.md)): axe in the dark
 theme over 166 pages finds only the already-fixed AB#384 list structure; axe on
