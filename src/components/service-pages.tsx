@@ -222,12 +222,14 @@ export function ServiceDetail({
               </h2>
               <dl className="mt-4 space-y-4">
                 {service.pricing.map((pkg) => (
-                  <div key={pkg.name}>
-                    <div className="flex items-baseline justify-between gap-4">
-                      <dt className="min-w-0 flex-1 text-sm font-medium wrap-anywhere">{pkg.name}</dt>
-                      <dd className="shrink-0 whitespace-nowrap text-sm font-medium text-body">{pkg.price}</dd>
-                    </div>
-                    {pkg.note && <p className="mt-1 text-sm text-subtle">{pkg.note}</p>}
+                  // One `div` of `dt`/`dd` per package, the only grouping a
+                  // description list allows (AB#384); the note is a second `dd`
+                  // on its own line. `flex-1` is a 0% basis, so a long name
+                  // wraps instead of pushing the price down.
+                  <div key={pkg.name} className="flex flex-wrap items-baseline justify-between gap-x-4">
+                    <dt className="min-w-0 flex-1 text-sm font-medium wrap-anywhere">{pkg.name}</dt>
+                    <dd className="shrink-0 whitespace-nowrap text-sm font-medium text-body">{pkg.price}</dd>
+                    {pkg.note && <dd className="mt-1 basis-full text-sm text-subtle">{pkg.note}</dd>}
                   </div>
                 ))}
               </dl>

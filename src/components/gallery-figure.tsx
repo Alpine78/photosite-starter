@@ -41,7 +41,7 @@ export function GalleryFigure({ item, index, captionPlacement, boundedBelow = fa
       {media.caption && bounded && below && <div className="gallery-caption-slot" aria-hidden="true" />}
       {media.caption && <figcaption className={compactCaptions ? "sr-only" : bounded
         ? `gallery-caption gallery-caption--bounded ${captionPlacement === "overlay" ? "gallery-caption--overlay" : "bg-surface text-subtle"}`
-        : "px-3 py-2 text-sm text-subtle wrap-anywhere"}>
+        : "px-3 py-2 text-sm text-muted wrap-anywhere"}>
         <span className={bounded ? "gallery-caption-text" : undefined}>{media.caption}</span>
       </figcaption>}
       {hasPopover && media.caption && (
