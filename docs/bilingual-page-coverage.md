@@ -27,6 +27,8 @@ AB#255 remains Active; each row names the remaining owner/work-item responsibili
 | Standalone Studio | #370/#371 are merged, including localized headings/lists/full-frame previews and drag instructions. Authenticated local observations are recorded in their audits. | AB#255 / owner: hosted Studio activation and final wording/live acceptance. Earlier Draft/merge blockers below are historical. |
 | Site search | #415 is merged: FI/EN dialog and GET page, localized route namespace and source journeys. | AB#299 / owner: Preview corpus/query/latency evidence, ADR-0033 acceptance and manual accessibility checks identified by its PR; AB#255 retains all-pages acceptance. |
 
+Hosted language-alternate check, 2026-10-21: every one of the 166 sitemap pages has one self-canonical, a self-listing, reciprocal `hreflang` set with `x-default`, and only sitemap URLs as alternates ([record](audits/ab255-hreflang-and-outbound-links-2026-10-21.md)). This evidences published pages, not pages that lack a second language.
+
 ## Historical checkpoints and original metadata inventory
 
 The following dated notes and original table preserve the earlier authoring state.
