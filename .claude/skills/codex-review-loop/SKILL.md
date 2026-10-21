@@ -196,7 +196,12 @@ code exists to review.
      command. Codex's default sandbox is read-only outside the repo
      workspace, so this write is rejected with a `PermissionError` — which
      looks like an auth failure but is not one. Fix: run in `workspace-write`
-     mode with `~/.azure` added as an extra writable root.
+     mode with the Azure CLI configuration directory added as an extra
+     writable root. That is `~/.azure` by default, but the CLI honours
+     `AZURE_CONFIG_DIR` (this owner's WSL setup uses `~/.azure-wsl`), so the
+     examples below use `${AZURE_CONFIG_DIR:-$HOME/.azure}`. Hard-coding
+     `~/.azure` on such a machine fails the same way — observed 2026-10-20 as
+     "couldn't write its command log under ~/.azure-wsl/commands/".
    - **Network**: `workspace-write` mode still blocks outbound network by
      default, so `dev.azure.com` fails DNS resolution even once the
      filesystem write succeeds. Fix: explicitly enable network access.
@@ -218,7 +223,7 @@ code exists to review.
    codex review --base <branch> \
      -c sandbox_mode="workspace-write" \
      -c sandbox_workspace_write.network_access=true \
-     -c 'sandbox_workspace_write.writable_roots=["'"$HOME"'/.azure"]'
+     -c 'sandbox_workspace_write.writable_roots=["'"${AZURE_CONFIG_DIR:-$HOME/.azure}"'"]'
    ```
    If a round still comes back saying the work item couldn't be read after
    all three are in place, report it plainly and stop — do not paper over the
@@ -270,7 +275,7 @@ For each round, up to the limit:
      -c model="gpt-6.1-sol" -c model_reasoning_effort="medium" \
      -c sandbox_mode="workspace-write" \
      -c sandbox_workspace_write.network_access=true \
-     -c 'sandbox_workspace_write.writable_roots=["'"$HOME"'/.azure"]'
+     -c 'sandbox_workspace_write.writable_roots=["'"${AZURE_CONFIG_DIR:-$HOME/.azure}"'"]'
    # or --uncommitted instead of --base <branch> for working-tree changes
    # model and effort: the selection for this round (see "Model and effort selection")
    ```
@@ -321,7 +326,7 @@ instead:
    codex exec -s workspace-write \
      -c model="gpt-6.1-sol" -c model_reasoning_effort="high" \
      -c sandbox_workspace_write.network_access=true \
-     -c 'sandbox_workspace_write.writable_roots=["'"$HOME"'/.azure"]' \
+     -c 'sandbox_workspace_write.writable_roots=["'"${AZURE_CONFIG_DIR:-$HOME/.azure}"'"]' \
      "Fix exactly this finding: <finding text, file, and line>. Make the
       minimal change; do not touch unrelated code."
    ```
