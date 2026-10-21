@@ -21,10 +21,12 @@ import "@/components/gallery-justified.css";
  * rendering, and this component needs exactly that value to decide whether
  * to resume).
  */
-export function GalleryJustifiedList({ label, items, captionPlacement, labels }: {
+export function GalleryJustifiedList({ label, items, captionPlacement, eagerItems = 0, labels }: {
   label: string;
   items: GallerySlice["items"];
   captionPlacement: GalleryCaptionPlacement;
+  /** Leading items that load eagerly; see `GalleryGrid`'s `eagerCount`. */
+  eagerItems?: number;
   labels: BuiltInLabels;
 }) {
   const [cache, setCache] = useState<{
@@ -47,7 +49,7 @@ export function GalleryJustifiedList({ label, items, captionPlacement, labels }:
     <ul aria-label={label} className="gallery-justified__list">
       {items.map((item, index) => <li key={item.itemId} className="gallery-justified__item"
         style={layout.styles[index] as CSSProperties}>
-        <GalleryFigure item={item} index={index} captionPlacement={captionPlacement}
+        <GalleryFigure item={item} index={index} captionPlacement={captionPlacement} eager={index < eagerItems}
           sizes={imageRenderProfiles.galleryJustified.sizes} labels={labels} />
       </li>)}
     </ul>

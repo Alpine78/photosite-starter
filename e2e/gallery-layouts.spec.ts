@@ -74,12 +74,26 @@ for (const fixture of cases) {
         // (fonts finished loading before boxes are measured) without depending
         // on whatever else WebKit ties that promise's settlement to.
         await page.waitForFunction(() => document.fonts.status === "loaded");
-        const passive = main.locator("#gallery [data-item-id]:not([popovertarget])");
-        expect(await passive.count(), "a genuine captionless/native-action-free occurrence is required").toBeGreaterThan(0);
-        await expect(passive.first()).toHaveJSProperty("tagName", "DIV");
-        await expect(passive.first()).not.toHaveAttribute("aria-haspopup", /.+/);
-        const itemId = await passive.first().getAttribute("data-item-id");
-        const picture = passive.first().locator("img");
+        const passiveItems = main.locator("#gallery [data-item-id]:not([popovertarget])");
+        expect(await passiveItems.count(), "a genuine captionless/native-action-free occurrence is required").toBeGreaterThan(0);
+        // An item whose photograph no other eager image repeats: the fixture
+        // repeats photographs, and two eager copies of one URL are two in-flight
+        // requests in WebKit while this test holds images, which the refetch
+        // count below would misread as the enhancement refetching (AB#383).
+        const uniqueItemId = await passiveItems.evaluateAll((items) => {
+          const images = [...document.querySelectorAll<HTMLImageElement>("#gallery [data-item-id] img")];
+          return items.find((item) => {
+            const own = item.querySelector("img");
+            return own !== null && !images.some((image) => image !== own &&
+              image.getAttribute("loading") === "eager" && image.getAttribute("src") === own.getAttribute("src"));
+          })?.getAttribute("data-item-id") ?? null;
+        });
+        expect(uniqueItemId, "a passive item whose photograph no other eager image repeats is required").not.toBeNull();
+        const passive = main.locator(`#gallery [data-item-id="${uniqueItemId}"]`);
+        await expect(passive).toHaveJSProperty("tagName", "DIV");
+        await expect(passive).not.toHaveAttribute("aria-haspopup", /.+/);
+        const itemId = await passive.getAttribute("data-item-id");
+        const picture = passive.locator("img");
         await picture.scrollIntoViewIfNeeded();
         const before = await boxes(main);
         const listBefore = await galleryItems(main).first().evaluate((item) => item.parentElement!.getBoundingClientRect().toJSON());

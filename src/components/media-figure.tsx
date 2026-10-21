@@ -7,6 +7,11 @@ type MediaFigureProps = {
   sizes: string;
   /** Set on the one image a page is expected to show above the fold. */
   preload?: boolean;
+  /**
+   * Load immediately without a preload hint: an image that is above the fold
+   * on some layouts only (AB#383). Ignored when `preload` is set.
+   */
+  eager?: boolean;
   className?: string;
 };
 
@@ -34,6 +39,7 @@ export function MediaFigure({
   image,
   sizes,
   preload = false,
+  eager = false,
   className,
 }: MediaFigureProps) {
   const { caption, credit } = image;
@@ -47,6 +53,7 @@ export function MediaFigure({
         height={image.rendition.height}
         sizes={sizes}
         preload={preload}
+        loading={!preload && eager ? "eager" : undefined}
         className={MEDIA_FIGURE_IMAGE_CLASS}
       />
       {(caption || credit) && (

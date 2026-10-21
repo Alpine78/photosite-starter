@@ -22,6 +22,8 @@ type GalleryMasonryListProps = {
   captionPlacement: GalleryCaptionPlacement;
   /** Home previews keep the grid dense while captions remain in the viewer and native popover. */
   compactCaptions?: boolean;
+  /** Leading items that load eagerly; see `GalleryGrid`'s `eagerCount`. */
+  eagerItems?: number;
   labels: BuiltInLabels;
 };
 
@@ -106,6 +108,7 @@ export function GalleryMasonryList({
   items,
   captionPlacement,
   compactCaptions = false,
+  eagerItems = 0,
   labels,
 }: GalleryMasonryListProps) {
   const [cache, setCache] = useState<{
@@ -151,6 +154,7 @@ export function GalleryMasonryList({
               index={index}
               captionPlacement={captionPlacement}
               compactCaptions={compactCaptions}
+              eager={index < eagerItems}
               boundedBelow
               sizes={imageRenderProfiles.galleryMasonry.sizes}
               labels={labels}
