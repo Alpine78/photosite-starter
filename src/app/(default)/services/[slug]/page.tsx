@@ -116,8 +116,8 @@ export default async function ServicePage({ params }: ServicePageProps) {
       </nav>
 
       <div className="mt-6 grid gap-12 lg:grid-cols-[1fr_20rem]">
-        {/* Main content */}
-        <article>
+        {/* Main content. min-w-0: a grid item otherwise grows to its longest word (AB#382). */}
+        <article className="min-w-0">
           <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
             {name}
           </h1>

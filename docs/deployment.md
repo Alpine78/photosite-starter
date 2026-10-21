@@ -1815,7 +1815,9 @@ agent disconnect or new contention flake appears. Main CI runs are batched
 (`trigger: batch: true`): merges that land during a run are built once, as the newest
 commit, after the whole current run (DeployPreview included) has finished. PR validation is
 not batched. Result over 18 four-worker runs (2026-10-20/21): Verify median ~981 s,
-end-to-end ~770 s. Whether merges were actually batched has not been checked yet.
+end-to-end ~770 s. Batching observed 2026-10-21: run 1363 built `59c2d37` (#566); the 13 merges that
+landed while it ran (#552–#563, 08:17–08:34 local) were built once, as run 1364 of the
+newest commit `fd2e619`, started as soon as 1363 finished; no intermediate commit got a run.
 
 `DeployPreview` was briefly moved to the same self-hosted agent on 2026-09-16 to avoid
 the $40/month Microsoft-hosted cost entirely, then moved back the same day once an
