@@ -2090,10 +2090,18 @@ the shell naming anything else is refused, API reads pass that `teamId`, and `ve
 Two owner-run steps, so the approval between them stays explicit:
 
 ```bash
+npm run release:production -- check   # optional, read-only: would a release start right now?
 npm run release:production -- stage
 # review the printed candidate, smoke results and receipt, then:
 npm run release:production -- promote --receipt temp/releases/<run>/03-staged.json --confirm <candidate dpl_id>
 ```
+
+`check` runs only `stage`'s read-only preflight below and prints the current routing (each
+project domain, its deployment and redirect, generated and unrelated aliases) and the rollback
+command. It takes no lock, creates no evidence directory and runs no install, build, deploy,
+curl or promote; `git fetch` is its only local change. Its result is a snapshot at the time
+checked: `stage` repeats every check, and build, deployment and candidate verification are not
+covered by it.
 
 `stage` refuses unless the checkout is a clean `main` exactly at the fetched `origin/main`
 **and** a completed, succeeded, non-scheduled main CI run exists for that exact revision (a

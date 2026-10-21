@@ -4,7 +4,12 @@ import {
   promotedRoutingProblems, releaseSourceProblems, rollbackCommand, smokePaths, smokeProblems, stageReceiptProblems,
   type Alias,
 } from "./production-release.mts";
-import { promote, stage, ReleaseStop, type Io } from "./release-production.mts";
+import { check, promote, stage, ReleaseStop, type Io } from "./release-production.mts";
+import { spawnSync } from "node:child_process";
+import { existsSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const SHA = "a".repeat(40), OTHER = "b".repeat(40);
 const PREV = "dpl_previous1", CAND = "dpl_candidate1", PREVIEW = "dpl_preview1";
@@ -327,5 +332,59 @@ describe("stage and promote sequence", () => {
     run.io.run("vercel", ["deploy"]);
     await expect(promote(run.io, receipt, CAND)).rejects.toThrow(/not verified[\s\S]*vercel rollback https:\/\/prev.vercel.app/);
     expect(run.evidence.has("05-failed.json")).toBe(true);
+  });
+});
+
+describe("check (read-only preflight)", () => {
+  const allowed = (call: string) => /^(git -C \/repo (fetch|rev-parse|status)|az pipelines runs list|vercel api )/.test(call);
+  function sealed(io: Io): Io {
+    const fail = (): never => { throw new Error("check performed a forbidden action"); };
+    return { ...io, evidence: async () => fail(), removeBuildOutput: fail, publicStatus: async () => fail() };
+  }
+  it("reports the current routing and rollback target using only read commands", async () => {
+    const { io, calls, log } = fakeIo();
+    await check(sealed(io));
+    expect(calls.every(allowed)).toBe(true);
+    const out = log.join("\n");
+    expect(out).toContain(`Preflight passed at the time checked for ${SHA}`);
+    expect(out).toContain("domain example.com → dpl_previous1 (redirects to www.example.com)");
+    expect(out).toContain("unrelated alias site-preview.vercel.app");
+    expect(out).toContain(`npx vercel rollback https://prev.vercel.app --scope ${TEAM}`);
+  });
+  it("refuses exactly like stage before anything is changed", async () => {
+    const dirty = fakeIo(); const inner = dirty.io.run;
+    dirty.io.run = (command, args, options) => command === "git" && args[2] === "status" ? { status: 0, stdout: " M x\n" } : inner(command, args, options);
+    await expect(check(sealed(dirty.io))).rejects.toThrow(/working tree has tracked or untracked changes/);
+    await expect(check(sealed(fakeIo({ ci: false }).io))).rejects.toThrow(/No completed, succeeded main CI run/);
+    await expect(check(sealed(fakeIo({ env: { VERCEL_PROJECT_ID: "prj_other1" } }).io))).rejects.toThrow(/different project/);
+    await expect(check(sealed(fakeIo({ domainsNext: 3 }).io))).rejects.toThrow(/inventory is incomplete/);
+    const split = fakeIo(); const splitRun = split.io.run;
+    split.io.run = (command, args, options) => args[0] === "api" && args[1].startsWith("/v4/aliases")
+      ? { status: 0, stdout: JSON.stringify({ aliases: inventory(PREV).map(a => a.alias === "site.vercel.app" ? { ...a, deploymentId: "dpl_other1" } : a), pagination: { next: null } }) }
+      : splitRun(command, args, options);
+    await expect(check(sealed(split.io))).rejects.toThrow(/not a single consistent baseline/);
+  });
+  it("still records the rollback target before stage's first change", async () => {
+    const { io, calls } = fakeIo();
+    const order: string[] = [];
+    const tracked: Io = { ...io, evidence: async (name, value) => { order.push(`evidence ${name}`); await io.evidence(name, value); },
+      run: (command, args, options) => { if (command === "npm") order.push("npm"); return io.run(command, args, options); } };
+    await stage(tracked);
+    expect(order.indexOf("evidence 01-prepared.json")).toBeLessThan(order.indexOf("npm"));
+    expect(calls.some(c => c.startsWith("npm ci"))).toBe(true);
+  });
+  it("leaves nothing on disk from the command line, valid or not", () => {
+    const script = fileURLToPath(new URL("./release-production.mts", import.meta.url));
+    const root = realpathSync(mkdtempSync(path.join(tmpdir(), "release check ")));
+    try {
+      const env = { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1" };
+      spawnSync("git", ["init", "--quiet", root], { env });
+      for (const args of [["check"], ["check", "extra"], ["nonsense"]]) {
+        const result = spawnSync(process.execPath, [script, ...args], { cwd: root, encoding: "utf8", env });
+        expect(result.status).toBe(1);
+        expect(existsSync(path.join(root, "temp"))).toBe(false);
+      }
+      expect(spawnSync(process.execPath, [script, "check", "extra"], { cwd: root, encoding: "utf8", env }).stderr).toContain("Usage:");
+    } finally { rmSync(root, { recursive: true, force: true }); }
   });
 });

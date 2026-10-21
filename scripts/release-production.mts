@@ -99,7 +99,12 @@ function smoke(io: Io, url: string, paths: readonly string[]) {
   });
 }
 
-export async function stage(io: Io): Promise<StageReceipt> {
+/**
+ * Every read-only gate `stage` applies before it changes anything: the project
+ * link, a clean exact origin/main, a passed main CI run, and a complete,
+ * consistent Production routing baseline. `git fetch` is its only local write.
+ */
+export async function preflight(io: Io) {
   const { projectId, teamId } = readProject(io);
   git(io, ["fetch", "origin"]);
   const head = git(io, ["rev-parse", "HEAD"]);
@@ -118,6 +123,29 @@ export async function stage(io: Io): Promise<StageReceipt> {
   if (baselineProblems.length) stop(`Production routing is not a single consistent baseline:\n  - ${baselineProblems.join("\n  - ")}`);
   const previousRecord = deployment(io, previousId);
   const previous: Deployment = { id: previousId, url: previousRecord.url as string };
+  return { projectId, teamId, head, baseline, previous };
+}
+
+/**
+ * `npm run release:production -- check`: the preflight alone, as a snapshot.
+ * No evidence, lock, install, build, deploy, curl or promote; `stage` repeats
+ * every check, and build, deployment and candidate verification stay untested.
+ */
+export async function check(io: Io): Promise<void> {
+  const { head, baseline, previous, teamId } = await preflight(io);
+  io.log([
+    `Preflight passed at the time checked for ${head} (clean exact origin/main, main CI passed).`,
+    `Production deployment: ${previous.id} (https://${previous.url})`,
+    ...baseline.domains.map(d => `  domain ${d.alias} → ${d.deploymentId}${d.redirect ? ` (redirects to ${d.redirect})` : ""}`),
+    ...baseline.generated.map(a => `  generated alias ${a} → ${previous.id}`),
+    ...baseline.unrelated.map(a => `  unrelated alias ${a.alias} → ${a.deploymentId ?? "nothing"} (must stay unchanged)`),
+    `Rollback target if a release goes wrong: ${rollbackCommand(previous, teamId)}`,
+    "Stage repeats all of this; build, deployment and candidate checks are not covered by check.",
+  ].join("\n"));
+}
+
+export async function stage(io: Io): Promise<StageReceipt> {
+  const { projectId, teamId, head, baseline, previous } = await preflight(io);
   await io.evidence("01-prepared.json", { version: RECEIPT_VERSION, state: "prepared", sourceSha: head, projectId, teamId, previous, baseline, rollback: rollbackCommand(previous, teamId) });
   io.log(`Source ${head.slice(0, 12)} (CI passed). Rollback target recorded: ${previous.id}.`);
 
@@ -233,9 +261,21 @@ function realIo(root: string, folder: string): Io {
   };
 }
 
+const USAGE = "Usage: npm run release:production -- check | stage | promote --receipt <03-staged.json> --confirm <dpl_id>";
+
 async function main(argv: string[]) {
   const [mode, ...rest] = argv;
+  // Usage is settled before anything is created on disk.
+  const valid = ((mode === "check" || mode === "stage") && rest.length === 0) ||
+    (mode === "promote" && rest.length === 4 && rest[0] === "--receipt" && rest[2] === "--confirm");
+  if (!valid) stop(USAGE);
   const root = execFileSync("git", ["rev-parse", "--show-toplevel"], { encoding: "utf8" }).trim();
+  if (mode === "check") {
+    // Read-only: no lock, no evidence directory, nothing left behind.
+    const noWrite = (): never => { throw new ReleaseStop("check must not write evidence, remove build output or probe public URLs"); };
+    await check({ ...realIo(root, ""), evidence: async () => noWrite(), removeBuildOutput: noWrite, publicStatus: async () => noWrite() });
+    return;
+  }
   const releases = path.join(root, "temp", "releases");
   mkdirSync(releases, { recursive: true, mode: 0o700 });
   const lock = path.join(releases, ".lock");
@@ -245,11 +285,9 @@ async function main(argv: string[]) {
     if (mode === "stage" && rest.length === 0) {
       const receipt = await stage(realIo(root, folder));
       console.log(`\nStaged ${receipt.candidate.id} (https://${receipt.candidate.url}); production unchanged.\nPromote after review:\n  npm run release:production -- promote --receipt ${path.join(folder, "03-staged.json")} --confirm ${receipt.candidate.id}`);
-    } else if (mode === "promote" && rest.length === 4 && rest[0] === "--receipt" && rest[2] === "--confirm") {
+    } else {
       const bytes = await readPrivateBytes(path.resolve(rest[1]), 4 * 1024 * 1024);
       await promote(realIo(root, folder), JSON.parse(bytes.toString("utf8")), rest[3]);
-    } else {
-      stop("Usage: npm run release:production -- stage | promote --receipt <03-staged.json> --confirm <dpl_id>");
     }
   } finally { rmSync(lock, { recursive: true, force: true }); }
 }
