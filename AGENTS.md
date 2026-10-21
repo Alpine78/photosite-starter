@@ -404,9 +404,9 @@ separate choices: start from `origin/main`, but track `origin/<the work branch n
    across `/tmp`, arbitrary folders, or folders named after a different work item.
    Run edits, checks, and Git commands in the selected worktree, not in the primary
    checkout. Do not move or remove an existing worktree merely to normalize its path.
-7. **Keep worktrees visible in the existing VS Code window.** The tracked
-   `.vscode/settings.json` enables `git.detectWorktrees` and
-   `scm.alwaysShowRepositories`; preserve these settings. Native worktree detection
+7. **Keep worktrees visible in the existing VS Code window.** The primary checkout's
+   local `.vscode/settings.json` (gitignored, so a clone sets it up itself) enables
+   `git.detectWorktrees` and `scm.alwaysShowRepositories`; preserve these settings. Native worktree detection
    reads Git's registered worktrees, so visibility must not depend on opening a file
    in a worktree or on scanning nested folders. Check that `git.detectWorktreesLimit`
    accommodates the registered worktrees. If detection was enabled in an already
