@@ -2,6 +2,17 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Lightbox reopen race and CI trace download, 2026-10-21 — AB#377 **Active**: the
+remaining mobile WebKit "selected source, append, viewer…" failure (CI run 1372) is
+explained by its trace: after Escape the previous PhotoSwipe viewer was still closing
+and in the DOM, so the shared `openLightbox` helper saw "a dialog exists", never ran the
+next activation, and waited out its focus check on the closing viewer. The helper now
+waits for no dialog before opening. All 24 specs that use it pass on every project
+(613 passed). `docs/deployment.md` records how to download a run's Playwright report
+through the REST API's signed URL, since `az pipelines runs artifact download` needs
+an interactive sign-in. Still open: the WebKit `content-reading-address` Back/Forward
+case, now inspectable with the same download once it recurs.
+
 Earlier automatic gallery continuation after scrolling, 2026-10-21 — AB#386
 **Active**: owner decision after the afternoon Production checks, where a realistic
 ~1000 px/s read of a desktop justified gallery measured 0.12 CLS from appends that

@@ -13,6 +13,12 @@ import { expect, type Locator } from "@playwright/test";
  * - **Escape is only heard inside the dialog.** The activation has to end with
  *   focus in the viewer, or a keypress goes to whatever the page left focused.
  *
+ * - **A previous viewer can still be closing.** Escape starts PhotoSwipe's close
+ *   animation; until it ends the old dialog is still in the DOM, so "a dialog
+ *   exists" was true without the new activation ever running, and the focus wait
+ *   then timed out on the closing viewer (AB#377, mobile WebKit trace in CI run
+ *   1372). Each open therefore starts from no dialog at all.
+ *
  * So the action is retried until the dialog exists, and then focus is waited for
  * rather than assumed.
  */
@@ -20,6 +26,7 @@ export async function openLightbox(
   dialog: Locator,
   act: () => Promise<void>,
 ): Promise<void> {
+  await expect(dialog, "a previous viewer must finish closing first").toHaveCount(0, { timeout: 10_000 });
   await expect
     .poll(
       async () => {
