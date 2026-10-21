@@ -16,9 +16,14 @@ carry the chapter `currentReadingChapter` computes for the settled geometry.
 `image-comparison` measured the image and slider boxes in two calls that straddled
 a 54 px page movement; it now waits for the image to load and measures both in one
 frame. Repeats: 48/48 and 72/72 across the affected projects.
-Still open from the same runs, not yet reproduced in isolation: the WebKit
-`content-reading-address` history cases (the same tracker-publication class) and a
-JavaScript-free masonry column count of 1 at 944 px. Timeouts and an aborted
+`content-reading-address` "a reading fragment composes with an App Router section
+change…" (desktop WebKit, 1/8 in isolation) turned the wheel right after `load`,
+before hydration on the gallery page, so the observer never saw it and the hash
+stayed empty; its helper now repeats placement plus one real wheel until the
+observer answers (280/280 across three projects, 8×).
+Still open from the same runs, not reproduced in isolation: the WebKit
+`content-reading-address` Back/Forward case and a JavaScript-free masonry column
+count of 1 at 944 px. Timeouts and an aborted
 `goBack` in the second run coincided with other local builds on the same machine
 and are not counted as evidence of a race. AB#377 stays Active.
 
