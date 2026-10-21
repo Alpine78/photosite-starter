@@ -1,6 +1,6 @@
 /** AB#250: offline byte verification. Never transforms media or writes to a provider. */
 import { createHash, randomBytes } from "node:crypto";
-import { constants } from "node:fs";
+import { constants, type Stats } from "node:fs";
 import { link, lstat, mkdir, open, realpath, unlink } from "node:fs/promises";
 import path from "node:path";
 import { execFile } from "node:child_process";
@@ -83,7 +83,7 @@ async function checkedFile(file: string, maxBytes: number) {
   }
   return { fd, before };
 }
-async function unchanged(fd: Awaited<ReturnType<typeof open>>, before: Awaited<ReturnType<typeof fd.stat>>) {
+async function unchanged(fd: Awaited<ReturnType<typeof open>>, before: Stats) {
   const after = await fd.stat();
   if (after.size !== before.size || after.mtimeMs !== before.mtimeMs || after.ctimeMs !== before.ctimeMs ||
     after.ino !== before.ino || after.dev !== before.dev) refuse("SOURCE_CHANGED_DURING_READ");
