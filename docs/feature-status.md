@@ -3,8 +3,8 @@
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
 E2E flake root causes, 2026-10-21 — AB#377 **Active**: two full local suites
-(CI settings, 4 workers, no retries) produced traces for two test races, both
-fixed in the specs without application changes.
+(CI settings, 4 workers, no retries) and isolated repeats produced traces for four
+test races, all fixed in the specs without application changes.
 `article-end-sections` "keyboard filters…" read the reading hash before focusing
 the filter; focusing scrolls the filter into view, and the reading-address tracker
 publishes the new chapter up to 500 ms later (`-1` read, `-5` after the filter
