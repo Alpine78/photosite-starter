@@ -162,12 +162,16 @@ for (const f of fixtures) {
         };
       }, headingIds);
       const chapter = currentReadingChapter(geometry.headings, geometry.body);
-      return chapter.kind === "heading" ? `#${encodeURIComponent(chapter.id)}` : null;
+      // "outside": the narrative is above the viewport (the filter sits far
+      // below it on a phone), and the tracker deliberately keeps the address.
+      return chapter.kind === "heading" ? `#${encodeURIComponent(chapter.id)}`
+        : chapter.kind === "outside" ? "keep" : null;
     };
     const addressSettled = async () => {
       const expected = await settledChapterHash();
-      return expected !== null && new URL(page.url()).hash === expected &&
-        ((await target.getAttribute("href")) ?? "").endsWith(expected);
+      const hash = new URL(page.url()).hash;
+      if (expected === null || hash === "" || (expected !== "keep" && hash !== expected)) return false;
+      return ((await target.getAttribute("href")) ?? "").endsWith(hash);
     };
     // Two races, both seen in AB#377 traces. WebKit animates the ArrowDown
     // scroll, and a focus during that animation was scrolled back by it,

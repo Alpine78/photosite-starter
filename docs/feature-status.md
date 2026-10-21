@@ -12,7 +12,7 @@ change). WebKit also animates the preceding ArrowDown scroll, and a focus during
 that animation was scrolled back, leaving the filter off-screen. The test now
 waits for the tracker to publish the arrow scroll's chapter, focuses, asserts the
 filter is in the viewport, and snapshots only once the URL and the filter link
-carry the chapter `currentReadingChapter` computes for the settled geometry.
+carry the chapter `currentReadingChapter` computes for the settled geometry (on a phone the filter sits below the narrative, the rule reports "outside" and the tracker keeps the address, which the test accepts; CI run 1397 failed on mobile WebKit before that).
 `image-comparison` measured the image and slider boxes in two calls that straddled
 a 54 px page movement; it now waits for the image to load and measures both in one
 frame. Repeats: 48/48 and 72/72 across the affected projects.
