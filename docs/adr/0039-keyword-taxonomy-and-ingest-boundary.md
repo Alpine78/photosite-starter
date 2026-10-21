@@ -60,7 +60,7 @@ A **`keyword`** document has:
 | `parent` | Optional single reference to another `keyword`. At most one parent. |
 | `aliases` | Strings that also resolve to this keyword (spellings, former names, Lightroom synonyms). |
 | `description` | Optional localized text. |
-| `visibility` | `public` or `internal` (decision 7). |
+| `visibility` | `public` or `internal` (decision 7); fixed by where the document is stored, not a toggle. |
 | `status` | `active`, `merged` (with `mergedInto` reference) or `retired`. |
 
 The 40-character bound gives five ids plus four commas = 204 characters, leaving 52 for
@@ -73,15 +73,24 @@ bound cannot erode silently.
 Lightroom keywords are **imported audit data**. The site's **effective keywords** are
 references to `keyword` documents on the medium, and they alone feed public queries.
 
-On each medium:
+On each **public medium**:
 
-- `importedKeywords` — Studio-only record of the last import: raw terms, hierarchical
-  paths when available, source and time. Never projected publicly.
-- `keywords` — the effective set: references to active `keyword` documents.
+- `keywords` — the effective public set: references to active **public** `keyword`
+  documents only.
+- `expandedKeywordIds` — derived (decision 3).
+
+In one **private keyword record** per medium (decision 7's private ID path, for example
+`keywordRecord.<mediaId>`):
+
+- `importedKeywords` — the last import: raw terms, hierarchical paths when available,
+  source and time.
 - `keywordOverrides` — editor decisions that a re-import must respect: `added`
   (keywords an editor added that no import term maps to) and `removed` (tombstones: a
   mapped term the editor rejected for this medium).
-- `expandedKeywordIds` — derived (decision 3).
+- `internalKeywords` — the effective internal set: references to `internal` keywords.
+
+Raw import terms can contain anything a photographer typed in Lightroom, including a
+client's name, so they never live on the public medium.
 
 **Re-import is deterministic.** For the new import, map every raw term to a keyword
 (decision 5). Then
@@ -90,16 +99,17 @@ On each medium:
 effective = (mapped(newImport) − overrides.removed) ∪ overrides.added
 ```
 
-restricted to active keywords. A term removed in Lightroom disappears from the effective
-set on the next import unless an editor added it explicitly; an editor's rejection
+restricted to active keywords, then split by visibility into the medium's `keywords` and
+the private record's `internalKeywords`. A term removed in Lightroom disappears from the
+effective set on the next import unless an editor added it explicitly; an editor's rejection
 survives every re-import until the editor clears it. Unmatched or ambiguous terms go to
 the review queue (AB#70), never to a guessed keyword. Running the same import twice
 produces the same document.
 
 ### 3. Ancestor closure is materialized on the medium (strategy B)
 
-`expandedKeywordIds` holds the `keywordId` of every effective keyword and every
-ancestor. It is derived from `keywords` and the authored `parent` edges on every write
+`expandedKeywordIds` holds the `keywordId` of every effective public keyword and every
+ancestor (a public keyword's parent must itself be public). It is derived from `keywords` and the authored `parent` edges on every write
 that touches either, read-only in Studio, and never authored. Public matching (ADR-0012
 §4) reads only this field, so selecting a parent matches its descendants in one indexed
 array test.
@@ -122,8 +132,11 @@ administrator-initiated events, while reads happen on every visitor request.
   of a title or alias is unique **within its category** among active keywords; the same
   name in two categories (a car make and a team) is allowed, and an import term that
   matches both is ambiguous and goes to review.
-- **Rename** changes `title` or adds an alias; `keywordId` and references stay, so every
-  page shows the new name without touching media documents.
+- **Rename** changes `title`; `keywordId` and references stay, so every page shows the
+  new name without touching media documents. The former title's match key is kept as an
+  alias automatically, so the next identical Lightroom import still maps to the same
+  keyword instead of dropping it to review. Removing that alias is a separate, deliberate
+  editor action.
 - **Merge** sets the source to `merged` with `mergedInto`. Its `keywordId` and aliases
   then resolve to the target, so an old URL redirects once to the canonical selection
   (ADR-0012 §8); the re-sync re-points media references. The source document is kept as
@@ -164,9 +177,23 @@ then without merging the vocabularies.
 
 ### 7. Privacy boundary
 
+- **Projection is not access control.** The reference deployment's Sanity dataset is
+  publicly readable, so anything stored in an ordinary document is anonymously
+  queryable whether or not the application projects it. Sensitive keyword data is
+  therefore stored only in documents whose `_id` lies on a private ID path (it contains
+  a `.`), which Sanity never returns to unauthenticated requests — the same mechanism
+  [ADR-0038](0038-proof-selection-in-existing-sanity.md) proposes for proof selection.
+  That covers every `internal` keyword (for example `keyword.<keywordId>`) and every
+  medium's private keyword record (decision 2). A public document never references a
+  private one: even the reference id could reveal a name.
 - Only `public`, `active` keywords appear in public payloads, URLs, counts, search
   indexes and sitemaps. `internal` keywords serve editors (for example a client's name
-  on a delivery shoot) and are never projected.
+  on a delivery shoot).
+- **Making an internal keyword public** creates a new public `keyword` document with the
+  same `keywordId`, moves its assignments from the private records to the media's
+  `keywords`, and deletes the private document; the reverse removes it from public media
+  first. A clone whose dataset is private may keep the same model; the path rule costs
+  it nothing.
 - Media that is `privateOnly`, belongs to a client delivery gallery, or is not
   `publiclyRenderable` and `dynamicallyDiscoverable` never contributes to a public
   result, count or keyword annotation, whatever keywords it carries (ADR-0012 §2).
@@ -220,6 +247,9 @@ overwritten by the next export.
    start `public` (owner).
 5. Whether 6 levels is the right depth bound for the owner's Lightroom hierarchy (owner,
    with AB#54's export).
+6. Studio access to private-path documents: the import and review tooling (AB#57/70)
+   must read and write them with an authenticated token; whether the hosted Studio's
+   default document lists show them needs checking before AB#56 (implementation).
 
 ## Action Items
 
