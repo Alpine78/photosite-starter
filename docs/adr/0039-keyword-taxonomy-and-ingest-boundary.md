@@ -141,7 +141,9 @@ administrator-initiated events, while reads happen on every visitor request.
   alias automatically, so the next identical Lightroom import still maps to the same
   keyword instead of dropping it to review. Removing that alias is a separate, deliberate
   editor action.
-- **Merge** sets the source to `merged` with `mergedInto`. Its `keywordId` and aliases
+- **Merge** sets the source to `merged` with `mergedInto`. The target must be an active
+  keyword other than the source; merged keywords are never active, and cyclic chains
+  are rejected. The source's `keywordId` and aliases
   then resolve to the target, so an old URL redirects once to the canonical selection
   (ADR-0012 §8); the re-sync re-points media references. The source document is kept as
   the redirect record, not deleted. The re-sync also canonicalizes and deduplicates both
@@ -199,10 +201,12 @@ then without merging the vocabularies.
   on a delivery shoot).
 - **Making an internal keyword public** creates a new public `keyword` document with the
   same `keywordId`, moves its assignments from the private records to the media's
-  `keywords`, and deletes the private document; the reverse is rejected while public
-  children or incoming `mergedInto` references remain. Otherwise it moves assignments to
+  `keywords`, and deletes the private document; the reverse moves assignments to
   private records, removes them from public media, and completes decision 3's re-sync
-  with a `taxonomyVersion` bump before deleting the public document. A clone whose
+  with a `taxonomyVersion` bump before deleting the public document. Either visibility
+  transition is rejected while any other keyword document references the keyword as
+  `parent` or `mergedInto`, whatever its visibility; editors re-parent or move those
+  first. A clone whose
   dataset is private may keep the same model; the path rule costs
   it nothing.
 - Media that is `privateOnly`, belongs to a client delivery gallery, or is not
