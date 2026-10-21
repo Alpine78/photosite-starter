@@ -54,8 +54,11 @@ static-generation and tagged-caching architecture ADR-0004 and AB#83 already com
 
 **What has changed since the decision:** public HTML is already served
 `private, no-store` and rendered per request, because the routes read `searchParams`
-(recorded in the [headers audit](ab117-production-headers-2026-10-21.md)); only
-`/services/[slug]` is prerendered. The data cache that AB#83 relies on is independent of
+(recorded in the [headers audit](ab117-production-headers-2026-10-21.md)). A production
+build's `.next/prerender-manifest.json` (mock content, 2026-10-21) lists only
+`/services/[slug]` (through `generateStaticParams`) besides `robots.txt` and the error
+pages; even those service pages reach visitors as `private, no-store` (checked on
+`/palvelut/haakuvaus`). The data cache that AB#83 relies on is independent of
 whether the page shell renders per request. So the main cost the decision named — losing
 static generation — is no longer a real trade-off for most pages.
 
