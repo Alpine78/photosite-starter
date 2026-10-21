@@ -81,6 +81,19 @@ function continuesAutomatically(mode: GalleryContinuation, pages: number): boole
  */
 export const STALE_RECOVERY_TIMEOUT_MS = 8000;
 
+/**
+ * How far below the visible area (in viewports) the sentinel after the list may
+ * be for automatic continuation to request the next page. A page that is only
+ * opened keeps the original single viewport, so it fetches nothing earlier than
+ * before. Once the document has scrolled (any scroll: reading, a fragment or a
+ * restored position), two viewports: the next page then normally lands before a
+ * justified gallery's open last row, which may still gain photographs, is in
+ * view, so the append does not visibly shift it (AB#386: 0.12 CLS measured on a
+ * desktop gallery read at about 1000 px/s).
+ */
+export const AUTOMATIC_CONTINUATION_VIEWPORTS_AT_REST = 1;
+export const AUTOMATIC_CONTINUATION_VIEWPORTS_AFTER_SCROLL = 2;
+
 /** What a continuation attempt did, which decides where focus belongs after it. */
 type ContinuationOutcome = {
   readonly appended: boolean;
@@ -114,7 +127,8 @@ type ContinuationOutcome = {
  *
  * The authored continuation mode (AB#374) decides what script does with that
  * link. `button` waits for it. `endless` hides it and appends the next bounded
- * page whenever a sentinel after the list comes within one viewport of view (or
+ * page whenever a sentinel after the list comes within one viewport of view
+ * (two once the document has scrolled, AB#386) (or
  * has been scrolled past), until
  * the gallery is complete; `automatic-then-button` does the same until
  * `AUTOMATIC_CONTINUATION_PAGE_LIMIT` pages are shown and then reveals the
@@ -159,6 +173,15 @@ export function GalleryGrid({
   const [loadedPages, setLoadedPages] = useState(1);
   const pagesRef = useRef(1);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  // Recorded independently of whether automatic loading is currently eligible,
+  // so a first scroll during an in-flight request still counts (AB#386).
+  const scrolledRef = useRef(false);
+  useEffect(() => {
+    if (window.scrollY > 0) scrolledRef.current = true;
+    const scrolled = () => { scrolledRef.current = true; };
+    window.addEventListener("scroll", scrolled, { passive: true, once: true });
+    return () => window.removeEventListener("scroll", scrolled);
+  }, []);
   // Automatic loading is an enhancement: before hydration the real link is
   // the only way on.
   const hydrated = useSyncExternalStore(subscribeNothing, () => true, () => false);
@@ -468,7 +491,8 @@ export function GalleryGrid({
     continuesAutomatically(continuation, loadedPages);
 
   // One check per settled slice and per scroll frame: within one viewport
-  // below the visible area, or already scrolled past (a fling to the footer
+  // below the visible area (two once the document has scrolled, see
+  // AUTOMATIC_CONTINUATION_VIEWPORTS_*), or already scrolled past (a fling to the footer
   // jumps over a small sentinel without ever intersecting it). Re-running after
   // each append keeps a short page whose end is still in view loading without
   // another scroll. A failure, the limit or the end removes the sentinel and
@@ -484,7 +508,9 @@ export function GalleryGrid({
       if (isStaleRef.current || inFlightRef.current || failedRef.current ||
           sliceRef.current.nextCursor === null ||
           !continuesAutomatically(continuationRef.current, pagesRef.current)) return;
-      if (sentinel.getBoundingClientRect().top <= window.innerHeight * 2) void loadNext("automatic");
+      const viewportsBelow = scrolledRef.current
+        ? AUTOMATIC_CONTINUATION_VIEWPORTS_AFTER_SCROLL : AUTOMATIC_CONTINUATION_VIEWPORTS_AT_REST;
+      if (sentinel.getBoundingClientRect().top <= window.innerHeight * (1 + viewportsBelow)) void loadNext("automatic");
     };
     const schedule = () => { if (frame === undefined) frame = requestAnimationFrame(check); };
     schedule();

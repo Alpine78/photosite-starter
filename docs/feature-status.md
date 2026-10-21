@@ -2,6 +2,19 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Earlier automatic gallery continuation after scrolling, 2026-10-21 — AB#386
+**Active**: owner decision after the afternoon Production checks, where a realistic
+~1000 px/s read of a desktop justified gallery measured 0.12 CLS from appends that
+re-flowed the open last row while in view. Automatic continuation keeps its one
+viewport lookahead for a page that is only opened, and uses two viewports once the
+document has scrolled (any scroll, recorded independently of loading state). Single
+flight, the page limit, failure/retry and focus are unchanged.
+`e2e/gallery-continuation-lookahead.spec.ts` sets the viewport from the measured
+sentinel position and proves both distances, including no request in the 2–3
+viewport band without scrolling and none beyond three after scrolling; it fails
+against the previous rule. The CLS reduction itself is expected, not yet remeasured
+on Production (manual deploys).
+
 Bounded curated gallery image sizes, 2026-10-21 — AB#385 **Active**: owner
 decision after a Production measurement (three 24-image pages: 3.4–3.9 MB of
 gallery images at 1280@1x, 4.7–5.6 MB at 1440@2x, because every thumbnail
