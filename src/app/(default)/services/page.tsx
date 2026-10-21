@@ -52,9 +52,10 @@ export default async function ServicesPage({ searchParams }: ServicesPageProps) 
         {/* 1 / 2 / 3 columns. items-start lets each card keep its natural height
             (covers vary by native ratio; image-less cards don't stretch to match). */}
         <ul className="mt-12 grid items-start gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {services.filter((service) => service.hideFromListing !== true).map((service) => (
+          {services.filter((service) => service.hideFromListing !== true).map((service, index) => (
             <li key={service.slug}>
-              <ServiceCard service={service} href={`/services/${service.slug}`} />
+              {/* AB#383: the first row of this three-column listing. */}
+              <ServiceCard service={service} href={`/services/${service.slug}`} eager={index < 3} />
             </li>
           ))}
         </ul>

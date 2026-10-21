@@ -16,6 +16,8 @@ type ServiceCardProps = {
   compact?: boolean;
   /** The cover's responsive `sizes`, when the card sits in a narrower layout than the listing. */
   imageSizes?: string;
+  /** The cover is one of the listing's first, above-the-fold images (AB#383). */
+  eager?: boolean;
 };
 
 /**
@@ -34,6 +36,7 @@ export function ServiceCard({
   headingLevel = 2,
   compact = false,
   imageSizes = imageRenderProfiles.serviceGrid.sizes,
+  eager = false,
 }: ServiceCardProps) {
   const { name, shortDescription, coverMedia, startingPrice } = service;
   const Heading = headingLevel === 2 ? "h2" : "h3";
@@ -50,6 +53,7 @@ export function ServiceCard({
           width={coverMedia.rendition.width}
           height={coverMedia.rendition.height}
           sizes={imageSizes}
+          loading={eager ? "eager" : undefined}
           className="h-auto w-full rounded-sm bg-surface-muted"
         />
       )}

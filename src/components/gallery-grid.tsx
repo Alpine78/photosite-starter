@@ -42,6 +42,12 @@ type GalleryGridProps = {
   presentation: GalleryPresentation;
   labels: BuiltInLabels;
   continuationKind?: "curated-gallery" | "article-end-gallery";
+  /**
+   * How many leading images load eagerly, for a grid that is the first thing
+   * its page shows (AB#383). Capped at the initial slice, so an appended
+   * continuation item is always lazy. Defaults to none.
+   */
+  eagerCount?: number;
   activeSection?: string;
   /** Article controls own the single persistent live region across grid resets. */
   onResultChange?: (result: GalleryGridResult) => void;
@@ -131,11 +137,13 @@ export function GalleryGrid({
   galleryPath,
   activeSection,
   continuationKind = "curated-gallery",
+  eagerCount = 0,
   onResultChange,
   presentation,
   labels,
 }: GalleryGridProps) {
   const [slice, setSlice] = useState(initialSlice);
+  const eagerItems = Math.min(eagerCount, initialSlice.items.length);
   const [state, setState] = useState<ContinuationState>("idle");
   // A fresh request also repeats focus on the same target without a second
   // render just to clear it after the effect has moved focus.
@@ -515,11 +523,12 @@ export function GalleryGrid({
           label={label}
           items={slice.items}
           captionPlacement={presentation.captionPlacement}
+          eagerItems={eagerItems}
           labels={labels}
         />
       ) : presentation.layout === "justified" ? (
         <GalleryJustifiedList label={label} items={slice.items}
-          captionPlacement={presentation.captionPlacement} labels={labels} />
+          captionPlacement={presentation.captionPlacement} eagerItems={eagerItems} labels={labels} />
       ) : (
         <ul
           aria-label={label}
@@ -528,7 +537,7 @@ export function GalleryGrid({
           {slice.items.map((item, index) => (
             <li key={item.itemId}>
               <GalleryFigure item={item} index={index} captionPlacement={presentation.captionPlacement}
-                sizes={imageRenderProfiles.galleryGrid.sizes} labels={labels} />
+                eager={index < eagerItems} sizes={imageRenderProfiles.galleryGrid.sizes} labels={labels} />
             </li>
           ))}
         </ul>

@@ -10,13 +10,15 @@ import type { GallerySlice } from "@/lib/gallery-slice";
 import "@/components/gallery-figure.css";
 
 /** Two-line resting captions are optional; full text remains in the figcaption. */
-export function GalleryFigure({ item, index, captionPlacement, boundedBelow = false, compactCaptions = false, sizes, labels }: {
+export function GalleryFigure({ item, index, captionPlacement, boundedBelow = false, compactCaptions = false, eager = false, sizes, labels }: {
   item: GallerySlice["items"][number];
   index: number;
   captionPlacement: GalleryCaptionPlacement;
   boundedBelow?: boolean;
   /** Visually quiet home preview; full captions stay in the native popover and lightbox. */
   compactCaptions?: boolean;
+  /** One of the first images a gallery page shows above the fold (AB#383). */
+  eager?: boolean;
   sizes: string;
   labels: BuiltInLabels;
 }) {
@@ -36,7 +38,7 @@ export function GalleryFigure({ item, index, captionPlacement, boundedBelow = fa
         <Image src={media.rendition.src} alt={media.alt}
           width={media.rendition.width} height={media.rendition.height}
           style={{ aspectRatio: `${media.rendition.width} / ${media.rendition.height}` }}
-          loading="lazy" sizes={sizes} className="h-auto w-full" />
+          loading={eager ? "eager" : "lazy"} sizes={sizes} className="h-auto w-full" />
       </GalleryLightboxTrigger>
       {media.caption && bounded && below && <div className="gallery-caption-slot" aria-hidden="true" />}
       {media.caption && <figcaption className={compactCaptions ? "sr-only" : bounded

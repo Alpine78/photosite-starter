@@ -25,6 +25,8 @@ export function HomePhotographerIntroduction({
     >
       <MediaFigure
         image={introduction.portrait}
+        // AB#383: the largest image of the first mobile screen.
+        eager
         sizes="(min-width: 1152px) 320px, (min-width: 768px) 320px, (min-width: 416px) 384px, calc(100vw - 32px)"
         className="w-full max-w-sm md:min-w-0 md:max-w-[320px] md:basis-[320px] md:shrink-0"
       />
