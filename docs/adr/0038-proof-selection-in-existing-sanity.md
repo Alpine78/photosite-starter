@@ -128,7 +128,9 @@ starts before that.
      version) and patch the working selection to `confirmed` under `ifRevisionID`. The
      version stores the confirmation time, the terms snapshot, the counts and extra
      total, and for each selected proof its reference, complete filename and stable
-     item identity. Versions are never patched.
+     item identity. Versions are never patched. The same transaction also creates the
+     version's notification record in state `pending` (Decision 6), so a confirmation
+     can never exist without a visible notification obligation.
    - **Reopen** is administrator-only (a Studio document action on the working
      selection, run with the editor's own Studio session): it sets the state back to
      `open` and keeps every version. Customers cannot reopen.
@@ -138,15 +140,22 @@ starts before that.
      uniform refusals that do not reveal whether a handle or key exists.
 
 6. **The notification follows the record, never replaces it.**
-   After a successful confirmation the route sends one photographer email through the
-   existing mail adapter: gallery and job reference, version, confirmation time,
-   included / selected / extra counts, unit price, currency, extra total, and each
-   selected proof's reference and filename. Its outcome (`sent` / `failed`, attempt
-   time) is written to a private `proofNotice.<galleryId>.v<n>` document that Studio
-   shows. A failed or lost email never undoes the confirmation. Resend is an
-   administrator action that sends the same content again without creating a version
-   (its authenticated path is Open question 2). Logs carry only correlation IDs and
-   closed outcome classes, never filenames, references, keys or job data.
+   The confirmation transaction creates a private `proofNotice.<galleryId>.v<n>`
+   document in state `pending`. After the commit the route sends one photographer email
+   through the existing mail adapter: gallery and job reference, version, confirmation
+   time, included / selected / extra counts, unit price, currency, extra total, and each
+   selected proof's reference and filename. It then records `sent` or `failed` with the
+   attempt time on that notice, guarded by `ifRevisionID`. If the process stops between
+   the commit and that update, the notice stays `pending`, and Studio lists every
+   notice that has been `pending` longer than a few minutes or `failed` as needing
+   action, so the obligation is never silently lost. Every send for one version uses
+   the same idempotency key derived from the gallery and version; whether the mail
+   provider deduplicates on it must be verified before implementation, and until then
+   a resend is documented as possibly delivering a duplicate. A failed or lost email
+   never undoes the confirmation. Resend is an administrator action that sends the same
+   content again without creating a version (its authenticated path is Open question
+   2). Logs carry only correlation IDs and closed outcome classes, never filenames,
+   references, keys or job data.
 
 7. **Expiry and retention are explicit, and different for pages and records.**
    The proof page follows the gallery's availability fields like delivery; after the
@@ -167,7 +176,7 @@ starts before that.
 | Option | Assessment |
 | --- | --- |
 | **Private ID paths in the existing public dataset** (this proposal) | No new service or plan; records stay in the owner's project and backups; not publicly readable by Sanity's fixed rule. Readable by every project member and by the site's runtime read credential. |
-| A second, private Sanity dataset for selections | Same privacy outcome with a stronger separation, but adds a dataset to provision, configure, back up and grant tokens for; whether the current plan's dataset allowance covers it is not recorded here and would need checking. Kept as the fallback if the owner wants project members of the content dataset not to see selections. |
+| A second, private Sanity dataset for selections | Keeps selections out of the public dataset, which private ID paths already do. It does **not** hide them from project members: Sanity's built-in roles (Administrator, Viewer, Editor, Developer, Contributor) have access to all datasets in a project, and dataset-scoped custom roles are an Enterprise feature ([Sanity: roles](https://www.sanity.io/docs/content-lake/roles-concepts), read 2026-10-21). On this plan it adds provisioning and backups without adding isolation. |
 | Selection documents at the dataset root (public) | Rejected: anyone could enumerate which images each customer chose, with prices. Violates AB#130's "no publication of selection contents". |
 | Email as the record (the form only sends mail) | Rejected by AB#130: email alone is not a durable, versioned record and cannot be reopened or verified. |
 | The earlier protected store (S3 + PostgreSQL, ADR-0014/0015) | Rejected for this deployment by ADR-0034. |
@@ -185,8 +194,9 @@ contract by email, and is documented rather than hidden.
 
 Private ID paths avoid every new service but are only as private as the project's
 member list and read credentials. That is acceptable for a single photographer whose
-editors are themselves; a studio with assistants who should not see prices would choose
-the second-dataset fallback.
+editors are themselves. Hiding selections from some project members is not achievable
+with built-in roles on any dataset layout; it would need Enterprise custom roles or a
+separate project, and is out of scope here.
 
 A dataset-wide write token behind a public endpoint is the same accepted risk as poll
 votes. Narrow, structurally enforced code is the boundary; this ADR adds a second such
@@ -215,8 +225,9 @@ a watermark exists.
 
 ## Open questions for the owner
 
-1. Is "every Studio editor can see selections and prices" acceptable (private ID paths),
-   or should selections live in a second, private dataset?
+1. Is "every project member can see selections and prices" acceptable? (A second
+   dataset would not change that on this plan; only a separate Sanity project or
+   Enterprise custom roles would.)
 2. Resend path for a failed notification: a Studio action needs an authenticated server
    call to use the mail credential. Options are a small authenticated route that
    verifies the editor's Sanity session, or the existing administrator sign-in
@@ -238,6 +249,9 @@ Only after acceptance, as small reviewable slices:
 3. Write path: facade, import restriction, credential, `ifRevisionID` toggles,
    transactional confirmation, abuse controls, and journey tests for conflicting tabs,
    retried confirmation and expired galleries.
-4. Notification record, Studio status, and the resend path chosen in Open question 2.
+4. Notification record created in the confirmation transaction, Studio list of
+   pending/failed notices, the resend path chosen in Open question 2, the mail
+   provider's idempotency behaviour verified, and a test for the window between the
+   confirmation commit and the notice update.
 5. Data-flow and privacy documentation, retention and deletion procedure, then an owner
    activation decision. Production activation is not part of this ADR.
