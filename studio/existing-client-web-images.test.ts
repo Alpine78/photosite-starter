@@ -32,7 +32,9 @@ describe("existing public web-image query and shared publication contract", () =
     expect(rows.every(isClientDeliveryAsset)).toBe(true); expect(JSON.stringify(rows)).not.toMatch(/never-project|never-fetch|originalFilename|metadata/);
     const fresh = await query(dataset, SELECTED_EXISTING_IMAGES_QUERY, { ids: [asset(1)._id, asset(3)._id] });
     expect(fresh).toHaveLength(2); expect(() => parseExistingClientImages(fresh, 2)).toThrow(); // Recheck sees the new/draft restriction, never silently drops it.
-  });
+  // AB#377: evaluates the real GROQ query over ~260 documents, which neared or
+  // exceeded the default 5 s limit under the full parallel suite.
+  }, 20_000);
   it.each([true, "false", 1, {}])("shares the current malformed/privateOnly refusal %#", async flag => {
     const dataset = [asset(), { _id: "drafts.private", _type: "media", privateOnly: flag, image: { asset: { _ref: asset()._id } } }];
     expect(await query(dataset, EXISTING_IMAGES_QUERY)).toEqual([]);
@@ -164,7 +166,9 @@ describe("explicit older-image UTC search", () => {
     expect(result).toHaveLength(257); expect(result[0]._id).toBe(asset(400)._id);
     expect(result.map(x => x._id)).not.toContain(asset(1)._id); expect(result.every(x => Date.parse(x._createdAt) < Date.parse(before))).toBe(true);
     expect(JSON.stringify(result)).not.toMatch(/never-project|never-fetch|originalFilename/);
-  });
+  // AB#377: evaluates the real GROQ query over ~260 documents, which neared or
+  // exceeded the default 5 s limit under the full parallel suite.
+  }, 20_000);
   it("selects an older alreadyexisting set through the actual query and appends its chosen order once", async () => {
     const old = [1, 2].map(n => ({ ...asset(n), _createdAt: "2025-01-01T00:00:00Z" }));
     const dataset = [...old, ...Array.from({ length: 300 }, (_, i) => asset(1000 + i))];

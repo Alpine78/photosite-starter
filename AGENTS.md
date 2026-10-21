@@ -253,6 +253,16 @@ Then iterate.
   failure traces and screenshots are published as pipeline artifacts. Assert against
   accessible roles, names, and states or application-owned routes; a clone rebrands the
   site name, navigation labels, and content, so a journey test must not depend on them.
+  **Wait on application state, not elapsed time.** Before asserting something that a
+  scroll, hydration, tracker or animation settles asynchronously, poll for the state the
+  app itself exposes (an `aria-current`, an attribute, a settled scroll position) rather
+  than a fixed delay or "two equal reads": a time window passes under one load and fails
+  under another (AB#377: two such flakes and two rejected time-based fixes). Locally, run
+  a CSS or configuration change against a clean `.next` — the Turbopack cache once served
+  stale CSS to the harness build (AB#382); CI always starts from a clean workspace.
+- A Vitest test that performs real cryptography (scrypt), evaluates a large GROQ
+  fixture or otherwise does seconds of work sets an explicit timeout with a one-line
+  reason; Vitest's 5 s default fails such tests under the parallel suite (AB#377).
 - TypeScript strict mode; build must pass with `npm run build`
 - Tailwind CSS v4 (CSS-based config via `@tailwindcss/postcss`, no `tailwind.config` file)
 - Brand-sensitive styling (colours, text roles, borders, accent, focus, type families,
@@ -469,6 +479,10 @@ map and update every file whose "Update it when" condition the change meets.**
 Rules:
 
 - Keep documentation changes in the same PR as the change they describe.
+- Documentation-only changes that are not part of a code change (evidence, audits, map or
+  status corrections) go into one combined documentation PR per batch, not a separate PR
+  per one- or two-file edit (owner request 2026-10-21): each PR costs review time and a
+  full CI run on the single agent.
 - **Status text goes stale silently.** The MVP checklist in `README.md` and the feature
   status in `docs/feature-status.md` describe a moving target. When you finish a story,
   check both —
@@ -491,6 +505,27 @@ Rules:
   and deploy it, so "it's only a placeholder" is not an exemption.
 - **The project accepts no external contributions** (see `README.md`). Do not add
   contribution guides, PR templates, or CLA tooling.
+
+## Task retrospective
+
+Every task ends with a short retro, because a correction made once should not have to be
+made again — by this agent, another agent, or the owner.
+
+1. **Collect the external signals of this task:** owner corrections, review findings
+   (Codex, Claude, PR comments), CI failures and flakes, and anything that had to be redone.
+2. **Ask of each: will this recur?** One-off slips need nothing. A recurring pattern needs
+   the smallest durable fix, preferring an automated guard (a test, lint rule or script
+   check) over prose, and prose in the narrowest place (a skill or a doc section) over a
+   new AGENTS.md rule.
+3. **Report, do not silently apply.** Put the result under a `Retro` heading in the PR
+   description or the handoff message — one line ("no recurring signal") is enough when
+   nothing was learned. Changes to AGENTS.md or a skill are proposed in a separate,
+   clearly labelled PR that the owner approves; an instruction change reaches every agent
+   at once, so a bad one spreads just as fast as a good one.
+
+**Outer loop.** When the owner asks, or after a batch of several tasks, collect the recent
+`Retro` sections, group the repeats, and propose one prioritized PR of instruction, skill,
+test or script changes. The owner decides what is adopted.
 
 ## Definition of Done (summary)
 

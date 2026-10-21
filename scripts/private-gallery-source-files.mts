@@ -1,6 +1,6 @@
 /** Shared bounded local inspection for offline private-gallery owner tooling. */
 import { createHash } from "node:crypto";
-import { constants } from "node:fs";
+import { constants, type Stats } from "node:fs";
 import { lstat, open, realpath } from "node:fs/promises";
 import path from "node:path";
 import { execFile } from "node:child_process";
@@ -53,7 +53,7 @@ async function checkedFile(file: string, maximum: number) {
     return { fd, before };
   } catch (error) { await fd.close(); throw error; }
 }
-async function unchanged(fd: Awaited<ReturnType<typeof open>>, before: Awaited<ReturnType<typeof fd.stat>>) {
+async function unchanged(fd: Awaited<ReturnType<typeof open>>, before: Stats) {
   const after = await fd.stat();
   if (after.dev !== before.dev || after.ino !== before.ino || after.size !== before.size ||
       after.mtimeMs !== before.mtimeMs || after.ctimeMs !== before.ctimeMs) refuse("SOURCE_CHANGED");
