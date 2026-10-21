@@ -187,7 +187,8 @@ export function ServiceDetail({
         <p role="status" className="mt-6 rounded border border-border-control px-4 py-3 text-body">{legacyFallbackNotice}</p>
       )}
       <div className="mt-6 grid gap-12 lg:grid-cols-[1fr_20rem]">
-        <article>
+        {/* min-w-0: a grid item otherwise grows to its longest word (AB#382). */}
+        <article className="min-w-0">
           <h1 className="text-4xl font-semibold leading-none tracking-tight sm:text-6xl">
             {service.name}
           </h1>

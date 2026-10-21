@@ -624,6 +624,10 @@ candidate. AB#117 remains Active with its independent live privacy/security gate
 
 ## Verification performed
 
+2026-10-21 mobile reflow check: [166 pages at 320 and 375 px](audits/ab117-mobile-reflow-2026-10-21.md) — one long-word title overflowed at 320 px (fixed under AB#382); no content image lacks dimensions.
+
+2026-10-21 Production header check: [CSP, frame, MIME, referrer, permissions and HSTS headers on sampled page, API and sitemap responses](audits/ab117-production-headers-2026-10-21.md) match ADR-0011 and `next.config.ts`; no public `Set-Cookie`. It also explains why public HTML is served `no-store`: the routes read query parameters, so they render on demand (cache, not security).
+
 2026-10-20 public Production read-only audit: [sitemap and internal-link statuses, document language, h1, alt attributes, heading levels, duplicate ids, computed control names and load timing over 166 pages](audits/ab117-public-production-audit-2026-10-20.md). No defect in those classes; one Finnish alt text on an English listing is AB#255 content work. It does not establish WCAG conformance.
 
 - `npm run lint` — clean (re-run after every fix round).
