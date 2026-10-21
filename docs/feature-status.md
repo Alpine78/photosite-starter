@@ -32,6 +32,26 @@ Back/Forward case. Timeouts and an aborted
 `goBack` in the second run coincided with other local builds on the same machine
 and are not counted as evidence of a race. AB#377 stays Active.
 
+Above-the-fold image loading, 2026-10-21 — AB#383 **Active**: a read-only
+Production check (Chromium, desktop 1280 px and Pixel 7) found the Largest
+Contentful Paint element lazy-loaded on gallery pages without a hero, on the
+service listing and on the mobile home page. A gallery page whose grid is its
+first picture (no hero, no body, not a continuation page) now loads its first
+four images eagerly, capped at the initial slice, so appended items stay lazy;
+article-end and home galleries are unchanged. The first row of each service
+listing (three on the default route, two on the localized one) and the home
+introduction portrait load eagerly. Only the hero keeps the explicit `preload`;
+React may add its own preload hints for these eager images, which the plan review
+accepted as the intended early discovery. `sizes`, renditions and layouts are
+unchanged; the deliberate `100vw` masonry/justified bound (AB#157/AB#373), which
+makes desktop thumbnails request ~1536 px sources, is recorded here as an observed
+trade-off, not changed. `e2e/eager-images.spec.ts` checks the hydrated attributes,
+an in-place append, a continuation page, both listings and the portrait.
+React's hints were measured in WebKit: no duplicate download for a single eager
+image; a photograph repeated among the eager items (a fixture artifact) is fetched
+twice while requests are held, so `gallery-layouts`' no-refetch check now picks an
+item whose photograph no other eager image repeats.
+
 Long one-word titles, 2026-10-21 (AB#382, Active): the Production reflow audit (320/375 px, 166 pages) found `/palvelut/haakuvaus/miljoomuotokuvaus` 11 px too wide at 320 px — its h1 is one 17-letter compound. About twenty h1 styles exist, so the fix is an inherited base rule (`body { overflow-wrap: break-word }` in `globals.css`), which only affects a word that cannot fit its line and leaves min-content sizes unchanged. A first version set it on `h1`–`h4`; CI showed that overrode the home page's inherited `overflow-wrap: anywhere` and widened its flex/grid parents at 320 px with 32 px text, so it moved to `body`. Also `min-w-0` on the two service-detail `<article>` grid items that otherwise grow to their longest word. `e2e/page-title-reflow.spec.ts` replaces the server-rendered title with a long single word (no JavaScript) and requires no horizontal overflow at 320 px on contact, services, a service, the story root, search, an article and a gallery; it fails without the fix.
 
 Cookieless site analytics, 2026-10-19 — AB#371 **Active**: ADR-0037 is Accepted

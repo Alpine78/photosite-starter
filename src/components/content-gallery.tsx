@@ -26,6 +26,13 @@ import type {
 import type { GalleryPresentation } from "@/lib/gallery-presentation";
 import type { GallerySlice } from "@/lib/gallery-slice";
 
+/**
+ * Leading gallery-page images that load eagerly (AB#383): one three-column row
+ * plus one, enough for the first screen on desktop and mobile without loading
+ * the rest of the page early.
+ */
+const EAGER_GALLERY_PAGE_ITEMS = 4;
+
 type ContentGalleryProps = {
   locale: string;
   page: GalleryContentPage;
@@ -318,6 +325,10 @@ export function ContentGallery({
                 galleryPath={galleryPath}
                 activeSection={activeSection?.slug}
                 presentation={presentation}
+                // AB#383: only when the grid is the page's first picture — no
+                // hero or body above it, and not a continuation page.
+                eagerCount={!isContinuation && !showHero && page.body.length === 0
+                  ? EAGER_GALLERY_PAGE_ITEMS : 0}
                 labels={labels}
               />
             ) : (
