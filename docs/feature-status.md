@@ -2,6 +2,15 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Mobile performance and CSP nonce study, 2026-10-21 —
+[record](audits/performance-and-csp-2026-10-21.md): under a slow mobile profile (1.6
+Mbit/s, 150 ms, 4× CPU) TTFB stays under 0.11 s and FCP about 1 s; LCP is 2.1–3.9 s on
+image-led pages and 6.4 s on a gallery page, the case #577 and #580 change (remeasure
+after release). Dropping `'unsafe-inline'` from `script-src` with per-request nonces is
+now feasible because public HTML already renders per request; it needs a work item and
+an ADR-0011 amendment, `style-src` keeps `'unsafe-inline'` for markup style
+attributes, and nothing was changed.
+
 Proof selection design, 2026-10-21 — AB#130 **Active** (design only): the
 owner-reviewable design its acceptance criteria require is
 [ADR-0038 (Proposed)](adr/0038-proof-selection-in-existing-sanity.md). Public,
