@@ -32,7 +32,12 @@ Observations:
   lazy-loaded and its thumbnails requested full-viewport sources, exactly what #577 and
   #580 change. Remeasure after the next release with this same profile.
 - Every page shows a small load-time shift (0.025–0.040, under the 0.1 threshold) that
-  the unthrottled crawl did not; a font swap is the likely source, not yet confirmed.
+  the unthrottled crawl did not. Layout-shift sources on `/en`, `/contact`, `/haku` and
+  `/palvelut` show the cause: after hydration, and after the web fonts had loaded, the
+  in-page language fallback (`nav.language-switch-fallback`, 50 px with its margin) is
+  hidden once the site menu renders its language entry, and the content below moves up
+  50 px. That is the deliberate AB#173 fallback for visitors whose scripts never load,
+  not a font swap; the options are recorded for an owner decision in AB#389.
 - Long-task time is highest on the longest article (about 1 s at 4× CPU), mainly
   hydration of a large body.
 
