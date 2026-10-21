@@ -51,6 +51,39 @@ function boundedImageSizes(
 const boundedRemContainerSizes = "100vw";
 
 /**
+ * AB#385: curated gallery pages and the home portfolio sit in the full-width
+ * page column, not an article's reading column, so they can declare less than
+ * the whole viewport on a wide screen without a visitor's enlarged text (up to
+ * 200%, WCAG 1.4.4) ever getting a candidate narrower than the image it shows.
+ *
+ * Masonry: at a 32px root the page's own `sm:px-6` padding doubles to 96px, and
+ * two columns need a 34rem (1088px) container, so a second column is only
+ * guaranteed from about 1200px; 1280px keeps a margin for a scrollbar. Below
+ * it the existing single-column bound stays.
+ */
+export const CURATED_MASONRY_HALF_WIDTH_VIEWPORT_PX = 1280;
+const curatedMasonrySizes = `(min-width: ${CURATED_MASONRY_HALF_WIDTH_VIEWPORT_PX}px) 50vw, ${boundedRemContainerSizes}`;
+
+/**
+ * AB#385: a curated justified image is never wider than its ratio times its
+ * row height, and a row is at most `JUSTIFIED_MAX_HEIGHT_REM` high (a singleton
+ * or open row at most the lower tail height). Doubling for a 32px root keeps
+ * that bound true up to 200% text, so this pixel width is a safe slot at every
+ * viewport wide enough to hold it; a narrower viewport keeps `100vw`. Pixels,
+ * not `rem` or `min()`, so no relative-unit or math-function support question
+ * arises in `sizes`.
+ */
+// Native-Node scripts load this module without the `@/` alias, so the 16rem
+// row cap is restated here; a unit test pins it to `JUSTIFIED_MAX_HEIGHT_REM`.
+export const JUSTIFIED_ROW_CAP_REM = 16;
+const JUSTIFIED_SLOT_PX_PER_RATIO = JUSTIFIED_ROW_CAP_REM * 16 * 2;
+
+export function curatedJustifiedImageSizes(rendition: { readonly width: number; readonly height: number }): string {
+  const bound = Math.ceil((rendition.width / rendition.height) * JUSTIFIED_SLOT_PX_PER_RATIO);
+  return boundedImageSizes(bound, bound, boundedRemContainerSizes);
+}
+
+/**
  * Two-column card grid inside the bounded 1152px content container (AB#173):
  * `sm:px-6` padding and a 40px (`gap-x-10`) gutter leave (1152 − 48 − 40) / 2 =
  * 532px per column at the cap, and (100vw − 48 − 40) / 2 below it.
@@ -121,6 +154,10 @@ export const imageRenderProfiles = {
    */
   galleryJustified: {
     sizes: boundedRemContainerSizes,
+  },
+  /** AB#385: masonry in the full-width page column; see `curatedMasonrySizes`. */
+  curatedGalleryMasonry: {
+    sizes: curatedMasonrySizes,
   },
   /** Two columns with a 24px gap inside the article's 720px reading column. */
   contentMiniGallery: {
