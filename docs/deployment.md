@@ -1653,6 +1653,23 @@ skip note and retains the original failure. Existing directories (including
 empty or linked directories) still reach the artifact task; actual publication
 errors remain visible. No report is created by discovery. The HTML reporter
 continues to collect its existing screenshot/trace attachments.
+
+**Fetching a run's report locally (AB#377).** `az pipelines runs artifact download`
+needs the artifact tool's own interactive sign-in and otherwise fails with "Identity …
+has not been materialized". The REST API returns a short-lived signed URL with the
+existing `az devops` credentials instead; the report's `data/*.zip` files are the
+Playwright traces (`npx playwright show-trace <zip>`):
+
+```bash
+az devops invoke --area pipelines --resource artifacts \
+  --route-parameters project=photosite-starter pipelineId=1 runId=<run id> \
+  --query-parameters artifactName=playwright-report '$expand=signedContent' \
+  --api-version 7.1-preview -o json > artifact.json
+curl -sL "$(jq -r .signedContent.url artifact.json)" -o playwright-report.zip
+```
+
+The URL expires within the hour; treat the downloaded traces as published CI artifacts
+(the harness keeps credentials and personal data out of them).
 Local Bash fixtures cover missing paths, regular files, reports with attachments,
 empty directories and directory links. Live Azure evaluation still needs a
 committed run: earlier gate failure without a report, browser failure with a

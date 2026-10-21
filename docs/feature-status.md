@@ -11,6 +11,30 @@ removed, so the count uses the heading's contract-tested `text-muted`.
 themes (canvas-normalized colours, inherited opacity composited over the background)
 and failed at 4.09:1 before the fix.
 
+Lightbox reopen race and CI trace download, 2026-10-21 — AB#377 **Active**: the
+remaining mobile WebKit "selected source, append, viewer…" failure (CI run 1372) is
+explained by its trace: after Escape the previous PhotoSwipe viewer was still closing
+and in the DOM, so the shared `openLightbox` helper saw "a dialog exists", never ran the
+next activation, and waited out its focus check on the closing viewer. The helper now
+waits for no dialog before opening. All 24 specs that use it pass on every project
+(613 passed). `docs/deployment.md` records how to download a run's Playwright report
+through the REST API's signed URL, since `az pipelines runs artifact download` needs
+an interactive sign-in. Still open: the WebKit `content-reading-address` Back/Forward
+case, now inspectable with the same download once it recurs.
+
+Earlier automatic gallery continuation after scrolling, 2026-10-21 — AB#386
+**Active**: owner decision after the afternoon Production checks, where a realistic
+~1000 px/s read of a desktop justified gallery measured 0.12 CLS from appends that
+re-flowed the open last row while in view. Automatic continuation keeps its one
+viewport lookahead for a page that is only opened, and uses two viewports once the
+document has scrolled (any scroll, recorded independently of loading state). Single
+flight, the page limit, failure/retry and focus are unchanged.
+`e2e/gallery-continuation-lookahead.spec.ts` sets the viewport from the measured
+sentinel position and proves both distances, including no request in the 2–3
+viewport band without scrolling and none beyond three after scrolling; it fails
+against the previous rule. The CLS reduction itself is expected, not yet remeasured
+on Production (manual deploys).
+
 Afternoon Production checks, 2026-10-21 — evidence for AB#19, AB#117, AB#132,
 AB#159, AB#160 and AB#255 ([record](audits/production-checks-2026-10-21-afternoon.md)):
 415/415 legacy redirect rows pass; no third-party request, cookie or storage on 332
