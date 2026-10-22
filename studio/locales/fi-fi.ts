@@ -2,6 +2,7 @@ import type english from "./en-us";
 
 const resources = {
   "structure.client-galleries.title": "Asiakasgalleriat",
+  "structure.proof-galleries.title": "Vedosgalleriat",
   "structure.content.title": "Sisältö",
   "structure.home-page.title": "Etusivu",
   "structure.site-settings.title": "Sivuston asetukset",

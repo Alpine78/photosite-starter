@@ -5,6 +5,7 @@ import {
   isProofReference,
   MAX_PROOF_REFERENCE,
   NEVER_PUBLISHED,
+  draftReferenceProblem,
   proofReferenceProblem,
   type ProofReferenceItem,
   type PublishedProofState,
@@ -105,7 +106,9 @@ export async function validateClientProofGallery(value: unknown, context: Schema
     if (!record(identity) || !Array.isArray(identity.conflicts) || identity.conflicts.length !== 0) return CLIENT_PROOF_ERRORS.identity;
     const published = publishedState(identity.published, value.handle);
     if (!published) return CLIENT_PROOF_ERRORS.identity;
-    if (proofReferenceProblem(items, value.referenceHighWater, published)) return CLIENT_PROOF_ERRORS.references;
+    // A draft is numbered by the publication route; a published document must carry exactly the derived numbers.
+    const draft = typeof value._id === "string" && value._id.startsWith("drafts.");
+    if (draft ? draftReferenceProblem(items, published) : proofReferenceProblem(items, value.referenceHighWater, published)) return CLIENT_PROOF_ERRORS.references;
     if (!Array.isArray(assets) || assets.length !== ids.length) return CLIENT_PROOF_ERRORS.assets;
     const seen = new Set<string>();
     for (const asset of assets) {

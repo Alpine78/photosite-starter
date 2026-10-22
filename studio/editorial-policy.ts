@@ -26,15 +26,16 @@ export function isImporterType(type: string): boolean {
 }
 
 /**
- * Proof galleries (ADR-0038, AB#130) cannot be created yet: their first
- * publication must also snapshot private terms and create the selection key,
- * which the next slice adds with the publish action.
+ * Proof galleries (ADR-0038, AB#130) exist only when the Studio sets
+ * `SANITY_STUDIO_PROOF_GALLERIES=enabled`: until the customer page is live a
+ * published proof gallery would have nowhere to lead.
  */
-export const NOT_YET_CREATABLE_TYPES = ["clientProofGallery"] as const;
+export const PROOF_GALLERY_LIST = { type: "clientProofGallery", title: "Proof galleries" } as const;
+export type EditorialPolicyOptions = Readonly<{ proofGalleries?: boolean }>;
 
-export function allowTemplate(schemaType: string): boolean {
-  return !isSingleton(schemaType) && !isImporterType(schemaType) &&
-    !NOT_YET_CREATABLE_TYPES.some((candidate) => candidate === schemaType);
+export function allowTemplate(schemaType: string, options: EditorialPolicyOptions = {}): boolean {
+  if (schemaType === PROOF_GALLERY_LIST.type) return options.proofGalleries === true;
+  return !isSingleton(schemaType) && !isImporterType(schemaType);
 }
 
 export function allowAction(schemaType: string, action: string | undefined): boolean {
@@ -42,11 +43,11 @@ export function allowAction(schemaType: string, action: string | undefined): boo
   if (schemaType === "clientDeliveryGallery") {
     return action !== undefined && ["publish", "unpublish", "discardChanges", "delete"].includes(action);
   }
-  // No unpublish: the published document holds the fixed proof numbers, and
-  // `available` already pauses the page (ADR-0038 decision 2).
-  if (schemaType === "clientProofGallery") {
-    return action !== undefined && ["publish", "discardChanges", "delete"].includes(action);
-  }
+  // Native publish is replaced by the proof publication action, which numbers
+  // the proofs and creates the private record through the site route. No
+  // unpublish (the published document holds the fixed numbers; `available`
+  // pauses the page) and no delete until private-record cleanup exists.
+  if (schemaType === "clientProofGallery") return action === "discardChanges";
   if (!isSingleton(schemaType)) return true;
   return action !== undefined && ["publish", "discardChanges", "restore"].includes(action);
 }

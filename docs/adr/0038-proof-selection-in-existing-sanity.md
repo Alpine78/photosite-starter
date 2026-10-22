@@ -395,3 +395,56 @@ document changed or already exists.
 **Sections affected:** Decision 3 (the private record now also carries `firstPublishedAt`
 and is created by this route), Decision 4 (key creation and rotation run here), Action
 Items 1 and 4.
+
+## Amendment — 2026-10-22: Studio publish action
+
+**Context.** The publication-path amendment above left the Studio side open. A plan review
+found four gaps before implementation: the route could publish a draft other than the one
+the editor saw validated; native deletion would orphan the private record; enabling
+creation alone would leave the required handle missing; and an answer lost after the commit
+would hide the only copy of the selection key.
+
+**Decision.**
+
+1. Proof galleries appear in the Studio, can be created and are published only when the
+   Studio sets `SANITY_STUDIO_PROOF_GALLERIES=enabled` together with
+   `SANITY_STUDIO_SITE_ORIGIN`. Only that Studio uses `auth.loginMethod: 'token'`; a
+   Studio without proof galleries keeps Sanity's default sign-in. This narrows the
+   publication-path consequence ("the Studio switches") to the Studios that need it.
+2. The custom **Publish proof gallery** action replaces native publish. Native unpublish
+   and delete are removed: the published document holds the fixed numbers, `available`
+   pauses the page, and deletion waits for a cleanup that also removes `proofTerms.<id>`.
+   Only discarding a draft remains.
+3. The action is enabled only when the draft's validation finished for exactly its current
+   revision with no errors and the document is not synchronising, as native publish
+   requires. The request carries that revision as `expectedDraftRevision`; the route
+   refuses with `stale-draft` (nothing written) when the draft has moved on.
+4. The first publication collects the decision-3 terms in the dialog: included images,
+   additional-image price, currency, job reference and the reminder. Currencies are a
+   closed list with their minor-unit digits (EUR, USD, GBP, SEK, NOK, DKK, CHF, JPY); the
+   price is parsed as text into integer minor units, never through floating point. The
+   reminder defaults to on after 7 days (decision 9); the customer's address is required
+   and stored only when it is on. Later publications send no terms, and the route refuses
+   terms it did not ask for.
+5. New documents start with a generated handle, paused, indefinite availability and
+   high-water 0. A draft's reference validation checks only what the editor controls (a
+   published proof keeps its image; any number present is canonical); the route assigns
+   numbers, and a published document must still carry exactly the derived ones.
+6. The request is sent once, without cookies or caching, with a 30-second limit and no
+   automatic retry. Only the route's own 4xx rejections count as "nothing was published".
+   A lost connection, a timeout, a 5xx (a store failure can follow the commit), an answer
+   without the route's CORS headers or a malformed success is an **unknown outcome**: the
+   dialog tells the editor to reload instead of publishing again, and after a first
+   publication to create a new selection link, since none was shown.
+7. A selection link is shown once, as `/client-proof/<handle>#select=<key>` with an
+   optional configured `?locale=`, with copy and manual-selection fallbacks. **Create a
+   new selection link** asks for confirmation that the old link stops working.
+
+**Not established here.** Reminder sending (decision 9) is a later slice: the setting is
+stored now and the dialog says so. The customer page, the selection route and an
+owner-run check on the hosted Studio still gate activation.
+
+**Sections affected:** Decision 3 (terms are collected in the first-publication dialog),
+Decision 9 (reminder default and address storage), the publication-path amendment's
+design item 2 (the body also carries `expectedDraftRevision` and first-publication terms)
+and its first consequence.

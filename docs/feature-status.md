@@ -2,6 +2,19 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Proof gallery Studio publish action, 2026-10-22 — AB#130 **Active**: with
+`SANITY_STUDIO_PROOF_GALLERIES=enabled` (off by default) the Studio lists and creates
+proof galleries (generated handle, paused, indefinite) and replaces native publish with
+**Publish proof gallery**, which sends the validated draft revision and, on the first
+publication, the terms (closed currency list in minor units, reminder default 7 days,
+address stored only with a reminder) to the publication route with the editor's token.
+The route refuses a moved draft (`stale-draft`) and unrequested or missing terms; drafts
+are validated without numbers. The selection link is shown once; **Create a new
+selection link** rotates the key after a confirmation; a lost or 5xx answer is reported
+as an unknown outcome with no automatic retry. Unpublish and delete are removed for proof
+galleries. Only that Studio signs in with `loginMethod: 'token'`. Recorded in the second
+[ADR-0038 amendment](adr/0038-proof-selection-in-existing-sanity.md). Not active: the
+customer page, the selection route, reminder sending and an owner-run hosted check.
 Proof publication route, 2026-10-22 — AB#130 **Active** (owner decision: option 1):
 `/api/proof-gallery/publish`, off by default, publishes a proof gallery and rotates its
 selection key with the **editor's own Sanity token** — `/users/me` proves a user session

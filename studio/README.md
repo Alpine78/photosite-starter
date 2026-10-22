@@ -471,3 +471,41 @@ prepares private revision-bound evidence for future operator changes; it does no
 replace native Studio editing or write to Sanity. A paused published document is
 still public metadata. No remote writer is provided, and later native publication
 can overwrite any separately applied root-document patch.
+
+## Proof galleries (AB#130)
+
+Proof galleries ([ADR-0038](../docs/adr/0038-proof-selection-in-existing-sanity.md))
+are hidden unless the Studio is built with `SANITY_STUDIO_PROOF_GALLERIES=enabled` and
+`SANITY_STUDIO_SITE_ORIGIN`. Leave the setting unset until the site's proof pages are live;
+any value other than `enabled`, `off` or blank fails the Studio configuration.
+
+When enabled, this Studio signs in with `auth.loginMethod: 'token'`: the editor's token is
+kept in the browser's `localStorage` instead of an HTTP-only cookie, so scripts on the Studio
+origin can read it. The Studio runs only its own bundle and renders no user HTML; a Studio
+without proof galleries keeps Sanity's default sign-in.
+
+- **Publish proof gallery / Julkaise vedosgalleria** replaces native publish. It becomes
+  available when the draft has been validated for its current revision with no errors.
+  It sends that revision with the editor's token to the site's
+  `/api/proof-gallery/publish` route, which numbers the proofs and publishes in one
+  transaction, or refuses without writing anything if the draft changed in between.
+- The **first publication** asks for the terms: images included in the price, the price
+  per additional image (`12,50` or `12.50`; whole units only for currencies without minor
+  units), the currency, a job reference and the reminder. The reminder is on by default
+  after 7 days and then needs the customer's email address; with the reminder off no
+  address is stored. Reminder sending itself arrives in a later release.
+- The selection link `/client-proof/<handle>#select=<key>` is **shown once**. Copy it
+  before closing the dialog; otherwise create a new one.
+- **Create a new selection link / Luo uusi valintalinkki** replaces the key after a
+  confirmation; the old link stops working immediately.
+- When the dialog says the outcome is unknown, do not publish again straight away:
+  reload, check whether the gallery shows as published, and after a first publication
+  create a new selection link. If every attempt ends that way and nothing is published,
+  the site route is probably off or does not list this Studio's origin: an answer without
+  its CORS headers cannot be read, so the Studio cannot tell a refusal from a lost answer.
+- Unpublish and delete are not offered for proof galleries: the published document holds
+  the fixed proof numbers, **Available to link holders** pauses the page, and deletion waits for a cleanup
+  that also removes the private terms. Only discarding a draft remains.
+
+The site route must be enabled separately; see
+[proof gallery publication](../docs/sanity-setup.md#proof-gallery-publication-ab130-adr-0038).

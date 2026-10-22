@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { defineSchemaTypes } from "../sanity/schemas";
 import {
-  allowAction, allowTemplate, EDITORIAL_LISTS, IMPORTER_TYPES, NOT_YET_CREATABLE_TYPES, resolveSingletonDocumentId,
+  allowAction, allowTemplate, EDITORIAL_LISTS, IMPORTER_TYPES, PROOF_GALLERY_LIST, resolveSingletonDocumentId,
   SINGLETON_QUERY_LIMIT, SINGLETON_TYPES, singletonDocumentId,
 } from "./editorial-policy";
 
@@ -65,17 +65,26 @@ describe("editorial guardrails", () => {
   it("accounts for every canonical document type exactly once", () => {
     const documentTypes = defineSchemaTypes({ datasetVisibility: "public", storyRootPaths: ["/stories"] })
       .filter(({ type }) => type === "document").map(({ name }) => name).sort();
-    const configuredTypes = [...SINGLETON_TYPES, ...EDITORIAL_LISTS.map(({ type }) => type), ...IMPORTER_TYPES, ...NOT_YET_CREATABLE_TYPES];
+    const configuredTypes = [...SINGLETON_TYPES, ...EDITORIAL_LISTS.map(({ type }) => type), ...IMPORTER_TYPES, PROOF_GALLERY_LIST.type];
     expect(configuredTypes.slice().sort()).toEqual(documentTypes);
     expect(new Set(configuredTypes).size).toBe(configuredTypes.length);
   });
 });
 
-describe("proof galleries before their publication slice (ADR-0038, AB#130)", () => {
-  it("cannot be created yet and can never be unpublished", () => {
+describe("proof galleries (ADR-0038, AB#130)", () => {
+  it("can be created only when the Studio enables them", () => {
     expect(allowTemplate("clientProofGallery")).toBe(false);
-    for (const action of ["publish", "discardChanges", "delete"]) expect(allowAction("clientProofGallery", action)).toBe(true);
-    for (const action of ["unpublish", "duplicate", "restore", "custom", undefined]) expect(allowAction("clientProofGallery", action)).toBe(false);
+    expect(allowTemplate("clientProofGallery", { proofGalleries: false })).toBe(false);
+    expect(allowTemplate("clientProofGallery", { proofGalleries: true })).toBe(true);
+    expect(allowTemplate("article", { proofGalleries: true })).toBe(true);
+    expect(allowTemplate("siteSettings", { proofGalleries: true })).toBe(false);
     expect(EDITORIAL_LISTS.map(({ type }) => type)).not.toContain("clientProofGallery");
+  });
+
+  it("keeps only discarding: publication goes through the site route, and there is no unpublish or delete", () => {
+    expect(allowAction("clientProofGallery", "discardChanges")).toBe(true);
+    for (const action of ["publish", "delete", "unpublish", "duplicate", "restore", "custom", undefined]) {
+      expect(allowAction("clientProofGallery", action)).toBe(false);
+    }
   });
 });

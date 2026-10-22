@@ -1,9 +1,9 @@
 import type { StructureResolver } from "sanity/structure";
 import { STUDIO_VALIDATION_API_VERSION } from "../sanity/schemas/validation";
-import { EDITORIAL_LISTS, resolveSingletonDocumentId, SINGLETON_QUERY, type SingletonType } from "./editorial-policy";
+import { EDITORIAL_LISTS, PROOF_GALLERY_LIST, resolveSingletonDocumentId, SINGLETON_QUERY, type EditorialPolicyOptions, type SingletonType } from "./editorial-policy";
 import { editorialTitle } from "./editorial-locales";
 
-export const editorialStructure: StructureResolver = (S, context) => {
+export const editorialStructureFor = (options: EditorialPolicyOptions = {}): StructureResolver => (S, context) => {
   const singleton = (type: SingletonType, title: string) => S.listItem()
     .id(type).title(title).i18n(editorialTitle(type)).child(async () => {
       const client = context.getClient({ apiVersion: STUDIO_VALIDATION_API_VERSION })
@@ -15,8 +15,11 @@ export const editorialStructure: StructureResolver = (S, context) => {
     singleton("homePage", "Home page"),
     singleton("siteSettings", "Site settings"),
     S.divider(),
-    ...EDITORIAL_LISTS.map(({ type, title }) => S.documentTypeListItem(type)
+    // Proof galleries appear only when the Studio enables them (ADR-0038).
+    ...[...EDITORIAL_LISTS.slice(0, 1), ...(options.proofGalleries ? [PROOF_GALLERY_LIST] : []), ...EDITORIAL_LISTS.slice(1)].map(({ type, title }) => S.documentTypeListItem(type)
       .title(title).i18n(editorialTitle(type))
       .child(S.documentTypeList(type).title(title).i18n(editorialTitle(type)))),
   ]);
 };
+
+export const editorialStructure = editorialStructureFor();
