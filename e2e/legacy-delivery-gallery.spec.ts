@@ -63,7 +63,7 @@ for (const path of ["/client-gallery", "/client-gallery/bad", "/client-gallery/2
 test("legacy trailing-slash redirect has the same response hygiene", async ({ request }) => {
   const response = await request.get(`${route}/`, { maxRedirects: 0 }); expect(response.status()).toBe(308);
   for (const [name, value] of Object.entries(hygiene)) expect(response.headers()[name]).toBe(value);
-  expect(response.headers()["cache-control"]).toBe("no-store"); expect(response.headers().location).toContain(route);
+  expect(response.headers()["cache-control"]).toBe("no-store"); expect(new URL(response.headers().location, "http://harness.invalid").pathname).toBe(route);
 });
 
 test("a delivery failure returns a hygienic generic server error, never an empty gallery", async ({ request }) => {

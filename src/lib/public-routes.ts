@@ -38,6 +38,8 @@ export const RESERVED_ROOT_SEGMENTS: readonly string[] = [
   // that claimed it would shadow a route the contact form posts to.
   "api",
   "client-gallery",
+  // The proof gallery namespace (ADR-0038), beside the delivery one.
+  "client-proof",
   "contact",
   "favicon.ico",
   // The public directory the mock media is served from. It owns no page, but a
@@ -68,7 +70,7 @@ export const RESERVED_ROOT_SEGMENTS: readonly string[] = [
  * not compete with a story namespace beneath `/en` or another locale prefix.
  * Home occupies the empty path; contact occupies its fixed segment.
  */
-export const RESERVED_LOCALE_ROUTE_SEGMENTS: readonly string[] = ["services", "contact", "client-gallery"];
+export const RESERVED_LOCALE_ROUTE_SEGMENTS: readonly string[] = ["services", "contact", "client-gallery", "client-proof"];
 
 /**
  * Whether the unprefixed default-locale route path resolves to a page today.

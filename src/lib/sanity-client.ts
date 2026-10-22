@@ -498,7 +498,7 @@ export function createSanityClient(
  * https://www.sanity.io/docs/http-reference/doc
  */
 export function createSanityDocumentReader(
-  settings: SanityClientSettings & { readonly tag?: "legacy.document" | "client.gallery.document" },
+  settings: SanityClientSettings & { readonly tag?: "legacy.document" | "client.gallery.document" | "client.proof.document" },
 ): SanityDocumentReader {
   const { config } = settings;
   const send = settings.fetchImplementation ?? fetch;
