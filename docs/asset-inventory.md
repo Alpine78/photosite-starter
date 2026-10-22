@@ -219,7 +219,7 @@ covered by the licence distribution below.
 
 | Package | Locked version | License | Need |
 | --- | --- | --- | --- |
-| `vitest` | 4.1.11 | MIT | Browser-free TypeScript test runner (CI gate) |
+| `vitest` | 4.1.12 | MIT | Browser-free TypeScript test runner (CI gate) |
 | `@playwright/test` | 1.63.0 | Apache-2.0 | Public-journey tests run against a production build |
 | `tailwindcss`, `@tailwindcss/postcss` | 4.3.3 | MIT | Build-time CSS generation |
 

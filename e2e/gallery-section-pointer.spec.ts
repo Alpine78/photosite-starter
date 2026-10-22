@@ -159,8 +159,15 @@ test.describe("native touch panning", () => {
 
 /** Keep the row in normal flow: its translated, hidden pose is still visible. */
 async function hiddenInBody(page: Page, nav: Locator, target: Locator) {
-  await target.scrollIntoViewIfNeeded();
-  await expect(nav).toHaveClass(/-translate-y-full/);
+  // The reveal hook takes the scroll position at mount as its baseline and
+  // hides the row only on a later downward scroll. A scroll before hydration is
+  // never seen (AB#377, CI run 1442: the row stayed shown), so repeat the
+  // downward scroll from the top until the application answers.
+  await expect(async () => {
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await target.scrollIntoViewIfNeeded();
+    await expect(nav).toHaveClass(/-translate-y-full/, { timeout: 2_000 });
+  }).toPass();
   await settled(nav);
   await page.evaluate(() => window.scrollBy(0, -2));
   await expect(nav).not.toHaveClass(/-translate-y-full/);

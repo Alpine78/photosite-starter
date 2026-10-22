@@ -1,6 +1,6 @@
 # Backlog: decision and agent-readiness map
 
-**Last reviewed:** 2026-10-21, against an Azure Boards query of every `New` and
+**Last reviewed:** 2026-10-22, against an Azure Boards query of every `New` and
 `Active` user story, task and bug.
 
 **Authoritative source:** Azure Boards. This document is an operational map only: the
@@ -31,13 +31,13 @@ actions, approvals or accounts; an agent can prepare evidence but cannot close t
 | --- | --- | --- | --- |
 | AB#19 — Legacy URL redirects | Active | 415-row canonical-host report verified on Production 2026-10-18; waits on AB#137's gate and owner acceptance. | Owner |
 | AB#137 — Production dataset | Active | Approved content imported and audited in batches; remaining approvals and post-write evidence are listed in feature-status. 2026-10-21: two dead Movescount links on the Polar M600 quick-test article (FI/EN) need an owner content decision. | Owner |
-| AB#117 — Security and privacy review | Active | 2026-10-21 Production audits: headers match ADR-0011, 166/166 reciprocal hreflang, 451/451 internal links answer 200, no reflow overflow after AB#382. Residual findings and acceptance remain. | Owner |
+| AB#117 — Security and privacy review | Active | 2026-10-21 Production audits: headers match ADR-0011, 166/166 reciprocal hreflang, 451/451 internal links answer 200, no reflow overflow after AB#382. 2026-10-22: per-request script nonce merged (AB#390, Closed), live with the next manual release; the next header check must expect it. Residual findings and acceptance remain. | Owner |
 | AB#18 — Production promotion | Active | Production serves main `90543d5` (manual release 2026-10-21, deployment `dpl_ARuiTPxfvhAsn7D4foP2ajzfchVE`); provider alias/artifact verification and acceptance remain. | Owner |
 | AB#118 — Rollback and handoff | New | Starts after AB#18; [rollback exercise record](rollback-exercise-record.md) defines the evidence. | Owner, then agent for inventories |
 | AB#131 — Two-domain email migration | Active | Owner-run DNS/mailbox work; [mail recovery evidence](mail-recovery-evidence.md). | Owner |
 | AB#158 — Availability monitoring | Active | Monitor options merged (PR #561); the owner chooses and controls the monitor account. | Owner |
 | AB#159 — Production failure triage | Active | [Runbook](production-failure-triage.md) prepared; the live controlled-failure exercise remains. | Owner with agent |
-| AB#132 / AB#370 — Scriptless 404 HTML | Active | Blocked upstream: [vercel/next.js#62228](https://github.com/vercel/next.js/issues/62228) and its fix PR #98455 were both still open on 2026-10-21, and 16.4.2 is the latest release. Risk acceptance re-review due 2026-12-19 (AB#370). | Upstream |
+| AB#132 / AB#370 — Scriptless 404 HTML | Active | Blocked upstream: [vercel/next.js#62228](https://github.com/vercel/next.js/issues/62228) and its fix PR #98455 were both still open on 2026-10-22, and 16.4.2 is the latest release. Risk acceptance re-review due 2026-12-19 (AB#370). | Upstream |
 | AB#250 — Retained legacy galleries | Active | 21 galleries served from Sanity; whole-ZIP exception accepted 2026-10-14 (ADR-0028 amendment). Acceptance remains. | Owner |
 | AB#255 — FI/EN coverage | Active | Remaining gaps are authored content and owner approvals; see [bilingual page coverage](bilingual-page-coverage.md). | Owner |
 
@@ -56,10 +56,9 @@ actions, approvals or accounts; an agent can prepare evidence but cannot close t
 
 | Work item | State | Next step |
 | --- | --- | --- |
-| AB#377 — e2e flake root causes | Active | Two races fixed in PR #576. Open: the WebKit `content-reading-address` history cases and a JavaScript-free masonry column count at 944 px. |
-| AB#160 — Vulnerable dependencies | Active | Continuous; PR #573 updates Tailwind, eslint and @types/node. Sprintf-js (Studio, Dependabot #66) has no patched version and is triaged under AB#278. |
-| AB#382 — Long one-word titles | Active | PR #572. |
-| AB#383 — Above-the-fold image loading | Active | PR #577. |
+| AB#377 — e2e flake root causes | Active | Open: the WebKit `article-reading-position` locale case (run 1398) and the aborted `goBack` in the inactive private-gallery spec (run 1445, recorded on the item). The section-pointer race has a PR. |
+| AB#160 — Vulnerable dependencies | Active | Continuous. Vitest 4.1.12 fixes run 1430's two moderate advisories (PR open). Studio `sprintf-js` (Dependabot #66) has no patched version and is triaged under AB#278. |
+| AB#391 — Import metadata and no re-encoding | New | [Import path inventory](audits/ab391-import-path-inventory-2026-10-22.md) done; implementation waits for AB#54's test files to verify the metadata tool. |
 
 ## Post-MVP branches
 
@@ -71,7 +70,7 @@ resumed for this owner (AGENTS.md); AB#313 audits removing that inactive code.
 | --- | --- | --- |
 | AB#29 — Unlisted client galleries and whole-gallery ZIPs | Active | Follows ADR-0034 and the ADR-0035 ZIP proposal; owner decisions first. |
 | AB#145 — Administer unlisted galleries | Active | Same branch; authoring boundaries need their own implementation. |
-| AB#130 — Proof selection without S3 | Active | [ADR-0038](adr/0038-proof-selection-in-existing-sanity.md) accepted 2026-10-22; implementation in its action-item slices; production activation is an owner decision. |
+| AB#130 — Proof selection without S3 | Active | [ADR-0038](adr/0038-proof-selection-in-existing-sanity.md) accepted 2026-10-22; the schema and permanent numbering are merged (#592). **Owner decision needed before the next slice:** how the Studio publish action reaches a server route that creates and encrypts the selection key (a server secret cannot live in the browser Studio). Production activation is a separate owner decision. |
 | AB#60 — Enquiry about a public gallery item | Active | Curated-gallery path is built; a dynamic entry point needs the keyword branch. |
 
 **Keyword and commerce discovery:**
@@ -79,7 +78,7 @@ resumed for this owner (AGENTS.md); AB#313 audits removing that inactive code.
 | Work item | State | Readiness |
 | --- | --- | --- |
 | AB#54 — Keyword extraction spike | Active | Owner-run evidence: Lightroom control exports through the real non-production upload path. |
-| AB#55 — Keyword taxonomy ADR | Active | [ADR-0039](adr/0039-keyword-taxonomy-and-ingest-boundary.md) Proposed; owner review, and AB#54's evidence for its open import questions. |
+| AB#55 — Keyword taxonomy ADR | Active | [ADR-0039](adr/0039-keyword-taxonomy-and-ingest-boundary.md) Proposed, owner answers recorded; acceptance after AB#54's test files settle its open import questions. |
 | AB#56–59, 68–75, 90 — Keyword features | New | Blocked on AB#55. |
 | AB#95 — Sales, checkout and fulfilment boundary | Active | Product discovery; no checkout, cart or payment implementation. |
 
