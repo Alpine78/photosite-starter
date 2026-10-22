@@ -54,10 +54,15 @@ function publishedState(published: unknown, handle: string): PublishedProofState
     !Number.isSafeInteger(published.referenceHighWater) || (published.referenceHighWater as number) < 0 ||
     (published.referenceHighWater as number) > MAX_PROOF_REFERENCE || !Array.isArray(published.items)) return undefined;
   const references: Record<string, { reference: string; assetRef: string }> = {};
+  const numbers = new Set<string>();
+  // API-written data is not trusted either: a repeated number or one above the
+  // high-water mark would let the next addition reuse a number.
   for (const item of published.items) {
     if (!record(item) || !key(item._key) || !isProofReference(item.reference) || typeof item.assetRef !== "string" ||
-      Object.hasOwn(references, item._key)) return undefined;
+      Object.hasOwn(references, item._key) || numbers.has(item.reference) ||
+      Number(item.reference) > (published.referenceHighWater as number)) return undefined;
     references[item._key] = { reference: item.reference, assetRef: item.assetRef };
+    numbers.add(item.reference);
   }
   return { highWater: published.referenceHighWater as number, references };
 }

@@ -55,6 +55,15 @@ describe("Sanity proof gallery authoring (ADR-0038, AB#130)", () => {
     const replaced = gallery({ items: [proof("k1", "IMG_10.jpg", assetId("b"), "002"), proof("k2", "IMG_9.jpg", assetId("b"), "001")] });
     expect(await setup({ identity: { conflicts: [], published }, assets: [asset("b")] }).run(replaced)).toBe(errors.references);
   });
+  it("refuses an inconsistent published state instead of numbering from it", async () => {
+    const draft = gallery({ referenceHighWater: 1, items: [proof("k1", "IMG_1.jpg", assetId("a"), "001"), proof("k2", "IMG_2.jpg", assetId("b"), "001")] });
+    const belowHighWater = { _type: "clientProofGallery", handle: "c".repeat(32), referenceHighWater: 0,
+      items: [{ _key: "k1", reference: "001", assetRef: assetId("a") }] };
+    expect(await setup({ identity: { conflicts: [], published: belowHighWater } }).run(draft)).toBe(errors.identity);
+    const duplicated = { _type: "clientProofGallery", handle: "c".repeat(32), referenceHighWater: 2,
+      items: [{ _key: "k1", reference: "001", assetRef: assetId("a") }, { _key: "k2", reference: "001", assetRef: assetId("b") }] };
+    expect(await setup({ identity: { conflicts: [], published: duplicated } }).run(gallery({ items: [proof("k1", "IMG_1.jpg", assetId("a"), "001"), proof("k2", "IMG_2.jpg", assetId("b"), "001")] }))).toBe(errors.identity);
+  });
   it("refuses a handle used by any client, legacy or proof gallery and a published document of another shape", async () => {
     expect(await setup({ identity: { conflicts: [{ _id: "other" }], published: null } }).run(gallery())).toBe(errors.identity);
     expect(await setup({ identity: { conflicts: [], published: { _type: "clientDeliveryGallery", handle: "c".repeat(32) } } }).run(gallery())).toBe(errors.identity);
