@@ -15,6 +15,7 @@ as an unknown outcome with no automatic retry. Unpublish and delete are removed 
 galleries. Only that Studio signs in with `loginMethod: 'token'`. Recorded in the second
 [ADR-0038 amendment](adr/0038-proof-selection-in-existing-sanity.md). Not active: the
 customer page, the selection route, reminder sending and an owner-run hosted check.
+
 Proof publication route, 2026-10-22 — AB#130 **Active** (owner decision: option 1):
 `/api/proof-gallery/publish`, off by default, publishes a proof gallery and rotates its
 selection key with the **editor's own Sanity token** — `/users/me` proves a user session
@@ -26,6 +27,25 @@ bound to the gallery, key returned only after commit, closed-class logs. Recorde
 [ADR-0038 amendment](adr/0038-proof-selection-in-existing-sanity.md). Not active: the
 terms authoring, the Studio action (with `loginMethod: 'token'`) and an owner-run hosted
 check come first.
+
+
+
+Import path inventory and backlog map, 2026-10-22 — AB#391 **New**, AB#130, AB#377:
+[the import path inventory](audits/ab391-import-path-inventory-2026-10-22.md) finds that
+all four owner-photograph upload paths (Joomla migration, rally import and conversion,
+client web images) go through `generatePublicDerivative`, which re-encodes every image
+and strips all metadata; demo fixtures and ADR-0028's legacy delivery files upload bytes
+unchanged. It lists what AB#391 has to change and leaves EXIF orientation and non-JPEG
+sources as open implementation questions. The backlog map now records AB#390 closed,
+AB#130's next owner decision (how the Studio publish action reaches a server route that
+creates the encrypted selection key), AB#391 and the current AB#377/AB#160 items.
+
+Vitest advisory fix, 2026-10-22 — AB#160 **Active**: scheduled audit run 1430 flagged
+GHSA-qxg6-89mg-rqv8 and GHSA-xp26-3454-mjgp in the development-only `@vitest/mocker`.
+Vitest moves to 4.1.12 (range `^4.1.12`); the lockfile refresh stays inside Vitest's own
+toolchain, and the root's full and production-only audits are 0. See
+[dependency security](dependency-security.md#2026-10-22-vitest-advisories-ab160).
+
 Gallery section pointer hydration race, 2026-10-22 — AB#377 **Active**: CI run 1442
 (mobile WebKit) failed `gallery-section-pointer` "dragging away cancels the link…"
 waiting for the section row to hide. The reveal hook takes the scroll position at
