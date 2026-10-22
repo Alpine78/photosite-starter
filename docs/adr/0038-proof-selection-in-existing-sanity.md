@@ -107,9 +107,9 @@ starts before that.
 4. **Selecting needs a separate selection key, not just the viewing link.**
    At first publication the server generates a 256-bit random selection key, stores
    its SHA-256 hash in `proofTerms` for verification, and shows the key once to the
-   administrator. When the reminder is enabled, the key is also stored encrypted
-   (Decision 9) so a reminder can carry the link; the hash stays the only thing the
-   selection endpoint checks.
+   administrator. The key is also stored encrypted from first publication, whether or
+   not the reminder is on (Decision 9), so switching reminders on later still has a
+   link to send; the hash stays the only thing the selection endpoint checks.
    The share link the administrator sends carries it in the URL fragment
    (`/client-proof/<handle>#select=<key>`): a fragment is not sent in requests, logs or
    `Referer`. The page script sends the key in a request body to a same-origin `POST`
@@ -333,7 +333,7 @@ Only after acceptance, as small reviewable slices:
 5. Reminder (Decision 9): per-gallery delay and address in the private terms, the
    daily `CRON_SECRET` route, the create-once record per reminder step, the 30-day
    cadence, the encrypted key and its secret, localized message, and tests for a
-   repeated run, missed steps, a confirmed or replaced gallery, a rotated secret and a
-   failed send.
+   repeated run, missed steps, reminders switched on after publication, a confirmed or
+   replaced gallery, a rotated secret and a failed send.
 6. Data-flow and privacy documentation, retention and deletion procedure, then an owner
    activation decision. Production activation is not part of this ADR.
