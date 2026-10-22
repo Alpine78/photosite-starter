@@ -743,3 +743,23 @@ is §8's empty-selection landing state, which now carries the search form.
 Until the taxonomy and AB#58/AB#71 exist no token resolves to a keyword, so a non-empty
 `keywords` is the existing **unknown-keyword** `noindex` 404. This amendment adds no
 keyword feature and changes none of §3–§7 or §9.
+
+## Scoped amendment — 2026-10-22: ID-only public tokens (AB#55)
+
+**Status:** Proposed together with [ADR-0039](0039-keyword-taxonomy-and-ingest-boundary.md);
+takes effect only when ADR-0039 is accepted.
+
+**Previous rule:** §3 resolves aliases in public selections; §8 redirects them with
+permanence conditional on AB#55's alias-immutability decision.
+
+**Replacement:** A public `keywords` token resolves only as an active `keywordId`,
+or as a merged `keywordId` which redirects once to its target's canonical selection
+under §8. Aliases and titles are import/Studio-only; a token matching only an alias
+is the **unknown-keyword** state (§8).
+
+**Reason:** Aliases are unique only per category (ADR-0039 decision 4), so a bare
+URL token cannot resolve them unambiguously.
+
+**Affected sections:** Context; §3's resolution and sorting; §5's alias-retargeting
+example; §8's alias redirects; Consequences and its alias migration trigger;
+Action Items 1 and 5; and the alias-retargeting item in “What this ADR did not establish”.

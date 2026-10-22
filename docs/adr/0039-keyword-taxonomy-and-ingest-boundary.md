@@ -139,6 +139,7 @@ administrator-initiated events, while reads happen on every visitor request.
   already maps through a merge); the same
   name in two categories (a car make and a team) is allowed, and an import term that
   matches both is ambiguous and goes to review.
+  See [ADR-0012's proposed 2026-10-22 amendment](0012-dynamic-keyword-gallery-query-contract.md#scoped-amendment--2026-10-22-id-only-public-tokens-ab55).
 - **Rename** changes `title`; `keywordId` and references stay, so every page shows the
   new name without touching media documents. The former title's match key is kept as an
   alias automatically, so the next identical Lightroom import still maps to the same
