@@ -187,11 +187,14 @@ starts before that.
      repeated run cannot send twice), then records `sent` or `failed` like Decision 6's
      notice; Studio lists failed reminders. Whether to send repeated reminders is Open
      question R2.
-   - **Schedule.** A daily scheduled function finds due reminders. On the reference
-     Vercel Hobby plan scheduled functions run at most once per day and start anywhere
-     within the configured hour (Vercel cron documentation), so a reminder goes out on
-     the first daily run after the delay, up to about a day later. The route accepts
-     only the platform's `CRON_SECRET` bearer token and answers `no-store`.
+   - **Schedule.** A scheduled function runs once a day and sends every reminder that is
+     due, so a reminder goes out on the first run after the delay, up to about a day
+     later; a day is the setting's own unit, so a more frequent run buys nothing. The
+     reference deployment is on Vercel Pro (ADR-0004 amendment 2026-10-09), which
+     allows per-minute schedules; a daily schedule also fits Hobby's once-per-day limit
+     and its start anywhere within the configured hour (Vercel cron documentation), so
+     a clone on either plan works unchanged. The route accepts only the platform's
+     `CRON_SECRET` bearer token and answers `no-store`.
    - **Message.** Sent through the existing mail adapter in the gallery's locale
      (Finnish or English): the gallery name, that no selection has been confirmed yet,
      and the photographer's contact. Because only the selection key's hash is stored,
