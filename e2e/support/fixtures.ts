@@ -17,6 +17,12 @@ type HarnessFixtures = {
    * rarely necessary; the fixture applies it whether or not a test asks.
    */
   clientAddress: string;
+
+  /**
+   * Content-Security-Policy violations any page in this test's context
+   * reported (AB#390). Always empty in a passing test — the fixture asserts it.
+   */
+  contentSecurityViolations: string[];
 };
 
 type HarnessWorkerFixtures = {
@@ -118,6 +124,38 @@ export const test = base.extend<HarnessFixtures, HarnessWorkerFixtures>({
       expect(
         attempted,
         "The page under test requested a third-party origin. Public pages must not reach one, and a journey that needs an external call must stub it in the test.",
+      ).toEqual([]);
+    },
+    { auto: true },
+  ],
+
+  /**
+   * Fails a test whose pages reported any `securitypolicyviolation` (AB#390):
+   * public HTML runs under a per-request nonce policy, and a script or style
+   * the policy blocks is a broken page, not a log line. Each event is sent to
+   * the test process as it happens, so a later navigation or a closed page
+   * cannot lose it. A page with JavaScript disabled runs no script to block.
+   */
+  contentSecurityViolations: [
+    async ({ context }, use) => {
+      const violations: string[] = [];
+      await context.exposeBinding("__photositeReportCspViolation", (_source, violation: string) => {
+        violations.push(violation);
+      });
+      await context.addInitScript(() => {
+        document.addEventListener("securitypolicyviolation", (event) => {
+          const report = (window as unknown as { __photositeReportCspViolation?: (violation: string) => void })
+            .__photositeReportCspViolation;
+          report?.(`${event.effectiveDirective} blocked ${event.blockedURI || "inline"} on ${event.documentURI}${
+            event.sample ? ` (${event.sample})` : ""}`);
+        });
+      });
+
+      await use(violations);
+
+      expect(
+        violations,
+        "A page reported a Content-Security-Policy violation. Public pages run under a per-request nonce policy (ADR-0011 amendment 2026-10-22).",
       ).toEqual([]);
     },
     { auto: true },

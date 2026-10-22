@@ -2,6 +2,17 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Per-request script nonce, 2026-10-22 — AB#390 **Active**: public page, retained
+unlisted gallery and file-path responses carry `script-src 'self' 'nonce-…'
+'strict-dynamic'` without `'unsafe-inline'`, generated per request in `src/proxy.ts`
+from `src/lib/content-security-policy.ts`; the theme bootstrap reads the nonce, and
+Next.js tags its own scripts. `next.config.ts` keeps the static policy as the fallback
+for redirects, API, maintenance and the inactive private namespaces. A fixture-level
+guard fails every journey on a reported CSP violation, and
+`e2e/content-security-policy.spec.ts` checks the policy, the script nonces and a fresh
+nonce per response on eleven page families. Production changes with the next manual
+release.
+
 Article-end keyboard filter hydration race, 2026-10-21 — AB#377 **Active**: the
 desktop WebKit "keyboard filters preserve … current reading hash" flake recurred on main
 run 1406 after #576. Its trace shows the URL hash empty for the whole 10 s wait with a

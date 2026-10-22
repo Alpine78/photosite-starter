@@ -471,3 +471,49 @@ describe("restricted UI locale header ownership", () => {
     expect(response.headers.get("x-middleware-request-x-photosite-restricted-ui-locale")).toBe("fi");
   });
 });
+
+describe("per-request script nonce (AB#390)", () => {
+  const scriptSources = (policy: string | null) =>
+    (policy ?? "").split(";").map((part) => part.trim()).find((part) => part.startsWith("script-src ")) ?? "";
+
+  it.each(["/", "/stories", "/contact", "/gallery/missing.1683eecb7e65.webp", "/client-gallery/11111111111111111111111111111111"])(
+    "gives a public %s response a nonce policy and forwards it to rendering",
+    async (path) => {
+      const { proxy, request } = await loadProxy();
+      const response = proxy(request(path));
+      const nonce = response.headers.get("x-middleware-request-x-nonce");
+      expect(nonce).toMatch(/^[A-Za-z0-9+/]{22}==$/);
+      const policy = response.headers.get("content-security-policy");
+      expect(scriptSources(policy)).toBe(`script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`);
+      expect(response.headers.get("x-middleware-request-content-security-policy")).toBe(policy);
+    },
+  );
+
+  it("issues a different nonce for every request", async () => {
+    const { proxy, request } = await loadProxy();
+    const first = proxy(request("/")).headers.get("x-middleware-request-x-nonce");
+    const second = proxy(request("/")).headers.get("x-middleware-request-x-nonce");
+    expect(first).not.toBe(second);
+  });
+
+  it("replaces a client-supplied nonce and policy", async () => {
+    const { proxy, request } = await loadProxy();
+    const forged = "AAAAAAAAAAAAAAAAAAAAAA==";
+    const response = proxy(request("/", { "x-nonce": forged, "content-security-policy": "script-src *" }));
+    expect(response.headers.get("x-middleware-request-x-nonce")).not.toBe(forged);
+    expect(response.headers.get("x-middleware-request-content-security-policy")).not.toContain("script-src *");
+  });
+
+  it.each([
+    ["an API route", "/api/contact", "GET"],
+    ["a non-GET page request", "/contact", "POST"],
+    ["the inactive private namespace", "/private-gallery/handle", "GET"],
+    ["the prerendered 404 page path", "/404", "GET"],
+    ["the prerendered global error page path", "/_global-error", "GET"],
+  ])("leaves %s on the static fallback without forwarding a nonce", async (_label, path, method) => {
+    const { proxy, request } = await loadProxy();
+    const response = proxy(request(path, { "x-nonce": "AAAAAAAAAAAAAAAAAAAAAA==" }, method));
+    expect(response.headers.get("x-middleware-request-x-nonce")).toBeNull();
+    expect(response.headers.get("content-security-policy")).toBeNull();
+  });
+});

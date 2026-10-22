@@ -133,10 +133,13 @@ inventory too, even though neither carries visitor data the way Resend/Sanity do
 
 Fully covered by ADR-0011, which is the authoritative record for this criterion. Summary:
 
-- **CSP**: shipped, strict on every directive except `script-src`/`style-src`
-  (`'unsafe-inline'`, documented accepted residual risk — Next.js App Router's own
-  inline hydration script and inline style attributes require it or a
-  static-rendering-breaking nonce migration; see ADR-0011).
+- **CSP**: shipped, strict on every directive except `style-src` (`'unsafe-inline'`
+  for server-rendered style attributes). Public HTML has a per-request script nonce
+  with `'strict-dynamic'` and no `'unsafe-inline'` since AB#390 (ADR-0011 amendment
+  2026-10-22); redirects, API, maintenance and the inactive private namespaces keep the
+  static `'unsafe-inline'` fallback, as do Next.js's prerendered error-page paths
+  (`/404`, `/500`), whose build-time HTML has no nonce. Every journey test fails on a
+  reported violation.
 - **HSTS**: deliberately not set at the application level; Vercel's platform default
   (`max-age=63072000`) already applies, verified against Vercel's own documentation
   rather than assumed.
@@ -628,6 +631,8 @@ candidate. AB#117 remains Active with its independent live privacy/security gate
 2026-10-21 afternoon checks: [third parties, cookies, layout shift, keyboard focus and redirects](audits/production-checks-2026-10-21-afternoon.md) — no third-party request, cookie or storage on 332 anonymous page loads; no load-time layout shift; one 0.12 desktop shift from a justified gallery's open last row while scrolling (owner decision); every keyboard focus stop visible; 415/415 legacy redirect rows pass.
 2026-10-21 evening checks: [dark theme, interactive states, structured data, caching and indexing](audits/production-checks-2026-10-21-evening.md) — no dark-theme contrast issue; one interactive-state contrast issue (search count, AB#387); reduced motion respected; caching and variant-URL indexing match their decisions.
 2026-10-21 night: [mobile performance and CSP nonce feasibility](audits/performance-and-csp-2026-10-21.md) — LCP 2.1–3.9 s on image pages under a slow mobile profile (6.4 s on a gallery page, addressed by #577/#580, not yet live); nonce-based `script-src` judged feasible now that public HTML already renders per request, pending a work item and an ADR-0011 amendment.
+
+2026-10-22 AB#390: public HTML now runs under a per-request script nonce (`src/proxy.ts`, `src/lib/content-security-policy.ts`); `e2e/content-security-policy.spec.ts` covers every public page family and the fixture-level guard fails any journey with a CSP violation. The 2026-10-21 header check below predates it; the next Production header check must expect the nonce policy on HTML.
 
 2026-10-21 Production header check: [CSP, frame, MIME, referrer, permissions and HSTS headers on sampled page, API and sitemap responses](audits/ab117-production-headers-2026-10-21.md) match ADR-0011 and `next.config.ts`; no public `Set-Cookie`. It also explains why public HTML is served `no-store`: the routes read query parameters, so they render on demand (cache, not security).
 

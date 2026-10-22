@@ -1,4 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
+import {
+  CONTENT_SECURITY_POLICY_HEADER,
+  SCRIPT_NONCE_HEADER,
+  contentSecurityPolicy,
+  createScriptNonce,
+  readSanityImageScope,
+} from "@/lib/content-security-policy";
 import { REQUEST_UI_LOCALE_HEADER, restrictedLocaleFromSearch } from "@/lib/restricted-page-locale";
 import { getDeploymentConfig } from "@/lib/deployment-config";
 import { isContentMetadataPath, isStaticAssetCandidate, MAINTENANCE_FALLBACK_HEADER } from "@/lib/maintenance-routing";
@@ -119,6 +126,44 @@ const retainedGalleryRedirect = createLegacyGalleryRedirectResolver();
 const RETAINED_GALLERY_REDIRECT_STATUS = 307;
 let warnedInvalidRetainedRedirects = false;
 
+const sanityImageScope = readSanityImageScope(process.env);
+
+/**
+ * Next.js's own error-page paths answer with the build's prerendered HTML,
+ * which carries no nonce, so they keep the static fallback policy. Measured on
+ * a production build: `/404` (a retained Joomla error-page URL) loaded the
+ * static not-found page and a nonce policy blocked every one of its scripts.
+ */
+const PRERENDERED_ERROR_PAGE_PATHS = new Set(["/404", "/500", "/_not-found", "/_global-error"]);
+
+/**
+ * A public page or file-path pass-through with a fresh script nonce (ADR-0011
+ * amendment 2026-10-22, AB#390). Next.js reads the policy from the request
+ * header and tags its own scripts while rendering; the theme bootstrap reads
+ * `x-nonce`. The response header replaces `next.config.ts`'s static fallback,
+ * which holds for `next()` and not for a rewrite (see
+ * `RESERVED_NAMESPACE_HYGIENE_HEADERS`), so this is only ever used with
+ * `next()`. Other methods keep the static policy: they render no page; so do the
+ * prerendered error pages above.
+ */
+function nextWithScriptNonce(request: NextRequest, requestHeaders: Headers): NextResponse {
+  if ((request.method !== "GET" && request.method !== "HEAD") ||
+    PRERENDERED_ERROR_PAGE_PATHS.has(request.nextUrl.pathname)) {
+    return NextResponse.next({ request: { headers: requestHeaders } });
+  }
+  const scriptNonce = createScriptNonce();
+  const policy = contentSecurityPolicy({
+    sanityImageScope,
+    scriptNonce,
+    development: process.env.NODE_ENV === "development",
+  });
+  requestHeaders.set(CONTENT_SECURITY_POLICY_HEADER, policy);
+  requestHeaders.set(SCRIPT_NONCE_HEADER, scriptNonce);
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  response.headers.set(CONTENT_SECURITY_POLICY_HEADER, policy);
+  return response;
+}
+
 export function proxy(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   const { pathname } = request.nextUrl;
@@ -126,6 +171,9 @@ export function proxy(request: NextRequest) {
   // source must not prevent the maintenance response. Clients cannot select a
   // bypass: their marker is always removed or replaced by this request's fact.
   requestHeaders.delete(MAINTENANCE_FALLBACK_HEADER);
+  // A client can never choose the policy or nonce a page renders with.
+  requestHeaders.delete(CONTENT_SECURITY_POLICY_HEADER);
+  requestHeaders.delete(SCRIPT_NONCE_HEADER);
   const assetCandidate = isStaticAssetCandidate(pathname);
   if (readSiteMaintenanceMode(process.env) !== "off") {
     if (!assetCandidate || isContentMetadataPath(pathname)) {
@@ -147,7 +195,8 @@ export function proxy(request: NextRequest) {
     return response;
   }
   // Preserve the old matcher exclusions' ordinary behavior, including metadata.
-  if (assetCandidate) return NextResponse.next({ request: { headers: requestHeaders } });
+  // A missing file-shaped path can still render an HTML 404, so it gets the nonce too.
+  if (assetCandidate) return nextWithScriptNonce(request, requestHeaders);
   const hasCursor = request.nextUrl.searchParams.has("cursor");
   const hasSection = request.nextUrl.searchParams.has("section");
   const hasTrailingSlash = pathname.length > 1 && pathname.endsWith("/");
@@ -175,7 +224,7 @@ export function proxy(request: NextRequest) {
     requestHeaders.delete(REQUEST_PATH_HEADER);
     requestHeaders.delete(REQUEST_HAS_CURSOR_HEADER);
     requestHeaders.delete(REQUEST_HAS_SECTION_HEADER);
-    return withReservedNamespaceHygieneHeaders(NextResponse.next({ request: { headers: requestHeaders } }));
+    return withReservedNamespaceHygieneHeaders(nextWithScriptNonce(request, requestHeaders));
   }
 
   // The two reserved namespaces: the private client-gallery one (ADR-0014 §9)
@@ -381,7 +430,7 @@ export function proxy(request: NextRequest) {
   }
 
   if (!privatePath) {
-    return NextResponse.next({ request: { headers: requestHeaders } });
+    return nextWithScriptNonce(request, requestHeaders);
   }
 
   // One rewrite reconciles the deployment-configured public prefix with the
