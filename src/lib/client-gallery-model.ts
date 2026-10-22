@@ -20,10 +20,10 @@ export function clientRecord(value: unknown): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return invalidClientGallery();
   return value as Record<string, unknown>;
 }
-function closed(value: Record<string, unknown>, fields: readonly string[]) {
+export function closed(value: Record<string, unknown>, fields: readonly string[]) {
   if (Object.keys(value).some((key) => !fields.includes(key))) invalidClientGallery();
 }
-function text(value: unknown, max: number): string {
+export function text(value: unknown, max: number): string {
   if (typeof value !== "string" || value.length > max || !value.trim() || /[\u0000-\u001f\u007f]/u.test(value)) return invalidClientGallery();
   return value;
 }
@@ -33,13 +33,13 @@ export function isClientGalleryHandle(value: unknown): value is string {
 export function isClientDocumentId(value: unknown): value is string {
   return typeof value === "string" && value.length <= 128 && /^[A-Za-z0-9][A-Za-z0-9_-]*$/u.test(value) && value.trim() === value;
 }
-function key(value: unknown): string {
+export function key(value: unknown): string {
   const result = text(value, 128);
   if (!/^[A-Za-z0-9][A-Za-z0-9_-]*$/u.test(result)) return invalidClientGallery();
   return result;
 }
 export type ClientText = Readonly<{ key: string; language: string; value: string }>;
-function localized(value: unknown, required: boolean, max: number): readonly ClientText[] {
+export function localized(value: unknown, required: boolean, max: number): readonly ClientText[] {
   if (value == null && !required) return [];
   if (!Array.isArray(value) || value.length < 1 || value.length > 20 || Object.keys(value).length !== value.length) return invalidClientGallery();
   const result: ClientText[] = [], keys = new Set<string>(), languages = new Set<string>();
@@ -55,10 +55,10 @@ export type ClientGalleryItem = Readonly<{
   key: string; assetId: string; hash: string; width: number; height: number; extension: string;
   alt: readonly ClientText[];
 }>;
-function imageItem(value: unknown): ClientGalleryItem {
-  const row = clientRecord(value); closed(row, ["_key", "_type", "mediaType", "image", "alt"]);
-  if (row._type !== "clientDeliveryItem" || row.mediaType !== "image") return invalidClientGallery();
-  const image = clientRecord(row.image); closed(image, ["_type", "asset", "crop", "hotspot"]);
+export type PublicImageReference = Readonly<{ assetId: string; hash: string; width: number; height: number; extension: string }>;
+/** A complete, uncropped public image of at most 2048 px; shared with the proof gallery model. */
+export function publicImageReference(value: unknown): PublicImageReference {
+  const image = clientRecord(value); closed(image, ["_type", "asset", "crop", "hotspot"]);
   const reference = clientRecord(image.asset); closed(reference, ["_type", "_ref"]);
   if (image._type !== "image" || reference._type !== "reference" || typeof reference._ref !== "string") return invalidClientGallery();
   if (image.crop != null) {
@@ -73,7 +73,13 @@ function imageItem(value: unknown): ClientGalleryItem {
   if (!match || match[0] !== reference._ref) return invalidClientGallery();
   const width = Number(match[2]), height = Number(match[3]);
   if (Math.max(width, height) > MAX_PUBLIC_DELIVERY_DIMENSION) return invalidClientGallery();
-  return { key: key(row._key), assetId: reference._ref, hash: match[1], width, height, extension: match[4], alt: localized(row.alt, true, 512) };
+  return { assetId: reference._ref, hash: match[1], width, height, extension: match[4] };
+}
+function imageItem(value: unknown): ClientGalleryItem {
+  const row = clientRecord(value); closed(row, ["_key", "_type", "mediaType", "image", "alt"]);
+  if (row._type !== "clientDeliveryItem" || row.mediaType !== "image") return invalidClientGallery();
+  const image = publicImageReference(row.image);
+  return { key: key(row._key), ...image, alt: localized(row.alt, true, 512) };
 }
 export type ParsedClientGallery = Readonly<{
   id: string; revision: string; handle: string; title: readonly ClientText[]; available: boolean;

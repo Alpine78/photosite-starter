@@ -144,6 +144,28 @@ already applies: a value mirrored under `NEXT_PUBLIC_SANITY_POLL_VOTE_TOKEN` fai
 request rather than being silently accepted, because its presence means the write
 credential is already on its way to every visitor.
 
+### Proof gallery publication (AB#130, ADR-0038)
+
+`/api/proof-gallery/publish` publishes a proof gallery (numbering its proofs and, on first
+publication, creating the selection key) and rotates a gallery's key. It is **off** unless
+`PROOF_PUBLICATION=enabled`, and it adds **no Sanity credential**: the Studio publish action
+sends the editor's own Sanity token, the route proves it is a user session with
+`/users/me`, and every read and the one atomic transaction use that same token, so Sanity
+enforces membership and publish permission. The token is sent only to this project's API
+host and is never logged or stored.
+
+- `PROOF_PUBLICATION_STUDIO_ORIGINS`: the exact https origin(s) of the Studio; no other
+  origin receives CORS headers or reaches any Sanity call.
+- `PROOF_SELECTION_KEY_SECRET`: 32 random bytes (base64url), server-only, encrypting the
+  stored copy of each selection key; a `NEXT_PUBLIC_` mirror makes the route unavailable.
+- The Studio must use `auth.loginMethod: 'token'` for the action to read the editor's
+  token; that Studio change lands with the publish action (ADR-0038 amendment
+  2026-10-22 records the trade-off).
+
+Do not enable it before the slices that author the private terms and add the Studio
+action, and before an owner-run check on the hosted Studio that `/users/me` and the
+cross-origin call behave as the unit tests assume.
+
 ## Standalone editor
 
 The optional [`studio/`](../studio/README.md) application consumes the canonical
