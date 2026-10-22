@@ -2,6 +2,18 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Article-end keyboard filter hydration race, 2026-10-21 — AB#377 **Active**: the
+desktop WebKit "keyboard filters preserve … current reading hash" flake recurred on main
+run 1406 after #576. Its trace shows the URL hash empty for the whole 10 s wait with a
+stable layout: only a reader gesture unlocks the reading-address tracker, and the
+ArrowDown arrived before its listeners existed. The journey now repeats placement plus
+one real key until the tracker answers, as `content-reading-address` already does; the
+filter assertions are unchanged. 220/220 first-attempt runs (×5, every project).
+Still open: run 1398's desktop WebKit `article-reading-position` locale case (heading
+54 px off after reload). The hypothesis that the in-page language fallback hiding after
+restoration caused it was tested by deferring the header marker and did not reproduce,
+so no application change was made.
+
 CSP nonce decision, 2026-10-22 — AB#390 **New**: the owner accepted the
 [ADR-0011 amendment](adr/0011-security-response-headers.md) for a per-request script
 nonce on public HTML. Production keeps `script-src 'unsafe-inline'` until AB#390 ships.

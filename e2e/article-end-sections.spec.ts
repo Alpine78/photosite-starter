@@ -136,9 +136,7 @@ for (const f of fixtures) {
     const heading = listContentHeadings(f.content.body).find(
       (x) => x.level === 4,
     )!;
-    await page
-      .locator(`[id='${heading.id}']`)
-      .evaluate((el) => el.scrollIntoView({ block: "start" }));
+    const headingTarget = page.locator(`[id='${heading.id}']`);
     const controls = page.locator("[data-article-section-controls]");
     const target = controls.getByRole("link", {
       name: f.sections[1].label,
@@ -173,17 +171,23 @@ for (const f of fixtures) {
       if (expected === null || hash === "" || (expected !== "keep" && hash !== expected)) return false;
       return ((await target.getAttribute("href")) ?? "").endsWith(hash);
     };
-    // Two races, both seen in AB#377 traces. WebKit animates the ArrowDown
-    // scroll, and a focus during that animation was scrolled back by it,
-    // leaving the filter off-screen. Then focusing a filter scrolls it into
-    // view, moving the reading chapter, which the tracker publishes up to
-    // 500 ms later, after a hash snapshot taken too early ("-1" vs "-5").
-    // Wait for the tracker to publish the arrow scroll's chapter first, then
-    // focus, and snapshot only once the address and the filter link carry the
-    // chapter of the settled viewport, so the assertions below are about the
-    // filter change.
-    await page.keyboard.press("ArrowDown");
-    await expect.poll(addressSettled).toBe(true);
+    // Three races, all seen in AB#377 traces. Only a reader gesture unlocks the
+    // tracker, and `load` does not mean hydrated: an ArrowDown before its
+    // listeners exist is never seen, so the hash stayed empty (CI run 1406).
+    // Repeat placement plus one real key until the tracker answers. WebKit
+    // animates the ArrowDown scroll, and a focus during that animation was
+    // scrolled back by it, leaving the filter off-screen. Then focusing a filter
+    // scrolls it into view, moving the reading chapter, which the tracker
+    // publishes up to 500 ms later, after a hash snapshot taken too early ("-1"
+    // vs "-5"). Wait for the tracker to publish the arrow scroll's chapter
+    // first, then focus, and snapshot only once the address and the filter link
+    // carry the chapter of the settled viewport, so the assertions below are
+    // about the filter change.
+    await expect(async () => {
+      await headingTarget.evaluate((el) => el.scrollIntoView({ block: "start" }));
+      await page.keyboard.press("ArrowDown");
+      await expect.poll(addressSettled, { timeout: 2_000 }).toBe(true);
+    }).toPass();
     await target.focus();
     await expect(controls).toHaveClass(/translate-y-0/);
     await expect(target).toBeInViewport();
