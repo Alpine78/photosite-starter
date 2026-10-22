@@ -324,6 +324,21 @@ fresh published data independently, with bounded strict JSON transports and a
 revision-matched indexed snapshot for measured assets. The legacy batch/allowlist/manifest and
 original-file exceptions stay unchanged. See the [Studio workflow](../studio/README.md#ongoing-client-galleries-ab302--ab145).
 
+## Proof galleries (AB#130, ADR-0038)
+
+`clientProofGallery` and its embedded `clientProofItem` objects carry externally
+watermarked public web proofs (at most 2048 px, neutral crop), each with its complete
+original filename and a permanent proof number. Numbers (`001`, `002`, …) follow the
+natural order of the filenames at first publication; later additions take the next
+number above `referenceHighWater`, a removed number is never reused and reordering never
+renumbers (`proof-references.ts`). Publication validation derives the expected numbers
+from the **published** document, never from the draft, and refuses a published proof
+whose image was replaced. The handle stays unique across client, legacy and proof
+galleries. No customer, contact, job or price field exists: terms, selections and the
+selection key belong on Sanity private ID paths in a later slice. Until the publish
+action that numbers proofs and creates those private records lands, Studio does not
+offer the type for creation and never offers unpublish (`studio/editorial-policy.ts`).
+
 AB#308's deterministic contract fixtures execute the actual runtime and native
 validation query strings with the first-party `groq-js/1` interpreter, pinned to
 the already locked `groq-js@2.0.0` as a Studio development dependency. They cover

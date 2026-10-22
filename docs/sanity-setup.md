@@ -692,6 +692,11 @@ is separate from deploying the hosted Studio or verifying actual editor roles.
 All files and public dataset fields are public; unlisting and page expiry do not
 revoke direct asset URLs. No live upload, publication or deployment is performed.
 
+Proof galleries (AB#130, ADR-0038): the `clientProofGallery` schema and its permanent
+proof-number validation are registered, but Studio does not offer the type for creation
+until the publish action and the private terms/selection-key records land. See the
+[schema contract](../sanity/README.md#proof-galleries-ab130-adr-0038).
+
 AB#305 adds an optional native customer-link action. Configure the public
 `SANITY_STUDIO_SITE_ORIGIN` and rebuild to show/copy the published gallery's URL;
 blank/unset configuration keeps copying disabled. It uses declared full locale
