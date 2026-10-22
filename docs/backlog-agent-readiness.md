@@ -71,7 +71,7 @@ resumed for this owner (AGENTS.md); AB#313 audits removing that inactive code.
 | --- | --- | --- |
 | AB#29 — Unlisted client galleries and whole-gallery ZIPs | Active | Follows ADR-0034 and the ADR-0035 ZIP proposal; owner decisions first. |
 | AB#145 — Administer unlisted galleries | Active | Same branch; authoring boundaries need their own implementation. |
-| AB#130 — Proof selection without S3 | New | Not ready: needs its own design decision. |
+| AB#130 — Proof selection without S3 | Active | [ADR-0038](adr/0038-proof-selection-in-existing-sanity.md) accepted 2026-10-22; implementation in its action-item slices; production activation is an owner decision. |
 | AB#60 — Enquiry about a public gallery item | Active | Curated-gallery path is built; a dynamic entry point needs the keyword branch. |
 
 **Keyword and commerce discovery:**
