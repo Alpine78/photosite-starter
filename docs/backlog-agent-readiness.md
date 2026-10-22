@@ -71,7 +71,7 @@ resumed for this owner (AGENTS.md); AB#313 audits removing that inactive code.
 | --- | --- | --- |
 | AB#29 — Unlisted client galleries and whole-gallery ZIPs | Active | Follows ADR-0034 and the ADR-0035 ZIP proposal; owner decisions first. |
 | AB#145 — Administer unlisted galleries | Active | Same branch; authoring boundaries need their own implementation. |
-| AB#130 — Proof selection without S3 | New | Not ready: needs its own design decision. |
+| AB#130 — Proof selection without S3 | Active | [ADR-0038](adr/0038-proof-selection-in-existing-sanity.md) accepted 2026-10-22; implementation in its action-item slices; production activation is an owner decision. |
 | AB#60 — Enquiry about a public gallery item | Active | Curated-gallery path is built; a dynamic entry point needs the keyword branch. |
 
 **Keyword and commerce discovery:**
@@ -79,7 +79,7 @@ resumed for this owner (AGENTS.md); AB#313 audits removing that inactive code.
 | Work item | State | Readiness |
 | --- | --- | --- |
 | AB#54 — Keyword extraction spike | Active | Owner-run evidence: Lightroom control exports through the real non-production upload path. |
-| AB#55 — Keyword taxonomy ADR | New | Blocked on AB#54's evidence; AB#65's benchmark recommends ancestor closure on the medium. |
+| AB#55 — Keyword taxonomy ADR | Active | [ADR-0039](adr/0039-keyword-taxonomy-and-ingest-boundary.md) Proposed; owner review, and AB#54's evidence for its open import questions. |
 | AB#56–59, 68–75, 90 — Keyword features | New | Blocked on AB#55. |
 | AB#95 — Sales, checkout and fulfilment boundary | Active | Product discovery; no checkout, cart or payment implementation. |
 
