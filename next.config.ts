@@ -5,6 +5,7 @@ import {
   YOUTUBE_NOCOOKIE_ORIGIN,
 } from "@/lib/embed-origins";
 import { readPrivateObjectStoreOrigin } from "@/lib/private-object-store-origin";
+import { contentSecurityPolicy } from "@/lib/content-security-policy";
 import {
   previewNoindexAliasHostPattern,
   readProductionNoindexAliasHosts,
@@ -228,19 +229,16 @@ function permissionsPolicy(): string {
  * shared CDN host), the one opt-in video embed frames from its known origin,
  * and nothing else is ever fetched, framed, or submitted cross-origin.
  *
- * `script-src`/`style-src` carry `'unsafe-inline'` as documented, accepted
- * residual risk rather than an oversight — see
- * `docs/adr/0011-security-response-headers.md`. Next.js's App Router injects
- * an inline RSC hydration bootstrap script and inline style attributes
- * (`next/image` sizing, `next/font` fallback) on every request; closing that
- * with per-request nonces requires converting the whole site to dynamic
- * rendering, which conflicts with the static-generation and tagged-caching
- * architecture ADR-0004 and AB#83 already committed to. No inline HTML is
- * ever rendered from unescaped input anywhere in this codebase: the two
+ * This is the static fallback. Public page and file-path responses leave the
+ * Proxy through `NextResponse.next()` with the per-request nonce variant, which
+ * replaces this header (ADR-0011 amendment 2026-10-22, AB#390;
+ * `src/lib/content-security-policy.ts`). Here `script-src`/`style-src` keep
+ * `'unsafe-inline'` as documented residual risk for the responses the Proxy
+ * does not tag: redirects, API and maintenance responses and the inactive
+ * private and administrator namespaces (ADR-0034). The two
  * `dangerouslySetInnerHTML` uses are a `</script>`-safe JSON-LD serializer and
  * the constant theme bootstrap (AB#173), and there is no raw-HTML content
- * block, so the realistic injection surface this would otherwise close is
- * already effectively empty.
+ * block.
  *
  * `script-src` additionally carries `'unsafe-eval'` in development only
  * (`process.env.NODE_ENV === "development"`, true for `npm run dev`, false
@@ -252,34 +250,15 @@ function permissionsPolicy(): string {
  * `npm run dev` server, not just the docs: without this, every dev-mode
  * response's CSP blocked React's debugging `eval()` calls.
  */
-function contentSecurityPolicy(
+function staticContentSecurityPolicy(
   settings: SanityBuildSettings | null,
   privateObjectStoreOrigin?: string,
 ): string {
-  const sanityImageOrigins =
-    settings === null
-      ? ""
-      : ` https://${SANITY_ASSET_CDN_HOST}/images/${settings.projectId}/${settings.dataset}/ https://${SANITY_ASSET_CDN_HOST}/files/${settings.projectId}/${settings.dataset}/`;
-  const scriptSrc =
-    process.env.NODE_ENV === "development"
-      ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
-      : "script-src 'self' 'unsafe-inline'";
-
-  return [
-    "default-src 'self'",
-    "base-uri 'self'",
-    "object-src 'none'",
-    "form-action 'self'",
-    "frame-ancestors 'none'",
-    scriptSrc,
-    "style-src 'self' 'unsafe-inline'",
-    `img-src 'self' data:${sanityImageOrigins}${
-      privateObjectStoreOrigin === undefined ? "" : ` ${privateObjectStoreOrigin}`
-    }`,
-    `frame-src ${YOUTUBE_NOCOOKIE_ORIGIN}`,
-    "connect-src 'self'",
-    "font-src 'self'",
-  ].join("; ");
+  return contentSecurityPolicy({
+    sanityImageScope: settings,
+    privateObjectStoreOrigin,
+    development: process.env.NODE_ENV === "development",
+  });
 }
 
 /**
@@ -310,7 +289,7 @@ function securityHeaders(
     { key: "Permissions-Policy", value: permissionsPolicy() },
     {
       key: "Content-Security-Policy",
-      value: contentSecurityPolicy(sanitySettings, privateObjectStoreOrigin),
+      value: staticContentSecurityPolicy(sanitySettings, privateObjectStoreOrigin),
     },
   ];
 }

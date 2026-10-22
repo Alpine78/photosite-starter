@@ -322,3 +322,28 @@ that is now per response, which every new inline script must respect.
 HTML policy is set), Option B (rejected → chosen for public HTML scripts),
 Consequences (the `'unsafe-inline'` script residual). This amendment does not change
 `style-src`, the other directives or any non-HTML response.
+
+**Implementation note — 2026-10-22 (AB#390).** Implemented as decided, with three
+details settled by the build rather than assumed:
+
+- `next.config.ts` keeps the static policy as the fallback for every response; the
+  Proxy replaces it with the nonce variant on public page, retained unlisted gallery and
+  file-path responses, which all leave the Proxy through `NextResponse.next()`. A
+  `next.config.ts` `missing`-header condition was rejected: configured headers are
+  evaluated before Proxy runs, so they would see a client-supplied header. The Proxy
+  deletes any client `x-nonce` or `Content-Security-Policy` request header. Redirects,
+  API, maintenance and the inactive private and administrator namespaces keep the
+  static fallback.
+- Step 3: the JSON-LD block carries no nonce. It is a data block the browser never
+  executes, so `script-src` does not apply to it; the violation guard confirms this in
+  Chromium and WebKit.
+- Step 4: no separate change was needed. Reading the request header in the shared
+  document root makes `/services/[slug]` render per request (build output `ƒ`).
+- Next.js's prerendered error-page paths (`/404`, `/500`, `/_not-found`,
+  `/_global-error`) keep the static fallback: their build-time HTML carries no nonce,
+  and the journey guard caught a nonce policy blocking every script on `/404` (a
+  retained Joomla error-page URL). Not-found answers rendered through the site's own
+  routes, including unknown pages and missing file-shaped paths, carry the nonce.
+- Known limit: a root-layout failure is served from the prerendered global-error page,
+  which carries no nonce; its text is readable without script, and only its "try again"
+  button needs JavaScript.
