@@ -6,8 +6,10 @@ Owner decisions, 2026-10-22 — AB#130, AB#389, AB#390: the owner answered
 [ADR-0038](adr/0038-proof-selection-in-existing-sanity.md)'s five questions (all
 project members may see selections and prices; no resend path at first activation;
 no deletion schedule; proof galleries indefinite by default; the delivery gallery
-replaces the proof gallery through a proposed link-and-redirect). ADR-0038 stays
-Proposed until accepted as a whole. AB#389 (load-time shift from the in-page language
+replaces the proof gallery through a link-and-redirect) and added an automatic customer
+reminder (default 7 days, full selection link from an encrypted key copy, then every
+30 days). The owner **accepted ADR-0038** the same day; implementation is next, in the
+action items' slices, and production activation remains a separate decision. AB#389 (load-time shift from the in-page language
 fallback) is **Closed** as kept by design. The CSP nonce work is AB#390 (**New**) with a
 Proposed [ADR-0011 amendment](adr/0011-security-response-headers.md); no code changes
 before its acceptance.

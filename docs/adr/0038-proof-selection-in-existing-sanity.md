@@ -1,8 +1,8 @@
 # ADR-0038: Proof selection for unlisted client galleries in the existing Sanity project
 
-**Status:** Proposed
+**Status:** Accepted (2026-10-22)
 **Date:** 2026-10-21
-**Deciders:** Project owner (acceptance pending)
+**Deciders:** Project owner
 **Work item:** AB#130 (parent AB#63; related AB#29, AB#145, AB#28, AB#95)
 
 ## Context
@@ -64,8 +64,9 @@ job or selection data. Payment, invoicing and receipts stay in AB#28/AB#95.
 
 ## Decision
 
-Proposed. Nothing below is accepted until the owner says so, and no implementation
-starts before that.
+Accepted by the owner on 2026-10-22, including the owner answers and Decision 9 below.
+Implementation follows the action items as small reviewable slices; production
+activation is a separate owner decision.
 
 1. **Proofs are a separate unlisted gallery type in the public dataset.**
    A `clientProofGallery` document reuses the client-gallery shape: random handle,
@@ -178,7 +179,7 @@ starts before that.
    Prices are shown and stored as given terms. No checkout, invoice, receipt or payment
    state is created; those remain AB#28 / AB#95.
 
-9. **An automatic reminder to the customer (owner request 2026-10-22, proposed).**
+9. **An automatic reminder to the customer (owner request 2026-10-22).**
    - **Setting.** Each proof gallery has a reminder delay in whole days, 7 by default,
      which the administrator can change per gallery or switch off. It is stored with
      the private terms, together with the customer's email address the administrator
@@ -280,8 +281,8 @@ a watermark exists.
 
 ## Owner answers — 2026-10-22
 
-The owner answered the five open questions. Status stays Proposed until the owner
-accepts the record as a whole.
+The owner answered the five open questions and accepted the record as a whole on the
+same day.
 
 1. **Visibility: accepted.** Every member of the Sanity project may see selections and
    prices. No separate project or custom roles.
@@ -297,7 +298,7 @@ accepts the record as a whole.
 4. **Default availability: indefinite.** A new proof gallery has no deadline unless the
    administrator sets one.
 5. **The delivery gallery replaces the proof gallery, and the two must be linked.**
-   Proposed mechanism for owner review: the proof gallery carries an optional
+   Accepted mechanism: the proof gallery carries an optional
    reference to its delivery gallery. While the reference is set and that delivery
    gallery is available, the proof link answers with a temporary redirect to the
    delivery link, and selection writes are refused as for an expired gallery. Removing
@@ -316,7 +317,7 @@ Reminder questions (Decision 9), answered by the owner on 2026-10-22:
 
 ## Action Items
 
-Only after acceptance, as small reviewable slices:
+As small reviewable slices, now that the record is accepted:
 
 1. Schemas and Studio: `clientProofGallery`, reference numbering at first publication
    with its validation and natural-order tests, private terms snapshot, key generation
