@@ -226,8 +226,11 @@ then without merging the vocabularies.
   terms privately protects nothing if the bytes still contain them. Ingest reads the
   keywords from the local Lightroom export **before** upload, and the file uploaded for
   public use carries no keyword metadata (`dc:subject`, `lr:hierarchicalSubject`, IPTC
-  keywords). Which other embedded fields the public file keeps is decided with AB#54's
-  reader/writer choice. ADR-0028's byte-for-byte metadata exception stays limited to
+  keywords). **The JPEG is never re-encoded on import** (owner rule 2026-10-22): keyword
+  metadata is removed only by omitting whole metadata segments (XMP, extended XMP,
+  Photoshop/IPTC), so the compressed image data stays byte for byte the export's.
+  `sharp` may read metadata but never writes the uploaded file. Which other embedded
+  fields the public file keeps is decided with AB#54's evidence. ADR-0028's byte-for-byte metadata exception stays limited to
   the 21 legacy delivery galleries.
 
 ## Options Considered
@@ -273,8 +276,10 @@ overwritten by the next export.
    `thumbhash`), `palette`, `image`, `exif` and `location`; it lists no IPTC or XMP
    keyword extraction. Extraction therefore reads the local JPEG export's own metadata
    before upload, not Sanity asset metadata, and the uploaded public file has its
-   keyword metadata removed (decision 7). Which library reads and strips it (licence,
-   maintenance, shipped cost) is AB#54's remaining decision.
+   keyword metadata removed by segment omission without re-encoding (decision 7).
+   Which reader parses the keywords (licence, maintenance, shipped cost) is AB#54's
+   remaining decision; recommended: `sharp`'s raw XMP plus a small tested parser, with
+   `exiftool-vendored` as the fallback.
 3. **Answered: yes, from the exported JPEGs.** The vocabulary is seeded from the
    keywords embedded in the JPEGs the owner exports from Lightroom; no separate
    keyword-list export is required. Unmatched terms enter review as in decision 2.
