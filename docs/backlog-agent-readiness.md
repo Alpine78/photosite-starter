@@ -79,7 +79,7 @@ resumed for this owner (AGENTS.md); AB#313 audits removing that inactive code.
 | Work item | State | Readiness |
 | --- | --- | --- |
 | AB#54 — Keyword extraction spike | Active | Owner-run evidence: Lightroom control exports through the real non-production upload path. |
-| AB#55 — Keyword taxonomy ADR | New | Blocked on AB#54's evidence; AB#65's benchmark recommends ancestor closure on the medium. |
+| AB#55 — Keyword taxonomy ADR | Active | [ADR-0039](adr/0039-keyword-taxonomy-and-ingest-boundary.md) Proposed; owner review, and AB#54's evidence for its open import questions. |
 | AB#56–59, 68–75, 90 — Keyword features | New | Blocked on AB#55. |
 | AB#95 — Sales, checkout and fulfilment boundary | Active | Product discovery; no checkout, cart or payment implementation. |
 

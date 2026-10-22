@@ -2,6 +2,21 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+CSP nonce decision, 2026-10-22 — AB#390 **New**: the owner accepted the
+[ADR-0011 amendment](adr/0011-security-response-headers.md) for a per-request script
+nonce on public HTML. Production keeps `script-src 'unsafe-inline'` until AB#390 ships.
+
+Keyword taxonomy proposal, 2026-10-21 — AB#55 **Active**:
+[ADR-0039](adr/0039-keyword-taxonomy-and-ingest-boundary.md) (Proposed) decides the
+taxonomy ADR-0012 treats as a black box: `keyword` and configurable `keywordCategory`
+documents with an immutable ASCII `keywordId` of at most 40 characters (five ids fit
+ADR-0012's cursor scope, so no digest is needed); Lightroom terms as Studio-only audit
+data with a deterministic re-import and editor tombstones; the ancestor closure
+materialized on the medium per AB#65's benchmark, with a resumable re-sync for moves;
+rename, merge, retire and delete rules; article tags kept separate (AB#25); and a
+public/internal boundary for named people. Questions that need AB#54's Lightroom evidence
+are left open. No schema or code change; AB#56/57 wait for acceptance.
+
 Owner decisions, 2026-10-22 — AB#130, AB#389, AB#390: the owner answered
 [ADR-0038](adr/0038-proof-selection-in-existing-sanity.md)'s five questions (all
 project members may see selections and prices; no resend path at first activation;

@@ -51,8 +51,8 @@ Two conventions on top of the template:
 | [0008](0008-localized-authored-text.md) | AB#82 | Localized authored text in content schemas | Accepted |
 | [0009](0009-seeded-random-gallery-ordering.md) | AB#66 (ordering clauses only) | Seeded random gallery ordering contract | Accepted |
 | [0010](0010-lightbox-preload-window.md) | AB#79 | Bounded adjacent-image lightbox preload window | Accepted |
-| [0011](0011-security-response-headers.md) | AB#117 / AB#250 / AB#390 | Security response headers and the CSP inline-content trade-off; 2026-10-14 scoped original legacy JPEG file path; 2026-10-22 proposed per-request script nonce (amendment Proposed) | Accepted |
-| [0012](0012-dynamic-keyword-gallery-query-contract.md) | AB#66 (remainder, after ADR-0009 split off ordering) | Dynamic keyword-gallery query contract | Accepted |
+| [0011](0011-security-response-headers.md) | AB#117 / AB#250 / AB#390 | Security response headers and the CSP inline-content trade-off; 2026-10-14 scoped original legacy JPEG file path; 2026-10-22 accepted per-request script nonce, implementation AB#390 | Accepted |
+| [0012](0012-dynamic-keyword-gallery-query-contract.md) | AB#66 (remainder, after ADR-0009 split off ordering) | Dynamic keyword-gallery query contract (amendment proposed 2026-10-22, AB#55) | Accepted |
 | [0013](0013-category-listing-continuation-cursor.md) | AB#140 | Category-listing continuation cursor contract (keyset over `(publishedAt, contentId)`, shared signing secret, self-canonical indexable pages) | Accepted |
 | [0014](0014-private-gallery-security-delivery-retention-boundary.md) | AB#122 | Private client gallery security, delivery, proof selection, and retention boundary (fragment-capability access + server session, structural public/private isolation, S3-compatible object store + PostgreSQL-family private store, worker-authoritative six-month retention) | Accepted; reference-deployment target superseded by ADR-0034 |
 | [0015](0015-administrator-authentication-boundary.md) | AB#29 / AB#145 | Administrator authentication boundary for private client galleries (own reserved namespace, `__Host-` session sharing nothing with the customer path, persisted login rate limit, generated single-operator secret verified with scrypt; ADR-0014 §4's open mechanism) | Accepted; reference-deployment target superseded by ADR-0034 |
@@ -79,6 +79,7 @@ Two conventions on top of the template:
 | [0036](0036-article-end-section-filtering-proposal.md) | AB#360 / AB#27 / AB#321 | Owner-accepted optional article-end sections with bounded authenticated filtering; 41-item identity/text preflight complete, implementation/content acceptance pending | Accepted |
 | [0037](0037-cookieless-site-analytics.md) | AB#371 | Cookieless site analytics as an off-by-default adapter with Vercel Web Analytics as the reference provider; route exclusion and URL reduction; Speed Insights not adopted | Accepted |
 | [0038](0038-proof-selection-in-existing-sanity.md) | AB#130 | Proof selection in the existing Sanity project: public watermarked proofs with permanent references, private ID-path terms/selections/versions, a separate selection key, one narrow write path with transactional confirmation, notification separate from the record; 2026-10-22 owner answers (indefinite default, no resend path at first activation, replaced by a linked delivery gallery; automatic reminder with selection link, then monthly) | Accepted |
+| [0039](0039-keyword-taxonomy-and-ingest-boundary.md) | AB#55 | Image keyword taxonomy and ingest boundary: governed keyword documents, Lightroom as audit input with re-import overrides, ancestor closure on the medium, separate article tags, public/internal privacy boundary | Proposed |
 
 Expected further entries:
 
