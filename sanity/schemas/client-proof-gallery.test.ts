@@ -64,6 +64,10 @@ describe("Sanity proof gallery authoring (ADR-0038, AB#130)", () => {
       items: [{ _key: "k1", reference: "001", assetRef: assetId("a") }, { _key: "k2", reference: "001", assetRef: assetId("b") }] };
     expect(await setup({ identity: { conflicts: [], published: duplicated } }).run(gallery({ items: [proof("k1", "IMG_1.jpg", assetId("a"), "001"), proof("k2", "IMG_2.jpg", assetId("b"), "001")] }))).toBe(errors.identity);
   });
+  it("refuses a document ID longer than the private records leave room for", async () => {
+    expect(await setup().run(gallery({ _id: `drafts.${"a".repeat(96)}` }))).toBe(true);
+    expect(await setup().run(gallery({ _id: `drafts.${"a".repeat(97)}` }))).toBe(errors.identity);
+  });
   it("refuses a handle used by any client, legacy or proof gallery and a published document of another shape", async () => {
     expect(await setup({ identity: { conflicts: [{ _id: "other" }], published: null } }).run(gallery())).toBe(errors.identity);
     expect(await setup({ identity: { conflicts: [], published: { _type: "clientDeliveryGallery", handle: "c".repeat(32) } } }).run(gallery())).toBe(errors.identity);

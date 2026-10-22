@@ -338,3 +338,60 @@ As small reviewable slices, now that the record is accepted:
    replaced gallery, a rotated secret and a failed send.
 6. Data-flow and privacy documentation, retention and deletion procedure, then an owner
    activation decision. Production activation is not part of this ADR.
+
+## Amendment — 2026-10-22: publication path (owner decision)
+
+**Decision.** The owner chose the Studio publish action calling a site server route that
+verifies the editor's Sanity session ("option 1", over a shared Studio secret or an
+owner-run script), to be done safely. This amendment records how; it changes no other
+decision.
+
+**Verified facts it rests on.** Sanity Studio 6.18.0's `auth.loginMethod` is `dual` by
+default (an HTTP-only cookie where possible), so a document action cannot read the
+editor's token unless the Studio uses `loginMethod: 'token'` (token in `localStorage`).
+`/users/me` accepts only user sessions, not robot tokens. Documents on a dotted ID path
+need authentication with read permission, and writes need a member with write access.
+Mutation transactions are atomic; `ifRevisionID` and `create` fail with a conflict when the
+document changed or already exists.
+
+**Design.**
+
+1. `POST /api/proof-gallery/publish` (and its preflight), off unless
+   `PROOF_PUBLICATION=enabled` with exact Studio origins and a 32-byte
+   `PROOF_SELECTION_KEY_SECRET`; incomplete configuration answers 503.
+2. CORS only for an exact configured Studio origin, without credentials; any other origin
+   is refused before work. Then: JSON content type, a per-client limit, a bounded bearer
+   token and an exact `{galleryId, operation}` body (`publish` or `rotate-key`).
+3. The route proves the token is a user session with `/users/me`, spends the per-gallery
+   allowance only then, and makes every read and the transaction **with the editor's own
+   token**. Sanity therefore enforces membership and publish permission; the route holds no
+   write credential. The token goes only to this project's API host and is never logged.
+4. The server validates the draft independently (closed shape, handle immutability and
+   uniqueness, asset metadata, `privateOnly`, a published proof keeping its image) and
+   derives numbers from the published state with a restated copy of the numbering rules
+   pinned to the Studio's by a parity test.
+5. One atomic transaction: a revision-guarded draft patch, then on first publication
+   `create` of the gallery and of `proofTerms.<id>` (key hash, AES-256-GCM copy bound to
+   the gallery ID, `firstPublishedAt`, `keyIssuedAt`), or on a later publication one
+   revision-guarded patch of the published gallery; then the draft is deleted.
+   `rotate-key` patches the private record together with a revision-guarded rewrite of the
+   published gallery's own high-water value, so a rotation needs the same publish
+   permission as a publication. A selection key is returned only after
+   the transaction committed; if that answer is lost, the administrator rotates the key.
+6. Gallery IDs are limited to 96 characters so `proofTerms.` and later private IDs fit
+   Sanity's 128.
+7. Logs carry a correlation ID and a closed outcome class only.
+
+**Consequences.**
+
+- The Studio switches to `loginMethod: 'token'` with the publish action: the editor's
+  token is then readable by scripts running on the Studio origin, which runs only the
+  Studio's own bundle and renders no user HTML. This is accepted as the price of option 1.
+- Activation stays off until the private terms can be authored and snapshotted in the same
+  first-publication transaction (ADR-0038 decision 3), the Studio action exists, and an
+  owner-run check on the hosted Studio confirms `/users/me` and the cross-origin call.
+- No reveal-by-decryption is added: decryption stays reserved for the reminder (decision 9).
+
+**Sections affected:** Decision 3 (the private record now also carries `firstPublishedAt`
+and is created by this route), Decision 4 (key creation and rotation run here), Action
+Items 1 and 4.
