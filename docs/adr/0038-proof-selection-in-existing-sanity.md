@@ -92,7 +92,8 @@ starts before that.
    readable without authentication, yet stay in the owner's existing project, backups
    and Studio, with no new service. They hold:
    - **terms**: included count, extra unit price in minor units, ISO 4217 currency, an
-     opaque administrator-entered job reference (no contact data until AB#28 defines a
+     opaque administrator-entered job reference, the customer's email address only when
+     the reminder (Decision 9) is enabled (no other contact data until AB#28 defines a
      customer record), and the hash of the selection key (Decision 4), snapshotted when
      the gallery is first published so later default-price changes do not alter it;
    - **the working selection**: the set of selected references and the stable item
@@ -173,6 +174,33 @@ starts before that.
    Prices are shown and stored as given terms. No checkout, invoice, receipt or payment
    state is created; those remain AB#28 / AB#95.
 
+9. **An automatic reminder to the customer (owner request 2026-10-22, proposed).**
+   - **Setting.** Each proof gallery has a reminder delay in whole days, 7 by default,
+     which the administrator can change per gallery or switch off. It is stored with
+     the private terms, together with the customer's email address the administrator
+     enters. No address is ever taken from a request.
+   - **When.** The delay counts from the gallery's first publication. A reminder is due
+     when the delay has passed, no confirmed version exists, the gallery is available,
+     not past its deadline and not replaced by a delivery gallery (Owner answers 5).
+   - **Once.** One reminder per gallery. Sending first `create`s a private
+     `proofReminder.<galleryId>` record (a `create` fails if it already exists, so a
+     repeated run cannot send twice), then records `sent` or `failed` like Decision 6's
+     notice; Studio lists failed reminders. Whether to send repeated reminders is Open
+     question R2.
+   - **Schedule.** A daily scheduled function finds due reminders. On the reference
+     Vercel Hobby plan scheduled functions run at most once per day and start anywhere
+     within the configured hour (Vercel cron documentation), so a reminder goes out on
+     the first daily run after the delay, up to about a day later. The route accepts
+     only the platform's `CRON_SECRET` bearer token and answers `no-store`.
+   - **Message.** Sent through the existing mail adapter in the gallery's locale
+     (Finnish or English): the gallery name, that no selection has been confirmed yet,
+     and the photographer's contact. Because only the selection key's hash is stored,
+     the reminder cannot contain the selection link unless the key is kept in a
+     recoverable form (Open question R1).
+   - **Privacy.** The customer's address is personal data: it lives only on the private
+     path, is never logged (correlation IDs only), is deleted with the gallery, and the
+     privacy notice names the reminder before activation.
+
 ## Options Considered
 
 | Option | Assessment |
@@ -224,6 +252,9 @@ a watermark exists.
 - `/client-proof` joins the reserved route namespaces next to `/client-gallery`
   (ADR-0003's root-reservation list), so no content slug can claim it.
 - The inactive protected implementation (AB#313) stays off; nothing here reuses it.
+- Decision 9 adds a daily scheduled route protected by `CRON_SECRET`, customer email
+  addresses on the private path, and an outbound customer email, all of which the
+  security review, `docs/sanity-setup.md` and the privacy notice must cover.
 
 ## Owner answers — 2026-10-22
 
@@ -252,6 +283,17 @@ accepts the record as a whole.
    delivery gallery's own availability rules are unchanged; the redirect reveals the
    delivery link only to holders of the proof link, who are the same customer.
 
+Questions raised by the reminder (Decision 9), for the owner:
+
+- **R1. Link in the reminder.** (a) No link: the reminder asks the customer to use the
+  photographer's original message, and no recoverable key is stored. (b) Full selection
+  link: the key is also stored encrypted under a separate server secret so the reminder
+  can rebuild the link; anyone holding both the dataset and that secret could then
+  select on the customer's behalf. Recommendation: (a) first, (b) only if customers
+  lose the original link in practice.
+- **R2. One reminder or repeated?** Recommendation: one; a repeat interval can be added
+  later without changing the record shape.
+
 ## Action Items
 
 Only after acceptance, as small reviewable slices:
@@ -268,5 +310,8 @@ Only after acceptance, as small reviewable slices:
    pending/failed notices, no resend path for the first activation (Owner answers 2), the mail
    provider's idempotency behaviour verified, and a test for the window between the
    confirmation commit and the notice update.
-5. Data-flow and privacy documentation, retention and deletion procedure, then an owner
+5. Reminder (Decision 9): per-gallery delay and address in the private terms, the
+   daily `CRON_SECRET` route, the create-once reminder record, localized message, and
+   tests for a repeated run, a confirmed or replaced gallery and a failed send.
+6. Data-flow and privacy documentation, retention and deletion procedure, then an owner
    activation decision. Production activation is not part of this ADR.
