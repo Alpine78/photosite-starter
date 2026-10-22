@@ -137,6 +137,21 @@ changed during this check. This procedure is defined but has not been verified
 as completed. Until receipt is evidenced, AC1's delivery requirement, AC2's
 maintainer-visibility requirement and AC4's notification step remain open.
 
+### 2026-10-22 Vitest advisories (AB#160)
+
+Scheduled audit run 1430 (main) failed on two moderate advisories in the
+development-only test runner: `@vitest/mocker` <4.1.12,
+[GHSA-qxg6-89mg-rqv8](https://github.com/advisories/GHSA-qxg6-89mg-rqv8)
+(code injection via unauthenticated manual mock registration) and
+[GHSA-xp26-3454-mjgp](https://github.com/advisories/GHSA-xp26-3454-mjgp)
+(Windows backslash traversal of the mock redirect allowlist), reached through the
+direct `vitest` dependency. Neither reaches the production tree (production-only
+audit: 0). Vitest 4.1.12, published 2026-10-15, fixes both; the range moves to
+`^4.1.12` and the lockfile refresh moves only Vitest's own toolchain (`@vitest/*`,
+`vite` 8.3.5, `rolldown` 1.2.15 and its platform bindings, `@oxc-project/types`,
+`chai` 6.3.0, `tinyrainbow` 3.2.0). Full and production-only audits are now 0 for the
+root; the Studio's `sprintf-js` exception is unchanged. All unit suites pass.
+
 ## Triage each finding
 
 1. Record the advisory ID, affected package and resolved lockfile version,

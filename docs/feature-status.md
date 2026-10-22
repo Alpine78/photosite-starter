@@ -2,6 +2,12 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Vitest advisory fix, 2026-10-22 — AB#160 **Active**: scheduled audit run 1430 flagged
+GHSA-qxg6-89mg-rqv8 and GHSA-xp26-3454-mjgp in the development-only `@vitest/mocker`.
+Vitest moves to 4.1.12 (range `^4.1.12`); the lockfile refresh stays inside Vitest's own
+toolchain, and the root's full and production-only audits are 0. See
+[dependency security](dependency-security.md#2026-10-22-vitest-advisories-ab160).
+
 Per-request script nonce, 2026-10-22 — AB#390 **Active**: public page, retained
 unlisted gallery and file-path responses carry `script-src 'self' 'nonce-…'
 'strict-dynamic'` without `'unsafe-inline'`, generated per request in `src/proxy.ts`
