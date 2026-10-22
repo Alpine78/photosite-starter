@@ -129,8 +129,8 @@ administrator-initiated events, while reads happen on every visitor request.
 
 - **No cycles.** Validation walks `parent` upwards and rejects a direct or indirect cycle
   and any chain deeper than 6 levels.
-- **Uniqueness.** `keywordId` is globally unique across active keywords and merge
-  records. Public URL tokens are `keywordId`s only; aliases and titles serve import
+- **Uniqueness.** `keywordId` is never reused: it is globally unique across active,
+  merged and retired keywords. Public URL tokens are `keywordId`s only; aliases and titles serve import
   matching and Studio search, never URL resolution. An alias or title may not equal
   any other keyword's `keywordId`. The normalized match key (decision 5)
   of a title or alias is unique **within its category** among active keywords and the
@@ -159,8 +159,8 @@ administrator-initiated events, while reads happen on every visitor request.
   re-import preserves them but cannot make a retired keyword effective. A keyword
   with active children cannot be retired or merged until they are re-parented, so no
   orphan is created implicitly.
-- **Delete** is allowed only for a keyword nothing references (Sanity reference
-  integrity). Otherwise retire it.
+- **Delete** is allowed only for a never-published keyword: nothing references it and
+  it never appeared publicly. Otherwise retire it, keeping its `keywordId` reserved.
 
 ### 5. Display, matching and slugs
 
