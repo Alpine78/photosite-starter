@@ -23,6 +23,7 @@ import { publishedIdOf, validationClientOf } from "./validation";
  * (`studio/editorial-policy.ts`).
  */
 export const CLIENT_PROOF_MAX_ITEMS = 256;
+export const CLIENT_PROOF_ID_MAX_LENGTH = 96;
 export const CLIENT_PROOF_MAX_DOCUMENT_BYTES = 256 * 1024;
 export const CLIENT_PROOF_ERRORS = {
   structure: "Check the proof gallery fields, image order and filenames.",
@@ -77,7 +78,8 @@ export async function validateClientProofGallery(value: unknown, context: Schema
     if ((value.availabilityMode !== "until" && value.availabilityMode !== "indefinite") ||
       (value.availabilityMode === "until" ? !isClientDeliveryInstant(value.expiryInstant) : value.expiryInstant != null)) return CLIENT_PROOF_ERRORS.structure;
     const id = typeof value._id === "string" ? publishedIdOf(value._id) : "";
-    if (!text(id, 128) || !/^[A-Za-z0-9][A-Za-z0-9_-]*$/u.test(id) || !isClientDeliveryHandle(value.handle)) return CLIENT_PROOF_ERRORS.identity;
+    // 96, not Sanity's 128: private records such as `proofTerms.<id>` add a prefix (ADR-0038).
+    if (!text(id, CLIENT_PROOF_ID_MAX_LENGTH) || !/^[A-Za-z0-9][A-Za-z0-9_-]*$/u.test(id) || !isClientDeliveryHandle(value.handle)) return CLIENT_PROOF_ERRORS.identity;
     const items: ProofReferenceItem[] = [], keys = new Set<string>();
     for (const raw of value.items) {
       const item = proofItem(raw);

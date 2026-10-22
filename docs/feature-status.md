@@ -2,6 +2,17 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Proof publication route, 2026-10-22 — AB#130 **Active** (owner decision: option 1):
+`/api/proof-gallery/publish`, off by default, publishes a proof gallery and rotates its
+selection key with the **editor's own Sanity token** — `/users/me` proves a user session
+and Sanity enforces permissions on every read and the one atomic transaction, so the
+route holds no write credential. Exact-origin CORS for the Studio only, per-client limit
+before the session check, per-gallery limit after it, independent server-side validation,
+numbering from the published state (restated, with a parity test), AES-256-GCM key copy
+bound to the gallery, key returned only after commit, closed-class logs. Recorded in the
+[ADR-0038 amendment](adr/0038-proof-selection-in-existing-sanity.md). Not active: the
+terms authoring, the Studio action (with `loginMethod: 'token'`) and an owner-run hosted
+check come first.
 Gallery section pointer hydration race, 2026-10-22 — AB#377 **Active**: CI run 1442
 (mobile WebKit) failed `gallery-section-pointer` "dragging away cancels the link…"
 waiting for the section row to hide. The reveal hook takes the scroll position at

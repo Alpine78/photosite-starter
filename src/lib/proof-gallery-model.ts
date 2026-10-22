@@ -1,0 +1,111 @@
+/**
+ * Server-side proof gallery model for the publication route (ADR-0038, AB#130).
+ *
+ * Independent of the Studio validator (`sanity/schemas/client-proof-gallery.ts`):
+ * the route validates whatever it reads with the editor's token, because Studio
+ * validation runs only in the browser. Shapes mirror the schema and reuse the
+ * delivery model's closed-value checks.
+ */
+import "server-only";
+import {
+  clientRecord,
+  closed,
+  invalidClientGallery,
+  isClientGalleryHandle,
+  key,
+  localized,
+  publicImageReference,
+  text,
+  type PublicImageReference,
+} from "@/lib/client-gallery-model";
+import { isProofReference, MAX_PROOF_REFERENCE, type ProofReferenceItem, type PublishedProofState } from "@/lib/proof-references";
+
+export const PROOF_GALLERY_MAX_ITEMS = 256;
+export const PROOF_GALLERY_MAX_DOCUMENT_BYTES = 256 * 1024;
+const SYSTEM_FIELDS = ["_id", "_rev", "_createdAt", "_updatedAt", "_system"] as const;
+const GALLERY_FIELDS = [...SYSTEM_FIELDS, "_type", "handle", "title", "available", "availabilityMode", "expiryInstant", "items", "referenceHighWater"] as const;
+/** Optional authored fields a later publication may need to clear from the published document. */
+export const PROOF_GALLERY_OPTIONAL_FIELDS = ["title", "expiryInstant", "referenceHighWater"] as const;
+const ITEM_FIELDS = ["_key", "_type", "mediaType", "image", "originalFilename", "alt", "reference"] as const;
+
+export type ProofGalleryItem = ProofReferenceItem & Readonly<{ image: PublicImageReference }>;
+export type ParsedProofGallery = Readonly<{
+  revision: string;
+  handle: string;
+  items: readonly ProofGalleryItem[];
+  /** The authored document without Sanity's system fields, as read. */
+  authored: Readonly<Record<string, unknown>>;
+}>;
+
+function revision(value: unknown): string {
+  const rev = text(value, 128);
+  if (!/^[A-Za-z0-9_-]+$/u.test(rev)) return invalidClientGallery();
+  return rev;
+}
+
+function availability(row: Record<string, unknown>): void {
+  if (row.availabilityMode === "indefinite") {
+    if (row.expiryInstant != null) invalidClientGallery();
+    return;
+  }
+  if (row.availabilityMode !== "until" || typeof row.expiryInstant !== "string" || row.expiryInstant.length > 24) invalidClientGallery();
+  const time = Date.parse(row.expiryInstant as string);
+  if (!Number.isFinite(time)) invalidClientGallery();
+  const canonical = new Date(time).toISOString();
+  if (row.expiryInstant !== canonical && row.expiryInstant !== canonical.replace(".000Z", "Z")) invalidClientGallery();
+}
+
+function item(value: unknown): ProofGalleryItem {
+  const row = clientRecord(value); closed(row, ITEM_FIELDS);
+  if (row._type !== "clientProofItem" || row.mediaType !== "image") return invalidClientGallery();
+  if (row.reference != null && typeof row.reference !== "string") return invalidClientGallery();
+  localized(row.alt, false, 512);
+  const image = publicImageReference(row.image);
+  return {
+    _key: key(row._key),
+    originalFilename: text(row.originalFilename, 255),
+    assetRef: image.assetId,
+    image,
+    ...(typeof row.reference === "string" ? { reference: row.reference } : {}),
+  };
+}
+
+/** A proof gallery document (draft or published) read with the editor's token. */
+export function parseProofGallery(value: unknown, expectedId: string): ParsedProofGallery {
+  const row = clientRecord(value); closed(row, GALLERY_FIELDS);
+  if (row._id !== expectedId || row._type !== "clientProofGallery" || !isClientGalleryHandle(row.handle) ||
+    typeof row.available !== "boolean") return invalidClientGallery();
+  localized(row.title, false, 200);
+  availability(row);
+  if (row.referenceHighWater != null && (!Number.isSafeInteger(row.referenceHighWater) ||
+    (row.referenceHighWater as number) < 0 || (row.referenceHighWater as number) > MAX_PROOF_REFERENCE)) return invalidClientGallery();
+  if (!Array.isArray(row.items) || row.items.length < 1 || row.items.length > PROOF_GALLERY_MAX_ITEMS ||
+    Object.keys(row.items).length !== row.items.length) return invalidClientGallery();
+  const items: ProofGalleryItem[] = [], keys = new Set<string>();
+  for (const value of row.items) {
+    const parsed = item(value);
+    if (keys.has(parsed._key)) return invalidClientGallery();
+    keys.add(parsed._key); items.push(parsed);
+  }
+  const authored = Object.fromEntries(Object.entries(row).filter(([name]) => !(SYSTEM_FIELDS as readonly string[]).includes(name)));
+  if (new TextEncoder().encode(JSON.stringify(authored)).byteLength > PROOF_GALLERY_MAX_DOCUMENT_BYTES) return invalidClientGallery();
+  return { revision: revision(row._rev), handle: row.handle as string, items, authored };
+}
+
+/**
+ * The numbers publication has already fixed. A repeated number or one above the
+ * high-water mark would let the next addition reuse a number, so such a
+ * document is refused rather than numbered from.
+ */
+export function publishedProofState(gallery: ParsedProofGallery): PublishedProofState {
+  const highWater = gallery.authored.referenceHighWater;
+  if (!Number.isSafeInteger(highWater) || (highWater as number) < 0) return invalidClientGallery();
+  const references: Record<string, { reference: string; assetRef: string }> = {};
+  const numbers = new Set<string>();
+  for (const entry of gallery.items) {
+    if (!isProofReference(entry.reference) || numbers.has(entry.reference) || Number(entry.reference) > (highWater as number)) return invalidClientGallery();
+    references[entry._key] = { reference: entry.reference, assetRef: entry.assetRef };
+    numbers.add(entry.reference);
+  }
+  return { highWater: highWater as number, references };
+}

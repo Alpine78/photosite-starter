@@ -83,6 +83,8 @@ export type SubmissionState =
   | "delivery-failed"
   | "recorded"
   | "already-voted"
+  | "published"
+  | "key-rotated"
   | "failed";
 
 /** The closed set of event names the submission-log family emits. */
@@ -93,7 +95,8 @@ type SubmissionEventName =
   | "private-gallery.view"
   | "private-gallery.mint"
   | "private-gallery.admin"
-  | "poll.vote";
+  | "poll.vote"
+  | "proof.publication";
 
 export type ContactEvent =
   | {
@@ -176,6 +179,19 @@ export type PollVoteEvent =
   | { readonly correlationId: string; readonly state: "recorded" | "already-voted"; readonly errorClass?: never }
   | { readonly correlationId: string; readonly state: "rejected" | "failed"; readonly errorClass: PollVoteErrorClass };
 
+/**
+ * Proof publication and key rotation (ADR-0038, AB#130): correlation ID and a
+ * closed outcome class only — never the editor token, a selection key, the
+ * gallery ID or any Sanity response.
+ */
+export type ProofPublicationErrorClass =
+  | "origin" | "unauthenticated" | "forbidden" | "malformed-request" | "rate-limited" | "misconfigured"
+  | "not-found" | "invalid-gallery" | "unsupported-release" | "inconsistent" | "invalid-references"
+  | "conflict" | "store-unavailable" | "internal";
+export type ProofPublicationEvent =
+  | { readonly correlationId: string; readonly state: "published" | "key-rotated"; readonly errorClass?: never }
+  | { readonly correlationId: string; readonly state: "rejected" | "failed"; readonly errorClass: ProofPublicationErrorClass };
+
 export function createCorrelationId(): string {
   return randomUUID();
 }
@@ -202,7 +218,8 @@ function writeSubmissionLine(
     | PrivateGalleryViewFailure["reason"]
     | PrivateGalleryMintFailure["reason"]
     | PrivateGalleryAdminFailure["reason"]
-    | PollVoteErrorClass,
+    | PollVoteErrorClass
+    | ProofPublicationErrorClass,
 ): void {
   const line = JSON.stringify({
     event: name,
@@ -312,4 +329,9 @@ export function logPollVoteEvent(event: PollVoteEvent): void {
     event.state,
     event.errorClass,
   );
+}
+
+/** Emits one proof publication or key rotation event. */
+export function logProofPublicationEvent(event: ProofPublicationEvent): void {
+  writeSubmissionLine("proof.publication", event.correlationId, event.state, event.errorClass);
 }
