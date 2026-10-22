@@ -232,14 +232,36 @@ then without merging the vocabularies.
 - **Embedded image metadata is public too.** An uploaded file is downloadable from
   Sanity's public asset URL with whatever IPTC/XMP it carries, so storing extracted
   terms privately protects nothing if the bytes still contain them. Ingest reads the
-  keywords from the local Lightroom export **before** upload, and the file uploaded for
-  public use carries no keyword metadata (`dc:subject`, `lr:hierarchicalSubject`, IPTC
-  keywords). **The JPEG is never re-encoded on import** (owner rule 2026-10-22): keyword
-  metadata is removed only by omitting whole metadata segments (XMP, extended XMP,
-  Photoshop/IPTC), so the compressed image data stays byte for byte the export's.
-  `sharp` may read metadata but never writes the uploaded file. Which other embedded
-  fields the public file keeps is decided with AB#54's evidence. ADR-0028's byte-for-byte metadata exception stays limited to
-  the 21 legacy delivery galleries.
+  keywords from the local Lightroom export **before** upload and removes keyword
+  metadata from the uploaded file (decision 8).
+
+### 8. Embedded metadata and no re-encoding on import (owner decisions 2026-10-22)
+
+These rules apply to every image import path, including the Joomla migration
+derivative tool; implementation and the legacy re-upload are AB#391.
+
+- **No re-encoding up to the public bound.** A JPEG whose longest edge is at most
+  2048 px is uploaded with its compressed image data byte for byte the export's; only
+  metadata segments may change. `sharp` may read metadata but never writes such a
+  file.
+- **Larger sources are the one exception.** A source above 2048 px is downscaled and
+  re-encoded to the public bound (never cropped or upscaled), and the kept metadata
+  below is carried over to the new file.
+- **Removed:** keyword metadata (XMP `dc:subject`, `lr:hierarchicalSubject`, IPTC
+  Keywords) and the creator's postal-address fields, which can go out of date.
+- **Kept:** copyright status and notice, creator name, phone, email and website, EXIF
+  exposure, camera and lens data, and GPS location. Location stays so later features
+  can show where a photograph was taken (a map, a lightbox button); the owner leaves
+  a sensitive location out in the Lightroom export. All kept fields are public in the
+  downloadable file.
+- **Precise edits, not whole segments.** Because copyright and creator data share the
+  XMP and IPTC segments with keywords, removal edits individual fields. Recommended
+  tool: `exiftool-vendored` (MIT wrapper, actively maintained), run only in the
+  owner-run import scripts; ExifTool's own licence and behaviour are verified on
+  AB#54's test files before it is recorded in the asset inventory.
+- **Already uploaded legacy images** were re-encoded with all metadata stripped; they
+  are re-uploaded with the new tool as a separate owner-approved migration (AB#391).
+- ADR-0028's byte-for-byte exception for the 21 legacy delivery galleries is unchanged.
 
 ## Options Considered
 
@@ -284,10 +306,10 @@ overwritten by the next export.
    `thumbhash`), `palette`, `image`, `exif` and `location`; it lists no IPTC or XMP
    keyword extraction. Extraction therefore reads the local JPEG export's own metadata
    before upload, not Sanity asset metadata, and the uploaded public file has its
-   keyword metadata removed by segment omission without re-encoding (decision 7).
+   keyword metadata removed field by field without re-encoding (decision 8).
    Which reader parses the keywords (licence, maintenance, shipped cost) is AB#54's
-   remaining decision; recommended: `sharp`'s raw XMP plus a small tested parser, with
-   `exiftool-vendored` as the fallback.
+   remaining decision; recommended: `exiftool-vendored`, which both reads and edits
+   individual fields (decision 8).
 3. **Answered: yes, from the exported JPEGs.** The vocabulary is seeded from the
    keywords embedded in the JPEGs the owner exports from Lightroom; no separate
    keyword-list export is required. Unmatched terms enter review as in decision 2.
@@ -308,3 +330,4 @@ overwritten by the next export.
 5. [ ] AB#69 implements decision 3's resumable re-sync before any production move.
 6. [ ] AB#68 projects only `expandedKeywordIds` and public keyword fields (decision 7).
 7. [ ] AB#25 builds tag archives on decision 6.
+8. [ ] AB#391 applies decision 8 to every import path and re-uploads legacy public images.
