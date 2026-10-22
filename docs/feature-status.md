@@ -2,6 +2,16 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Import path inventory and backlog map, 2026-10-22 — AB#391 **New**, AB#130, AB#377:
+[the import path inventory](audits/ab391-import-path-inventory-2026-10-22.md) finds that
+all four owner-photograph upload paths (Joomla migration, rally import and conversion,
+client web images) go through `generatePublicDerivative`, which re-encodes every image
+and strips all metadata; demo fixtures and ADR-0028's legacy delivery files upload bytes
+unchanged. It lists what AB#391 has to change and leaves EXIF orientation and non-JPEG
+sources as open implementation questions. The backlog map now records AB#390 closed,
+AB#130's next owner decision (how the Studio publish action reaches a server route that
+creates the encrypted selection key), AB#391 and the current AB#377/AB#160 items.
+
 Per-request script nonce, 2026-10-22 — AB#390 **Active**: public page, retained
 unlisted gallery and file-path responses carry `script-src 'self' 'nonce-…'
 'strict-dynamic'` without `'unsafe-inline'`, generated per request in `src/proxy.ts`
