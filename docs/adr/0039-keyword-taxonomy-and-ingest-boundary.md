@@ -215,9 +215,20 @@ then without merging the vocabularies.
 - A keyword naming a person is `public` only for subjects photographed in a public role
   at a public event (a competing rally driver). New person keywords created from an
   import default to `internal` until an editor makes them public.
-- A removal request for a named person is handled by retiring the keyword or making it
-  `internal`; the re-sync then removes it from public results. This record is not legal
-  advice; the owner's privacy notice must describe the practice.
+- A removal request for a named person is handled by making the keyword `internal`
+  (the visibility transition above), not by retiring it: a retired public document is
+  still anonymously readable, with its title, aliases and `keywordId`. Merge records
+  that redirect to it are handled the same way, and identifying terms in public
+  documents are redacted. Retirement stays for ordinary vocabulary maintenance. This
+  record is not legal advice; the owner's privacy notice must describe the practice.
+- **Embedded image metadata is public too.** An uploaded file is downloadable from
+  Sanity's public asset URL with whatever IPTC/XMP it carries, so storing extracted
+  terms privately protects nothing if the bytes still contain them. Ingest reads the
+  keywords from the local Lightroom export **before** upload, and the file uploaded for
+  public use carries no keyword metadata (`dc:subject`, `lr:hierarchicalSubject`, IPTC
+  keywords). Which other embedded fields the public file keeps is decided with AB#54's
+  reader/writer choice. ADR-0028's byte-for-byte metadata exception stays limited to
+  the 21 legacy delivery galleries.
 
 ## Options Considered
 
@@ -260,8 +271,9 @@ overwritten by the next export.
 2. **Partly answered by documentation; dependency open (AB#54).** Verified: Sanity's
    upload metadata extraction covers dimensions, placeholders (`lqip`, `blurhash`,
    `thumbhash`), `palette`, `image`, `exif` and `location`; it lists no IPTC or XMP
-   keyword extraction. Extraction therefore reads the JPEG's own metadata at ingest,
-   server-side, not from Sanity asset metadata. Which reader library to use (licence,
+   keyword extraction. Extraction therefore reads the local JPEG export's own metadata
+   before upload, not Sanity asset metadata, and the uploaded public file has its
+   keyword metadata removed (decision 7). Which library reads and strips it (licence,
    maintenance, shipped cost) is AB#54's remaining decision.
 3. **Answered: yes, from the exported JPEGs.** The vocabulary is seeded from the
    keywords embedded in the JPEGs the owner exports from Lightroom; no separate
