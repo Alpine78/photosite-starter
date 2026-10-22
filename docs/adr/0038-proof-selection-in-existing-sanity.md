@@ -106,13 +106,17 @@ starts before that.
 
 4. **Selecting needs a separate selection key, not just the viewing link.**
    At first publication the server generates a 256-bit random selection key, stores
-   only its SHA-256 hash in `proofTerms`, and shows the key once to the administrator.
+   its SHA-256 hash in `proofTerms` for verification, and shows the key once to the
+   administrator. When the reminder is enabled, the key is also stored encrypted
+   (Decision 9) so a reminder can carry the link; the hash stays the only thing the
+   selection endpoint checks.
    The share link the administrator sends carries it in the URL fragment
    (`/client-proof/<handle>#select=<key>`): a fragment is not sent in requests, logs or
    `Referer`. The page script sends the key in a request body to a same-origin `POST`
    endpoint, which compares hashes in constant time. A link without the key shows the
    proofs read-only. The administrator can rotate the key, which invalidates the old
-   one; rotation does not touch existing selections or versions.
+   one and replaces its encrypted copy; rotation does not touch existing selections or
+   versions.
    The key proves possession of the link the photographer sent, not the customer's
    identity; that limit is stated in the customer-facing copy and the privacy notice.
 
@@ -182,11 +186,17 @@ starts before that.
    - **When.** The delay counts from the gallery's first publication. A reminder is due
      when the delay has passed, no confirmed version exists, the gallery is available,
      not past its deadline and not replaced by a delivery gallery (Owner answers 5).
-   - **Once.** One reminder per gallery. Sending first `create`s a private
-     `proofReminder.<galleryId>` record (a `create` fails if it already exists, so a
-     repeated run cannot send twice), then records `sent` or `failed` like Decision 6's
-     notice; Studio lists failed reminders. Whether to send repeated reminders is Open
-     question R2.
+   - **Cadence (Owner answers R2).** The first reminder is due when the delay has
+     passed; after it, one reminder every 30 days while the conditions above still
+     hold. Reminders stop for good once a version is confirmed, the gallery expires or
+     is replaced, or the administrator switches them off; switching them back on
+     resumes from the next 30-day step. Reminder *n* is due at first publication +
+     delay + (n − 1) × 30 days.
+   - **At most once each.** Sending reminder *n* first `create`s a private
+     `proofReminder.<galleryId>.<n>` record (a `create` fails if it already exists, so a
+     repeated or overlapping run cannot send the same reminder twice), then records
+     `sent` or `failed` like Decision 6's notice; Studio lists failed reminders. A run
+     that finds several missed steps sends only the latest one.
    - **Schedule.** A scheduled function runs once a day and sends every reminder that is
      due, so a reminder goes out on the first run after the delay, up to about a day
      later; a day is the setting's own unit, so a more frequent run buys nothing. The
@@ -197,9 +207,17 @@ starts before that.
      `CRON_SECRET` bearer token and answers `no-store`.
    - **Message.** Sent through the existing mail adapter in the gallery's locale
      (Finnish or English): the gallery name, that no selection has been confirmed yet,
-     and the photographer's contact. Because only the selection key's hash is stored,
-     the reminder cannot contain the selection link unless the key is kept in a
-     recoverable form (Open question R1).
+     the full selection link, and the photographer's contact, with a line telling the
+     customer to reply if they want no further reminders.
+   - **Recoverable key (Owner answers R1).** The selection key is stored encrypted with
+     AES-256-GCM (Node's built-in `crypto`, no new dependency) in the private terms,
+     under a separate server-only secret used for nothing else (refused as
+     `NEXT_PUBLIC_*`). Only the reminder route decrypts it, in memory, to build the link;
+     it is never logged. Accepted consequence: anyone holding both read access to the
+     private documents (every project member, Owner answers 1) and that secret could
+     select on the customer's behalf. Rotating the secret requires re-encrypting the
+     stored keys; until then reminders for those galleries fail visibly in Studio
+     rather than send a broken link.
    - **Privacy.** The customer's address is personal data: it lives only on the private
      path, is never logged (correlation IDs only), is deleted with the gallery, and the
      privacy notice names the reminder before activation.
@@ -256,7 +274,8 @@ a watermark exists.
   (ADR-0003's root-reservation list), so no content slug can claim it.
 - The inactive protected implementation (AB#313) stays off; nothing here reuses it.
 - Decision 9 adds a daily scheduled route protected by `CRON_SECRET`, customer email
-  addresses on the private path, and an outbound customer email, all of which the
+  addresses and encrypted selection keys on the private path, a key-encryption secret,
+  and an outbound customer email every 30 days until a selection is confirmed, all of which the
   security review, `docs/sanity-setup.md` and the privacy notice must cover.
 
 ## Owner answers — 2026-10-22
@@ -286,16 +305,14 @@ accepts the record as a whole.
    delivery gallery's own availability rules are unchanged; the redirect reveals the
    delivery link only to holders of the proof link, who are the same customer.
 
-Questions raised by the reminder (Decision 9), for the owner:
+Reminder questions (Decision 9), answered by the owner on 2026-10-22:
 
-- **R1. Link in the reminder.** (a) No link: the reminder asks the customer to use the
-  photographer's original message, and no recoverable key is stored. (b) Full selection
-  link: the key is also stored encrypted under a separate server secret so the reminder
-  can rebuild the link; anyone holding both the dataset and that secret could then
-  select on the customer's behalf. Recommendation: (a) first, (b) only if customers
-  lose the original link in practice.
-- **R2. One reminder or repeated?** Recommendation: one; a repeat interval can be added
-  later without changing the record shape.
+- **R1. Link in the reminder: (b), the full selection link.** The key is also stored
+  encrypted under a separate server secret, with the consequence stated in Decision 9.
+- **R2. Cadence: one reminder after the delay, then monthly.** The owner noted a
+  gallery that has waited about two years; a 30-day cadence after the first reminder
+  keeps such a gallery from being forgotten without daily noise. Existing galleries get
+  reminders only once they exist as proof galleries under this record.
 
 ## Action Items
 
@@ -314,7 +331,9 @@ Only after acceptance, as small reviewable slices:
    provider's idempotency behaviour verified, and a test for the window between the
    confirmation commit and the notice update.
 5. Reminder (Decision 9): per-gallery delay and address in the private terms, the
-   daily `CRON_SECRET` route, the create-once reminder record, localized message, and
-   tests for a repeated run, a confirmed or replaced gallery and a failed send.
+   daily `CRON_SECRET` route, the create-once record per reminder step, the 30-day
+   cadence, the encrypted key and its secret, localized message, and tests for a
+   repeated run, missed steps, a confirmed or replaced gallery, a rotated secret and a
+   failed send.
 6. Data-flow and privacy documentation, retention and deletion procedure, then an owner
    activation decision. Production activation is not part of this ADR.
