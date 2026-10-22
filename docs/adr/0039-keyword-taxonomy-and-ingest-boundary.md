@@ -129,7 +129,10 @@ administrator-initiated events, while reads happen on every visitor request.
 
 - **No cycles.** Validation walks `parent` upwards and rejects a direct or indirect cycle
   and any chain deeper than 6 levels.
-- **Uniqueness.** `keywordId` is globally unique. The normalized match key (decision 5)
+- **Uniqueness.** `keywordId` is globally unique across active keywords and merge
+  records. Public URL tokens are `keywordId`s only; aliases and titles serve import
+  matching and Studio search, never URL resolution. An alias or title may not equal
+  any other keyword's `keywordId`. The normalized match key (decision 5)
   of a title or alias is unique **within its category** among active keywords and the
   merge records that still resolve to them (a merged keyword's `keywordId`, title and
   aliases stay reserved for its target, so a new keyword cannot capture a term that
@@ -143,8 +146,8 @@ administrator-initiated events, while reads happen on every visitor request.
   editor action.
 - **Merge** sets the source to `merged` with `mergedInto`. The target must be an active
   keyword other than the source; merged keywords are never active, and cyclic chains
-  are rejected. The source's `keywordId` and aliases
-  then resolve to the target, so an old URL redirects once to the canonical selection
+  are rejected. The source's `keywordId`
+  then resolves to the target, so an old URL redirects once to the canonical selection
   (ADR-0012 §8); the re-sync re-points media references. The source document is kept as
   the redirect record, not deleted. The re-sync also canonicalizes and deduplicates both
   `keywordOverrides.added` and `keywordOverrides.removed` through merge chains in each
@@ -205,8 +208,13 @@ then without merging the vocabularies.
   private records, removes them from public media, and completes decision 3's re-sync
   with a `taxonomyVersion` bump before deleting the public document. Either visibility
   transition is rejected while any other keyword document references the keyword as
-  `parent` or `mergedInto`, whatever its visibility; editors re-parent or move those
-  first. A clone whose
+  `parent`, whatever its visibility; editors re-parent those first. Incoming
+  `mergedInto` references also block making an internal keyword public. Making a
+  public keyword internal moves it and every merge record that resolves to it together
+  as one operation: create a private replacement for each, rewrite incoming
+  `mergedInto` references to the private replacements, then delete the public documents
+  after the re-sync. Children via `parent` block the transition for every group member.
+  A clone whose
   dataset is private may keep the same model; the path rule costs
   it nothing.
 - Media that is `privateOnly`, belongs to a client delivery gallery, or is not
