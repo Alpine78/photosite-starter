@@ -1,5 +1,8 @@
 /** {{pN}} placeholders retain the original validation values verbatim. */
 export const validationFinnish = {
+  "Check the proof gallery fields, image order and filenames.": "Tarkista vedosgallerian kentät, kuvajärjestys ja tiedostonimet.",
+  "Use complete exported web proofs up to 2048 pixels; check their uploaded asset metadata.": "Käytä kokonaisia, enintään 2048 pikselin verkkovedoksia ja tarkista ladattujen tiedostojen metatiedot.",
+  "Proof numbers are assigned on publishing and never change. A published proof keeps its image; add a new proof for a different image.": "Vedosnumerot annetaan julkaistaessa, eivätkä ne muutu. Julkaistu vedos säilyttää kuvansa; lisää eri kuvalle uusi vedos.",
   "The article-end section data is invalid. Check the catalog, heading, and gallery ID.": "Loppugallerian osiotiedoissa on virhe. Tarkista osioluettelo, otsikko ja gallerian tunniste.",
   "The published section consistency check could not be completed. Retry before publishing.": "Julkaistujen osiotietojen yhtenäisyyttä ei voitu tarkistaa. Yritä uudelleen ennen julkaisua.",
   "Published section IDs and path segments cannot be changed in place. Create a new section instead.": "Julkaistun osion tunnistetta tai polkuosaa ei voi muuttaa suoraan. Luo uusi osio.",

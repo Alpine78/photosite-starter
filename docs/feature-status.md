@@ -2,6 +2,16 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Proof gallery schema, 2026-10-22 — AB#130 **Active** (ADR-0038 action item 1, first
+part): `clientProofGallery` / `clientProofItem` with complete original filenames and
+permanent proof numbers. `sanity/schemas/proof-references.ts` assigns numbers in natural
+filename order from the published state only (additions above the high-water mark,
+removed numbers never reused, a published proof keeps its image), and publication
+validation requires exactly those numbers; handles stay unique across client, legacy
+and proof galleries. Shared closed-shape checks moved to `closed-document.ts`. Studio
+cannot create the type yet and never unpublishes it. Next: the publish action with the
+private terms snapshot and selection key (server-side route), then the page.
+
 Article-end keyboard filter hydration race, 2026-10-21 — AB#377 **Active**: the
 desktop WebKit "keyboard filters preserve … current reading hash" flake recurred on main
 run 1406 after #576. Its trace shows the URL hash empty for the whole 10 s wait with a

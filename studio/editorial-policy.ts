@@ -25,14 +25,27 @@ export function isImporterType(type: string): boolean {
   return IMPORTER_TYPES.some((candidate) => candidate === type);
 }
 
+/**
+ * Proof galleries (ADR-0038, AB#130) cannot be created yet: their first
+ * publication must also snapshot private terms and create the selection key,
+ * which the next slice adds with the publish action.
+ */
+export const NOT_YET_CREATABLE_TYPES = ["clientProofGallery"] as const;
+
 export function allowTemplate(schemaType: string): boolean {
-  return !isSingleton(schemaType) && !isImporterType(schemaType);
+  return !isSingleton(schemaType) && !isImporterType(schemaType) &&
+    !NOT_YET_CREATABLE_TYPES.some((candidate) => candidate === schemaType);
 }
 
 export function allowAction(schemaType: string, action: string | undefined): boolean {
   if (isImporterType(schemaType)) return false;
   if (schemaType === "clientDeliveryGallery") {
     return action !== undefined && ["publish", "unpublish", "discardChanges", "delete"].includes(action);
+  }
+  // No unpublish: the published document holds the fixed proof numbers, and
+  // `available` already pauses the page (ADR-0038 decision 2).
+  if (schemaType === "clientProofGallery") {
+    return action !== undefined && ["publish", "discardChanges", "delete"].includes(action);
   }
   if (!isSingleton(schemaType)) return true;
   return action !== undefined && ["publish", "discardChanges", "restore"].includes(action);
