@@ -69,7 +69,9 @@ starts before that.
 
 1. **Proofs are a separate unlisted gallery type in the public dataset.**
    A `clientProofGallery` document reuses the client-gallery shape: random handle,
-   explicit availability and deadline, ordered items. Each item holds a public,
+   explicit availability and an optional deadline (indefinite by default, Owner
+   answers 4), an optional reference to the delivery gallery that replaces it (Owner
+   answers 5), ordered items. Each item holds a public,
    externally watermarked web proof (the same ≤2048 px public derivative contract as
    delivery images; no server-side watermarking), its complete original filename as
    text, and a `reference` field. Viewing needs only the link, exactly like delivery.
@@ -153,15 +155,15 @@ starts before that.
    provider deduplicates on it must be verified before implementation, and until then
    a resend is documented as possibly delivering a duplicate. A failed or lost email
    never undoes the confirmation. Resend is an administrator action that sends the same
-   content again without creating a version (its authenticated path is Open question
-   2). Logs carry only correlation IDs and closed outcome classes, never filenames,
+   content again without creating a version; it is deferred, with no resend path for the
+   first activation (Owner answers 2). Logs carry only correlation IDs and closed outcome classes, never filenames,
    references, keys or job data.
 
 7. **Expiry and retention are explicit, and different for pages and records.**
    The proof page follows the gallery's availability fields like delivery; after the
    deadline, selection writes are refused even with a valid key. Confirmed versions are
    business records and are kept until the administrator deletes them, with a
-   retention period the owner sets (Open question 3). Deleting a proof gallery deletes
+   retention the owner set on 2026-10-22: kept until the proof gallery is deleted (Owner answers 3). Deleting a proof gallery deletes
    its private terms, selection and versions in the same transaction, after checking
    shared-asset use before any image asset is removed (ADR-0034 action items). Public
    proof images remain reachable by URL wherever already copied or cached, as for
@@ -223,19 +225,32 @@ a watermark exists.
   (ADR-0003's root-reservation list), so no content slug can claim it.
 - The inactive protected implementation (AB#313) stays off; nothing here reuses it.
 
-## Open questions for the owner
+## Owner answers — 2026-10-22
 
-1. Is "every project member can see selections and prices" acceptable? (A second
-   dataset would not change that on this plan; only a separate Sanity project or
-   Enterprise custom roles would.)
-2. Resend path for a failed notification: a Studio action needs an authenticated server
-   call to use the mail credential. Options are a small authenticated route that
-   verifies the editor's Sanity session, or the existing administrator sign-in
-   (ADR-0015 code, currently off). Which, if any, before the first activation?
-3. How long are confirmed selection versions kept after a gallery's deadline, and is a
-   deletion reminder needed?
-4. Default availability for a new proof gallery (a deadline or explicitly indefinite)?
-5. Should a proof gallery link to its later delivery gallery, or stay independent?
+The owner answered the five open questions. Status stays Proposed until the owner
+accepts the record as a whole.
+
+1. **Visibility: accepted.** Every member of the Sanity project may see selections and
+   prices. No separate project or custom roles.
+2. **Resend path: none for the first activation.** Neither a Studio-session route nor
+   the inactive administrator sign-in is built. A `failed` or long-`pending` notice is
+   listed in Studio (Decision 6), and the confirmed version itself is readable there,
+   so the photographer can act on it without an email. Decision 6's resend action and
+   action item 4's resend path are deferred.
+3. **Retention: no deletion schedule or reminder.** Confirmed versions are kept; the
+   delivery gallery replaces the proof gallery once the images are finished (answer
+   5). Decision 7's owner-set retention period is therefore "kept until the
+   administrator deletes the proof gallery", with no automatic deletion.
+4. **Default availability: indefinite.** A new proof gallery has no deadline unless the
+   administrator sets one.
+5. **The delivery gallery replaces the proof gallery, and the two must be linked.**
+   Proposed mechanism for owner review: the proof gallery carries an optional
+   reference to its delivery gallery. While the reference is set and that delivery
+   gallery is available, the proof link answers with a temporary redirect to the
+   delivery link, and selection writes are refused as for an expired gallery. Removing
+   the reference or the delivery gallery's availability shows the proofs again. The
+   delivery gallery's own availability rules are unchanged; the redirect reveals the
+   delivery link only to holders of the proof link, who are the same customer.
 
 ## Action Items
 
@@ -250,7 +265,7 @@ Only after acceptance, as small reviewable slices:
    transactional confirmation, abuse controls, and journey tests for conflicting tabs,
    retried confirmation and expired galleries.
 4. Notification record created in the confirmation transaction, Studio list of
-   pending/failed notices, the resend path chosen in Open question 2, the mail
+   pending/failed notices, no resend path for the first activation (Owner answers 2), the mail
    provider's idempotency behaviour verified, and a test for the window between the
    confirmation commit and the notice update.
 5. Data-flow and privacy documentation, retention and deletion procedure, then an owner
