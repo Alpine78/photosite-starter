@@ -283,11 +283,11 @@ requires renewed exact mutation approval, complete anonymous CDN byte checks
 and a browser check under the deployed policy. This amendment does not establish
 provider support, completed customer publication or final launch acceptance.
 
-## Proposed amendment — 2026-10-22: per-request nonce for public HTML scripts (AB#390)
+## Amendment — 2026-10-22: per-request nonce for public HTML scripts (AB#390)
 
-**Status of this amendment:** Proposed. The owner chose on 2026-10-22 to pursue it
-through its own work item and this amendment; acceptance is a separate decision, and no
-code changes before it. The 2026-08-22 decision and Option A remain in force until then.
+**Status of this amendment:** Accepted by the owner on 2026-10-22. Implementation is
+AB#390. Until it ships, Production keeps the 2026-08-22 policy (Option A); the sections
+listed at the end change when it does.
 
 **Trigger met.** Option B was rejected because nonces force request-time rendering,
 "revisit if the site's rendering strategy changes for independent reasons". It has:
@@ -298,7 +298,7 @@ A production build's prerender manifest lists only `/services/[slug]` besides
 ([performance and CSP audit](../audits/performance-and-csp-2026-10-21.md)). The data
 cache AB#83 relies on does not depend on whether the page shell renders per request.
 
-**Proposed change** (Next.js 16.4.2 bundled CSP guide; nonce applied by Next.js to its
+**Change** (Next.js 16.4.2 bundled CSP guide; nonce applied by Next.js to its
 own scripts when the request carries the policy):
 
 1. `src/proxy.ts` generates a nonce per request (constant time, inside ADR-0007's O(1)
@@ -318,7 +318,7 @@ No injection hole is known (no raw-HTML block, escaped JSON-LD), so this is defe
 depth, not a fix. **Cost:** one more rendering change for the service pages and a CSP
 that is now per response, which every new inline script must respect.
 
-**Sections affected on acceptance:** Decision (the `script-src` value and where the
+**Sections affected when AB#390 ships:** Decision (the `script-src` value and where the
 HTML policy is set), Option B (rejected → chosen for public HTML scripts),
 Consequences (the `'unsafe-inline'` script residual). This amendment does not change
 `style-src`, the other directives or any non-HTML response.

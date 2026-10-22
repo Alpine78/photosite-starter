@@ -2,6 +2,10 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+CSP nonce decision, 2026-10-22 — AB#390 **New**: the owner accepted the
+[ADR-0011 amendment](adr/0011-security-response-headers.md) for a per-request script
+nonce on public HTML. Production keeps `script-src 'unsafe-inline'` until AB#390 ships.
+
 Keyword taxonomy proposal, 2026-10-21 — AB#55 **Active**:
 [ADR-0039](adr/0039-keyword-taxonomy-and-ingest-boundary.md) (Proposed) decides the
 taxonomy ADR-0012 treats as a black box: `keyword` and configurable `keywordCategory`
