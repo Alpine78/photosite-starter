@@ -2,6 +2,12 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Vitest advisory fix, 2026-10-22 — AB#160 **Active**: scheduled audit run 1430 flagged
+GHSA-qxg6-89mg-rqv8 and GHSA-xp26-3454-mjgp in the development-only `@vitest/mocker`.
+Vitest moves to 4.1.12 (range `^4.1.12`); the lockfile refresh stays inside Vitest's own
+toolchain, and the root's full and production-only audits are 0. See
+[dependency security](dependency-security.md#2026-10-22-vitest-advisories-ab160).
+
 Gallery section pointer hydration race, 2026-10-22 — AB#377 **Active**: CI run 1442
 (mobile WebKit) failed `gallery-section-pointer` "dragging away cancels the link…"
 waiting for the section row to hide. The reveal hook takes the scroll position at
