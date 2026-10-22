@@ -65,6 +65,16 @@ for (const [name, path, status] of PAGES) {
   });
 }
 
+test("a page rendered for a form POST is tagged as well", async ({ request }) => {
+  // Next.js renders the page for a plain form POST; it must not fall back to 'unsafe-inline'.
+  const response = await request.post("/contact", { form: { csp: "check" } });
+  expect(response.headers()["content-type"]).toContain("text/html");
+  const policy = response.headers()["content-security-policy"];
+  const nonce = /'nonce-([A-Za-z0-9+/]{22}==)'/.exec(scriptSources(policy))?.[1];
+  expect(scriptSources(policy)).toBe(`script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`);
+  expect(executableScriptNonces(await response.text()).every((value) => value === nonce)).toBe(true);
+});
+
 test("Next.js's prerendered 404 page keeps the static fallback and runs its scripts", async ({ request, page }) => {
   const response = await request.get("/404");
   expect(response.status()).toBe(404);

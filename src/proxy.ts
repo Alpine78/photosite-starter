@@ -143,12 +143,11 @@ const PRERENDERED_ERROR_PAGE_PATHS = new Set(["/404", "/500", "/_not-found", "/_
  * `x-nonce`. The response header replaces `next.config.ts`'s static fallback,
  * which holds for `next()` and not for a rewrite (see
  * `RESERVED_NAMESPACE_HYGIENE_HEADERS`), so this is only ever used with
- * `next()`. Other methods keep the static policy: they render no page; so do the
- * prerendered error pages above.
+ * `next()`. Every method gets it: Next.js also renders a page for a form POST.
+ * The prerendered error pages above keep the static policy.
  */
 function nextWithScriptNonce(request: NextRequest, requestHeaders: Headers): NextResponse {
-  if ((request.method !== "GET" && request.method !== "HEAD") ||
-    PRERENDERED_ERROR_PAGE_PATHS.has(request.nextUrl.pathname)) {
+  if (PRERENDERED_ERROR_PAGE_PATHS.has(request.nextUrl.pathname)) {
     return NextResponse.next({ request: { headers: requestHeaders } });
   }
   const scriptNonce = createScriptNonce();

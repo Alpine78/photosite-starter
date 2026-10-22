@@ -489,6 +489,12 @@ describe("per-request script nonce (AB#390)", () => {
     },
   );
 
+  it("tags a page rendered for a form POST too", async () => {
+    const { proxy, request } = await loadProxy();
+    const response = proxy(request("/contact", undefined, "POST"));
+    expect(response.headers.get("x-middleware-request-x-nonce")).toMatch(/^[A-Za-z0-9+/]{22}==$/);
+  });
+
   it("issues a different nonce for every request", async () => {
     const { proxy, request } = await loadProxy();
     const first = proxy(request("/")).headers.get("x-middleware-request-x-nonce");
@@ -506,7 +512,6 @@ describe("per-request script nonce (AB#390)", () => {
 
   it.each([
     ["an API route", "/api/contact", "GET"],
-    ["a non-GET page request", "/contact", "POST"],
     ["the inactive private namespace", "/private-gallery/handle", "GET"],
     ["the prerendered 404 page path", "/404", "GET"],
     ["the prerendered global error page path", "/_global-error", "GET"],
