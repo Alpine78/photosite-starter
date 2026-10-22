@@ -12,6 +12,22 @@ sources as open implementation questions. The backlog map now records AB#390 clo
 AB#130's next owner decision (how the Studio publish action reaches a server route that
 creates the encrypted selection key), AB#391 and the current AB#377/AB#160 items.
 
+Vitest advisory fix, 2026-10-22 — AB#160 **Active**: scheduled audit run 1430 flagged
+GHSA-qxg6-89mg-rqv8 and GHSA-xp26-3454-mjgp in the development-only `@vitest/mocker`.
+Vitest moves to 4.1.12 (range `^4.1.12`); the lockfile refresh stays inside Vitest's own
+toolchain, and the root's full and production-only audits are 0. See
+[dependency security](dependency-security.md#2026-10-22-vitest-advisories-ab160).
+
+Gallery section pointer hydration race, 2026-10-22 — AB#377 **Active**: CI run 1442
+(mobile WebKit) failed `gallery-section-pointer` "dragging away cancels the link…"
+waiting for the section row to hide. The reveal hook takes the scroll position at
+mount as its baseline and hides only on a later downward scroll; the trace shows the
+test scrolled about 170 ms after `load`, before hydration, so no scroll was seen. The
+helper now repeats a downward scroll from the top until the row hides; assertions are
+unchanged. 70/70 first-attempt runs (×5, every project; 10 project-specific skips).
+CI run 1445's aborted `goBack` in `private-gallery-link` (inactive protected gallery,
+AB#313 removal candidate) is recorded on AB#377 without a fix.
+
 Per-request script nonce, 2026-10-22 — AB#390 **Active**: public page, retained
 unlisted gallery and file-path responses carry `script-src 'self' 'nonce-…'
 'strict-dynamic'` without `'unsafe-inline'`, generated per request in `src/proxy.ts`
