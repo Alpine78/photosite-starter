@@ -1,8 +1,8 @@
 # ADR-0038: Proof selection for unlisted client galleries in the existing Sanity project
 
-**Status:** Proposed
+**Status:** Accepted (2026-10-22)
 **Date:** 2026-10-21
-**Deciders:** Project owner (acceptance pending)
+**Deciders:** Project owner
 **Work item:** AB#130 (parent AB#63; related AB#29, AB#145, AB#28, AB#95)
 
 ## Context
@@ -64,12 +64,15 @@ job or selection data. Payment, invoicing and receipts stay in AB#28/AB#95.
 
 ## Decision
 
-Proposed. Nothing below is accepted until the owner says so, and no implementation
-starts before that.
+Accepted by the owner on 2026-10-22, including the owner answers and Decision 9 below.
+Implementation follows the action items as small reviewable slices; production
+activation is a separate owner decision.
 
 1. **Proofs are a separate unlisted gallery type in the public dataset.**
    A `clientProofGallery` document reuses the client-gallery shape: random handle,
-   explicit availability and deadline, ordered items. Each item holds a public,
+   explicit availability and an optional deadline (indefinite by default, Owner
+   answers 4), an optional reference to the delivery gallery that replaces it (Owner
+   answers 5), ordered items. Each item holds a public,
    externally watermarked web proof (the same ≤2048 px public derivative contract as
    delivery images; no server-side watermarking), its complete original filename as
    text, and a `reference` field. Viewing needs only the link, exactly like delivery.
@@ -90,7 +93,8 @@ starts before that.
    readable without authentication, yet stay in the owner's existing project, backups
    and Studio, with no new service. They hold:
    - **terms**: included count, extra unit price in minor units, ISO 4217 currency, an
-     opaque administrator-entered job reference (no contact data until AB#28 defines a
+     opaque administrator-entered job reference, the customer's email address only when
+     the reminder (Decision 9) is enabled (no other contact data until AB#28 defines a
      customer record), and the hash of the selection key (Decision 4), snapshotted when
      the gallery is first published so later default-price changes do not alter it;
    - **the working selection**: the set of selected references and the stable item
@@ -103,13 +107,17 @@ starts before that.
 
 4. **Selecting needs a separate selection key, not just the viewing link.**
    At first publication the server generates a 256-bit random selection key, stores
-   only its SHA-256 hash in `proofTerms`, and shows the key once to the administrator.
+   its SHA-256 hash in `proofTerms` for verification, and shows the key once to the
+   administrator. The key is also stored encrypted from first publication, whether or
+   not the reminder is on (Decision 9), so switching reminders on later still has a
+   link to send; the hash stays the only thing the selection endpoint checks.
    The share link the administrator sends carries it in the URL fragment
    (`/client-proof/<handle>#select=<key>`): a fragment is not sent in requests, logs or
    `Referer`. The page script sends the key in a request body to a same-origin `POST`
    endpoint, which compares hashes in constant time. A link without the key shows the
    proofs read-only. The administrator can rotate the key, which invalidates the old
-   one; rotation does not touch existing selections or versions.
+   one and replaces its encrypted copy; rotation does not touch existing selections or
+   versions.
    The key proves possession of the link the photographer sent, not the customer's
    identity; that limit is stated in the customer-facing copy and the privacy notice.
 
@@ -153,15 +161,15 @@ starts before that.
    provider deduplicates on it must be verified before implementation, and until then
    a resend is documented as possibly delivering a duplicate. A failed or lost email
    never undoes the confirmation. Resend is an administrator action that sends the same
-   content again without creating a version (its authenticated path is Open question
-   2). Logs carry only correlation IDs and closed outcome classes, never filenames,
+   content again without creating a version; it is deferred, with no resend path for the
+   first activation (Owner answers 2). Logs carry only correlation IDs and closed outcome classes, never filenames,
    references, keys or job data.
 
 7. **Expiry and retention are explicit, and different for pages and records.**
    The proof page follows the gallery's availability fields like delivery; after the
    deadline, selection writes are refused even with a valid key. Confirmed versions are
    business records and are kept until the administrator deletes them, with a
-   retention period the owner sets (Open question 3). Deleting a proof gallery deletes
+   retention the owner set on 2026-10-22: kept until the proof gallery is deleted (Owner answers 3). Deleting a proof gallery deletes
    its private terms, selection and versions in the same transaction, after checking
    shared-asset use before any image asset is removed (ADR-0034 action items). Public
    proof images remain reachable by URL wherever already copied or cached, as for
@@ -170,6 +178,50 @@ starts before that.
 8. **The displayed total is a summary, not a charge.**
    Prices are shown and stored as given terms. No checkout, invoice, receipt or payment
    state is created; those remain AB#28 / AB#95.
+
+9. **An automatic reminder to the customer (owner request 2026-10-22).**
+   - **Setting.** Each proof gallery has a reminder delay in whole days, 7 by default,
+     which the administrator can change per gallery or switch off. It is stored with
+     the private terms, together with the customer's email address the administrator
+     enters. No address is ever taken from a request.
+   - **When.** The delay counts from the gallery's first publication. A reminder is due
+     when the delay has passed, no confirmed version exists, the gallery is available,
+     not past its deadline and not replaced by a delivery gallery (Owner answers 5).
+   - **Cadence (Owner answers R2).** The first reminder is due when the delay has
+     passed; after it, one reminder every 30 days while the conditions above still
+     hold. Reminders stop for good once a version is confirmed, the gallery expires or
+     is replaced, or the administrator switches them off; switching them back on
+     resumes from the next 30-day step. Reminder *n* is due at first publication +
+     delay + (n − 1) × 30 days.
+   - **At most once each.** Sending reminder *n* first `create`s a private
+     `proofReminder.<galleryId>.<n>` record (a `create` fails if it already exists, so a
+     repeated or overlapping run cannot send the same reminder twice), then records
+     `sent` or `failed` like Decision 6's notice; Studio lists failed reminders. A run
+     that finds several missed steps sends only the latest one.
+   - **Schedule.** A scheduled function runs once a day and sends every reminder that is
+     due, so a reminder goes out on the first run after the delay, up to about a day
+     later; a day is the setting's own unit, so a more frequent run buys nothing. The
+     reference deployment is on Vercel Pro (ADR-0004 amendment 2026-10-09), which
+     allows per-minute schedules; a daily schedule also fits Hobby's once-per-day limit
+     and its start anywhere within the configured hour (Vercel cron documentation), so
+     a clone on either plan works unchanged. The route accepts only the platform's
+     `CRON_SECRET` bearer token and answers `no-store`.
+   - **Message.** Sent through the existing mail adapter in the gallery's locale
+     (Finnish or English): the gallery name, that no selection has been confirmed yet,
+     the full selection link, and the photographer's contact, with a line telling the
+     customer to reply if they want no further reminders.
+   - **Recoverable key (Owner answers R1).** The selection key is stored encrypted with
+     AES-256-GCM (Node's built-in `crypto`, no new dependency) in the private terms,
+     under a separate server-only secret used for nothing else (refused as
+     `NEXT_PUBLIC_*`). Only the reminder route decrypts it, in memory, to build the link;
+     it is never logged. Accepted consequence: anyone holding both read access to the
+     private documents (every project member, Owner answers 1) and that secret could
+     select on the customer's behalf. Rotating the secret requires re-encrypting the
+     stored keys; until then reminders for those galleries fail visibly in Studio
+     rather than send a broken link.
+   - **Privacy.** The customer's address is personal data: it lives only on the private
+     path, is never logged (correlation IDs only), is deleted with the gallery, and the
+     privacy notice names the reminder before activation.
 
 ## Options Considered
 
@@ -222,24 +274,50 @@ a watermark exists.
 - `/client-proof` joins the reserved route namespaces next to `/client-gallery`
   (ADR-0003's root-reservation list), so no content slug can claim it.
 - The inactive protected implementation (AB#313) stays off; nothing here reuses it.
+- Decision 9 adds a daily scheduled route protected by `CRON_SECRET`, customer email
+  addresses and encrypted selection keys on the private path, a key-encryption secret,
+  and an outbound customer email every 30 days until a selection is confirmed, all of which the
+  security review, `docs/sanity-setup.md` and the privacy notice must cover.
 
-## Open questions for the owner
+## Owner answers — 2026-10-22
 
-1. Is "every project member can see selections and prices" acceptable? (A second
-   dataset would not change that on this plan; only a separate Sanity project or
-   Enterprise custom roles would.)
-2. Resend path for a failed notification: a Studio action needs an authenticated server
-   call to use the mail credential. Options are a small authenticated route that
-   verifies the editor's Sanity session, or the existing administrator sign-in
-   (ADR-0015 code, currently off). Which, if any, before the first activation?
-3. How long are confirmed selection versions kept after a gallery's deadline, and is a
-   deletion reminder needed?
-4. Default availability for a new proof gallery (a deadline or explicitly indefinite)?
-5. Should a proof gallery link to its later delivery gallery, or stay independent?
+The owner answered the five open questions and accepted the record as a whole on the
+same day.
+
+1. **Visibility: accepted.** Every member of the Sanity project may see selections and
+   prices. No separate project or custom roles.
+2. **Resend path: none for the first activation.** Neither a Studio-session route nor
+   the inactive administrator sign-in is built. A `failed` or long-`pending` notice is
+   listed in Studio (Decision 6), and the confirmed version itself is readable there,
+   so the photographer can act on it without an email. Decision 6's resend action and
+   action item 4's resend path are deferred.
+3. **Retention: no deletion schedule or reminder.** Confirmed versions are kept; the
+   delivery gallery replaces the proof gallery once the images are finished (answer
+   5). Decision 7's owner-set retention period is therefore "kept until the
+   administrator deletes the proof gallery", with no automatic deletion.
+4. **Default availability: indefinite.** A new proof gallery has no deadline unless the
+   administrator sets one.
+5. **The delivery gallery replaces the proof gallery, and the two must be linked.**
+   Accepted mechanism: the proof gallery carries an optional
+   reference to its delivery gallery. While the reference is set and that delivery
+   gallery is available, the proof link answers with a temporary redirect to the
+   delivery link, and selection writes are refused as for an expired gallery. Removing
+   the reference or the delivery gallery's availability shows the proofs again. The
+   delivery gallery's own availability rules are unchanged; the redirect reveals the
+   delivery link only to holders of the proof link, who are the same customer.
+
+Reminder questions (Decision 9), answered by the owner on 2026-10-22:
+
+- **R1. Link in the reminder: (b), the full selection link.** The key is also stored
+  encrypted under a separate server secret, with the consequence stated in Decision 9.
+- **R2. Cadence: one reminder after the delay, then monthly.** The owner noted a
+  gallery that has waited about two years; a 30-day cadence after the first reminder
+  keeps such a gallery from being forgotten without daily noise. Existing galleries get
+  reminders only once they exist as proof galleries under this record.
 
 ## Action Items
 
-Only after acceptance, as small reviewable slices:
+As small reviewable slices, now that the record is accepted:
 
 1. Schemas and Studio: `clientProofGallery`, reference numbering at first publication
    with its validation and natural-order tests, private terms snapshot, key generation
@@ -250,8 +328,13 @@ Only after acceptance, as small reviewable slices:
    transactional confirmation, abuse controls, and journey tests for conflicting tabs,
    retried confirmation and expired galleries.
 4. Notification record created in the confirmation transaction, Studio list of
-   pending/failed notices, the resend path chosen in Open question 2, the mail
+   pending/failed notices, no resend path for the first activation (Owner answers 2), the mail
    provider's idempotency behaviour verified, and a test for the window between the
    confirmation commit and the notice update.
-5. Data-flow and privacy documentation, retention and deletion procedure, then an owner
+5. Reminder (Decision 9): per-gallery delay and address in the private terms, the
+   daily `CRON_SECRET` route, the create-once record per reminder step, the 30-day
+   cadence, the encrypted key and its secret, localized message, and tests for a
+   repeated run, missed steps, reminders switched on after publication, a confirmed or
+   replaced gallery, a rotated secret and a failed send.
+6. Data-flow and privacy documentation, retention and deletion procedure, then an owner
    activation decision. Production activation is not part of this ADR.
