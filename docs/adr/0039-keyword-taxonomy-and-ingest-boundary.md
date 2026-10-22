@@ -250,26 +250,34 @@ overwritten by the next export.
   see internal or private data.
 - ADR-0012's open serialization item is closed: literal ids fit the cursor scope.
 
-## Open questions (owner or AB#54)
+## Open questions and owner answers (2026-10-22)
 
-1. Whether `dc:subject` and `lr:hierarchicalSubject` survive the real upload path, and
-   in what form (AB#54). Decision 5's path-first mapping applies only if they do.
-2. Where extraction runs (Sanity asset metadata versus a server-side reader at ingest)
-   and which dependency, with licence and maintenance cost (AB#54).
-3. Whether the vocabulary can be seeded from a Lightroom keyword-list export, and its
-   exact format (AB#54).
-4. The first deployment's initial categories and which existing person keywords should
-   start `public` (owner).
-5. Whether 6 levels is the right depth bound for the owner's Lightroom hierarchy (owner,
-   with AB#54's export).
-6. Studio access to private-path documents: the import and review tooling (AB#57/70)
-   must read and write them with an authenticated token; whether the hosted Studio's
-   default document lists show them needs checking before AB#56 (implementation).
+1. **Open (AB#54).** Whether `dc:subject` (flat keywords) and `lr:hierarchicalSubject`
+   (Lightroom's `Parent|Child` paths) are present in the owner's exported JPEGs, and in
+   what form. Decision 5's path-first mapping applies only if the hierarchical field is.
+   The owner exports JPEGs from Lightroom, so AB#54's control files are three such
+   exports (no keywords, flat keywords, hierarchical keywords).
+2. **Partly answered by documentation; dependency open (AB#54).** Verified: Sanity's
+   upload metadata extraction covers dimensions, placeholders (`lqip`, `blurhash`,
+   `thumbhash`), `palette`, `image`, `exif` and `location`; it lists no IPTC or XMP
+   keyword extraction. Extraction therefore reads the JPEG's own metadata at ingest,
+   server-side, not from Sanity asset metadata. Which reader library to use (licence,
+   maintenance, shipped cost) is AB#54's remaining decision.
+3. **Answered: yes, from the exported JPEGs.** The vocabulary is seeded from the
+   keywords embedded in the JPEGs the owner exports from Lightroom; no separate
+   keyword-list export is required. Unmatched terms enter review as in decision 2.
+4. **Owner has no preset categories.** Proposed default: when hierarchical paths exist,
+   their top-level terms become the initial categories for the editor to confirm;
+   otherwise one general category. Person keywords start `internal` (decision 7) and
+   become public only when an editor chooses.
+5. **Answered: 6 levels is enough.**
+6. **Answered: check during implementation.** Studio visibility of private-path
+   documents is verified as part of AB#56 before any private document is written.
 
 ## Action Items
 
 1. [ ] Owner reviews and accepts, amends or rejects this record (AB#55).
-2. [ ] AB#54 evidence resolves open questions 1–3; amend decision 5 accordingly.
+2. [ ] AB#54 evidence resolves open questions 1 and 2; amend decision 5 accordingly.
 3. [ ] AB#56 implements decisions 1, 4 and 5 (schema, validation, fixtures).
 4. [ ] AB#57 implements decision 2's mapping and review routing; AB#70 the review queue.
 5. [ ] AB#69 implements decision 3's resumable re-sync before any production move.
