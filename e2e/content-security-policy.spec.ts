@@ -28,6 +28,7 @@ const PAGES: ReadonlyArray<readonly [string, string, number]> = [
   ["service detail", "/services/portrait-sessions", 200],
   ["contact", "/contact", 200],
   ["retained unlisted gallery", "/client-gallery/11111111111111111111111111111111", 200],
+  ["proof gallery", "/client-proof/77777777777777777777777777777777", 200],
   ["unknown page", `/${DEFAULT_STORY_NAMESPACE}/no-such-page-for-csp`, 404],
   ["missing file-shaped path", "/gallery/missing-csp-check.1683eecb7e65.webp", 404],
 ];

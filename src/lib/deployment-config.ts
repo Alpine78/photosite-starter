@@ -140,6 +140,11 @@ export type BuiltInLabels = {
    */
   readonly legacyGallery: { readonly title: string; readonly unavailable: string; readonly download: string; readonly noticeTitle: string; readonly publicAccessNotice: string; readonly fileRetentionNotice: string };
   readonly clientGallery: { readonly noticeTitle: string; readonly publicAccessNotice: string; readonly fileRetentionNotice: string; readonly deadline: string };
+  /** The proof page (ADR-0038). `{reference}` and `{date}` are the only placeholders. */
+  readonly proofGallery: {
+    readonly title: string; readonly unavailable: string; readonly reference: string; readonly deadline: string;
+    readonly noticeTitle: string; readonly publicAccessNotice: string; readonly fileRetentionNotice: string; readonly selectionNotice: string;
+  };
   readonly privateGallery: {
     readonly title: string;
     readonly opening: string;
@@ -736,6 +741,14 @@ const englishLabels = {
     publicAccessNotice: "This gallery and its web images are publicly accessible without signing in. The link can be shared. Gallery information and image references can also be read from the public dataset; exclusion from listings and search engines does not restrict access.",
     fileRetentionNotice: "This gallery shows exported web images. Closing or expiring the page does not revoke direct image links or remove downloaded or cached copies. Contact the website owner to request removal; immediate removal from every cache or recipient’s copies cannot be promised.",
   },
+  proofGallery: {
+    title: "Your proofs", unavailable: "These proofs are unavailable.", reference: "Proof {reference}",
+    deadline: "Page deadline: {date} (UTC).",
+    noticeTitle: "Sharing these proofs",
+    publicAccessNotice: "This proof gallery and its images are publicly accessible without signing in. The link can be shared. Gallery information, image references and proof numbers can also be read from the public dataset; exclusion from listings and search engines does not restrict access.",
+    fileRetentionNotice: "Closing or expiring the page does not revoke direct image links or remove downloaded or cached copies. Contact the website owner to request removal; immediate removal from every cache or recipient’s copies cannot be promised.",
+    selectionNotice: "Each proof keeps its number permanently. Selecting proofs is done through the personal selection link from the photographer; selection is not yet available on this page.",
+  },
   legacyGallery: {
     title: "Your gallery", unavailable: "This gallery is unavailable.", download: "Download all photographs (ZIP)",
     noticeTitle: "Sharing this gallery and its files",
@@ -1174,6 +1187,14 @@ const finnishLabels = {
     deadline: "Sivun määräaika: {date} (UTC).",
     publicAccessNotice: "Tämä galleria ja sen verkkokuvat ovat julkisesti saatavilla ilman kirjautumista. Linkin voi välittää toiselle. Gallerian tiedot ja kuvaviittaukset ovat luettavissa myös julkisesta aineistosta; piilottaminen listauksista ja hakukoneilta ei rajoita pääsyä.",
     fileRetentionNotice: "Galleriassa näytetään vietyjä verkkokuvia. Sivun sulkeminen tai vanheneminen ei estä suorien kuvalinkkien käyttöä eikä poista ladattuja tai välimuistiin tallennettuja kopioita. Voit pyytää poistamista sivuston omistajalta; välitöntä poistumista kaikista välimuisteista tai vastaanottajien kopioista ei voida luvata.",
+  },
+  proofGallery: {
+    title: "Vedoksesi", unavailable: "Vedokset eivät ole saatavilla.", reference: "Vedos {reference}",
+    deadline: "Sivun määräaika: {date} (UTC).",
+    noticeTitle: "Vedosten jakaminen",
+    publicAccessNotice: "Tämä vedosgalleria ja sen kuvat ovat julkisesti saatavilla ilman kirjautumista. Linkin voi välittää toiselle. Gallerian tiedot, kuvaviittaukset ja vedosnumerot ovat luettavissa myös julkisesta aineistosta; piilottaminen listauksista ja hakukoneilta ei rajoita pääsyä.",
+    fileRetentionNotice: "Sivun sulkeminen tai vanheneminen ei estä suorien kuvalinkkien käyttöä eikä poista ladattuja tai välimuistiin tallennettuja kopioita. Voit pyytää poistamista sivuston omistajalta; välitöntä poistumista kaikista välimuisteista tai vastaanottajien kopioista ei voida luvata.",
+    selectionNotice: "Jokainen vedos säilyttää numeronsa pysyvästi. Vedokset valitaan valokuvaajalta saadun henkilökohtaisen valintalinkin kautta; valinta ei ole vielä käytettävissä tällä sivulla.",
   },
   legacyGallery: {
     title: "Galleriasi", unavailable: "Galleria ei ole saatavilla.", download: "Lataa kaikki kuvat (ZIP)",

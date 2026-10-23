@@ -127,7 +127,7 @@ it("hands the enabled analytics script the deployment's reserved prefixes and lo
   const html = renderToStaticMarkup(await SiteRoot({ locale: "en-GB", children: "Content" }));
   const policy = /data-analytics="([^"]*)"/.exec(html)?.[1]?.replaceAll("&quot;", '"');
   expect(JSON.parse(policy ?? "null")).toEqual({
-    excludedRootSegments: ["client-gallery", "api", "private", "studio-admin"],
+    excludedRootSegments: ["client-gallery", "client-proof", "api", "private", "studio-admin"],
     localePrefixes: ["en"],
   });
 });
@@ -142,7 +142,7 @@ it("loads Speed Insights only when its own setting is on in production (AB#376)"
   html = renderToStaticMarkup(await SiteRoot({ locale: "en-GB", children: "Content" }));
   const policy = /data-speed-insights="([^"]*)"/.exec(html)?.[1]?.replaceAll("&quot;", '"');
   expect(JSON.parse(policy ?? "null")).toEqual({
-    excludedRootSegments: ["client-gallery", "api", "private", "studio-admin"],
+    excludedRootSegments: ["client-gallery", "client-proof", "api", "private", "studio-admin"],
     localePrefixes: ["en"],
   });
 

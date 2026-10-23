@@ -1,5 +1,6 @@
 /**
- * Server-side proof gallery model for the publication route (ADR-0038, AB#130).
+ * Server-side proof gallery model for the publication route and the customer
+ * page (ADR-0038, AB#130).
  *
  * Independent of the Studio validator (`sanity/schemas/client-proof-gallery.ts`):
  * the route validates whatever it reads with the editor's token, because Studio
@@ -16,6 +17,7 @@ import {
   localized,
   publicImageReference,
   text,
+  type ClientText,
   type PublicImageReference,
 } from "@/lib/client-gallery-model";
 import { isProofReference, MAX_PROOF_REFERENCE, type ProofReferenceItem, type PublishedProofState } from "@/lib/proof-references";
@@ -70,8 +72,12 @@ function item(value: unknown): ProofGalleryItem {
   };
 }
 
-/** A proof gallery document (draft or published) read with the editor's token. */
-export function parseProofGallery(value: unknown, expectedId: string): ParsedProofGallery {
+/**
+ * A proof gallery document (draft or published) read with the editor's token.
+ * `projected`: a bounded GROQ projection, whose explicit nulls are not authored
+ * bytes, so only the document itself is held to the size limit.
+ */
+export function parseProofGallery(value: unknown, expectedId: string, projected = false): ParsedProofGallery {
   const row = clientRecord(value); closed(row, GALLERY_FIELDS);
   if (row._id !== expectedId || row._type !== "clientProofGallery" || !isClientGalleryHandle(row.handle) ||
     typeof row.available !== "boolean") return invalidClientGallery();
@@ -88,7 +94,7 @@ export function parseProofGallery(value: unknown, expectedId: string): ParsedPro
     keys.add(parsed._key); items.push(parsed);
   }
   const authored = Object.fromEntries(Object.entries(row).filter(([name]) => !(SYSTEM_FIELDS as readonly string[]).includes(name)));
-  if (new TextEncoder().encode(JSON.stringify(authored)).byteLength > PROOF_GALLERY_MAX_DOCUMENT_BYTES) return invalidClientGallery();
+  if (!projected && new TextEncoder().encode(JSON.stringify(authored)).byteLength > PROOF_GALLERY_MAX_DOCUMENT_BYTES) return invalidClientGallery();
   return { revision: revision(row._rev), handle: row.handle as string, items, authored };
 }
 
@@ -108,4 +114,44 @@ export function publishedProofState(gallery: ParsedProofGallery): PublishedProof
     numbers.add(entry.reference);
   }
   return { highWater: highWater as number, references };
+}
+
+export type PublishedProofItem = Readonly<{
+  key: string; reference: string; assetId: string; hash: string; width: number; height: number; extension: string;
+  alt: readonly ClientText[];
+}>;
+/** The customer page's normalized view of a published proof gallery; comparable across reads. */
+export type PublishedProofGallery = Readonly<{
+  id: string; revision: string; handle: string; title: readonly ClientText[]; available: boolean;
+  expiryInstant?: string; deadline?: number; items: readonly PublishedProofItem[];
+}>;
+
+/**
+ * A published proof gallery for the customer page: the same closed shape as a
+ * publication reads, with every proof numbered as publication fixed it.
+ * Normalized so a projected discovery snapshot and the fresh document compare
+ * equal when, and only when, they present the same gallery.
+ */
+export function parsePublishedProofGallery(value: unknown, id: string, handle: string, projected = false): PublishedProofGallery {
+  try {
+    if (!isClientGalleryHandle(handle)) return invalidClientGallery();
+    const gallery = parseProofGallery(value, id, projected);
+    if (gallery.handle !== handle) return invalidClientGallery();
+    const numbers = publishedProofState(gallery).references;
+    const authored = gallery.authored;
+    const raw = authored.items as readonly Record<string, unknown>[];
+    const expiryInstant = authored.availabilityMode === "until" ? authored.expiryInstant as string : undefined;
+    return {
+      id, revision: gallery.revision, handle, title: localized(authored.title, false, 200), available: authored.available as boolean,
+      ...(expiryInstant === undefined ? {} : { expiryInstant, deadline: Date.parse(expiryInstant) }),
+      items: gallery.items.map((entry, index) => ({
+        key: entry._key, reference: numbers[entry._key].reference, ...entry.image, alt: localized(raw[index].alt, false, 512),
+      })),
+    };
+  } catch { return invalidClientGallery(); }
+}
+
+export function proofGalleryAvailable(gallery: PublishedProofGallery, now: number): boolean {
+  if (!Number.isFinite(now)) return invalidClientGallery();
+  return gallery.available && (gallery.deadline === undefined || now < gallery.deadline);
 }

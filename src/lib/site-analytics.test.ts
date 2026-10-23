@@ -56,9 +56,10 @@ const policy = buildSiteAnalyticsPolicy({
 });
 
 describe("buildSiteAnalyticsPolicy", () => {
-  it("excludes the legacy, private, administrator and API roots", () => {
+  it("excludes the delivery, proof, private, administrator and API roots", () => {
     expect(policy.excludedRootSegments).toEqual([
       "client-gallery",
+      "client-proof",
       "api",
       "private",
       "studio-admin",

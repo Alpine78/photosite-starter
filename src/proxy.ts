@@ -19,6 +19,7 @@ import {
 } from "@/lib/legacy-redirects";
 import { LEGACY_REDIRECTS } from "@/lib/legacy-redirects-data";
 import { isLegacyGalleryNamespace, legacyGalleryHandleFromPath } from "@/lib/legacy-gallery-path";
+import { isProofGalleryNamespace, proofGalleryHandleFromPath } from "@/lib/proof-gallery-path";
 import { createLegacyGalleryRedirectResolver, InvalidLegacyGalleryRedirectConfiguration } from "@/lib/legacy-gallery-redirects";
 import {
   REQUEST_HAS_CURSOR_HEADER,
@@ -204,19 +205,24 @@ export function proxy(request: NextRequest) {
   const privateConfig = getDeploymentConfig().privateGallery;
   // Always replace a client value, including on the rewrite's second pass.
   requestHeaders.delete(REQUEST_UI_LOCALE_HEADER);
-  if (isLegacyGalleryNamespace(pathname, []) ||
+  if (isLegacyGalleryNamespace(pathname, []) || isProofGalleryNamespace(pathname, []) ||
     isPrivateRequestPath(pathname, privateConfig.routePrefix) ||
     isPrivateAdminRequestPath(pathname, privateConfig.adminRoutePrefix) ||
     isPrivateGalleryInternalPath(pathname) || isPrivateGalleryAdminInternalPath(pathname)) {
     requestHeaders.set(REQUEST_UI_LOCALE_HEADER, restrictedLocaleFromSearch(request.nextUrl.searchParams, routes));
   }
   const galleryPrefixes = routes.locales.flatMap((route) => [route.prefix, route.locale.split("-")[0]]).filter((value): value is string => typeof value === "string" && value.length > 0);
-  if (isLegacyGalleryNamespace(pathname, galleryPrefixes)) {
-    if (legacyGalleryHandleFromPath(pathname) === undefined) {
+  // The delivery and proof namespaces (ADR-0034, ADR-0038) answer alike: only
+  // the literal handle grammar renders, every alias is a hygienic 404.
+  const unlistedHandle = isLegacyGalleryNamespace(pathname, galleryPrefixes) ? legacyGalleryHandleFromPath
+    : isProofGalleryNamespace(pathname, galleryPrefixes) ? proofGalleryHandleFromPath : undefined;
+  if (unlistedHandle) {
+    if (unlistedHandle(pathname) === undefined) {
       return withReservedNamespaceHygieneHeaders(new NextResponse(null, { status: 404 }));
     }
     if (hasTrailingSlash) {
-      const destination = request.nextUrl.clone();
+      // The platform URL, as below: NextURL.clone() would serialize the removed slash back.
+      const destination = new URL(request.url);
       destination.pathname = pathname.slice(0, -1);
       return withReservedNamespaceHygieneHeaders(NextResponse.redirect(destination, 308));
     }

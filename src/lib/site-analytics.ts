@@ -8,6 +8,7 @@
  */
 import { readDeploymentStage, type DeploymentStage } from "@/lib/deployment-stage";
 import { LEGACY_GALLERY_ROOT } from "@/lib/legacy-gallery-path";
+import { PROOF_GALLERY_ROOT } from "@/lib/proof-gallery-path";
 
 const SITE_ANALYTICS_SETTING = "SITE_ANALYTICS";
 
@@ -16,7 +17,7 @@ export type SiteAnalyticsProvider = "off" | "vercel";
 const PROVIDERS: readonly SiteAnalyticsProvider[] = ["off", "vercel"];
 
 /** Root segments that never report, beside the deployment's private prefixes. */
-const ALWAYS_EXCLUDED_ROOT_SEGMENTS: readonly string[] = [LEGACY_GALLERY_ROOT, "api"];
+const ALWAYS_EXCLUDED_ROOT_SEGMENTS: readonly string[] = [LEGACY_GALLERY_ROOT, PROOF_GALLERY_ROOT, "api"];
 
 /**
  * Which provider this deployment reports to.

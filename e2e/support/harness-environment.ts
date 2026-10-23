@@ -131,6 +131,7 @@ export const appUnderTestEnvironment: Record<string, string> = {
   VERCEL_ENV: "",
   LEGACY_GALLERY_ADAPTER: "fixture",
   CLIENT_GALLERY_ADAPTER: "fixture",
+  PROOF_GALLERY_ADAPTER: "fixture",
   LEGACY_GALLERY_IMPORT_BATCH: "",
   LEGACY_GALLERY_HANDLES: "11111111111111111111111111111111",
   LEGACY_GALLERY_REDIRECTS: JSON.stringify([["/retained-delivery-source", "11111111111111111111111111111111"]]),

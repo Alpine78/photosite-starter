@@ -449,7 +449,7 @@ describe("private namespace rewrite (ADR-0014 §9)", () => {
 
 
 describe("restricted UI locale header ownership", () => {
-  it.each(["/private/fixture", "/admin", "/client-gallery/11111111111111111111111111111111"])("overwrites spoofed headers from configured query on %s", async (path) => {
+  it.each(["/private/fixture", "/admin", "/client-gallery/11111111111111111111111111111111", "/client-proof/77777777777777777777777777777777"])("overwrites spoofed headers from configured query on %s", async (path) => {
     const { proxy, request } = await loadProxy({ SITE_LOCALE_ROUTES: "en-GB||stories,fi|fi|tarinat" });
     const response = proxy(request(`${path}?locale=fi`, { "x-photosite-restricted-ui-locale": "en-GB" }));
     expect(response.headers.get("x-middleware-request-x-photosite-restricted-ui-locale")).toBe("fi");
@@ -472,11 +472,32 @@ describe("restricted UI locale header ownership", () => {
   });
 });
 
+describe("proof gallery namespace (ADR-0038)", () => {
+  const handle = "7".repeat(32);
+  it("renders only the literal handle grammar, with the reserved-namespace hygiene", async () => {
+    const { proxy, request } = await loadProxy({ SITE_LOCALE_ROUTES: "en-GB||stories,fi|fi|tarinat" });
+    const page = proxy(request(`/client-proof/${handle}`));
+    expect(page.status).toBe(200); expect(headersOf(page)).toMatchObject(HYGIENE);
+    for (const path of ["/client-proof", "/client-proof/short", `/client-proof/${"A".repeat(32)}`, `/Client-Proof/${handle}`, `/fi/client-proof/${handle}`, `/client-proof/${handle}/extra`]) {
+      const response = proxy(request(path));
+      expect(response.status, path).toBe(404); expect(headersOf(response)).toMatchObject(HYGIENE);
+    }
+    const slash = proxy(request(`/client-proof/${handle}/?locale=fi`));
+    expect(slash.status).toBe(308);
+    expect(slash.headers.get("location")).toBe(`https://proxy.test/client-proof/${handle}?locale=fi`);
+    expect(headersOf(slash)).toMatchObject(HYGIENE);
+    // The delivery namespace shares the branch: its slash redirect must not point back at itself.
+    const legacy = proxy(request(`/client-gallery/${"1".repeat(32)}/`));
+    expect(legacy.status).toBe(308);
+    expect(legacy.headers.get("location")).toBe(`https://proxy.test/client-gallery/${"1".repeat(32)}`);
+  });
+});
+
 describe("per-request script nonce (AB#390)", () => {
   const scriptSources = (policy: string | null) =>
     (policy ?? "").split(";").map((part) => part.trim()).find((part) => part.startsWith("script-src ")) ?? "";
 
-  it.each(["/", "/stories", "/contact", "/gallery/missing.1683eecb7e65.webp", "/client-gallery/11111111111111111111111111111111"])(
+  it.each(["/", "/stories", "/contact", "/gallery/missing.1683eecb7e65.webp", "/client-gallery/11111111111111111111111111111111", "/client-proof/77777777777777777777777777777777"])(
     "gives a public %s response a nonce policy and forwards it to rendering",
     async (path) => {
       const { proxy, request } = await loadProxy();

@@ -2,6 +2,19 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Proof page read path, 2026-10-23 — AB#130 **Active** (ADR-0038 action item 2):
+default-off `PROOF_GALLERY_ADAPTER` serves `/client-proof/<handle>` read-only —
+complete, uncropped proofs in authored order with their permanent numbers in the grid
+and as the lightbox caption, FI/EN notices, exact UTC deadline. The reader mirrors the
+delivery reader (proof-type discovery, fresh published Doc read, normalized snapshot
+equality, measured assets, `privateOnly` refusal, short negative cache) and refuses
+unnumbered or repeated numbers. The namespace gets the reserved-path hygiene, is
+reserved against locale prefixes and excluded from analytics; the shared unlisted
+slash redirect now uses the platform URL, fixing a self-redirect it could produce for
+`/client-gallery/<handle>/` too. Not yet: selection (the `#select=` fragment is
+ignored), the delivery-gallery replacement redirect (owner answer 5, needs a schema
+link), notifications and reminders.
+
 Proof gallery Studio publish action, 2026-10-22 — AB#130 **Active**: with
 `SANITY_STUDIO_PROOF_GALLERIES=enabled` (off by default) the Studio lists and creates
 proof galleries (generated handle, paused, indefinite) and replaces native publish with

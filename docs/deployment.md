@@ -759,6 +759,30 @@ other site adapters retain their own visibility contract. This restriction does
 not make ordinary dataset assets private: Sanity documents that their CDN URLs
 are public even when dataset metadata is private. [Official asset visibility](https://www.sanity.io/docs/media-library/asset-visibility).
 
+
+### Proof pages (AB#130, ADR-0038)
+
+`/client-proof/<handle>` shows a published proof gallery read-only: complete,
+uncropped watermarked web proofs in authored order, each with its permanent number
+(`Proof 014` / `Vedos 014`, also the lightbox caption). The reader is **off by
+default**; enabling it publishes nothing.
+
+| Setting | Meaning |
+| --- | --- |
+| `PROOF_GALLERY_ADAPTER=off` / unset | No proof pages served |
+| `PROOF_GALLERY_ADAPTER=sanity` | Same requirements as `CLIENT_GALLERY_ADAPTER=sanity`; real content refused in Preview |
+| `PROOF_GALLERY_ADAPTER=fixture` | Synthetic local development/CI only |
+
+It follows the delivery reader's contract: discovery by handle within the proof type
+only, then a fresh Doc API read of the published document (never a draft or a dotted
+private record), compared with the snapshot after normalization; every proof must carry
+the number publication fixed. Paused, expired and missing galleries are an ordinary
+unavailable page; malformed content logs only `[proof-gallery] malformed-content`. The
+namespace has the same reserved-path hygiene (`noindex`, `no-store`, `no-referrer`,
+literal handle grammar only), stays out of the sitemap, search and analytics, and
+accepts `?locale=`. The selection link's `#select=` fragment is ignored here: selecting,
+confirmation and the replacement by a delivery gallery (ADR-0038 owner answer 5) are
+later slices. As with delivery pages, public files and metadata stay discoverable.
 ### Build one whole delivery ZIP offline (AB#319)
 
 This owner-run tool creates one local package from an **explicitly selected** set
