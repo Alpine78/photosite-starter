@@ -38,6 +38,9 @@ describe("actual Studio configuration composition", () => {
     expect(actions[0]).toBe(PublishProofGalleryAction);
     expect(actions.slice(1, -1)).toEqual([native[2]]);
     expect(actions.at(-1)).toBe(RotateProofKeyAction);
+    const { ReopenProofSelectionAction } = await import("./proof-reopen-action");
+    expect(resolve(native, { schemaType: "clientProofSelection" })).toEqual([ReopenProofSelectionAction]);
+    expect(resolve(native, { schemaType: "clientProofNotice" })).toEqual([]);
     const templates = config.schema!.templates as (templates: { schemaType: string }[]) => { schemaType: string }[];
     expect(templates([{ schemaType: "clientProofGallery" }, { schemaType: "article" }]).map(({ schemaType }) => schemaType))
       .toEqual(enabled ? ["clientProofGallery", "article"] : ["article"]);

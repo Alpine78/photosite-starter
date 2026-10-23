@@ -337,9 +337,11 @@ whose image was replaced. The handle stays unique across client, legacy and proo
 galleries. No customer, contact, job or price field exists in the public document: the
 terms, the working selection, each confirmed version and the photographer's notice live
 on Sanity private ID paths (`proofTerms.<id>`, `proofSelection.<id>[.v<n>]`,
-`proofNotice.<id>.v<n>`), written only by the site. `clientProofSelectionVersion` and
-`clientProofNotice` describe the last two so Studio can show them read-only: no create
-template, no document action, no resend (`studio/editorial-policy.ts`).
+`proofNotice.<id>.v<n>`), written only by the site. `clientProofSelection`,
+`clientProofSelectionVersion` and `clientProofNotice` describe the last three so Studio
+can show them read-only: no create template, no native action, no resend
+(`studio/editorial-policy.ts`). The only change Studio makes is reopening a confirmed
+working selection (ADR-0038 decision 5).
 
 AB#308's deterministic contract fixtures execute the actual runtime and native
 validation query strings with the first-party `groq-js/1` interpreter, pinned to
