@@ -19,10 +19,10 @@ function document(extra: Record<string, unknown> = {}) {
     ], ...extra };
 }
 const metadata = (n: string) => ({ _id: asset(n), _type: "sanity.imageAsset", sha1hash: n.repeat(40), extension: "webp", mimeType: "image/webp", width: 1600, height: 1000, restricted: false });
-function row(doc: ReturnType<typeof document> = document()) {
+function row(doc: ReturnType<typeof document> = document(), replacement: unknown = null) {
   const { _createdAt, _updatedAt, ...projected } = structuredClone(doc);
   void _createdAt; void _updatedAt;
-  return { _id: doc._id, _type: doc._type, document: projected, assets: doc.items.map((item) => ({ asset: metadata(item.image.asset._ref.slice(6, 7)) })) };
+  return { _id: doc._id, _type: doc._type, document: projected, assets: doc.items.map((item) => ({ asset: metadata(item.image.asset._ref.slice(6, 7)) })), replacement };
 }
 function setup(options: { doc?: unknown; docs?: unknown[]; rows?: unknown; rowsSeq?: unknown[]; wall?: () => number; tick?: () => number; missing?: Map<string, number> } = {}) {
   const controller = new AbortController();
@@ -31,7 +31,8 @@ function setup(options: { doc?: unknown; docs?: unknown[]; rows?: unknown; rowsS
   const read = vi.fn(async () => options.docs ? options.docs[Math.min(reads++, options.docs.length - 1)] : Object.hasOwn(options, "doc") ? options.doc : document());
   const reader = createProofGalleryReader({ config, query: { query }, documents: { read },
     now: options.wall ?? (() => now), missClock: options.tick ?? (() => 0), missing: options.missing, signal: () => controller.signal });
-  return { query, read, controller, run: (value = handle, language = "en-GB", fallback = "fi") => reader.read(value, language, fallback) };
+  const full = (value = handle, language = "en-GB", fallback = "fi") => reader.read(value, language, fallback);
+  return { query, read, controller, full, run: async (value = handle, language = "en-GB", fallback = "fi") => (await full(value, language, fallback))?.view };
 }
 
 describe("proof gallery reading (ADR-0038 action item 2)", () => {
@@ -146,5 +147,47 @@ describe("proof gallery reading (ADR-0038 action item 2)", () => {
     expect((await setup({ doc, rows: [snapshot] }).run())?.images).toHaveLength(PROOF_GALLERY_MAX_ITEMS);
     const over = build(length + 1);
     await expect(setup({ doc: over, rows: [row(over)] }).run()).rejects.toBeInstanceOf(ClientGalleryDataError);
+  });
+
+  describe("replacement by a delivery gallery (owner answer 5)", () => {
+    const reference = { _type: "reference", _ref: "delivery1", _weak: true };
+    const delivery = { _id: "delivery1", _type: "clientDeliveryGallery", handle: "d".repeat(32) };
+
+    it("names the referenced delivery gallery and leaves availability to the caller", async () => {
+      const doc = document({ replacedBy: reference });
+      expect(await setup({ doc, rows: [row(doc, delivery)] }).full()).toMatchObject({
+        replacement: { id: "delivery1", handle: "d".repeat(32) }, availability: { available: true }, view: { title: "Proofs" },
+      });
+    });
+
+    it("still answers for paused or expired proofs that name a replacement", async () => {
+      for (const extra of [{ available: false }, { availabilityMode: "until", expiryInstant: "2026-10-22T00:00:00.000Z" }]) {
+        const doc = document({ ...extra, replacedBy: reference });
+        const result = await setup({ doc, rows: [row(doc, delivery)] }).full();
+        expect(result?.replacement).toEqual({ id: "delivery1", handle: "d".repeat(32) });
+        expect(result?.availability.available === false || result?.availability.deadline === Date.parse("2026-10-22T00:00:00.000Z")).toBe(true);
+      }
+    });
+
+    it("ignores a deleted replacement, so only open proofs answer", async () => {
+      const doc = document({ replacedBy: reference });
+      expect((await setup({ doc, rows: [row(doc, null)] }).full())?.replacement).toBeUndefined();
+      const paused = document({ available: false, replacedBy: reference });
+      expect(await setup({ doc: paused, rows: [row(paused, null)] }).full()).toBeUndefined();
+    });
+
+    it.each([
+      ["another document", { ...delivery, _id: "delivery2" }],
+      ["another type", { ...delivery, _type: "legacyDeliveryGallery" }],
+      ["a malformed handle", { ...delivery, handle: "x" }],
+    ])("refuses a dereference to %s", async (_name, replacement) => {
+      const doc = document({ replacedBy: reference });
+      await expect(setup({ doc, rows: [row(doc, replacement)] }).full()).rejects.toBeInstanceOf(ClientGalleryDataError);
+    });
+
+    it("refuses a reference shape Studio does not write for a published target", async () => {
+      const doc = document({ replacedBy: { ...reference, _strengthenOnPublish: { type: "clientDeliveryGallery", weak: true } } });
+      await expect(setup({ doc, rows: [row(doc, delivery)] }).full()).rejects.toBeInstanceOf(ClientGalleryDataError);
+    });
   });
 });

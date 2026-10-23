@@ -15,7 +15,7 @@ function gallery(overrides: Record<string, unknown> = {}) {
 }
 const asset = (n: string) => ({ _id: assetId(n), _type: "sanity.imageAsset", extension: "webp", mimeType: "image/webp", sha1hash: n.repeat(40), width: 1600, height: 1000, restricted: false });
 function setup(options: { identity?: unknown; assets?: unknown } = {}) {
-  const fetch = vi.fn(async (query: string) =>
+  const fetch = vi.fn<(query: string, params?: unknown) => Promise<never>>(async (query) =>
     (query.includes('"conflicts"')
       ? Object.hasOwn(options, "identity") ? options.identity : { conflicts: [], published: null }
       : Object.hasOwn(options, "assets") ? options.assets : [asset("a"), asset("b")]) as never);
@@ -79,5 +79,22 @@ describe("Sanity proof gallery authoring (ADR-0038, AB#130)", () => {
     expect(await setup().run(gallery({ items: [{ ...proof("k1", "IMG_1.jpg", assetId("a"), "001"), originalFilename: "" }] }))).toBe(errors.structure);
     expect(await setup().run(gallery({ items: [proof("k1", "IMG_1.jpg", `image-${"a".repeat(40)}-4000x1000-webp`, "001")], referenceHighWater: 1 }))).toBe(errors.structure);
     expect(await setup({ assets: [] }).run(gallery())).toBe(errors.assets);
+  });
+
+  it("links a replacing client gallery only through a published weak reference (owner answer 5)", async () => {
+    const field = clientProofGalleryType.fields.find((f) => f.name === "replacedBy");
+    expect(field).toMatchObject({ type: "reference", to: [{ type: "clientDeliveryGallery" }], weak: true, options: { disableNew: true } });
+    expect(field?.options?.filter).toContain('path("drafts.**")');
+    const reference = { _type: "reference", _ref: "delivery1", _weak: true };
+    expect(await setup({ identity: { conflicts: [], published: null, replacementType: "clientDeliveryGallery" } }).run(gallery({ replacedBy: reference }))).toBe(true);
+    // A deleted target only stops the redirect.
+    expect(await setup({ identity: { conflicts: [], published: null, replacementType: null } }).run(gallery({ replacedBy: reference }))).toBe(true);
+    expect(await setup({ identity: { conflicts: [], published: null, replacementType: "clientProofGallery" } }).run(gallery({ replacedBy: reference }))).toBe(errors.replacement);
+    for (const bad of [
+      { ...reference, _weak: false }, { _type: "reference", _ref: "delivery1" }, { ...reference, _ref: "drafts.delivery1" },
+      { ...reference, _strengthenOnPublish: { type: "clientDeliveryGallery", weak: true } }, "delivery1",
+    ]) expect(await setup().run(gallery({ replacedBy: bad }))).toBe(errors.replacement);
+    const f = setup(); await f.run(gallery({ replacedBy: reference }));
+    expect(f.fetch.mock.calls.find(([query]) => query.includes('"conflicts"'))?.[1]).toMatchObject({ replacement: "delivery1" });
   });
 });

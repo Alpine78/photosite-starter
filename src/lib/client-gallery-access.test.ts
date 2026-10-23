@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getClientGallery, CLIENT_GALLERY_FIXTURE_HANDLE, CLIENT_GALLERY_DEADLINE_FIXTURE_HANDLE, CLIENT_GALLERY_DEADLINE_FIXTURE_INSTANT, CLIENT_GALLERY_CAPACITY_FIXTURE_HANDLE } from "@/lib/client-gallery-access";
+import { getClientGallery, isReplacementDeliveryAvailable, CLIENT_GALLERY_FIXTURE_ID, CLIENT_GALLERY_FIXTURE_HANDLE, CLIENT_GALLERY_DEADLINE_FIXTURE_HANDLE, CLIENT_GALLERY_DEADLINE_FIXTURE_INSTANT, CLIENT_GALLERY_CAPACITY_FIXTURE_HANDLE } from "@/lib/client-gallery-access";
 import { CLIENT_GALLERY_MAX_ITEMS, ClientGalleryDataError, ClientGalleryChangedError } from "@/lib/client-gallery-model";
 
 const mocks = vi.hoisted(() => ({ legacy: vi.fn(), read: vi.fn(), factory: vi.fn() }));
@@ -53,5 +53,34 @@ describe("combined unlisted customer facade", () => {
     expect(await getClientGallery(CLIENT_GALLERY_FIXTURE_HANDLE, "fi")).toBeUndefined(); expect(log).toHaveBeenCalledWith("[client-gallery] malformed-content");
     const changed = new ClientGalleryChangedError(); mocks.read.mockRejectedValue(changed);
     await expect(getClientGallery(CLIENT_GALLERY_FIXTURE_HANDLE, "fi")).rejects.toBe(changed);
+  });
+
+});
+
+describe("a proof gallery's replacing delivery (ADR-0038 owner answer 5)", () => {
+  it("answers only for exactly the referenced document, through the full delivery reader", async () => {
+    environment("sanity"); mocks.factory.mockReturnValue({ read: mocks.read });
+    mocks.read.mockResolvedValue({ kind: "web", images: [] });
+    expect(await isReplacementDeliveryAvailable(CLIENT_GALLERY_FIXTURE_HANDLE, "delivery1", "fi")).toBe(true);
+    expect(mocks.read).toHaveBeenCalledWith(CLIENT_GALLERY_FIXTURE_HANDLE, "fi", "en-GB", "delivery1");
+    mocks.read.mockResolvedValue(undefined);
+    expect(await isReplacementDeliveryAvailable(CLIENT_GALLERY_FIXTURE_HANDLE, "delivery1", "fi")).toBe(false);
+  });
+  it("never qualifies while the delivery adapter is off, for a retained legacy handle or a malformed one", async () => {
+    environment("off"); expect(await isReplacementDeliveryAvailable(CLIENT_GALLERY_FIXTURE_HANDLE, CLIENT_GALLERY_FIXTURE_ID, "fi")).toBe(false);
+    environment("sanity"); vi.stubEnv("LEGACY_GALLERY_ADAPTER", "sanity"); vi.stubEnv("LEGACY_GALLERY_IMPORT_BATCH", "b".repeat(64)); vi.stubEnv("LEGACY_GALLERY_HANDLES", CLIENT_GALLERY_FIXTURE_HANDLE);
+    expect(await isReplacementDeliveryAvailable(CLIENT_GALLERY_FIXTURE_HANDLE, "delivery1", "fi")).toBe(false);
+    expect(await isReplacementDeliveryAvailable("x", "delivery1", "fi")).toBe(false);
+    expect(mocks.factory).not.toHaveBeenCalled();
+  });
+  it("matches the fixture identity only, and keeps provider failures as errors", async () => {
+    environment("fixture");
+    expect(await isReplacementDeliveryAvailable(CLIENT_GALLERY_FIXTURE_HANDLE, CLIENT_GALLERY_FIXTURE_ID, "fi")).toBe(true);
+    expect(await isReplacementDeliveryAvailable(CLIENT_GALLERY_FIXTURE_HANDLE, "another", "fi")).toBe(false);
+    environment("sanity"); mocks.factory.mockReturnValue({ read: mocks.read });
+    const failure = new Error("provider"); mocks.read.mockRejectedValue(failure);
+    await expect(isReplacementDeliveryAvailable(CLIENT_GALLERY_FIXTURE_HANDLE, "delivery1", "fi")).rejects.toBe(failure);
+    vi.spyOn(console, "error").mockImplementation(() => {}); mocks.read.mockRejectedValue(new ClientGalleryDataError());
+    expect(await isReplacementDeliveryAvailable(CLIENT_GALLERY_FIXTURE_HANDLE, "delivery1", "fi")).toBe(false);
   });
 });

@@ -12,6 +12,8 @@ export const CLIENT_GALLERY_FIXTURE_HANDLE = "6".repeat(32);
 export const CLIENT_GALLERY_DEADLINE_FIXTURE_HANDLE = "b".repeat(32);
 export const CLIENT_GALLERY_DEADLINE_FIXTURE_INSTANT = "2100-01-02T03:04:05.123Z";
 export const CLIENT_GALLERY_CAPACITY_FIXTURE_HANDLE = "c".repeat(32);
+/** The synthetic document behind CLIENT_GALLERY_FIXTURE_HANDLE, for proof replacement fixtures. */
+export const CLIENT_GALLERY_FIXTURE_ID = "client-fixture";
 
 export async function getClientGallery(handle: string, language: string): Promise<ClientGalleryView | undefined> {
   if (!isClientGalleryHandle(handle)) return undefined;
@@ -47,5 +49,29 @@ export async function getClientGallery(handle: string, language: string): Promis
       !(error instanceof SanityQueryError && error.errorClass === "malformed-response")) throw error;
     console.error("[client-gallery] malformed-content");
     return undefined;
+  }
+}
+
+/**
+ * Whether exactly the referenced new delivery gallery is available at `handle`
+ * (ADR-0038 owner answer 5). A retained legacy handle, another document now
+ * owning the handle, or a disabled delivery adapter never qualifies.
+ * Provider failures propagate like the delivery page's own.
+ */
+export async function isReplacementDeliveryAvailable(handle: string, documentId: string, language: string): Promise<boolean> {
+  if (!isClientGalleryHandle(handle)) return false;
+  const legacy = readLegacyGalleryDeployment(process.env);
+  if ((legacy.adapter === "sanity" && legacy.handles.has(handle)) ||
+    (legacy.adapter === "fixture" && ["1", "2", "4"].some((digit) => handle === digit.repeat(32)))) return false;
+  const adapter = readClientGalleryDeployment(process.env);
+  if (adapter === "off") return false;
+  if (adapter === "fixture") return handle === CLIENT_GALLERY_FIXTURE_HANDLE && documentId === CLIENT_GALLERY_FIXTURE_ID;
+  try {
+    return await getClientGallerySanityReader().read(handle, language, getDeploymentConfig().locale, documentId) !== undefined;
+  } catch (error) {
+    if (!(error instanceof ClientGalleryDataError) &&
+      !(error instanceof SanityQueryError && error.errorClass === "malformed-response")) throw error;
+    console.error("[client-gallery] malformed-content");
+    return false;
   }
 }

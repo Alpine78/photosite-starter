@@ -15,6 +15,8 @@ export const schemaFinnish = {
   "Generated on creation. Keep it unchanged.": "Luodaan automaattisesti. Säilytä se ennallaan.",
   "Highest proof number assigned": "Suurin annettu vedosnumero",
   "Never decreases, so a removed proof's number is not reused.": "Ei koskaan pienene, joten poistetun vedoksen numeroa ei käytetä uudelleen.",
+  "Replaced by client gallery": "Korvaava asiakasgalleria",
+  "When the finished images are delivered, choose their published client gallery. While it is available, the proof link opens it instead. Clear the field to show the proofs again.": "Kun valmiit kuvat on toimitettu, valitse niiden julkaistu asiakasgalleria. Kun se on saatavilla, vedoslinkki avaa sen vedosten sijaan. Tyhjennä kenttä, niin vedokset näkyvät taas.",
   "End-gallery sections": "Loppugallerian osiot",
   "End-gallery filter heading": "Loppugallerian suodattimen otsikko",
   "Optional ordered sections of the end gallery. Publish the catalog before assigning placements; coordinate shared multilingual changes in a checked batch.": "Loppugallerian valinnaiset järjestetyt osiot. Julkaise osioluettelo ennen kuvasijoitusten luokittelua. Tee yhteisten kieliversioiden muutokset tarkistetussa sisältömuutoserässä.",

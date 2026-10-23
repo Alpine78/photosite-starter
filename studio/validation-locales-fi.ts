@@ -13,6 +13,7 @@ export const validationFinnish = {
   "Select a section declared by the published containing article.": "Valitse julkaistun artikkelin osioluettelossa määritetty osio.",
   "Shared placements must have matching sections in catalogued language versions.": "Yhteisten kuvasijoitusten osioiden on vastattava toisiaan osioluettelon sisältävissä kieliversioissa.",
   "This gallery is too large. Use shorter texts or fewer images.": "Galleria on liian suuri. Lyhennä tekstejä tai vähennä kuvia.",
+  "Choose a published client gallery as the replacement, or clear the field.": "Valitse korvaavaksi julkaistu asiakasgalleria tai tyhjennä kenttä.",
   "Check the client gallery fields, image order and alternative texts.": "Tarkista asiakasgallerian kentät, kuvajärjestys ja vaihtoehtoiset tekstit.",
   "The gallery link is missing, already used or different from the published link.": "Gallerian linkki puuttuu, on jo käytössä tai eroaa julkaistusta linkistä.",
   "Use complete exported web images up to 2048 pixels; check their uploaded asset metadata.": "Käytä kokonaisia, enintään 2048 pikselin verkkokuvia ja tarkista ladattujen kuvatiedostojen metatiedot.",

@@ -6,3 +6,6 @@ export type ProofGalleryView = Readonly<{
   availableUntil?: string;
   images: readonly (LightboxSlide & Readonly<{ reference: string }>)[];
 }>;
+
+/** The replacing delivery gallery a published proof gallery names (ADR-0038 owner answer 5). */
+export type ProofReplacement = Readonly<{ id: string; handle: string }>;

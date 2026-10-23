@@ -97,6 +97,10 @@ export type SchemaFieldOptions = {
   readonly storeOriginalFilename?: boolean;
   /** MIME types the file picker offers. A hint to an editor, not a control. */
   readonly accept?: string;
+  /** A `reference` field's GROQ filter over the documents its picker offers. */
+  readonly filter?: string;
+  /** Whether a `reference` field hides inline creation of a new target. */
+  readonly disableNew?: boolean;
 };
 
 export type SchemaFieldDefinition = {
@@ -108,6 +112,8 @@ export type SchemaFieldDefinition = {
   readonly of?: readonly SchemaArrayMemberDefinition[];
   /** Document types a `reference` field may point to. */
   readonly to?: readonly { readonly type: string }[];
+  /** A weak `reference` does not block deleting its target. */
+  readonly weak?: boolean;
   readonly fields?: readonly SchemaFieldDefinition[];
   readonly options?: SchemaFieldOptions;
   readonly initialValue?: string | boolean;

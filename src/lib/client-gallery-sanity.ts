@@ -54,7 +54,8 @@ export function createClientGalleryReader(settings: {
   const clock = settings.missClock ?? (() => performance.now()), missing = settings.missing ?? new Map<string, number>();
   const publicDataset = config.datasetVisibility === "public";
   return {
-    async read(handle: string, language: string, fallbackLanguage: string): Promise<ClientGalleryView | undefined> {
+    /** `expectedId`: answer only for that document (a proof gallery's replacement link), never another owner of the handle. */
+    async read(handle: string, language: string, fallbackLanguage: string, expectedId?: string): Promise<ClientGalleryView | undefined> {
       if (!isClientGalleryHandle(handle)) return undefined;
       try {
         const signal = settings.signal?.() ?? AbortSignal.timeout(CLIENT_GALLERY_READ_TIMEOUT_MS);
@@ -96,6 +97,7 @@ export function createClientGalleryReader(settings: {
             return undefined;
           }
           if (row._type !== "clientDeliveryGallery" || !isClientDocumentId(row._id)) return invalidClientGallery();
+          if (expectedId !== undefined && row._id !== expectedId) return undefined;
           if (knownId !== undefined && knownId !== row._id) throw new ClientGalleryChangedError();
           knownId = row._id;
           const current = await fresh(row._id);
