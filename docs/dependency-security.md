@@ -152,6 +152,22 @@ audit: 0). Vitest 4.1.12, published 2026-10-15, fixes both; the range moves to
 `chai` 6.3.0, `tinyrainbow` 3.2.0). Full and production-only audits are now 0 for the
 root; the Studio's `sprintf-js` exception is unchanged. All unit suites pass.
 
+### 2026-10-22 DOMPurify advisories in the Studio (AB#160)
+
+Dependabot alerts 68–70 (1 critical, 1 high, 1 low) flagged the Studio-only
+transitive `dompurify` 3.4.16:
+[GHSA-cg2g-xh64-v4q7](https://github.com/advisories/GHSA-cg2g-xh64-v4q7)
+(`SAFE_FOR_TEMPLATES` bypass in shadow-root content on DOM output modes),
+[GHSA-mrv2-3pqr-j5jr](https://github.com/advisories/GHSA-mrv2-3pqr-j5jr)
+(`IN_PLACE` hook leaving detached handlers armed) and
+[GHSA-c6gr-qvv4-5v3f](https://github.com/advisories/GHSA-c6gr-qvv4-5v3f)
+(SMIL `attributeName=href` guard skipped under `application/xhtml+xml`). DOMPurify
+3.4.17, published 2026-10-12, fixes all three and satisfies both declared ranges
+(`^3.4.14`, `^3.3.1`), so only the Studio lockfile entry changes; the site's own tree
+does not contain it. The lockfile-bound capture now reports root clean and the Studio
+accepted (the `sprintf-js` exception only). The Studio typecheck, schema validation,
+build and its unit tests pass.
+
 ## Triage each finding
 
 1. Record the advisory ID, affected package and resolved lockfile version,
