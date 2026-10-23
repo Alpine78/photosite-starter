@@ -478,12 +478,12 @@ Records how decision 5 is implemented; it changes no decision. `POST /api/proof-
   breaks off) is an unknown outcome, and a committed transaction whose result could not
   be read back is reported as committed: in both cases the client reads before acting
   again; nothing is retried automatically.
-- **Residual race, accepted for review.** The replacing delivery gallery is checked
-  fresh before the write but is not part of the transaction: a delivery gallery made
-  available in the same instant can let one save or confirmation through. Guarding it
-  would mean writing to the public delivery document on every customer save. The
-  consequence is a selection recorded moments before the delivery gallery replaces the
-  proofs; the owner decides whether that needs more.
+- **Residual race, accepted by the owner on 2026-10-23.** The replacing delivery
+  gallery is checked fresh before the write but is not part of the transaction: a
+  delivery gallery made available in the same instant can let one save or confirmation
+  through. Guarding it would mean writing to the public delivery document on every
+  customer save. The consequence is only a selection recorded moments before the
+  delivery gallery replaces the proofs; no files or content change.
 - **Not yet:** the selection page (3b), the photographer email and Studio notice list
   (action item 4), the administrator's reopen action and reminders.
 
