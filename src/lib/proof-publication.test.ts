@@ -62,7 +62,9 @@ describe("proof publication planning (ADR-0038, AB#130)", () => {
     expect(patch.unset).toEqual(["title", "replacedBy"]);
     expect(patch.set).not.toHaveProperty("_type");
     expect(patch.set).not.toHaveProperty("_id");
-    expect(JSON.stringify(result.mutations)).not.toContain("proofTerms");
+    expect(result.mutations).toHaveLength(4);
+    expect(result.mutations[2]).toEqual({ patch: { id: "proofTerms.g1", ifRevisionID: "termsrev", set: { galleryPublishedAt: now } } });
+    expect(result.mutations[3]).toEqual({ delete: { id: "drafts.g1" } });
   });
 
   it("rotates the key on the private record, requiring publish permission through a guarded gallery write", () => {

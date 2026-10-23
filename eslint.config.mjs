@@ -131,6 +131,11 @@ const eslintConfig = defineConfig([
                 "Reach proof publication through `@/lib/proof-publication-access` and the proof page through `@/lib/proof-gallery-access`. The editor-token Sanity calls, the transaction planner, the selection-key crypto and the server-side gallery model stay behind that facade, which owns the order a route must not reassemble — session proof before the gallery allowance, and no key before the transaction commits (ADR-0038 amendment 2026-10-22).",
             },
             {
+              group: ["@/lib/proof-selection", "@/lib/proof-selection-sanity"],
+              message:
+                "Reach proof selection through `@/lib/proof-selection-access`. The selection credential's Sanity calls and the planner stay behind that facade, which owns the order a route must not reassemble — a closed or replaced gallery and a wrong key are refused before the gallery allowance, any write or any state (ADR-0038 decision 5).",
+            },
+            {
               group: ["@/lib/proof-gallery-sanity", "@/lib/proof-gallery-deployment"],
               message: "Use proof-gallery-access; CMS records and deployment settings stay server-only (ADR-0038).",
             },

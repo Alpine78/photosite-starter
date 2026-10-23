@@ -448,3 +448,42 @@ owner-run check on the hosted Studio still gate activation.
 Decision 9 (reminder default and address storage), the publication-path amendment's
 design item 2 (the body also carries `expectedDraftRevision` and first-publication terms)
 and its first consequence.
+
+## Implementation note — 2026-10-23: selection write path (action item 3, server side)
+
+Records how decision 5 is implemented; it changes no decision. `POST /api/proof-selection`
+(default off) with `SANITY_PROOF_SELECTION_TOKEN`, behind `proof-selection-access`.
+
+- **Order.** Handle discovery (published-perspective query), then the gallery, its terms
+  and the working selection read fresh by ID through the Doc API, because the query
+  index is eventually consistent and a stale terms record could accept a rotated key.
+  A paused, expired or replaced gallery (owner answer 5) is refused before any private
+  read; a wrong key is the same 404. The per-gallery allowance is spent only after the
+  key matched.
+- **Saving** sends the full selected set rather than one toggle: equivalent under
+  decision 5's `ifRevisionID` guard and simpler to retry. `expectedRevision: null`
+  creates the working selection only if none exists. A conflict answers with the fresh
+  state after re-authorizing; the client reconciles deliberately rather than replaying.
+  Every save also patches the terms (`lastSelectedAt`) under the revision whose key was
+  checked, so a link revoked by rotation cannot save in between; an editor's rotation
+  that races a customer save fails as a conflict and is simply retried.
+- **Confirming** creates `…v<n>` and its `pending` notice, patches the selection under
+  the revision the customer saw and patches the terms (`lastConfirmedAt`) under the
+  revision whose key was checked, in one transaction: a retried request, another tab or a
+  key rotation or publication in between fails the whole transaction, because every later
+  publication also patches the terms record. The version records the gallery
+  revision it was validated against. An empty selection cannot be confirmed; saved proofs
+  that left the gallery are reported as a stale selection that must be saved again.
+- **Outcomes.** A transaction sent without a complete answer (timeout, 5xx, a body that
+  breaks off) is an unknown outcome, and a committed transaction whose result could not
+  be read back is reported as committed: in both cases the client reads before acting
+  again; nothing is retried automatically.
+- **Residual race, accepted for review.** The replacing delivery gallery is checked
+  fresh before the write but is not part of the transaction: a delivery gallery made
+  available in the same instant can let one save or confirmation through. Guarding it
+  would mean writing to the public delivery document on every customer save. The
+  consequence is a selection recorded moments before the delivery gallery replaces the
+  proofs; the owner decides whether that needs more.
+- **Not yet:** the selection page (3b), the photographer email and Studio notice list
+  (action item 4), the administrator's reopen action and reminders.
+

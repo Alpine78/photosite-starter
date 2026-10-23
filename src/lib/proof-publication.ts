@@ -214,6 +214,7 @@ export function planProofPublication(input: PlanInput): PublicationPlan {
 
   // `_id` and `_type` never change; only authored content is set.
   if (published === undefined) return reject("terms-required");
+  if (existingTerms === undefined) return reject("inconsistent");
   const set = Object.fromEntries(Object.entries(body).filter(([name]) => name !== "_id" && name !== "_type"));
   const unset = PROOF_GALLERY_OPTIONAL_FIELDS.filter((name) => !(name in set) && name in published.authored);
   return {
@@ -222,6 +223,7 @@ export function planProofPublication(input: PlanInput): PublicationPlan {
     mutations: [
       draftGuard,
       { patch: { id: galleryId, ifRevisionID: published.revision, set, ...(unset.length > 0 ? { unset } : {}) } },
+      { patch: { id: proofTermsId(galleryId), ifRevisionID: existingTerms.revision, set: { galleryPublishedAt: now } } },
       removeDraft,
     ],
   };
