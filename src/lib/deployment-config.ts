@@ -154,6 +154,14 @@ export type BuiltInLabels = {
     readonly unavailable: string; readonly rateLimited: string; readonly uncertain: string; readonly checkAgain: string;
     readonly loadFailed: string; readonly emptyRefused: string;
   };
+  /**
+   * The photographer's email for a confirmed proof selection (ADR-0038 decision 6),
+   * in the deployment's default locale like the contact email.
+   */
+  readonly proofNotice: {
+    readonly subject: string; readonly intro: string; readonly gallery: string; readonly job: string; readonly version: string;
+    readonly confirmedAt: string; readonly counts: string; readonly price: string; readonly proofs: string; readonly studio: string;
+  };
   /** The proof page (ADR-0038). `{reference}` and `{date}` are the only placeholders. */
   readonly proofGallery: {
     readonly title: string; readonly unavailable: string; readonly reference: string; readonly deadline: string;
@@ -755,6 +763,15 @@ const englishLabels = {
     publicAccessNotice: "This gallery and its web images are publicly accessible without signing in. The link can be shared. Gallery information and image references can also be read from the public dataset; exclusion from listings and search engines does not restrict access.",
     fileRetentionNotice: "This gallery shows exported web images. Closing or expiring the page does not revoke direct image links or remove downloaded or cached copies. Contact the website owner to request removal; immediate removal from every cache or recipient’s copies cannot be promised.",
   },
+  proofNotice: {
+    subject: "Proof selection confirmed: {job} (version {version})",
+    intro: "A customer confirmed a proof selection.",
+    gallery: "Proof gallery (Studio document): {gallery}", job: "Job reference: {job}", version: "Version: {version}",
+    confirmedAt: "Confirmed: {date} UTC", counts: "Included: {included}, selected: {selected}, additional: {extra}",
+    price: "Additional image price: {price}; additional total: {total} ({currency})",
+    proofs: "Selected proofs (number and original filename):",
+    studio: "The confirmed version is stored in Studio under Confirmed proof selections.",
+  },
   proofSelection: {
     heading: "Your selection", loading: "Loading your selection…",
     possession: "This page accepts selections from anyone holding this exact link; it does not identify you. Do not forward the link if others should not choose for you.",
@@ -1222,6 +1239,15 @@ const finnishLabels = {
     deadline: "Sivun määräaika: {date} (UTC).",
     publicAccessNotice: "Tämä galleria ja sen verkkokuvat ovat julkisesti saatavilla ilman kirjautumista. Linkin voi välittää toiselle. Gallerian tiedot ja kuvaviittaukset ovat luettavissa myös julkisesta aineistosta; piilottaminen listauksista ja hakukoneilta ei rajoita pääsyä.",
     fileRetentionNotice: "Galleriassa näytetään vietyjä verkkokuvia. Sivun sulkeminen tai vanheneminen ei estä suorien kuvalinkkien käyttöä eikä poista ladattuja tai välimuistiin tallennettuja kopioita. Voit pyytää poistamista sivuston omistajalta; välitöntä poistumista kaikista välimuisteista tai vastaanottajien kopioista ei voida luvata.",
+  },
+  proofNotice: {
+    subject: "Vedosvalinta vahvistettu: {job} (versio {version})",
+    intro: "Asiakas vahvisti vedosvalinnan.",
+    gallery: "Vedosgalleria (Studion dokumentti): {gallery}", job: "Työn tunniste: {job}", version: "Versio: {version}",
+    confirmedAt: "Vahvistettu: {date} UTC", counts: "Hintaan sisältyy: {included}, valittu: {selected}, lisäkuvia: {extra}",
+    price: "Lisäkuvan hinta: {price}; lisäkuvat yhteensä: {total} ({currency})",
+    proofs: "Valitut vedokset (numero ja alkuperäinen tiedostonimi):",
+    studio: "Vahvistettu versio on tallessa Studiossa kohdassa Vahvistetut vedosvalinnat.",
   },
   proofSelection: {
     heading: "Valintasi", loading: "Ladataan valintaasi…",

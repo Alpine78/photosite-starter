@@ -500,3 +500,27 @@ key in the fragment starts a fresh session. The restricted language switch keeps
 validated key on the same gallery. Forwarding the complete link grants selecting, which
 the page states.
 
+## Implementation note — 2026-10-23: photographer notice (action item 4)
+
+Records how decision 6 is implemented; it changes no decision.
+
+- **Mailbox.** The notice goes to the site owner's existing contact mailbox and sender
+  (`CONTACT_DELIVERY_*`, Resend or the non-production sink), with its own subject, text
+  and idempotency namespace; no separate recipient setting.
+- **Content and idempotency.** Built only from the immutable version, validated in full
+  (nothing partial is sent), and deterministic per version and locale: the confirmation
+  time, never the send time. Resend's documentation (checked 2026-10-23) confirms that the
+  same key and payload within 24 hours return the original response without sending
+  again; the same key with a different payload, or a concurrent request, is refused and
+  recorded as failed, never as sent. A configuration or template change between attempts
+  can change the payload, so no replay stability beyond that is promised.
+- **When.** Inline, after the confirmation is known committed — also when its result
+  could not be read back — and before anything else can fail. An unknown commit sends
+  nothing. Sending and recording are bounded and never change the customer's answer.
+- **Record.** The notice becomes `sent` or `failed` (with the closed failure class) under
+  the revision read; if that write fails or the process stops, it stays `pending`. The
+  notice carries a weak reference to its version so Studio opens the details from it.
+- **Studio.** Read-only `clientProofSelectionVersion` and `clientProofNotice` types, no
+  templates or actions, and a list of notices failed or pending for more than five
+  minutes. Resend stays deferred (owner answer 2).
+

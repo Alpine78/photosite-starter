@@ -507,6 +507,12 @@ without proof galleries keeps Sanity's default sign-in.
   finished images. While that gallery is available, the proof link opens it instead; clear
   the field and publish to show the proofs again. Only published client galleries can be
   chosen, and deleting the client gallery simply stops the redirect.
+- **Proof notices needing action / Toimenpiteitä vaativat vedosilmoitukset** lists the
+  photographer's emails that failed, or stayed pending for more than five minutes after a
+  confirmation (the list reflects that age when opened or refreshed). Open a notice and
+  follow **Confirmed selection** to read the customer's version: job reference, totals and
+  every proof number with its original filename. **Confirmed proof selections** lists all
+  versions. Both are read-only; there is no resend.
 - Unpublish and delete are not offered for proof galleries: the published document holds
   the fixed proof numbers, **Available to link holders** pauses the page, and deletion waits for a cleanup
   that also removes the private terms. Only discarding a draft remains.

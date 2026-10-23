@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { defineSchemaTypes } from "../sanity/schemas";
 import {
-  allowAction, allowTemplate, EDITORIAL_LISTS, IMPORTER_TYPES, PROOF_GALLERY_LIST, resolveSingletonDocumentId,
+  allowAction, allowTemplate, EDITORIAL_LISTS, IMPORTER_TYPES, PROOF_GALLERY_LIST, PROOF_RECORD_TYPES, resolveSingletonDocumentId,
   SINGLETON_QUERY_LIMIT, SINGLETON_TYPES, singletonDocumentId,
 } from "./editorial-policy";
 
@@ -65,7 +65,7 @@ describe("editorial guardrails", () => {
   it("accounts for every canonical document type exactly once", () => {
     const documentTypes = defineSchemaTypes({ datasetVisibility: "public", storyRootPaths: ["/stories"] })
       .filter(({ type }) => type === "document").map(({ name }) => name).sort();
-    const configuredTypes = [...SINGLETON_TYPES, ...EDITORIAL_LISTS.map(({ type }) => type), ...IMPORTER_TYPES, PROOF_GALLERY_LIST.type];
+    const configuredTypes = [...SINGLETON_TYPES, ...EDITORIAL_LISTS.map(({ type }) => type), ...IMPORTER_TYPES, PROOF_GALLERY_LIST.type, ...PROOF_RECORD_TYPES];
     expect(configuredTypes.slice().sort()).toEqual(documentTypes);
     expect(new Set(configuredTypes).size).toBe(configuredTypes.length);
   });
@@ -85,6 +85,17 @@ describe("proof galleries (ADR-0038, AB#130)", () => {
     expect(allowAction("clientProofGallery", "discardChanges")).toBe(true);
     for (const action of ["publish", "delete", "unpublish", "duplicate", "restore", "custom", undefined]) {
       expect(allowAction("clientProofGallery", action)).toBe(false);
+    }
+  });
+});
+
+describe("private proof records (ADR-0038 decisions 5 and 6)", () => {
+  it("are never created, edited, published, deleted or resent in Studio", () => {
+    for (const type of PROOF_RECORD_TYPES) {
+      expect(allowTemplate(type, { proofGalleries: true })).toBe(false);
+      for (const action of ["publish", "unpublish", "discardChanges", "delete", "duplicate", "restore", "custom", undefined]) {
+        expect(allowAction(type, action)).toBe(false);
+      }
     }
   });
 });

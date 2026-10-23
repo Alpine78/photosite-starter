@@ -3,6 +3,8 @@ import type english from "./en-us";
 const resources = {
   "structure.client-galleries.title": "Asiakasgalleriat",
   "structure.proof-galleries.title": "Vedosgalleriat",
+  "structure.proof-selections.title": "Vahvistetut vedosvalinnat",
+  "structure.proof-notices.title": "Toimenpiteitä vaativat vedosilmoitukset",
   "structure.content.title": "Sisältö",
   "structure.home-page.title": "Etusivu",
   "structure.site-settings.title": "Sivuston asetukset",

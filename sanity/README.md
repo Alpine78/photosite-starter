@@ -334,10 +334,12 @@ number above `referenceHighWater`, a removed number is never reused and reorderi
 renumbers (`proof-references.ts`). Publication validation derives the expected numbers
 from the **published** document, never from the draft, and refuses a published proof
 whose image was replaced. The handle stays unique across client, legacy and proof
-galleries. No customer, contact, job or price field exists: terms, selections and the
-selection key belong on Sanity private ID paths in a later slice. Until the publish
-action that numbers proofs and creates those private records lands, Studio does not
-offer the type for creation and never offers unpublish (`studio/editorial-policy.ts`).
+galleries. No customer, contact, job or price field exists in the public document: the
+terms, the working selection, each confirmed version and the photographer's notice live
+on Sanity private ID paths (`proofTerms.<id>`, `proofSelection.<id>[.v<n>]`,
+`proofNotice.<id>.v<n>`), written only by the site. `clientProofSelectionVersion` and
+`clientProofNotice` describe the last two so Studio can show them read-only: no create
+template, no document action, no resend (`studio/editorial-policy.ts`).
 
 AB#308's deterministic contract fixtures execute the actual runtime and native
 validation query strings with the first-party `groq-js/1` interpreter, pinned to

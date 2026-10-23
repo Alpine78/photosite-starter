@@ -31,15 +31,22 @@ export function isImporterType(type: string): boolean {
  * published proof gallery would have nowhere to lead.
  */
 export const PROOF_GALLERY_LIST = { type: "clientProofGallery", title: "Proof galleries" } as const;
+/** Written only by the site (ADR-0038); read-only in Studio, never created, edited or resent. */
+export const PROOF_RECORD_TYPES = ["clientProofSelectionVersion", "clientProofNotice"] as const;
+export const PROOF_SELECTION_LIST = { type: "clientProofSelectionVersion", title: "Confirmed proof selections" } as const;
+/** Failed, or pending longer than five minutes: the email may not have arrived (decision 6). */
+export const PROOF_NOTICES_NEEDING_ACTION_FILTER =
+  '_type == "clientProofNotice" && (state == "failed" || (state == "pending" && dateTime(createdAt) < dateTime(now()) - 300))';
+const isProofRecord = (type: string) => PROOF_RECORD_TYPES.some((candidate) => candidate === type);
 export type EditorialPolicyOptions = Readonly<{ proofGalleries?: boolean }>;
 
 export function allowTemplate(schemaType: string, options: EditorialPolicyOptions = {}): boolean {
   if (schemaType === PROOF_GALLERY_LIST.type) return options.proofGalleries === true;
-  return !isSingleton(schemaType) && !isImporterType(schemaType);
+  return !isSingleton(schemaType) && !isImporterType(schemaType) && !isProofRecord(schemaType);
 }
 
 export function allowAction(schemaType: string, action: string | undefined): boolean {
-  if (isImporterType(schemaType)) return false;
+  if (isImporterType(schemaType) || isProofRecord(schemaType)) return false;
   if (schemaType === "clientDeliveryGallery") {
     return action !== undefined && ["publish", "unpublish", "discardChanges", "delete"].includes(action);
   }

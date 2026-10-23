@@ -231,7 +231,9 @@ export function planConfirm(gallery: SelectionGallery, terms: SelectionTerms, se
         totals: { selected: sums.selectedCount, extra: sums.extraCount, extraTotalMinor: sums.extraTotalMinor },
         items: items.map((item) => ({ _key: item.key, reference: item.reference, originalFilename: item.originalFilename })),
       } },
-      { create: { _id: proofNoticeId(gallery.id, version), _type: PROOF_NOTICE_TYPE, galleryId: gallery.id, version, state: "pending", createdAt: now } },
+      { create: { _id: proofNoticeId(gallery.id, version), _type: PROOF_NOTICE_TYPE, galleryId: gallery.id, version, state: "pending", createdAt: now,
+        // Studio opens the confirmed version from its notice.
+        selection: { _type: "reference", _ref: proofVersionId(gallery.id, version), _weak: true } } },
       { patch: { id: proofSelectionId(gallery.id), ifRevisionID: selection.revision, set: { state: "confirmed", latestVersion: version } } },
       termsGuard(gallery, terms, "lastConfirmedAt", now),
     ],

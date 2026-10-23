@@ -1,10 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runFixtureProofSelection, runProofSelection, type ProofSelectionDependencies } from "@/lib/proof-selection-access";
 import { ProofSelectionStoreError } from "@/lib/proof-selection-sanity";
 import { createSelectionKey } from "@/lib/proof-selection-key";
 
 vi.mock("@/lib/sanity-config", () => ({ getSanityConfig: () => ({ projectId: "example1", dataset: "fixture", apiVersion: "v2026-06-24", datasetVisibility: "public" }) }));
-vi.mock("@/lib/deployment-config", () => ({ getDeploymentConfig: () => ({ locale: "en-GB" }) }));
+vi.mock("@/lib/deployment-config", async (original) => ({ ...await original<typeof import("@/lib/deployment-config")>(), getDeploymentConfig: () => ({ locale: "en-GB" }) }));
 
 const handle = "c".repeat(32);
 const { key, hash } = createSelectionKey();
@@ -47,13 +47,18 @@ function lake() {
 
 let world: ReturnType<typeof lake>;
 let allowed: ReturnType<typeof vi.fn<(id: string) => boolean>>;
+let sendNotice: ReturnType<typeof vi.fn<NonNullable<ProofSelectionDependencies["sendNotice"]>>>;
 const deps = (extra: Partial<ProofSelectionDependencies> = {}): ProofSelectionDependencies => ({
   store: world.store as unknown as ProofSelectionDependencies["store"], galleryAllowed: allowed,
-  replacementAvailable: vi.fn(async () => false), now: () => Date.parse("2026-10-23T10:00:00Z"), ...extra,
+  replacementAvailable: vi.fn(async () => false), now: () => Date.parse("2026-10-23T10:00:00Z"), sendNotice, ...extra,
 });
 const run = (request: Record<string, unknown>, extra: Partial<ProofSelectionDependencies> = {}) =>
   runProofSelection({ handle, key, ...request } as never, "token", deps(extra));
-beforeEach(() => { world = lake(); allowed = vi.fn(() => true); });
+afterEach(() => { vi.unstubAllEnvs(); });
+beforeEach(() => {
+  world = lake(); allowed = vi.fn(() => true); sendNotice = vi.fn(async () => ({ status: "delivered" as const }));
+  vi.spyOn(console, "info").mockImplementation(() => {}); vi.spyOn(console, "error").mockImplementation(() => {});
+});
 
 describe("proof selection facade", () => {
   it("reads an empty open selection with the terms summary", async () => {
@@ -95,7 +100,7 @@ describe("proof selection facade", () => {
     expect(await run({ operation: "select", expectedRevision: null, references: ["002"] })).toMatchObject({ outcome: "rejected", reason: "conflict", selection: { references: ["001", "003"] } });
     const confirmed = await run({ operation: "confirm", expectedRevision: first.selection.revision });
     expect(confirmed).toMatchObject({ outcome: "ok", written: "confirmed", selection: { state: "confirmed", version: 1, references: ["001", "003"] } });
-    expect(world.documents.get("proofNotice.g1.v1")).toMatchObject({ state: "pending", version: 1 });
+    expect(world.documents.get("proofNotice.g1.v1")).toMatchObject({ state: "sent", version: 1 });
     // A retried confirmation with the old revision cannot write a second version.
     expect(await run({ operation: "confirm", expectedRevision: first.selection.revision })).toMatchObject({ outcome: "rejected", reason: "conflict", selection: { state: "confirmed", version: 1 } });
     expect([...world.documents.keys()].filter((id) => id.startsWith("proofSelection.g1.v"))).toEqual(["proofSelection.g1.v1"]);
@@ -249,5 +254,72 @@ describe("proof selection facade", () => {
     expect(saved).toMatchObject({ outcome: "ok", selection: { references: ["014"], currency: "EUR" } });
     expect(await runFixtureProofSelection({ operation: "read", handle: handle7, key: second })).toMatchObject({ outcome: "ok", selection: { references: [] } });
     expect(await runFixtureProofSelection({ operation: "read", handle: handle7, key: `AAAA${first.slice(4)}` })).toEqual({ outcome: "unavailable" });
+  });
+
+  describe("the photographer's notice (decision 6)", () => {
+    async function confirmOne(extra: Partial<ProofSelectionDependencies> = {}) {
+      const saved = await run({ operation: "select", expectedRevision: null, references: ["001", "003"] });
+      if (saved.outcome !== "ok") throw new Error(saved.outcome);
+      return run({ operation: "confirm", expectedRevision: saved.selection.revision }, extra);
+    }
+
+    it("sends one deterministic email from the version after the commit and records it sent", async () => {
+      expect(await confirmOne()).toMatchObject({ outcome: "ok", written: "confirmed" });
+      expect(sendNotice).toHaveBeenCalledTimes(1);
+      const [email, key] = sendNotice.mock.calls[0];
+      expect(key).toBe("proof-notice/g1/v1");
+      expect(email.subject).toContain("J"); expect(email.text).toContain("001 — a.jpg"); expect(email.text).toContain("003 — c.jpg");
+      expect(email.text).not.toContain(hash);
+      expect(world.documents.get("proofNotice.g1.v1")).toMatchObject({ state: "sent", attemptedAt: "2026-10-23T10:00:00.000Z" });
+    });
+
+    it("records a failed send without changing the confirmation, and never marks a refused idempotent repeat sent", async () => {
+      sendNotice.mockResolvedValue({ status: "failed", errorClass: "provider-unavailable", retryable: true });
+      expect(await confirmOne()).toMatchObject({ outcome: "ok", selection: { state: "confirmed" } });
+      expect(world.documents.get("proofNotice.g1.v1")).toMatchObject({ state: "failed", errorClass: "provider-unavailable" });
+    });
+
+    it("leaves the notice pending when the provider accepted but recording failed, and sends no second email", async () => {
+      const commit = world.store.commit.getMockImplementation()!;
+      let confirmed = false;
+      world.store.commit.mockImplementation(async (mutations) => {
+        const patch = (mutations[0] as { patch?: { id: string } }).patch;
+        if (confirmed && patch?.id === "proofNotice.g1.v1") throw new ProofSelectionStoreError("unknown");
+        await commit(mutations);
+        if ((mutations[0] as { create?: { _id: string } }).create?._id === "proofSelection.g1.v1") confirmed = true;
+      });
+      expect(await confirmOne()).toMatchObject({ outcome: "ok", selection: { state: "confirmed" } });
+      expect(sendNotice).toHaveBeenCalledTimes(1);
+      expect(world.documents.get("proofNotice.g1.v1")).toMatchObject({ state: "pending" });
+    });
+
+    it("still notifies when a committed confirmation cannot be read back", async () => {
+      const read = world.store.read.getMockImplementation()!;
+      world.store.read.mockImplementation(async (id: string) => {
+        if (id === "proofSelection.g1" && world.documents.get("proofSelection.g1")?.state === "confirmed") throw new ProofSelectionStoreError("unavailable");
+        return read(id);
+      });
+      expect(await confirmOne()).toEqual({ outcome: "committed", written: "confirmed" });
+      expect(sendNotice).toHaveBeenCalledTimes(1);
+      expect(world.documents.get("proofNotice.g1.v1")).toMatchObject({ state: "sent" });
+    });
+
+    it("sends nothing when the confirmation's outcome is unknown, or for a save", async () => {
+      const commit = world.store.commit.getMockImplementation()!;
+      const saved = await run({ operation: "select", expectedRevision: null, references: ["001"] });
+      if (saved.outcome !== "ok") throw new Error(saved.outcome);
+      world.store.commit.mockImplementationOnce(async (mutations) => { await commit(mutations); throw new ProofSelectionStoreError("unknown"); });
+      expect(await run({ operation: "confirm", expectedRevision: saved.selection.revision })).toEqual({ outcome: "unknown" });
+      expect(sendNotice).not.toHaveBeenCalled();
+      expect(world.documents.get("proofNotice.g1.v1")).toMatchObject({ state: "pending" });
+    });
+
+    it("keeps a missing mail configuration from touching the customer's answer", async () => {
+      // Arrange the missing configuration explicitly: the ambient environment must never decide, or send real mail.
+      for (const name of ["CONTACT_DELIVERY_ADAPTER", "CONTACT_DELIVERY_TO", "CONTACT_DELIVERY_FROM", "RESEND_API_KEY"]) vi.stubEnv(name, "");
+      const result = await confirmOne({ sendNotice: undefined });
+      expect(result).toMatchObject({ outcome: "ok", selection: { state: "confirmed" } });
+      expect(world.documents.get("proofNotice.g1.v1")).toMatchObject({ state: "pending" });
+    });
   });
 });
