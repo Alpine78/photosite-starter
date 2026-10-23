@@ -9,7 +9,8 @@ import { runConfiguredProofReminders } from "@/lib/proof-reminder-access";
  */
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+/** Keep this literal in sync with PROOF_REMINDER_MAX_DURATION_SECONDS in proof-reminder-access.ts. */
+export const maxDuration = 200;
 
 function authorized(header: string | null, secret: string): boolean {
   const expected = Buffer.from(`Bearer ${secret}`), presented = Buffer.from(header ?? "");

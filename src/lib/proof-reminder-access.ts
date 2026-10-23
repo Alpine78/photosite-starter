@@ -14,7 +14,8 @@
  *
  * Progress: galleries are taken in `_id` order in bounded batches from a
  * private cursor, wrapping around, and a run stops starting new galleries once
- * its time budget is spent (one already begun is finished); the cursor moves
+ * its start budget is spent, and claims only with time reserved to finish;
+ * once claimed it is finished. The cursor moves
  * only past galleries actually handled, so every gallery is reached on a later day.
  */
 import "server-only";
@@ -41,6 +42,18 @@ export const PROOF_REMINDER_BATCH = 50;
 export const PROOF_REMINDER_DISCOVERY_QUERY = `*[_type == "clientProofTerms" && reminderDelayDays != null && _id > $after] | order(_id asc)[0...${PROOF_REMINDER_BATCH}]{_id, galleryId}`;
 /** No new gallery is started after this much of the run; the rest of the function's time finishes the one in flight. */
 export const PROOF_REMINDER_START_BUDGET_MS = 15_000;
+/** Keep the route's literal maxDuration in sync. Fits Hobby (300 s) and Pro (800 s) with Fluid compute.
+ * https://vercel.com/docs/functions/limitations#max-duration */
+export const PROOF_REMINDER_MAX_DURATION_SECONDS = 200;
+/** Leave 15 s for route setup, local work and the response, outside the run's hard deadline. */
+export const PROOF_REMINDER_SAFETY_MARGIN_MS = 15_000;
+export const PROOF_REMINDER_HARD_DEADLINE_MS = PROOF_REMINDER_MAX_DURATION_SECONDS * 1000 - PROOF_REMINDER_SAFETY_MARGIN_MS;
+/** Claim + four fresh documents (terms, selection, gallery, replacement) + the delivery reader's
+ * two query/Doc attempts (four calls) + outcome read/patch + cursor commit: twelve Sanity calls
+ * at 10 s each, plus the 10 s send. Count the reader calls separately, conservatively ignoring
+ * its tighter shared 15 s budget. 15 s start + four 10 s pre-claim reads + this reserve fits;
+ * the optional replacement checks can defer a gallery. Never stop for time after claiming. */
+export const PROOF_REMINDER_CLAIM_RESERVE_MS = 12 * 10_000 + 10_000;
 
 export type ReminderEmail = Readonly<{ to: string; subject: string; text: string }>;
 export type ReminderOutcome = "sent" | "failed" | "cancelled" | "skipped" | "paused" | "stopped" | "misconfigured" | "ambiguous";
@@ -116,7 +129,9 @@ export async function runProofReminders(dependencies: ReminderRunDependencies): 
     const keyUsable = key !== undefined && selectionKeyMatches(key, t.keyHash);
     const email = keyUsable ? proofReminderEmail({ canonicalBase: dependencies.canonicalBase, handle: g.handle, key: key!, locale: t.locale,
       defaultLocale: dependencies.defaultLocale, ...(g.title === undefined ? {} : { title: g.title }), firstPublishedAt: t.firstPublishedAt }, dependencies.labels(t.locale)) : undefined;
-    // 3. Claim once. A gallery already begun is finished; the budget only stops new ones.
+    // 3. Defer without a claim unless every remaining call can fit before the hard deadline.
+    if (dependencies.clock() - started + PROOF_REMINDER_CLAIM_RESERVE_MS > PROOF_REMINDER_HARD_DEADLINE_MS) return note("skipped");
+    // Once claimed, finish even if the start budget has elapsed.
     try {
       await dependencies.commit(planReminderClaim(galleryId, t, due.step, due.dueAt, iso()));
     } catch (error) {

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getBuiltInLabels } from "@/lib/deployment-config";
-import { PROOF_REMINDER_BATCH, PROOF_REMINDER_CURSOR_ID, runProofReminders, type ReminderRunDependencies } from "@/lib/proof-reminder-access";
+import { PROOF_REMINDER_BATCH, PROOF_REMINDER_CLAIM_RESERVE_MS, PROOF_REMINDER_CURSOR_ID, PROOF_REMINDER_HARD_DEADLINE_MS, runProofReminders, type ReminderRunDependencies } from "@/lib/proof-reminder-access";
 import { DAY_MS } from "@/lib/proof-reminder";
 import { createSelectionKey, encryptSelectionKey } from "@/lib/proof-selection-key";
 import { ProofSelectionStoreError } from "@/lib/proof-selection-sanity";
@@ -176,5 +176,49 @@ describe("daily proof reminders", () => {
     const counts = await runProofReminders(deps({ read: async (id) => { elapsed += 4_000; return structuredClone(world.documents.get(id) ?? null); } }));
     expect(counts).toMatchObject({ sent: 1 });
     expect(world.documents.get("proofReminder.g1.1")).toMatchObject({ state: "sent" });
+  });
+
+  it("defers slow pre-claim reads without taking the step, then sends it on a faster run", async () => {
+    seedGallery(world, "g1", { gallery: { replacedBy: { _type: "reference", _ref: "delivery1", _weak: true } } });
+    world.put({ _id: "delivery1", _type: "clientDeliveryGallery", handle: "d".repeat(32) });
+    const counts = await runProofReminders(deps({
+      read: async (id) => { elapsed += 9_000; return structuredClone(world.documents.get(id) ?? null); },
+      replacementAvailable: async () => { elapsed += 9_000; return false; },
+    }));
+    expect(counts).toMatchObject({ examined: 1, skipped: 1, sent: 0 });
+    expect(elapsed + PROOF_REMINDER_CLAIM_RESERVE_MS).toBeGreaterThan(PROOF_REMINDER_HARD_DEADLINE_MS);
+    expect([...world.documents.keys()].some((id) => id.startsWith("proofReminder."))).toBe(false);
+    expect(send).not.toHaveBeenCalled();
+    expect(world.commit).toHaveBeenCalledTimes(1); // Only the progress cursor, no claim or terms patch.
+    elapsed = 0;
+    expect(await runProofReminders(deps())).toMatchObject({ sent: 1 });
+    expect(world.documents.get("proofReminder.g1.1")).toMatchObject({ state: "sent" });
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it("claims when the full reserve fits exactly, then finishes and records the send", async () => {
+    seedGallery(world, "g1", { gallery: { replacedBy: { _type: "reference", _ref: "delivery1", _weak: true } } });
+    world.put({ _id: "delivery1", _type: "clientDeliveryGallery", handle: "d".repeat(32) });
+    const read = deps().read;
+    const commit = world.commit.getMockImplementation()!;
+    world.commit.mockImplementation(async (mutations) => { elapsed += 10_000; return commit(mutations); });
+    send.mockImplementation(async () => { elapsed += 10_000; return { status: "delivered" }; });
+    const counts = await runProofReminders(deps({
+      read: async (id) => {
+        // Reach the boundary while preparing; subsequent calls consume their full timeouts.
+        if (id === "proofReminder.g1.1" && !world.documents.has(id)) elapsed = PROOF_REMINDER_HARD_DEADLINE_MS - PROOF_REMINDER_CLAIM_RESERVE_MS;
+        else if (world.documents.has("proofReminder.g1.1")) elapsed += 10_000;
+        return read(id);
+      },
+      replacementAvailable: async () => {
+        // Conservatively spend all four reader calls, even beyond its shared 15 s budget.
+        if (world.documents.has("proofReminder.g1.1")) elapsed += 4 * 10_000;
+        return false;
+      },
+    }));
+    expect(counts).toMatchObject({ sent: 1, examined: 1 });
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(world.documents.get("proofReminder.g1.1")).toMatchObject({ state: "sent" });
+    expect(elapsed).toBe(PROOF_REMINDER_HARD_DEADLINE_MS);
   });
 });

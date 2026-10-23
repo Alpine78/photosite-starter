@@ -805,8 +805,13 @@ together with an enabled selection route, `PROOF_SELECTION_KEY_SECRET`, a `CRON_
 at least 16 characters and the contact delivery settings; an incomplete configuration
 answers 503. Each run sends the latest due reminder per gallery once, in the customer's
 language, with Reply-To set to the owner mailbox, and answers counts only. It starts no
-new gallery after 15 seconds of its 60-second limit and continues from a private cursor
-the next day. Every reminder links to the customer's stop page
+new gallery after 15 seconds of its 200-second limit (Hobby and Pro with Fluid compute)
+and continues from a private cursor the next day. Before claiming a step, elapsed time
+plus the 130-second reserve for the claim, fresh reads including replacement delivery
+checks, send, outcome read/patch and cursor write must fit within a 185-second hard
+deadline, leaving a 15-second safety margin; otherwise it counts the gallery as skipped
+without writing the step, allowing a later run to claim it. Claimed work always finishes.
+Every reminder links to the customer's stop page
 (`/client-proof/<handle>/reminders`). Before activation the privacy notice must name the
 reminder. With manual production releases, a schedule change takes effect only with the
 next release.

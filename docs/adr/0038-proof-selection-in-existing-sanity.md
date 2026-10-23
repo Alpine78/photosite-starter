@@ -598,8 +598,13 @@ writing. The reminder sender links to this page.
 Records how decision 9 and its amendment are implemented; it changes no decision.
 `GET /api/proof-reminders` (default off, `CRON_SECRET`, daily Vercel cron) walks the
 galleries with reminders on in `_id` order from a private cursor, in batches of 50,
-wrapping around, and starts no new gallery after 15 seconds of its 60-second limit, so
-every gallery is reached on a later day. Per gallery it reads the terms first, then the
+wrapping around, and starts no new gallery after 15 seconds of its 200-second limit
+(valid on Hobby and Pro with Fluid compute); before claiming it also requires a 130-second
+reserve for the claim, fresh reads including replacement delivery checks, send, outcome
+read/patch and cursor write to fit within the 185-second hard deadline (15-second safety
+margin), otherwise counting it as skipped without writing the step so a later run can
+claim it; claimed work is always finished, so every gallery is reached on a later day.
+Per gallery it reads the terms first, then the
 selection and the gallery (and a replacing delivery gallery), so the claim — `create` of
 `proofReminder.<id>.<n>` with a guard on that terms revision — fails if a confirmation,
 rotation, settings change, stop or publication came in between. It prepares the message

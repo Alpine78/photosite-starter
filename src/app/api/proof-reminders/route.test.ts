@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const run = vi.hoisted(() => ({ runConfiguredProofReminders: vi.fn() }));
 vi.mock("@/lib/proof-reminder-access", () => run);
-import { GET } from "./route";
+import { GET, maxDuration } from "./route";
 
 const cron = "c".repeat(32);
 const enabled = { PROOF_REMINDERS: "enabled", PROOF_SELECTION: "enabled", PROOF_GALLERY_ADAPTER: "sanity", SITE_CONTENT_SOURCE: "sanity", SANITY_DATASET_VISIBILITY: "public",
@@ -12,6 +12,11 @@ beforeEach(() => { for (const [name, value] of Object.entries(enabled)) vi.stubE
 afterEach(() => vi.unstubAllEnvs());
 
 describe("reminder cron route", () => {
+  it("gives the run the same duration used to calculate its claim deadline", async () => {
+    const { PROOF_REMINDER_MAX_DURATION_SECONDS } = await vi.importActual<typeof import("@/lib/proof-reminder-access")>("@/lib/proof-reminder-access");
+    expect(maxDuration).toBe(PROOF_REMINDER_MAX_DURATION_SECONDS);
+  });
+
   it("does not exist while off and is unavailable while incomplete, never running", async () => {
     vi.stubEnv("PROOF_REMINDERS", "");
     expect((await GET(request(`Bearer ${cron}`))).status).toBe(404);
