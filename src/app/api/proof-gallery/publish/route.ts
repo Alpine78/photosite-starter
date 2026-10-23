@@ -32,6 +32,9 @@ const REJECTION_STATUS: Record<string, number> = {
   "invalid-references": 422,
   "unsupported-release": 409,
   inconsistent: 409,
+  "stale-draft": 409,
+  "terms-required": 422,
+  "terms-not-allowed": 422,
 };
 
 function isJson(request: Request): boolean {

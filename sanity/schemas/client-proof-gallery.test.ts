@@ -42,18 +42,20 @@ describe("Sanity proof gallery authoring (ADR-0038, AB#130)", () => {
     expect(await f.run(gallery())).toBe(true);
     expect(f.fetch.mock.calls[0][0]).toContain('"clientProofGallery"');
   });
-  it("refuses numbers that do not follow the published state", async () => {
-    expect(await setup().run(gallery({ items: [proof("k1", "IMG_10.jpg", assetId("a"), "001"), proof("k2", "IMG_9.jpg", assetId("b"), "002")] }))).toBe(errors.references);
-    expect(await setup().run(gallery({ items: [proof("k1", "IMG_10.jpg", assetId("a")), proof("k2", "IMG_9.jpg", assetId("b"), "001")] }))).toBe(errors.references);
-    expect(await setup().run(gallery({ referenceHighWater: 5 }))).toBe(errors.references);
+  it("lets a draft wait for the publication route to number it, but never swap a published image", async () => {
+    expect(await setup().run(gallery({ items: [proof("k1", "IMG_10.jpg", assetId("a")), proof("k2", "IMG_9.jpg", assetId("b"))] }))).toBe(true);
+    expect(await setup().run(gallery({ items: [proof("k1", "IMG_10.jpg", assetId("a"), "1"), proof("k2", "IMG_9.jpg", assetId("b"))] }))).toBe(errors.references);
     const published = { _type: "clientProofGallery", handle: "c".repeat(32), referenceHighWater: 2,
       items: [{ _key: "k1", reference: "002", assetRef: assetId("a") }, { _key: "k2", reference: "001", assetRef: assetId("b") }] };
-    const removedAndAdded = gallery({ referenceHighWater: 3, items: [proof("k1", "IMG_10.jpg", assetId("a"), "002"), proof("k3", "IMG_1.jpg", assetId("b"), "003")] });
-    expect(await setup({ identity: { conflicts: [], published } }).run(removedAndAdded)).toBe(true);
-    const reused = gallery({ referenceHighWater: 2, items: [proof("k1", "IMG_10.jpg", assetId("a"), "002"), proof("k3", "IMG_1.jpg", assetId("b"), "001")] });
-    expect(await setup({ identity: { conflicts: [], published } }).run(reused)).toBe(errors.references);
     const replaced = gallery({ items: [proof("k1", "IMG_10.jpg", assetId("b"), "002"), proof("k2", "IMG_9.jpg", assetId("b"), "001")] });
     expect(await setup({ identity: { conflicts: [], published }, assets: [asset("b")] }).run(replaced)).toBe(errors.references);
+  });
+  it("requires a published document to carry exactly the derived numbers", async () => {
+    const live = (overrides: Record<string, unknown>) => gallery({ _id: "proofs", ...overrides });
+    expect(await setup().run(live({}))).toBe(true);
+    expect(await setup().run(live({ items: [proof("k1", "IMG_10.jpg", assetId("a"), "001"), proof("k2", "IMG_9.jpg", assetId("b"), "002")] }))).toBe(errors.references);
+    expect(await setup().run(live({ items: [proof("k1", "IMG_10.jpg", assetId("a")), proof("k2", "IMG_9.jpg", assetId("b"), "001")] }))).toBe(errors.references);
+    expect(await setup().run(live({ referenceHighWater: 5 }))).toBe(errors.references);
   });
   it("refuses an inconsistent published state instead of numbering from it", async () => {
     const draft = gallery({ referenceHighWater: 1, items: [proof("k1", "IMG_1.jpg", assetId("a"), "001"), proof("k2", "IMG_2.jpg", assetId("b"), "001")] });

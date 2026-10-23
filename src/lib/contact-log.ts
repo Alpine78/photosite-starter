@@ -187,6 +187,7 @@ export type PollVoteEvent =
 export type ProofPublicationErrorClass =
   | "origin" | "unauthenticated" | "forbidden" | "malformed-request" | "rate-limited" | "misconfigured"
   | "not-found" | "invalid-gallery" | "unsupported-release" | "inconsistent" | "invalid-references"
+  | "stale-draft" | "terms-required" | "terms-not-allowed"
   | "conflict" | "store-unavailable" | "internal";
 export type ProofPublicationEvent =
   | { readonly correlationId: string; readonly state: "published" | "key-rotated"; readonly errorClass?: never }

@@ -1,5 +1,6 @@
 const resources = {
   "structure.client-galleries.title": "Client galleries",
+  "structure.proof-galleries.title": "Proof galleries",
   "structure.content.title": "Content",
   "structure.home-page.title": "Home page",
   "structure.site-settings.title": "Site settings",

@@ -133,3 +133,20 @@ export function proofReferenceProblem(
   if (highWater !== expected.highWater) return "high-water";
   return undefined;
 }
+
+/**
+ * A draft before publication: the publication route assigns the numbers, so a
+ * draft need not carry them. A number it does carry must be canonical, and a
+ * published proof must keep its image.
+ */
+export function draftReferenceProblem(
+  items: readonly ProofReferenceItem[],
+  published: PublishedProofState,
+): "replaced" | "malformed" | undefined {
+  for (const item of items) {
+    const fixed = Object.hasOwn(published.references, item._key) ? published.references[item._key] : undefined;
+    if (fixed && fixed.assetRef !== item.assetRef) return "replaced";
+    if (item.reference !== undefined && !isProofReference(item.reference)) return "malformed";
+  }
+  return undefined;
+}

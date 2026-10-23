@@ -6,10 +6,11 @@
  */
 import "server-only";
 import { readProofSelectionKeySecret } from "@/lib/proof-selection-key";
+import { parseProofTerms, type ProofTerms } from "@/lib/proof-terms";
 
 /** Leaves room for `proofTerms.`, `proofSelection.<id>.v<n>` and similar private IDs within Sanity's 128 characters. */
 export const PROOF_GALLERY_ID_MAX_LENGTH = 96;
-export const PROOF_PUBLICATION_BODY_BYTES = 1024;
+export const PROOF_PUBLICATION_BODY_BYTES = 2048;
 const TOKEN = /^[A-Za-z0-9._~+/=-]{20,4096}$/u;
 const GALLERY_ID = /^[A-Za-z0-9][A-Za-z0-9_-]*$/u;
 
@@ -72,13 +73,20 @@ export function readEditorToken(header: string | null): string | undefined {
 }
 
 export type ProofPublicationOperation = "publish" | "rotate-key";
-export type ProofPublicationRequest = Readonly<{ galleryId: string; operation: ProofPublicationOperation }>;
+export type ProofPublicationRequest =
+  | Readonly<{ galleryId: string; operation: "publish"; expectedDraftRevision: string; terms?: ProofTerms }>
+  | Readonly<{ galleryId: string; operation: "rotate-key" }>;
+const REVISION = /^[A-Za-z0-9_-]{1,128}$/u;
 
 export function isProofGalleryId(value: unknown): value is string {
   return typeof value === "string" && value.length >= 1 && value.length <= PROOF_GALLERY_ID_MAX_LENGTH && GALLERY_ID.test(value);
 }
 
-/** Exactly `{"galleryId": "…", "operation": "publish" | "rotate-key"}`. */
+/**
+ * `publish`: `{galleryId, operation, expectedDraftRevision, terms?}` — the
+ * revision the editor's validated view was based on, and the terms on a first
+ * publication. `rotate-key`: exactly `{galleryId, operation}`. Nothing else.
+ */
 export function parseProofPublicationBody(body: string | undefined): ProofPublicationRequest | undefined {
   if (body === undefined) return undefined;
   let parsed: unknown;
@@ -86,7 +94,15 @@ export function parseProofPublicationBody(body: string | undefined): ProofPublic
   if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return undefined;
   const record = parsed as Record<string, unknown>;
   const keys = Object.keys(record);
-  if (keys.length !== 2 || !keys.includes("galleryId") || !keys.includes("operation")) return undefined;
-  if (!isProofGalleryId(record.galleryId) || (record.operation !== "publish" && record.operation !== "rotate-key")) return undefined;
-  return { galleryId: record.galleryId, operation: record.operation };
+  if (!isProofGalleryId(record.galleryId)) return undefined;
+  if (record.operation === "rotate-key") {
+    return keys.length === 2 && keys.includes("operation") ? { galleryId: record.galleryId, operation: "rotate-key" } : undefined;
+  }
+  if (record.operation !== "publish" || typeof record.expectedDraftRevision !== "string" || !REVISION.test(record.expectedDraftRevision)) return undefined;
+  const allowed = ["galleryId", "operation", "expectedDraftRevision", "terms"];
+  if (keys.some((name) => !allowed.includes(name))) return undefined;
+  if (!("terms" in record)) return { galleryId: record.galleryId, operation: "publish", expectedDraftRevision: record.expectedDraftRevision };
+  const terms = parseProofTerms(record.terms);
+  return terms === undefined ? undefined
+    : { galleryId: record.galleryId, operation: "publish", expectedDraftRevision: record.expectedDraftRevision, terms };
 }

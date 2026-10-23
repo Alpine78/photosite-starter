@@ -13,7 +13,7 @@ describe("Studio configuration", () => {
   it("derives all locale roots with the default in any position", () => {
     expect(loadStudioSettings(environment)).toEqual({
       projectId: "example1", dataset: "example", datasetVisibility: "public",
-      title: "Example Studio", authoringLanguages: ["fi", "en"], storyRootPaths: ["/tarinat", "/en/stories"],
+      title: "Example Studio", authoringLanguages: ["fi", "en"], storyRootPaths: ["/tarinat", "/en/stories"], proofGalleries: false,
     });
     expect(studioStoryRoots("en-GB|en|stories,fi||tarinat")).toEqual(["/en/stories", "/tarinat"]);
   });
@@ -74,5 +74,15 @@ describe("Studio search namespace configuration (AB#300)", () => {
     "fi||stories|services|search,en|en|stories|services|services",
   ])("refuses malformed or conflicting optional fields: %s", (value) => {
     expect(() => studioStoryRoots(value)).toThrow("SANITY_STUDIO_LOCALE_ROUTES");
+  });
+});
+
+describe("Studio proof gallery switch (ADR-0038, AB#130)", () => {
+  it.each([[undefined, false], ["", false], ["off", false], [" enabled ", true]])("reads %j as %s", (value, expected) => {
+    expect(loadStudioSettings({ ...environment, SANITY_STUDIO_PROOF_GALLERIES: value }).proofGalleries).toBe(expected);
+  });
+
+  it.each(["true", "1", "Enabled", "yes"])("refuses %j instead of guessing", (value) => {
+    expect(() => loadStudioSettings({ ...environment, SANITY_STUDIO_PROOF_GALLERIES: value })).toThrow("SANITY_STUDIO_PROOF_GALLERIES");
   });
 });

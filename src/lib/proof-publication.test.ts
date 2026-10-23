@@ -16,12 +16,15 @@ const gallery = (id: string, items: unknown[], extra: Record<string, unknown> = 
 });
 const assets = (...ns: string[]) => ns.map((n) => ({ _id: asset(n), _type: "sanity.imageAsset", extension: "webp", mimeType: "image/webp", sha1hash: n.repeat(40), width: 1600, height: 1000, restricted: false }));
 const terms = { _id: "proofTerms.g1", _rev: "termsrev", _type: "clientProofTerms", galleryId: "g1" };
+const entered = { includedCount: 10, extraUnitPriceMinor: 1500, currency: "EUR", jobReference: "job-1", reminder: { delayDays: 7, customerEmail: "asiakas@example.fi" } };
 function plan(read: Partial<PublicationRead>, overrides: Partial<PlanInput> = {}) {
   const full: PublicationRead = { draft: null, published: null, terms: null, versions: 0, ...read };
   // By default every asset the draft references exists and is valid.
   const letters = [...new Set(((full.draft as { items?: { image: { asset: { _ref: string } } }[] } | null)?.items ?? [])
     .map((entry) => entry.image.asset._ref.slice(6, 7)))];
-  return planProofPublication({ galleryId: "g1", operation: "publish", read: full, related: { conflicts: [], assets: assets(...letters) }, now, secret, ...overrides });
+  // A first publication carries the entered terms; a later one carries none.
+  const defaults = { expectedDraftRevision: "draftrev", ...(full.published === null ? { terms: entered } : {}) };
+  return planProofPublication({ galleryId: "g1", operation: "publish", read: full, related: { conflicts: [], assets: assets(...letters) }, now, secret, ...defaults, ...overrides });
 }
 
 describe("proof publication planning (ADR-0038, AB#130)", () => {
@@ -35,7 +38,8 @@ describe("proof publication planning (ADR-0038, AB#130)", () => {
     expect((createGallery.create as { items: { _key: string; reference: string }[] }).items.map((entry) => [entry._key, entry.reference])).toEqual([["k1", "002"], ["k2", "001"]]);
     expect(createGallery.create).not.toHaveProperty("_rev");
     const record = createTerms.create as Record<string, unknown>;
-    expect(record).toMatchObject({ _id: "proofTerms.g1", _type: "clientProofTerms", galleryId: "g1", firstPublishedAt: now, keyIssuedAt: now });
+    expect(record).toMatchObject({ _id: "proofTerms.g1", _type: "clientProofTerms", galleryId: "g1", firstPublishedAt: now, keyIssuedAt: now,
+      includedCount: 10, extraUnitPriceMinor: 1500, currency: "EUR", jobReference: "job-1", reminderDelayDays: 7, customerEmail: "asiakas@example.fi" });
     expect(record.selectionKeyHash).toBe(selectionKeyHash(result.selectionKey!));
     expect(decryptSelectionKey(record.selectionKeyCiphertext, "g1", secret)).toBe(result.selectionKey);
     expect(JSON.stringify(result.mutations)).not.toContain(result.selectionKey!);
@@ -87,6 +91,20 @@ describe("proof publication planning (ADR-0038, AB#130)", () => {
     ["a replaced image under a published number", { draft: gallery("drafts.g1", [item("k1", "IMG_1.jpg", "b", "001")]), published: gallery("g1", [item("k1", "IMG_1.jpg", "a", "001")], { referenceHighWater: 1 }), terms }, "invalid-references"],
   ])("refuses %s", (_name, read, reason) => {
     expect(plan(read as Partial<PublicationRead>)).toEqual({ kind: "rejected", reason });
+  });
+
+  it("publishes only the reviewed draft and snapshots terms exactly once", () => {
+    const draft = gallery("drafts.g1", [item("k1", "IMG_1.jpg", "a")]);
+    expect(plan({ draft }, { expectedDraftRevision: "older" })).toEqual({ kind: "rejected", reason: "stale-draft" });
+    expect(plan({ draft }, { expectedDraftRevision: undefined })).toEqual({ kind: "rejected", reason: "stale-draft" });
+    expect(plan({ draft }, { terms: undefined })).toEqual({ kind: "rejected", reason: "terms-required" });
+    const published = gallery("g1", [item("k1", "IMG_1.jpg", "a", "001")], { referenceHighWater: 1 });
+    expect(plan({ draft: gallery("drafts.g1", [item("k1", "IMG_1.jpg", "a", "001")]), published, terms }, { terms: entered })).toEqual({ kind: "rejected", reason: "terms-not-allowed" });
+    const noReminder = plan({ draft }, { terms: { ...entered, reminder: null } });
+    if (noReminder.kind !== "ready") throw new Error(noReminder.reason);
+    const record = (noReminder.mutations[2] as { create: Record<string, unknown> }).create;
+    expect(record.reminderDelayDays).toBeNull();
+    expect(record).not.toHaveProperty("customerEmail");
   });
 
   it("refuses a handle conflict and private-only, mismatched or missing assets", () => {

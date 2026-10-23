@@ -7,6 +7,7 @@ const secret = Buffer.alloc(32, 9);
 const asset = `image-${"a".repeat(40)}-1600x1000-webp`;
 const draft = { _id: "drafts.GALLERY", _type: "clientProofGallery", _rev: "r1", handle: "c".repeat(32), available: false, availabilityMode: "indefinite",
   items: [{ _key: "k1", _type: "clientProofItem", mediaType: "image", originalFilename: "IMG_1.jpg", image: { _type: "image", asset: { _type: "reference", _ref: asset } } }] };
+const terms = { includedCount: 10, extraUnitPriceMinor: 1500, currency: "EUR", jobReference: "job-1", reminder: { delayDays: 7, customerEmail: "asiakas@example.fi" } };
 const assets = [{ _id: asset, _type: "sanity.imageAsset", extension: "webp", mimeType: "image/webp", sha1hash: "a".repeat(40), width: 1600, height: 1000, restricted: false }];
 
 function sanity(responses: Record<string, () => Response>) {
@@ -26,25 +27,25 @@ const ok = { me: json({ id: "u1" }), state: json({ result: { draft, published: n
 describe("proof publication facade order", () => {
   it("proves the session, reads, plans and returns the key only after the commit", async () => {
     const { send, calls } = sanity(ok);
-    const result = await runProofPublication({ galleryId: "GALLERY", operation: "publish" }, "token-0123456789-abcdefgh", secret, { config, fetchImplementation: send });
+    const result = await runProofPublication({ galleryId: "GALLERY", operation: "publish", expectedDraftRevision: "r1", terms }, "token-0123456789-abcdefgh", secret, { config, fetchImplementation: send });
     expect(calls).toEqual(["me", "state", "related", "mutate"]);
     expect(result).toMatchObject({ outcome: "committed", firstPublication: true, selectionKey: expect.any(String) });
   });
   it("stops at an unproven session before any read or allowance", async () => {
     const { send, calls } = sanity({ ...ok, me: json({}, 401) });
-    expect(await runProofPublication({ galleryId: "OTHER1", operation: "publish" }, "token-0123456789-abcdefgh", secret, { config, fetchImplementation: send }))
+    expect(await runProofPublication({ galleryId: "OTHER1", operation: "publish", expectedDraftRevision: "r1", terms }, "token-0123456789-abcdefgh", secret, { config, fetchImplementation: send }))
       .toEqual({ outcome: "failed", reason: "unauthenticated" });
     expect(calls).toEqual(["me"]);
   });
   it("writes nothing for a rejected plan and returns no key when the commit fails", async () => {
     const rejected = sanity({ ...ok, related: json({ result: { conflicts: [{ _id: "x" }], assets } }) });
-    expect(await runProofPublication({ galleryId: "OTHER2", operation: "publish" }, "token-0123456789-abcdefgh", secret, { config, fetchImplementation: rejected.send }))
+    expect(await runProofPublication({ galleryId: "OTHER2", operation: "publish", expectedDraftRevision: "r1", terms }, "token-0123456789-abcdefgh", secret, { config, fetchImplementation: rejected.send }))
       .toEqual({ outcome: "rejected", reason: "invalid-gallery" });
     expect(rejected.calls).not.toContain("mutate");
     for (const [status, reason] of [[409, "conflict"], [403, "forbidden"], [500, "store-unavailable"]] as const) {
       const id = `OTHER${status}`;
       const failing = sanity({ ...ok, state: json({ result: { draft: { ...draft, _id: `drafts.${id}` }, published: null, terms: null, versions: 0 } }), mutate: json({}, status) });
-      const result = await runProofPublication({ galleryId: id, operation: "publish" }, "token-0123456789-abcdefgh", secret, { config, fetchImplementation: failing.send });
+      const result = await runProofPublication({ galleryId: id, operation: "publish", expectedDraftRevision: "r1", terms }, "token-0123456789-abcdefgh", secret, { config, fetchImplementation: failing.send });
       expect(result).toEqual({ outcome: "failed", reason });
       expect(failing.calls).toContain("mutate");
     }
@@ -52,9 +53,9 @@ describe("proof publication facade order", () => {
   it("spends a gallery's allowance only after a proven session", async () => {
     const strangers = sanity({ ...ok, me: json({}, 401) });
     for (let attempt = 0; attempt < 20; attempt++) {
-      await runProofPublication({ galleryId: "TARGET", operation: "publish" }, "token-0123456789-abcdefgh", secret, { config, fetchImplementation: strangers.send });
+      await runProofPublication({ galleryId: "TARGET", operation: "publish", expectedDraftRevision: "r1", terms }, "token-0123456789-abcdefgh", secret, { config, fetchImplementation: strangers.send });
     }
     const { send } = sanity({ ...ok, state: json({ result: { draft: { ...draft, _id: "drafts.TARGET" }, published: null, terms: null, versions: 0 } }) });
-    expect((await runProofPublication({ galleryId: "TARGET", operation: "publish" }, "token-0123456789-abcdefgh", secret, { config, fetchImplementation: send })).outcome).toBe("committed");
+    expect((await runProofPublication({ galleryId: "TARGET", operation: "publish", expectedDraftRevision: "r1", terms }, "token-0123456789-abcdefgh", secret, { config, fetchImplementation: send })).outcome).toBe("committed");
   });
 });

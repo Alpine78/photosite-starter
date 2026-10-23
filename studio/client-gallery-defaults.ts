@@ -10,8 +10,13 @@ export function initialClientGallery(
   return { handle: Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join(""), available: false };
 }
 
+/** A new proof gallery: generated handle, paused, indefinite (owner answer 4), nothing numbered yet. */
+export function initialProofGallery(random?: (bytes: Uint8Array<ArrayBuffer>) => void) {
+  return { ...initialClientGallery(random), availabilityMode: "indefinite", referenceHighWater: 0 };
+}
+
 export function withClientGalleryDefaults(schema: SchemaTypeDefinition) {
-  return schema.name === "clientDeliveryGallery"
-    ? { ...schema, initialValue: () => initialClientGallery() }
-    : schema;
+  if (schema.name === "clientDeliveryGallery") return { ...schema, initialValue: () => initialClientGallery() };
+  if (schema.name === "clientProofGallery") return { ...schema, initialValue: () => initialProofGallery() };
+  return schema;
 }
