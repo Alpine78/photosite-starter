@@ -120,7 +120,8 @@ describe("confirming", () => {
       totals: { selected: 2, extra: 1, extraTotalMinor: 1250 },
       items: [{ _key: "k999", reference: "999", originalFilename: "k999.jpg" }, { _key: "k1000", reference: "1000", originalFilename: "k1000.jpg" }],
     });
-    expect(notice.create).toEqual({ _id: "proofNotice.g1.v2", _type: "clientProofNotice", galleryId: "g1", version: 2, state: "pending", createdAt: now });
+    expect(notice.create).toEqual({ _id: "proofNotice.g1.v2", _type: "clientProofNotice", galleryId: "g1", version: 2, state: "pending", createdAt: now,
+      selection: { _type: "reference", _ref: "proofSelection.g1.v2", _weak: true } });
     expect(patch.patch).toEqual({ id: "proofSelection.g1", ifRevisionID: "srev", set: { state: "confirmed", latestVersion: 2 } });
     expect(termsGuard.patch).toEqual({ id: "proofTerms.g1", ifRevisionID: "trev", set: { lastConfirmedAt: now } });
     expect(JSON.stringify(plan.mutations)).not.toContain("customer@example.com");

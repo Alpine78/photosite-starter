@@ -100,7 +100,8 @@ type SubmissionEventName =
   | "private-gallery.admin"
   | "poll.vote"
   | "proof.publication"
-  | "proof.selection";
+  | "proof.selection"
+  | "proof.notice";
 
 export type ContactEvent =
   | {
@@ -210,6 +211,12 @@ export type ProofSelectionEvent =
   | { readonly correlationId: string; readonly state: "selected" | "confirmed"; readonly errorClass?: never }
   | { readonly correlationId: string; readonly state: "rejected" | "failed" | "unknown"; readonly errorClass: ProofSelectionErrorClass };
 
+/** The photographer's notice after a confirmation: closed classes only, never content (ADR-0038 decision 6). */
+export type ProofNoticeErrorClass = ContactErrorClass | "malformed-record" | "store-unavailable" | "unrecorded" | "configuration";
+export type ProofNoticeEvent =
+  | { readonly correlationId: string; readonly state: "delivered"; readonly errorClass?: never }
+  | { readonly correlationId: string; readonly state: "delivery-failed" | "failed"; readonly errorClass: ProofNoticeErrorClass };
+
 export function createCorrelationId(): string {
   return randomUUID();
 }
@@ -238,7 +245,8 @@ function writeSubmissionLine(
     | PrivateGalleryAdminFailure["reason"]
     | PollVoteErrorClass
     | ProofPublicationErrorClass
-    | ProofSelectionErrorClass,
+    | ProofSelectionErrorClass
+    | ProofNoticeErrorClass,
 ): void {
   const line = JSON.stringify({
     event: name,
@@ -353,6 +361,10 @@ export function logPollVoteEvent(event: PollVoteEvent): void {
 /** Emits one proof publication or key rotation event. */
 export function logProofPublicationEvent(event: ProofPublicationEvent): void {
   writeSubmissionLine("proof.publication", event.correlationId, event.state, event.errorClass);
+}
+
+export function logProofNoticeEvent(event: ProofNoticeEvent): void {
+  writeSubmissionLine("proof.notice", event.correlationId, event.state, event.errorClass);
 }
 
 export function logProofSelectionEvent(event: ProofSelectionEvent): void {

@@ -2,6 +2,15 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Proof selection photographer notice, 2026-10-23 — AB#130 **Active** (ADR-0038 action
+item 4): after a committed confirmation the route emails the owner's contact mailbox from
+the immutable version (job reference, totals, proof numbers and filenames) with the
+idempotency key `proof-notice/<id>/v<n>`, then records the notice `sent` or `failed`; a
+failed, unconfigured or lost email leaves it `failed` or `pending` and never undoes the
+confirmation. Studio shows confirmed versions and notices read-only, with a list of
+notices failed or pending over five minutes. No resend (owner answer 2). Not yet: the
+reopen action, reminders, the data-flow and retention documentation (action item 6) and
+the owner-run hosted check.
 Proof selection page, 2026-10-23 — AB#130 **Active** (ADR-0038 action item 3, slice 3b):
 with a `#select=` key in the proof link, the proof page shows per-proof select toggles
 (`aria-pressed`, keyboard), the counts and extra-image total, a two-step confirmation

@@ -791,7 +791,9 @@ confirmed selection is shown as recorded, with its proof list, and cannot be cha
 the customer. Without the key, without JavaScript or with a refused key, the page stays
 read-only. The language switch carries a validated key to the same gallery's other
 language. `PROOF_SELECTION=fixture` is the harness's synthetic store and is refused
-outside local development.
+outside local development. A confirmation emails the photographer through the contact
+delivery settings, so activating selection also requires a working `CONTACT_DELIVERY_*`
+configuration; a missing one leaves the notice pending in Studio.
 
 **Replacement by the delivery gallery (ADR-0038 owner answer 5).** A proof gallery's
 optional `replacedBy` names the client gallery holding the finished images. While exactly

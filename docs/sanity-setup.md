@@ -185,8 +185,21 @@ unavailable.
 
 Every decision reads the documents it depends on fresh through the Doc API, so a rotated
 key or a confirmed selection is never judged from a lagging index. A confirmation is one
-transaction guarded by the selection's and the terms' revisions; its notice stays
-`pending` until the photographer email and Studio list (ADR-0038 action item 4) exist.
+transaction guarded by the selection's and the terms' revisions.
+
+After it commits, the route emails the photographer through the **contact delivery
+settings** — `CONTACT_DELIVERY_ADAPTER`, `CONTACT_DELIVERY_TO`, `CONTACT_DELIVERY_FROM`
+and `RESEND_API_KEY`, the same owner mailbox and sender as the contact form — with the
+job reference, totals and each proof's number and original filename, then records the
+notice `sent` or `failed`. Every send for one version uses the idempotency key
+`proof-notice/<id>/v<n>` and identical content, so Resend does not deliver a repeat within
+24 hours. A failed, unconfigured or lost email never undoes the confirmation: the notice
+stays `pending` or `failed`, and Studio lists it under **Proof notices needing action**.
+There is no resend path at first activation (owner answer 2).
+
+Before activation, an owner-run check on the hosted Studio confirms that a signed-in
+editor sees a test notice on its dotted private ID in that list and can open its
+confirmed selection.
 
 ## Standalone editor
 

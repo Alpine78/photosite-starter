@@ -18,6 +18,8 @@ export const editorialLocaleBundles = [
 const titleKeys = {
   clientDeliveryGallery: "structure.client-galleries.title",
   clientProofGallery: "structure.proof-galleries.title",
+  clientProofSelectionVersion: "structure.proof-selections.title",
+  proofNoticesNeedingAction: "structure.proof-notices.title",
   content: "structure.content.title",
   homePage: "structure.home-page.title",
   siteSettings: "structure.site-settings.title",

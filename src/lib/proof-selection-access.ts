@@ -14,7 +14,10 @@
 import "server-only";
 import { isClientGalleryHandle } from "@/lib/client-gallery-model";
 import { isReplacementDeliveryAvailable } from "@/lib/client-gallery-access";
-import { getDeploymentConfig } from "@/lib/deployment-config";
+import { getBuiltInLabels, getDeploymentConfig } from "@/lib/deployment-config";
+import { createCorrelationId, logProofNoticeEvent } from "@/lib/contact-log";
+import { deliverProofNotice, type ProofNoticeSender } from "@/lib/proof-notice";
+import { buildProofNoticeSender } from "@/lib/proof-notice-delivery";
 import { getSanityConfig } from "@/lib/sanity-config";
 import {
   customerSelection, parseConfirmedVersion, parseSelectionGallery, parseSelectionTerms, parseWorkingSelection,
@@ -48,6 +51,8 @@ export type ProofSelectionDependencies = Readonly<{
     discover: typeof discoverProofGallery; read: typeof readProofSelectionDocument; commit: typeof commitProofSelection;
   }>>;
   replacementAvailable?: typeof isReplacementDeliveryAvailable;
+  /** The photographer's notice transport; built from the contact mailbox settings when absent. */
+  sendNotice?: ProofNoticeSender;
   now?: () => number;
   galleryAllowed: (galleryId: string) => boolean;
 }>;
@@ -97,6 +102,25 @@ export async function runProofSelection(request: ProofSelectionRequest, token: s
     return { gallery, terms, selection: parseWorkingSelection(selectionRaw, id) };
   }
 
+  /** After a confirmation is known committed; never throws, never changes the customer's answer. */
+  async function notify(galleryId: string, version: number): Promise<void> {
+    const correlationId = createCorrelationId();
+    try {
+      const send = dependencies.sendNotice ?? buildProofNoticeSender(process.env);
+      const locale = getDeploymentConfig().locale;
+      const result = await deliverProofNotice(galleryId, version, {
+        read: (id) => read(id, options), commit: (mutations) => commit(mutations, options), send,
+        labels: getBuiltInLabels(locale).proofNotice, locale, now: () => new Date(now()).toISOString(),
+      });
+      if (result.outcome === "sent") logProofNoticeEvent({ correlationId, state: "delivered" });
+      else if (result.outcome === "failed") logProofNoticeEvent({ correlationId, state: "delivery-failed", errorClass: result.errorClass ?? "provider-unavailable" });
+      else if (result.outcome === "unrecorded") logProofNoticeEvent({ correlationId, state: "failed", errorClass: "unrecorded" });
+    } catch {
+      // A missing mail configuration leaves the notice pending for Studio.
+      logProofNoticeEvent({ correlationId, state: "failed", errorClass: "configuration" });
+    }
+  }
+
   async function view(state: Authorized): Promise<CustomerSelection> {
     const { gallery, terms, selection } = state;
     const confirmed = selection?.state === "confirmed"
@@ -123,7 +147,8 @@ export async function runProofSelection(request: ProofSelectionRequest, token: s
       state = await authorize();
       return { outcome: "rejected", reason: "conflict", selection: await view(state) };
     }
-    // Committed: show the result even if the gallery closed a moment later.
+    // Committed: notify before anything else can fail, then show the result even if the gallery closed a moment later.
+    if (plan.version !== undefined) await notify(state.gallery.id, plan.version);
     const written = request.operation === "select" ? "selected" : "confirmed";
     try {
       state = { ...state, selection: parseWorkingSelection(await read(proofSelectionId(state.gallery.id), options), state.gallery.id) };
@@ -146,5 +171,7 @@ export function runFixtureProofSelection(request: ProofSelectionRequest): Promis
   return runProofSelection(request, "fixture", {
     store: fixtureProofSelectionStore(request.key), sanityConfig: FIXTURE_SANITY_CONFIG,
     replacementAvailable: async () => false, galleryAllowed: () => true,
+    // The harness never sends mail; the notice is still recorded as sent.
+    sendNotice: async () => ({ status: "delivered" }),
   });
 }
