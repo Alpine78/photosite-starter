@@ -85,6 +85,9 @@ export type SubmissionState =
   | "already-voted"
   | "published"
   | "key-rotated"
+  | "selected"
+  | "confirmed"
+  | "unknown"
   | "failed";
 
 /** The closed set of event names the submission-log family emits. */
@@ -96,7 +99,8 @@ type SubmissionEventName =
   | "private-gallery.mint"
   | "private-gallery.admin"
   | "poll.vote"
-  | "proof.publication";
+  | "proof.publication"
+  | "proof.selection";
 
 export type ContactEvent =
   | {
@@ -193,6 +197,19 @@ export type ProofPublicationEvent =
   | { readonly correlationId: string; readonly state: "published" | "key-rotated"; readonly errorClass?: never }
   | { readonly correlationId: string; readonly state: "rejected" | "failed"; readonly errorClass: ProofPublicationErrorClass };
 
+/**
+ * Proof selection outcomes (ADR-0038 decision 5). `unavailable` covers every
+ * uniform refusal (unknown handle, wrong key, closed or replaced gallery), so
+ * a log line never tells which. No handle, key, reference or filename.
+ */
+export type ProofSelectionErrorClass =
+  | "origin" | "malformed-request" | "rate-limited" | "misconfigured" | "unavailable"
+  | "conflict" | "confirmed" | "unknown-reference" | "empty" | "stale-selection"
+  | "malformed-record" | "store-unavailable" | "internal";
+export type ProofSelectionEvent =
+  | { readonly correlationId: string; readonly state: "selected" | "confirmed"; readonly errorClass?: never }
+  | { readonly correlationId: string; readonly state: "rejected" | "failed" | "unknown"; readonly errorClass: ProofSelectionErrorClass };
+
 export function createCorrelationId(): string {
   return randomUUID();
 }
@@ -220,7 +237,8 @@ function writeSubmissionLine(
     | PrivateGalleryMintFailure["reason"]
     | PrivateGalleryAdminFailure["reason"]
     | PollVoteErrorClass
-    | ProofPublicationErrorClass,
+    | ProofPublicationErrorClass
+    | ProofSelectionErrorClass,
 ): void {
   const line = JSON.stringify({
     event: name,
@@ -229,7 +247,7 @@ function writeSubmissionLine(
     ...(errorClass === undefined ? {} : { errorClass }),
   });
 
-  if (state === "delivery-failed" || state === "rejected" || state === "failed") {
+  if (state === "delivery-failed" || state === "rejected" || state === "failed" || state === "unknown") {
     console.error(line);
   } else {
     console.info(line);
@@ -335,4 +353,8 @@ export function logPollVoteEvent(event: PollVoteEvent): void {
 /** Emits one proof publication or key rotation event. */
 export function logProofPublicationEvent(event: ProofPublicationEvent): void {
   writeSubmissionLine("proof.publication", event.correlationId, event.state, event.errorClass);
+}
+
+export function logProofSelectionEvent(event: ProofSelectionEvent): void {
+  writeSubmissionLine("proof.selection", event.correlationId, event.state, event.errorClass);
 }

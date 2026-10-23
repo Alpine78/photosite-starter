@@ -2,6 +2,15 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Proof selection write route, 2026-10-23 — AB#130 **Active** (ADR-0038 action item 3,
+server side): default-off `POST /api/proof-selection` with its own
+`SANITY_PROOF_SELECTION_TOKEN` reads, saves (full set under `ifRevisionID`) and confirms a
+selection for the holder of the selection key. Fresh Doc API reads for the gallery,
+terms and selection; closed, replaced, unknown and wrong-key requests are one 404 before
+any private read; confirmation creates the immutable version and its `pending` notice and
+guards the selection and terms revisions in one transaction; a lost transaction answer is
+reported as unknown. Recorded in the ADR-0038 implementation note. Not yet: the selection
+page (3b), the photographer email and Studio notice list, reopen and reminders.
 Proof replacement by the delivery gallery, 2026-10-23 — AB#130 **Active** (ADR-0038
 owner answer 5): a proof gallery's optional `replacedBy` weak reference (Studio offers
 only published client galleries, so no `_strengthenOnPublish` reaches the custom

@@ -168,6 +168,26 @@ Do not enable either side before the customer page and selection route exist, an
 an owner-run check on the hosted Studio that `/users/me` and the cross-origin call behave
 as the unit tests assume.
 
+### Proof selection (AB#130, ADR-0038 decision 5)
+
+`/api/proof-selection` lets the holder of a proof link's selection key read, save and
+confirm a selection. It is **off** unless `PROOF_SELECTION=enabled` with
+`PROOF_GALLERY_ADAPTER=sanity`, and it needs its own server-only credential,
+`SANITY_PROOF_SELECTION_TOKEN`, separate from the poll token so it can be revoked on its
+own. The route reads the gallery's private `proofTerms.<id>` and writes
+`proofSelection.<id>`, `proofSelection.<id>.v<n>` and `proofNotice.<id>.v<n>`; documents on
+a dotted ID path are readable only with authentication, so the token needs read access to
+private documents and write access to the dataset — in practice an **Editor** token, with
+the same caveat as the poll token above: the facade's fixed IDs, types and mutation
+shapes, behind the ESLint import restriction, are the boundary. **Record the kind of token
+actually minted once provisioning happens.** A `NEXT_PUBLIC_` mirror makes the route
+unavailable.
+
+Every decision reads the documents it depends on fresh through the Doc API, so a rotated
+key or a confirmed selection is never judged from a lagging index. A confirmation is one
+transaction guarded by the selection's and the terms' revisions; its notice stays
+`pending` until the photographer email and Studio list (ADR-0038 action item 4) exist.
+
 ## Standalone editor
 
 The optional [`studio/`](../studio/README.md) application consumes the canonical
