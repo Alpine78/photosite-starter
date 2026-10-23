@@ -503,6 +503,10 @@ without proof galleries keeps Sanity's default sign-in.
   create a new selection link. If every attempt ends that way and nothing is published,
   the site route is probably off or does not list this Studio's origin: an answer without
   its CORS headers cannot be read, so the Studio cannot tell a refusal from a lost answer.
+- **Replaced by client gallery** links the published client gallery that delivers the
+  finished images. While that gallery is available, the proof link opens it instead; clear
+  the field and publish to show the proofs again. Only published client galleries can be
+  chosen, and deleting the client gallery simply stops the redirect.
 - Unpublish and delete are not offered for proof galleries: the published document holds
   the fixed proof numbers, **Available to link holders** pauses the page, and deletion waits for a cleanup
   that also removes the private terms. Only discarding a draft remains.

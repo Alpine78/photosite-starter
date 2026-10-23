@@ -12,6 +12,7 @@ import {
   clientRecord,
   closed,
   invalidClientGallery,
+  isClientDocumentId,
   isClientGalleryHandle,
   key,
   localized,
@@ -25,15 +26,17 @@ import { isProofReference, MAX_PROOF_REFERENCE, type ProofReferenceItem, type Pu
 export const PROOF_GALLERY_MAX_ITEMS = 256;
 export const PROOF_GALLERY_MAX_DOCUMENT_BYTES = 256 * 1024;
 const SYSTEM_FIELDS = ["_id", "_rev", "_createdAt", "_updatedAt", "_system"] as const;
-const GALLERY_FIELDS = [...SYSTEM_FIELDS, "_type", "handle", "title", "available", "availabilityMode", "expiryInstant", "items", "referenceHighWater"] as const;
+const GALLERY_FIELDS = [...SYSTEM_FIELDS, "_type", "handle", "title", "available", "availabilityMode", "expiryInstant", "items", "referenceHighWater", "replacedBy"] as const;
 /** Optional authored fields a later publication may need to clear from the published document. */
-export const PROOF_GALLERY_OPTIONAL_FIELDS = ["title", "expiryInstant", "referenceHighWater"] as const;
+export const PROOF_GALLERY_OPTIONAL_FIELDS = ["title", "expiryInstant", "referenceHighWater", "replacedBy"] as const;
 const ITEM_FIELDS = ["_key", "_type", "mediaType", "image", "originalFilename", "alt", "reference"] as const;
 
 export type ProofGalleryItem = ProofReferenceItem & Readonly<{ image: PublicImageReference }>;
 export type ParsedProofGallery = Readonly<{
   revision: string;
   handle: string;
+  /** The replacing delivery gallery's document ID (owner answer 5). */
+  replacedBy?: string;
   items: readonly ProofGalleryItem[];
   /** The authored document without Sanity's system fields, as read. */
   authored: Readonly<Record<string, unknown>>;
@@ -55,6 +58,14 @@ function availability(row: Record<string, unknown>): void {
   if (!Number.isFinite(time)) invalidClientGallery();
   const canonical = new Date(time).toISOString();
   if (row.expiryInstant !== canonical && row.expiryInstant !== canonical.replace(".000Z", "Z")) invalidClientGallery();
+}
+
+/** A published-root weak reference, exactly as Studio writes it for a published target. */
+function replacement(value: unknown): string | undefined {
+  if (value == null) return undefined;
+  const reference = clientRecord(value); closed(reference, ["_type", "_ref", "_weak"]);
+  if (reference._type !== "reference" || reference._weak !== true || !isClientDocumentId(reference._ref)) return invalidClientGallery();
+  return reference._ref as string;
 }
 
 function item(value: unknown): ProofGalleryItem {
@@ -95,7 +106,8 @@ export function parseProofGallery(value: unknown, expectedId: string, projected 
   }
   const authored = Object.fromEntries(Object.entries(row).filter(([name]) => !(SYSTEM_FIELDS as readonly string[]).includes(name)));
   if (!projected && new TextEncoder().encode(JSON.stringify(authored)).byteLength > PROOF_GALLERY_MAX_DOCUMENT_BYTES) return invalidClientGallery();
-  return { revision: revision(row._rev), handle: row.handle as string, items, authored };
+  const replacedBy = replacement(row.replacedBy);
+  return { revision: revision(row._rev), handle: row.handle as string, ...(replacedBy === undefined ? {} : { replacedBy }), items, authored };
 }
 
 /**
@@ -123,7 +135,7 @@ export type PublishedProofItem = Readonly<{
 /** The customer page's normalized view of a published proof gallery; comparable across reads. */
 export type PublishedProofGallery = Readonly<{
   id: string; revision: string; handle: string; title: readonly ClientText[]; available: boolean;
-  expiryInstant?: string; deadline?: number; items: readonly PublishedProofItem[];
+  expiryInstant?: string; deadline?: number; replacedBy?: string; items: readonly PublishedProofItem[];
 }>;
 
 /**
@@ -144,6 +156,7 @@ export function parsePublishedProofGallery(value: unknown, id: string, handle: s
     return {
       id, revision: gallery.revision, handle, title: localized(authored.title, false, 200), available: authored.available as boolean,
       ...(expiryInstant === undefined ? {} : { expiryInstant, deadline: Date.parse(expiryInstant) }),
+      ...(gallery.replacedBy === undefined ? {} : { replacedBy: gallery.replacedBy }),
       items: gallery.items.map((entry, index) => ({
         key: entry._key, reference: numbers[entry._key].reference, ...entry.image, alt: localized(raw[index].alt, false, 512),
       })),
@@ -151,7 +164,8 @@ export function parsePublishedProofGallery(value: unknown, id: string, handle: s
   } catch { return invalidClientGallery(); }
 }
 
-export function proofGalleryAvailable(gallery: PublishedProofGallery, now: number): boolean {
+export type ProofAvailability = Readonly<{ available: boolean; deadline?: number }>;
+export function proofGalleryAvailable(gallery: ProofAvailability, now: number): boolean {
   if (!Number.isFinite(now)) return invalidClientGallery();
   return gallery.available && (gallery.deadline === undefined || now < gallery.deadline);
 }

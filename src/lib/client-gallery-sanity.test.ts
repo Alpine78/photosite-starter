@@ -192,4 +192,10 @@ describe("authoring/runtime structural corpus", () => {
     let accepted = true; try { parseClientGallery(doc, id, handle); } catch { accepted = false; }
     expect(accepted).toBe(schema === true);
   });
+
+  it("answers a proof replacement check only for the expected document", async () => {
+    expect(await setup().reader.read(handle, "en-GB", "en", id)).toMatchObject({ kind: "web" });
+    const f = setup(); expect(await f.reader.read(handle, "en-GB", "en", "another-document")).toBeUndefined();
+    expect(f.read).not.toHaveBeenCalled();
+  });
 });

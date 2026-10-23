@@ -2,6 +2,16 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Proof replacement by the delivery gallery, 2026-10-23 — AB#130 **Active** (ADR-0038
+owner answer 5): a proof gallery's optional `replacedBy` weak reference (Studio offers
+only published client galleries, so no `_strengthenOnPublish` reaches the custom
+publication route; clearing it unsets it on publication) makes the proof link answer
+`307` to the referenced client gallery while exactly that document is available through
+the delivery reader — also for paused or expired proofs. The redirect keeps one
+configured `?locale=` and ends in an empty fragment, so the selection key does not follow
+the customer to the delivery URL. A deleted target is ignored; legacy handles, a disabled
+delivery adapter or another document owning the handle never redirect. Selection writes
+will refuse a replaced gallery when the write path lands.
 Proof page read path, 2026-10-23 — AB#130 **Active** (ADR-0038 action item 2):
 default-off `PROOF_GALLERY_ADAPTER` serves `/client-proof/<handle>` read-only —
 complete, uncropped proofs in authored order with their permanent numbers in the grid

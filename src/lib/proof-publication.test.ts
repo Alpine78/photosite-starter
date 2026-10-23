@@ -47,7 +47,7 @@ describe("proof publication planning (ADR-0038, AB#130)", () => {
   });
 
   it("keeps published numbers, appends additions, clears removed optional fields and leaves the key alone", () => {
-    const published = gallery("g1", [item("k1", "IMG_10.jpg", "a", "002"), item("k2", "IMG_9.jpg", "b", "001")], { referenceHighWater: 2, title: [{ _key: "fi", _type: "localizedText", language: "fi", value: "Vanha" }] });
+    const published = gallery("g1", [item("k1", "IMG_10.jpg", "a", "002"), item("k2", "IMG_9.jpg", "b", "001")], { referenceHighWater: 2, title: [{ _key: "fi", _type: "localizedText", language: "fi", value: "Vanha" }], replacedBy: { _type: "reference", _ref: "delivery1", _weak: true } });
     const draft = gallery("drafts.g1", [item("k1", "IMG_10.jpg", "a", "002"), item("k3", "IMG_1.jpg", "b")], { referenceHighWater: 2 });
     const result = plan({ draft, published, terms });
     if (result.kind !== "ready") throw new Error(result.reason);
@@ -58,7 +58,8 @@ describe("proof publication planning (ADR-0038, AB#130)", () => {
     expect(patch.ifRevisionID).toBe("pubrev");
     expect(patch.set.items.map((entry) => [entry._key, entry.reference])).toEqual([["k1", "002"], ["k3", "003"]]);
     expect(patch.set.referenceHighWater).toBe(3);
-    expect(patch.unset).toEqual(["title"]);
+    // Clearing the replacement link really removes it, so the proofs show again (owner answer 5).
+    expect(patch.unset).toEqual(["title", "replacedBy"]);
     expect(patch.set).not.toHaveProperty("_type");
     expect(patch.set).not.toHaveProperty("_id");
     expect(JSON.stringify(result.mutations)).not.toContain("proofTerms");
@@ -120,5 +121,17 @@ describe("proof publication planning (ADR-0038, AB#130)", () => {
     expect(relatedQueryInput("g1", { draft: gallery("drafts.g1", [item("k1", "IMG_1.jpg", "a"), item("k2", "IMG_2.jpg", "a")]), published: null, terms: null, versions: 0 }))
       .toEqual({ handle, assetIds: [asset("a")] });
     expect(relatedQueryInput("g1", { draft: { _id: "drafts.g1" }, published: null, terms: null, versions: 0 })).toBeUndefined();
+  });
+
+  it("publishes a replacement link as written and refuses any other reference shape", () => {
+    const reference = { _type: "reference", _ref: "delivery1", _weak: true };
+    const published = gallery("g1", [item("k1", "IMG_10.jpg", "a", "001")], { referenceHighWater: 1 });
+    const ok = plan({ draft: gallery("drafts.g1", [item("k1", "IMG_10.jpg", "a", "001")], { referenceHighWater: 1, replacedBy: reference }), published, terms });
+    if (ok.kind !== "ready") throw new Error(ok.reason);
+    expect((ok.mutations[1] as { patch: { set: Record<string, unknown> } }).patch.set.replacedBy).toEqual(reference);
+    for (const bad of [{ ...reference, _weak: false }, { ...reference, _strengthenOnPublish: { type: "clientDeliveryGallery", weak: true } }, { ...reference, _ref: "drafts.delivery1" }]) {
+      const result = plan({ draft: gallery("drafts.g1", [item("k1", "IMG_10.jpg", "a", "001")], { referenceHighWater: 1, replacedBy: bad }), published, terms });
+      expect(result.kind).toBe("rejected");
+    }
   });
 });

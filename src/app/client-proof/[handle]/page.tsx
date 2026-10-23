@@ -1,23 +1,39 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { GalleryLightbox, GalleryLightboxTrigger } from "@/components/gallery-lightbox";
 import { getRestrictedPageLocale } from "@/lib/restricted-page-locale-request";
 import { RestrictedPageLanguages } from "@/components/restricted-page-languages";
-import { getBuiltInLabels } from "@/lib/deployment-config";
+import { getBuiltInLabels, getDeploymentConfig } from "@/lib/deployment-config";
 import { formatUtcDateTime } from "@/lib/date-format";
 import { getProofGallery } from "@/lib/proof-gallery-access";
 
 export const dynamic = "force-dynamic";
 
+type Search = Record<string, string | string[] | undefined>;
+
+/**
+ * The delivery page that replaces the proofs, keeping only an explicitly
+ * requested configured locale. The empty fragment stops the browser carrying
+ * the proof link's `#select=` key over to a delivery URL that may be forwarded.
+ */
+function deliveryPath(handle: string, search: Search): string {
+  const requested = search.locale;
+  const locale = typeof requested === "string" && getDeploymentConfig().localeRoutes.locales.some((route) => route.locale === requested) ? requested : undefined;
+  return `/client-gallery/${handle}${locale ? `?${new URLSearchParams({ locale })}` : ""}#`;
+}
+
 /**
  * The read-only proof page (ADR-0038 action item 2): complete, uncropped
- * proofs with their permanent numbers. The selection link's fragment is not
- * read here; selecting arrives with the write path.
+ * proofs with their permanent numbers, or a temporary redirect to the delivery
+ * gallery that replaces them (owner answer 5). The selection link's fragment is
+ * not read here; selecting arrives with the write path.
  */
-export default async function ProofGalleryPage({ params }: { params: Promise<{ handle: string }> }) {
+export default async function ProofGalleryPage({ params, searchParams }: { params: Promise<{ handle: string }>; searchParams: Promise<Search> }) {
   const { handle } = await params;
   const locale = await getRestrictedPageLocale();
-  const gallery = await getProofGallery(handle, locale);
-  if (gallery === undefined) notFound();
+  const outcome = await getProofGallery(handle, locale);
+  if (outcome === undefined) notFound();
+  if (outcome.kind === "replaced") redirect(deliveryPath(outcome.deliveryHandle, await searchParams));
+  const gallery = outcome.view;
   const labels = getBuiltInLabels(locale), copy = labels.proofGallery;
   const [beforeDate, afterDate] = copy.deadline.split("{date}");
   const slides = gallery.images.map(({ reference, ...image }) => {

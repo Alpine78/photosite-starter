@@ -37,7 +37,7 @@ function runtime(dataset: Row[], fresh: unknown) {
 describe("actual GROQ proof projection", () => {
   it("evaluates the real query and publishes only the numbered display projection", async () => {
     const document = gallery(), dataset = [document, asset()];
-    const view = await runtime(dataset, document).run();
+    const view = (await runtime(dataset, document).run())?.view;
     expect(view).toMatchObject({ images: [{ itemId: "first", reference: "003", width: 1600, height: 1000, src: `https://cdn.sanity.io/images/example1/fixture/${asset().sha1hash}-1600x1000.webp` }] });
     for (const marker of ["item-only-marker", "asset-only-marker", "never-fetch.example", "_rev", "restricted"]) expect(JSON.stringify(view)).not.toContain(marker);
   });
@@ -50,6 +50,16 @@ describe("actual GROQ proof projection", () => {
   it.each([true, "false", 1])("refuses a proof whose asset is marked private-only: %j", async (flag) => {
     const document = gallery(), dataset = [document, asset(), media(asset()._id, flag)];
     await expect(runtime(dataset, document).run()).rejects.toBeInstanceOf(ClientGalleryDataError);
+  });
+
+  it("dereferences the replacing delivery gallery and ignores a deleted one (owner answer 5)", async () => {
+    const reference = { _type: "reference", _ref: "delivery-one", _weak: true };
+    const document = gallery({ replacedBy: reference });
+    const delivery = { _id: "delivery-one", _type: "clientDeliveryGallery", _rev: "d1", handle: "d".repeat(32), available: true, availabilityMode: "indefinite", items: [] };
+    const reader = (dataset: Row[]) => createProofGalleryReader({ config, query: { query: async (request: SanityQueryRequest) => query(dataset, request.query, request.params) }, documents: { read: async () => document }, now: () => now });
+    expect((await reader([document, asset(), delivery]).read(handle, "fi", "en"))?.replacement).toEqual({ id: "delivery-one", handle: "d".repeat(32) });
+    const orphaned = await reader([document, asset()]).read(handle, "fi", "en");
+    expect(orphaned?.replacement).toBeUndefined(); expect(orphaned?.view.images).toHaveLength(1);
   });
 
   it("projects only fields the schema declares", () => {

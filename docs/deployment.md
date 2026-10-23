@@ -780,9 +780,20 @@ the number publication fixed. Paused, expired and missing galleries are an ordin
 unavailable page; malformed content logs only `[proof-gallery] malformed-content`. The
 namespace has the same reserved-path hygiene (`noindex`, `no-store`, `no-referrer`,
 literal handle grammar only), stays out of the sitemap, search and analytics, and
-accepts `?locale=`. The selection link's `#select=` fragment is ignored here: selecting,
-confirmation and the replacement by a delivery gallery (ADR-0038 owner answer 5) are
-later slices. As with delivery pages, public files and metadata stay discoverable.
+accepts `?locale=`. The selection link's `#select=` fragment is ignored here; selecting
+and confirmation are later slices. As with delivery pages, public files and metadata
+stay discoverable.
+
+**Replacement by the delivery gallery (ADR-0038 owner answer 5).** A proof gallery's
+optional `replacedBy` names the client gallery holding the finished images. While exactly
+that document is an available new delivery gallery — through the delivery reader, so it
+needs `CLIENT_GALLERY_ADAPTER` and is never a retained legacy handle — the proof link
+answers `307` to `/client-gallery/<handle>`, even when the proofs themselves are paused
+or expired. The redirect keeps a single configured `?locale=` and ends in an empty
+fragment, so a browser does not carry `#select=` over to the delivery URL. Clearing the
+field, deleting or pausing the delivery gallery shows the proofs again if they are
+available. Delivery provider failures stay server errors.
+
 ### Build one whole delivery ZIP offline (AB#319)
 
 This owner-run tool creates one local package from an **explicitly selected** set

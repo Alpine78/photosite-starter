@@ -18,10 +18,9 @@ import { publishedIdOf, validationClientOf } from "./validation";
  * externally watermarked web proofs, each with its complete original filename
  * and a permanent reference. Nothing customer-, job- or price-specific belongs
  * here: terms, selections and the selection key live on Sanity private ID
- * paths in a later slice, and the link to the delivery gallery that replaces a
- * proof gallery (owner answer 5) arrives with the page that follows it. Until
- * those slices land, Studio does not offer this type for creation
- * (`studio/editorial-policy.ts`).
+ * paths. `replacedBy` (owner answer 5) names the delivery gallery that
+ * replaces the proofs once the images are finished: while it is available, the
+ * proof link redirects there.
  */
 export const CLIENT_PROOF_MAX_ITEMS = 256;
 export const CLIENT_PROOF_ID_MAX_LENGTH = 96;
@@ -33,10 +32,11 @@ export const CLIENT_PROOF_ERRORS = {
   references: "Proof numbers are assigned on publishing and never change. A published proof keeps its image; add a new proof for a different image.",
   unavailable: "The gallery could not be validated. Try again before publishing.",
   size: "This gallery is too large. Use shorter texts or fewer images.",
+  replacement: "Choose a published client gallery as the replacement, or clear the field.",
 } as const;
 
 const GALLERY_FIELDS = ["_id", "_type", "_rev", "_createdAt", "_updatedAt", "_system", "handle", "title",
-  "available", "availabilityMode", "expiryInstant", "items", "referenceHighWater"] as const;
+  "available", "availabilityMode", "expiryInstant", "items", "referenceHighWater", "replacedBy"] as const;
 const ITEM_FIELDS = ["_key", "_type", "mediaType", "image", "originalFilename", "alt", "reference"] as const;
 
 function proofItem(item: unknown): ProofReferenceItem | undefined {
@@ -47,6 +47,18 @@ function proofItem(item: unknown): ProofReferenceItem | undefined {
   if (!assetRef) return undefined;
   return { _key: item._key, originalFilename: item.originalFilename, assetRef,
     ...(typeof item.reference === "string" ? { reference: item.reference } : {}) };
+}
+
+/**
+ * The replacing delivery gallery, as a published-root weak reference. Studio
+ * offers only published targets, so `_strengthenOnPublish` never appears; the
+ * custom publication route would otherwise copy it unchanged.
+ */
+export function proofReplacementId(value: unknown): string | undefined | false {
+  if (value == null) return undefined;
+  if (!record(value) || !closed(value, ["_type", "_ref", "_weak"]) || value._type !== "reference" || value._weak !== true ||
+    typeof value._ref !== "string" || value._ref.length > 128 || !/^[A-Za-z0-9][A-Za-z0-9_-]*$/u.test(value._ref)) return false;
+  return value._ref;
 }
 
 /** The published document's fixed numbers; `undefined` when it is not a usable proof gallery. */
@@ -78,6 +90,8 @@ export async function validateClientProofGallery(value: unknown, context: Schema
       Object.keys(value.items).length !== value.items.length) return CLIENT_PROOF_ERRORS.structure;
     if ((value.availabilityMode !== "until" && value.availabilityMode !== "indefinite") ||
       (value.availabilityMode === "until" ? !isClientDeliveryInstant(value.expiryInstant) : value.expiryInstant != null)) return CLIENT_PROOF_ERRORS.structure;
+    const replacement = proofReplacementId(value.replacedBy);
+    if (replacement === false) return CLIENT_PROOF_ERRORS.replacement;
     const id = typeof value._id === "string" ? publishedIdOf(value._id) : "";
     // 96, not Sanity's 128: private records such as `proofTerms.<id>` add a prefix (ADR-0038).
     if (!text(id, CLIENT_PROOF_ID_MAX_LENGTH) || !/^[A-Za-z0-9][A-Za-z0-9_-]*$/u.test(id) || !isClientDeliveryHandle(value.handle)) return CLIENT_PROOF_ERRORS.identity;
@@ -96,14 +110,17 @@ export async function validateClientProofGallery(value: unknown, context: Schema
         "conflicts": *[_type in ["clientDeliveryGallery", "legacyDeliveryGallery", "clientProofGallery"] && handle == $handle &&
           !(_id in [$id, "drafts." + $id]) && !(_id match "versions.*." + $id)][0...2]{_id},
         "published": *[_id == $id][0]{_type, handle, referenceHighWater,
-          "items": items[]{_key, reference, "assetRef": image.asset._ref}}
-      }`, { id, handle: value.handle }),
+          "items": items[]{_key, reference, "assetRef": image.asset._ref}},
+        "replacementType": *[_id == $replacement][0]._type
+      }`, { id, handle: value.handle, replacement: replacement ?? "" }),
       client.fetch<unknown>(`*[_id in $ids]{_id, _type, extension, mimeType, sha1hash,
         "width": metadata.dimensions.width, "height": metadata.dimensions.height,
         "restricted": count(*[_type == "media" && image.asset._ref == ^._id &&
           defined(privateOnly) && privateOnly != false]) > 0}`, { ids }),
     ]);
     if (!record(identity) || !Array.isArray(identity.conflicts) || identity.conflicts.length !== 0) return CLIENT_PROOF_ERRORS.identity;
+    // A deleted replacement only stops redirecting; anything else must be a client gallery.
+    if (replacement !== undefined && identity.replacementType != null && identity.replacementType !== "clientDeliveryGallery") return CLIENT_PROOF_ERRORS.replacement;
     const published = publishedState(identity.published, value.handle);
     if (!published) return CLIENT_PROOF_ERRORS.identity;
     // A draft is numbered by the publication route; a published document must carry exactly the derived numbers.
@@ -156,6 +173,9 @@ export const clientProofGalleryType: SchemaTypeDefinition = {
       description: "Generated on creation. Keep it unchanged.", validation: (rule) => rule.required() },
     { name: "referenceHighWater", title: "Highest proof number assigned", type: "number", readOnly: true,
       description: "Never decreases, so a removed proof's number is not reused." },
+    { name: "replacedBy", title: "Replaced by client gallery", type: "reference", to: [{ type: "clientDeliveryGallery" }], weak: true,
+      options: { filter: '!(_id in path("drafts.**")) && !(_id in path("versions.**"))', disableNew: true },
+      description: "When the finished images are delivered, choose their published client gallery. While it is available, the proof link opens it instead. Clear the field to show the proofs again." },
   ],
   validation: (rule) => rule.custom(validateClientProofGallery),
   preview: { select: { title: "title.0.value", media: "items.0.image" } },

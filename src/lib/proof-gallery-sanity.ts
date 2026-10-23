@@ -6,8 +6,8 @@ import {
   ClientGalleryBudgetError, ClientGalleryChangedError, ClientGalleryDataError,
   CLIENT_GALLERY_FORMATS, clientGalleryText, clientRecord, invalidClientGallery, isClientDocumentId, isClientGalleryHandle,
 } from "@/lib/client-gallery-model";
-import { parsePublishedProofGallery, proofGalleryAvailable, type PublishedProofGallery } from "@/lib/proof-gallery-model";
-import type { ProofGalleryView } from "@/lib/proof-gallery-types";
+import { parsePublishedProofGallery, proofGalleryAvailable, type ProofAvailability, type PublishedProofGallery } from "@/lib/proof-gallery-model";
+import type { ProofGalleryView, ProofReplacement } from "@/lib/proof-gallery-types";
 
 export const PROOF_GALLERY_HTTP_BYTES = 1024 * 1024;
 export const PROOF_GALLERY_READ_TIMEOUT_MS = 15_000;
@@ -21,14 +21,15 @@ export const PROOF_GALLERY_MISS_CAPACITY = 128;
  */
 export const PROOF_GALLERY_QUERY = `*[_type == "clientProofGallery" && handle == $handle][0...2]{
   _id, _type,
-  "document": {_id, _type, _rev, handle, available, availabilityMode, expiryInstant, referenceHighWater,
+  "document": {_id, _type, _rev, handle, available, availabilityMode, expiryInstant, referenceHighWater, replacedBy,
     "title": title[0...21]{_key, _type, language, value},
     "items": items[0...257]{_key, _type, mediaType, originalFilename, reference,
       image{_type, asset{_type, _ref}, crop, hotspot},
       "alt": alt[0...21]{_key, _type, language, value}}},
   "assets": items[0...257]{"asset": image.asset->{_id, _type, sha1hash, extension, mimeType,
     "width": metadata.dimensions.width, "height": metadata.dimensions.height,
-    "restricted": count(*[_type == "media" && image.asset._ref == ^._id && defined(privateOnly) && privateOnly != false]) > 0}}
+    "restricted": count(*[_type == "media" && image.asset._ref == ^._id && defined(privateOnly) && privateOnly != false]) > 0}},
+  "replacement": replacedBy->{_id, _type, handle}
 }`;
 
 export class ProofGalleryProviderError extends Error {
@@ -47,15 +48,32 @@ function validateAssets(value: unknown, gallery: PublishedProofGallery): void {
   } catch { return invalidClientGallery(); }
 }
 
+/** The dereferenced replacement must be the referenced client gallery; a deleted one is ignored. */
+function replacementOf(value: unknown, gallery: PublishedProofGallery): ProofReplacement | undefined {
+  if (gallery.replacedBy === undefined || value === null || value === undefined) return undefined;
+  const row = clientRecord(value);
+  if (row._id !== gallery.replacedBy || row._type !== "clientDeliveryGallery" || !isClientGalleryHandle(row.handle)) return invalidClientGallery();
+  return { id: gallery.replacedBy, handle: row.handle };
+}
+
 type ReaderConfig = Pick<SanityConfig, "projectId" | "dataset" | "apiVersion" | "datasetVisibility">;
+
+/**
+ * A published proof gallery as read: its view, its own availability for the
+ * caller to apply at decision time, and the delivery gallery that may replace
+ * it. Present even when the proofs are paused or expired if a replacement is
+ * named, since the delivery gallery supersedes them for the same customer.
+ */
+export type ProofGalleryRead = Readonly<{ view: ProofGalleryView; availability: ProofAvailability; replacement?: ProofReplacement }>;
 
 /**
  * The customer page's proof reader (ADR-0038 action item 2), the client gallery
  * reader's shape: discovery by handle within the proof type only, then the
  * published document by its own ID (a dotted ID — a draft or private record —
  * is never read), compared with the snapshot after normalization.
- * Missing, paused and expired galleries are `undefined`; malformed content,
- * a changing document, the time budget and the provider throw.
+ * Missing galleries, and paused or expired ones naming no replacement, are
+ * `undefined`; malformed content, a changing document, the time budget and the
+ * provider throw.
  */
 export function createProofGalleryReader(settings: {
   config: ReaderConfig; query: SanityClient; documents: SanityDocumentReader;
@@ -66,7 +84,7 @@ export function createProofGalleryReader(settings: {
   const clock = settings.missClock ?? (() => performance.now()), missing = settings.missing ?? new Map<string, number>();
   const publicDataset = config.datasetVisibility === "public";
   return {
-    async read(handle: string, language: string, fallbackLanguage: string): Promise<ProofGalleryView | undefined> {
+    async read(handle: string, language: string, fallbackLanguage: string): Promise<ProofGalleryRead | undefined> {
       if (!isClientGalleryHandle(handle)) return undefined;
       try {
         const signal = settings.signal?.() ?? AbortSignal.timeout(PROOF_GALLERY_READ_TIMEOUT_MS);
@@ -83,7 +101,8 @@ export function createProofGalleryReader(settings: {
           checkBudget();
           if (raw === null) return undefined;
           const result = parsePublishedProofGallery(raw, id, handle);
-          return proofGalleryAvailable(result, now()) ? result : undefined;
+          // Only a gallery that could still answer — open, or naming a replacement — is worth the rest of the read.
+          return proofGalleryAvailable(result, now()) || result.replacedBy !== undefined ? result : undefined;
         };
         for (let attempt = 0; attempt < 2; attempt++) {
           checkBudget();
@@ -119,10 +138,11 @@ export function createProofGalleryReader(settings: {
             throw new ClientGalleryChangedError();
           }
           validateAssets(row.assets, current);
+          const replacement = replacementOf(row.replacement, current);
           checkBudget();
-          if (!proofGalleryAvailable(current, now())) return undefined;
+          if (!proofGalleryAvailable(current, now()) && replacement === undefined) return undefined;
           const title = clientGalleryText(current.title, language);
-          return {
+          const view: ProofGalleryView = {
             ...(current.expiryInstant === undefined ? {} : { availableUntil: current.expiryInstant }),
             ...(title === undefined ? {} : { title }),
             images: current.items.map((item) => ({
@@ -134,6 +154,10 @@ export function createProofGalleryReader(settings: {
               alt: clientGalleryText(item.alt, language, fallbackLanguage) ?? "",
               reference: item.reference,
             })),
+          };
+          return {
+            view, availability: { available: current.available, ...(current.deadline === undefined ? {} : { deadline: current.deadline }) },
+            ...(replacement === undefined ? {} : { replacement }),
           };
         }
         throw new ClientGalleryChangedError();

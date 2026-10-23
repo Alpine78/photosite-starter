@@ -102,3 +102,38 @@ test("proof pages stay out of the sitemap and robots policy names no handle", as
   expect(sitemap).not.toContain("client-proof");
   expect(await (await request.get("/robots.txt")).text()).not.toContain("7".repeat(32));
 });
+
+// ADR-0038 owner answer 5: an available replacing delivery gallery takes over the proof link.
+const replacedRoute = `/client-proof/${"5".repeat(32)}`;
+const deliveryRoute = `/client-gallery/${"6".repeat(32)}`;
+
+test("a replaced proof link answers with a hygienic temporary redirect to its delivery gallery", async ({ request }) => {
+  for (const method of ["GET", "HEAD"] as const) {
+    const response = await request.fetch(`${replacedRoute}?locale=fi`, { method, maxRedirects: 0 });
+    expect(response.status(), method).toBe(307);
+    for (const [name, value] of Object.entries(hygiene)) expect(response.headers()[name]).toBe(value);
+    const location = new URL(response.headers().location, "http://harness.invalid");
+    expect(location.pathname).toBe(deliveryRoute);
+    expect(location.search).toBe("?locale=fi");
+  }
+  // Only one explicitly requested, configured locale travels.
+  for (const query of ["", "?locale=sv", "?locale=fi&locale=fi"]) {
+    const response = await request.get(`${replacedRoute}${query}`, { maxRedirects: 0 });
+    expect(new URL(response.headers().location, "http://harness.invalid").search, query).toBe("");
+  }
+});
+
+test("following a replaced selection link drops the selection key from the delivery URL", async ({ page, externalRequests }) => {
+  await page.goto(`${replacedRoute}#select=${"K".repeat(43)}`);
+  await expect(page).toHaveURL((url) => url.pathname === deliveryRoute);
+  expect(page.url()).not.toContain("select=");
+  expect(await page.evaluate(() => window.location.hash)).toBe("");
+  await expect(page.getByRole("main").getByRole("img")).toHaveCount(2);
+  expect(externalRequests).toEqual([]);
+});
+
+test("proofs naming an unavailable delivery gallery stay visible", async ({ page }) => {
+  const response = await page.goto(`/client-proof/${"3".repeat(32)}`);
+  expect(response?.status()).toBe(200);
+  await expect(page.getByRole("main").locator("figcaption")).toHaveCount(2);
+});
