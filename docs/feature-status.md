@@ -2,6 +2,13 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Proof reminder customer stop, 2026-10-23 — AB#130 **Active** (ADR-0038 amendment
+2026-10-23): `/client-proof/<handle>/reminders` shows no gallery data and a Stop reminders
+button; the POST with the fragment key turns reminders off and deletes the address and
+language, also while the gallery is paused, expired or replaced; opening the page changes
+nothing. Not yet: the daily reminder sender (next slice), data-flow documentation and the
+hosted check.
+
 Proof reminder language and settings, 2026-10-23 — AB#130 **Active** (owner decisions
 2026-10-23, ADR-0038 amendment): the first-publication dialog records the customer's
 language with the reminder (validated against the site's locales by the route) and starts

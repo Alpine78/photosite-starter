@@ -794,6 +794,9 @@ language. `PROOF_SELECTION=fixture` is the harness's synthetic store and is refu
 outside local development. A confirmation emails the photographer through the contact
 delivery settings, so activating selection also requires a working `CONTACT_DELIVERY_*`
 configuration; a missing one leaves the notice pending in Studio.
+`/client-proof/<handle>/reminders` is the customer's own reminder stop: it shows no gallery
+data, and only its button stops reminders, using the key in the link's fragment; it works
+while the proofs are paused, expired or replaced.
 
 **Replacement by the delivery gallery (ADR-0038 owner answer 5).** A proof gallery's
 optional `replacedBy` names the client gallery holding the finished images. While exactly

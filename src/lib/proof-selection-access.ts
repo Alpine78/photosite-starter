@@ -20,8 +20,8 @@ import { deliverProofNotice, type ProofNoticeSender } from "@/lib/proof-notice";
 import { buildProofNoticeSender } from "@/lib/proof-notice-delivery";
 import { getSanityConfig } from "@/lib/sanity-config";
 import {
-  customerSelection, parseConfirmedVersion, parseSelectionGallery, parseSelectionTerms, parseWorkingSelection,
-  planConfirm, planSelect, proofSelectionId, proofTermsDocumentId, proofVersionId, ProofSelectionDataError,
+  customerSelection, parseConfirmedVersion, parseReminderStopTerms, parseSelectionGallery, parseSelectionTerms, parseWorkingSelection,
+  planConfirm, planReminderStop, planSelect, proofSelectionId, proofTermsDocumentId, proofVersionId, ProofSelectionDataError,
   selectionGalleryOpen, type CustomerSelection, type SelectionGallery, type SelectionRejection,
 } from "@/lib/proof-selection";
 import { PROOF_GALLERY_ID_MAX_LENGTH } from "@/lib/proof-publication-request";
@@ -42,7 +42,9 @@ export type ProofSelectionResult =
   | Readonly<{ outcome: "unknown" }>
   /** The transaction committed, but reading the result failed: read before acting again. */
   | Readonly<{ outcome: "committed"; written: "selected" | "confirmed" }>
-  | Readonly<{ outcome: "failed"; reason: "malformed-record" | "store-unavailable" }>;
+  | Readonly<{ outcome: "failed"; reason: "malformed-record" | "store-unavailable" }>
+  /** Reminders are off (whether or not this request changed anything); no selection data. */
+  | Readonly<{ outcome: "stopped" }>;
 
 export type ProofSelectionDependencies = Readonly<{
   /** Overrides the deployment's Sanity settings; only the fixture store uses this. */
@@ -129,7 +131,41 @@ export async function runProofSelection(request: ProofSelectionRequest, token: s
     return customerSelection(gallery, terms, selection, confirmed);
   }
 
+  /**
+   * The customer's reminder stop: the gallery's identity and the key, nothing
+   * about availability, replacement, images or prices, so a paused or replaced
+   * gallery can still be stopped — and nothing about the selection is answered.
+   */
+  async function stopReminders(): Promise<ProofSelectionResult> {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const rows = await discover(request.handle, options);
+      if (!Array.isArray(rows) || rows.length > 1) throw new ProofSelectionDataError();
+      if (rows.length === 0) return { outcome: "unavailable" };
+      const id = (rows[0] as Record<string, unknown> | null)?._id;
+      if (typeof id !== "string" || id.length > PROOF_GALLERY_ID_MAX_LENGTH || !/^[A-Za-z0-9][A-Za-z0-9_-]*$/u.test(id)) throw new ProofSelectionDataError();
+      const gallery = await read(id, options) as Record<string, unknown> | null;
+      if (gallery === null) return { outcome: "unavailable" };
+      if (gallery._id !== id || gallery._type !== "clientProofGallery" || gallery.handle !== request.handle) throw new ProofSelectionDataError();
+      const termsRaw = await read(proofTermsDocumentId(id), options);
+      if (termsRaw === null) throw new ProofSelectionDataError();
+      const terms = parseReminderStopTerms(termsRaw, id);
+      if (!selectionKeyMatches(request.key, terms.keyHash)) return { outcome: "unavailable" };
+      if (attempt === 0 && !dependencies.galleryAllowed(id)) return { outcome: "rate-limited" };
+      const mutations = planReminderStop(id, terms, new Date(now()).toISOString());
+      if (!mutations) return { outcome: "stopped" };
+      try {
+        await commit(mutations, options);
+        return { outcome: "stopped" };
+      } catch (error) {
+        // Stopping is idempotent: one fresh re-authorization and re-plan after a conflict.
+        if (!(error instanceof ProofSelectionStoreError) || error.kind !== "conflict") throw error;
+      }
+    }
+    return { outcome: "failed", reason: "store-unavailable" };
+  }
+
   try {
+    if (request.operation === "stop-reminders") return await stopReminders();
     let state = await authorize();
     if (!dependencies.galleryAllowed(state.gallery.id)) return { outcome: "rate-limited" };
     if (request.operation === "read") return { outcome: "ok", selection: await view(state) };

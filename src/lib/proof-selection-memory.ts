@@ -36,6 +36,7 @@ function seed(key: string): Documents {
       ] }],
     [`proofTerms.${id}`, { _id: `proofTerms.${id}`, _type: "clientProofTerms", _rev: "fixture-terms-1", galleryId: id,
       includedCount: 1, extraUnitPriceMinor: 1500, currency: "EUR", jobReference: "Fixture",
+      reminderDelayDays: 7, customerEmail: "customer@example.invalid", customerLocale: "en-GB", firstPublishedAt: "2026-10-01T00:00:00.000Z",
       selectionKeyHash: refused ? "0".repeat(64) : selectionKeyHash(key) }],
   ]);
 }
@@ -67,10 +68,12 @@ export function fixtureProofSelectionStore(key: string) {
           if (next.has(doc._id as string)) throw new ProofSelectionStoreError("conflict");
           next.set(doc._id as string, { ...structuredClone(doc), _rev: revision() });
         } else {
-          const patch = mutation.patch as { id: string; ifRevisionID: string; set: Record<string, unknown> };
+          const patch = mutation.patch as { id: string; ifRevisionID: string; set?: Record<string, unknown>; unset?: string[] };
           const current = next.get(patch.id);
           if (!current || current._rev !== patch.ifRevisionID) throw new ProofSelectionStoreError("conflict");
-          next.set(patch.id, { ...current, ...structuredClone(patch.set), _rev: revision() });
+          const updated: Record<string, unknown> = { ...current, ...structuredClone(patch.set ?? {}), _rev: revision() };
+          for (const field of patch.unset ?? []) delete updated[field];
+          next.set(patch.id, updated);
         }
       }
       documents.clear();

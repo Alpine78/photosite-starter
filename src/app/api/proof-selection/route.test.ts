@@ -55,6 +55,7 @@ describe("proof selection route boundaries", () => {
     [{ outcome: "rejected", reason: "empty", selection }, 422, { status: "rejected", reason: "empty" }],
     [{ outcome: "rate-limited" }, 429, { reason: "rate-limited", retryable: true }],
     [{ outcome: "unknown" }, 503, { status: "unknown" }],
+    [{ outcome: "stopped" }, 200, { status: "stopped" }],
     [{ outcome: "committed", written: "confirmed" }, 202, { status: "committed", written: "confirmed" }],
     [{ outcome: "failed", reason: "malformed-record" }, 503, { status: "failed", retryable: false }],
   ])("maps %j", async (result, status, body) => {

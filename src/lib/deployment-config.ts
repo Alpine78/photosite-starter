@@ -162,6 +162,11 @@ export type BuiltInLabels = {
     readonly subject: string; readonly intro: string; readonly gallery: string; readonly job: string; readonly version: string;
     readonly confirmedAt: string; readonly counts: string; readonly price: string; readonly proofs: string; readonly studio: string;
   };
+  /** The customer's own reminder stop page (ADR-0038 amendment 2026-10-23); shows no gallery data. */
+  readonly proofReminderStop: {
+    readonly title: string; readonly explain: string; readonly confirm: string; readonly working: string; readonly stopped: string;
+    readonly unavailable: string; readonly incomplete: string; readonly failed: string; readonly rateLimited: string;
+  };
   /** The proof page (ADR-0038). `{reference}` and `{date}` are the only placeholders. */
   readonly proofGallery: {
     readonly title: string; readonly unavailable: string; readonly reference: string; readonly deadline: string;
@@ -763,6 +768,13 @@ const englishLabels = {
     publicAccessNotice: "This gallery and its web images are publicly accessible without signing in. The link can be shared. Gallery information and image references can also be read from the public dataset; exclusion from listings and search engines does not restrict access.",
     fileRetentionNotice: "This gallery shows exported web images. Closing or expiring the page does not revoke direct image links or remove downloaded or cached copies. Contact the website owner to request removal; immediate removal from every cache or recipient’s copies cannot be promised.",
   },
+  proofReminderStop: {
+    title: "Stop proof reminders", working: "Stopping…", confirm: "Stop reminders",
+    explain: "You can stop the photographer's automatic reminders about choosing your proofs. Your proofs and any selection stay as they are; your email address is removed from the reminder settings.",
+    stopped: "Reminders are stopped. You will receive no further reminders about these proofs.",
+    unavailable: "This reminder link is not valid.", incomplete: "This link is incomplete. Open the link from the reminder email again.",
+    failed: "Stopping could not be confirmed. Try again.", rateLimited: "Too many attempts. Wait a moment and try again.",
+  },
   proofNotice: {
     subject: "Proof selection confirmed: {job} (version {version})",
     intro: "A customer confirmed a proof selection.",
@@ -1239,6 +1251,13 @@ const finnishLabels = {
     deadline: "Sivun määräaika: {date} (UTC).",
     publicAccessNotice: "Tämä galleria ja sen verkkokuvat ovat julkisesti saatavilla ilman kirjautumista. Linkin voi välittää toiselle. Gallerian tiedot ja kuvaviittaukset ovat luettavissa myös julkisesta aineistosta; piilottaminen listauksista ja hakukoneilta ei rajoita pääsyä.",
     fileRetentionNotice: "Galleriassa näytetään vietyjä verkkokuvia. Sivun sulkeminen tai vanheneminen ei estä suorien kuvalinkkien käyttöä eikä poista ladattuja tai välimuistiin tallennettuja kopioita. Voit pyytää poistamista sivuston omistajalta; välitöntä poistumista kaikista välimuisteista tai vastaanottajien kopioista ei voida luvata.",
+  },
+  proofReminderStop: {
+    title: "Vedosmuistutusten peruminen", working: "Perutaan…", confirm: "Peru muistutukset",
+    explain: "Voit perua valokuvaajan automaattiset muistutukset vedosten valitsemisesta. Vedokset ja mahdollinen valintasi säilyvät ennallaan; sähköpostiosoitteesi poistetaan muistutusasetuksista.",
+    stopped: "Muistutukset on peruttu. Et saa enää muistutuksia näistä vedoksista.",
+    unavailable: "Muistutuslinkki ei ole voimassa.", incomplete: "Linkki on vajaa. Avaa linkki muistutusviestistä uudelleen.",
+    failed: "Perumista ei voitu vahvistaa. Yritä uudelleen.", rateLimited: "Liian monta yritystä. Odota hetki ja yritä uudelleen.",
   },
   proofNotice: {
     subject: "Vedosvalinta vahvistettu: {job} (versio {version})",

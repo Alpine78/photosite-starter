@@ -578,3 +578,18 @@ customer's address and language.
 **Sections affected:** Decision 9 (setting, cadence wording "stop for good", message
 language) and action item 5.
 
+## Implementation note — 2026-10-23: the customer's reminder stop
+
+Records how the amendment's self-service stop is implemented; it changes no decision.
+`/client-proof/<handle>/reminders` reads no gallery and shows only generic FI/EN text and
+a **Stop reminders** button; opening or reloading it sends nothing. The button sends the
+key from the fragment in a same-origin `POST /api/proof-selection` with the operation
+`stop-reminders`. That branch checks only the gallery's identity and the key against the
+fresh terms — not availability, replacement, images, prices or the selection — so a
+paused, expired or replaced gallery can still be stopped, and it answers nothing about
+the selection. It patches the terms under the checked revision (`reminderDelayDays: null`,
+the address and language removed, `reminderStoppedBy: "customer"`), re-plans once after a
+conflicting change, and reports a stop only when reminders are off. An unknown handle and
+a wrong or rotated key are the same refusal; reminders already off answer stopped without
+writing. The reminder sender links to this page.
+

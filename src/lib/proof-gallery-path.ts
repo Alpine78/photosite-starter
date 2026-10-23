@@ -13,6 +13,11 @@ export function isProofGalleryNamespace(pathname: string, localePrefixes: readon
   return owns(first) || (localePrefixes.includes(first) && owns(decode(segments[1])));
 }
 
+/** The proof page and its reminder stop page (ADR-0038 amendment 2026-10-23). */
 export function proofGalleryHandleFromPath(pathname: string): string | undefined {
-  return /^\/client-proof\/([a-f0-9]{32})\/?$/.exec(pathname)?.[1];
+  return /^\/client-proof\/([a-f0-9]{32})(?:\/reminders)?\/?$/.exec(pathname)?.[1];
+}
+
+export function isProofGalleryHandle(value: string): boolean {
+  return /^[a-f0-9]{32}$/u.test(value);
 }

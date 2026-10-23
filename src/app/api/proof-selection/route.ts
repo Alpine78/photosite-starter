@@ -54,6 +54,9 @@ export async function POST(request: Request): Promise<Response> {
       case "ok":
         if (result.written) logProofSelectionEvent({ correlationId, state: result.written });
         return jsonNoStore({ status: "ok", selection: result.selection, correlationId }, 200);
+      case "stopped":
+        logProofSelectionEvent({ correlationId, state: "reminders-stopped" });
+        return jsonNoStore({ status: "stopped", correlationId }, 200);
       case "unavailable":
         log("rejected", "unavailable");
         return jsonNoStore({ status: "unavailable", correlationId }, 404);

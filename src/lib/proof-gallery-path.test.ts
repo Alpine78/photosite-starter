@@ -6,6 +6,8 @@ describe("proof gallery namespace", () => {
   it("serves only the literal handle grammar", () => {
     expect(proofGalleryHandleFromPath(`/client-proof/${handle}`)).toBe(handle);
     expect(proofGalleryHandleFromPath(`/client-proof/${handle}/`)).toBe(handle);
+    expect(proofGalleryHandleFromPath(`/client-proof/${handle}/reminders`)).toBe(handle);
+    expect(proofGalleryHandleFromPath(`/client-proof/${handle}/reminders/x`)).toBeUndefined();
     for (const path of [`/client-proof/${"A".repeat(32)}`, "/client-proof/short", `/client-proof/${handle}/x`, "/client-proof", `/en/client-proof/${handle}`]) {
       expect(proofGalleryHandleFromPath(path)).toBeUndefined();
     }
