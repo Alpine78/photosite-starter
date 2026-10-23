@@ -593,3 +593,23 @@ conflicting change, and reports a stop only when reminders are off. An unknown h
 a wrong or rotated key are the same refusal; reminders already off answer stopped without
 writing. The reminder sender links to this page.
 
+## Implementation note — 2026-10-23: the daily reminder run (action item 5)
+
+Records how decision 9 and its amendment are implemented; it changes no decision.
+`GET /api/proof-reminders` (default off, `CRON_SECRET`, daily Vercel cron) walks the
+galleries with reminders on in `_id` order from a private cursor, in batches of 50,
+wrapping around, and starts no new gallery after 15 seconds of its 60-second limit, so
+every gallery is reached on a later day. Per gallery it reads the terms first, then the
+selection and the gallery (and a replacing delivery gallery), so the claim — `create` of
+`proofReminder.<id>.<n>` with a guard on that terms revision — fails if a confirmation,
+rotation, settings change, stop or publication came in between. It prepares the message
+before claiming, then reads everything again and records the step `cancelled` if the
+settings, selection or availability changed; a message already handed to Resend cannot
+be withdrawn by a later write. A key that does not decrypt to its hash is recorded
+`failed` (`key-unavailable`) rather than sent as a broken link. An ambiguous claim sends
+nothing and its step is never reclaimed. The message is in the customer's language, with
+the selection link (`?locale=` before `#select=`), the stop link and Reply-To the owner
+mailbox; the idempotency key is `proof-reminder/<id>/<n>`. Reminders on but not sendable
+(no language, address or publication time) are skipped and listed in Studio; nothing is
+guessed.
+

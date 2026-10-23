@@ -8,7 +8,24 @@ import type { SchemaTypeDefinition } from "./schema-types";
  * confirmed version. Nothing here is created, edited or resent in Studio
  * (owner answer 2).
  */
-export const CLIENT_PROOF_RECORD_TYPES = ["clientProofSelection", "clientProofSelectionVersion", "clientProofNotice"] as const;
+export const CLIENT_PROOF_RECORD_TYPES = ["clientProofSelection", "clientProofSelectionVersion", "clientProofNotice", "clientProofReminder"] as const;
+
+/** One customer reminder step (decision 9); no address or link is stored on it. */
+export const clientProofReminderType: SchemaTypeDefinition = {
+  name: "clientProofReminder", title: "Proof reminder", type: "document",
+  description: "One automatic reminder to the customer, written by the site. Failed or pending for more than a few minutes means it may not have been sent; cancelled means the gallery changed just before sending.",
+  fields: [
+    { name: "state", title: "Reminder state", type: "string", readOnly: true,
+      options: { list: [{ title: "Pending", value: "pending" }, { title: "Sent", value: "sent" }, { title: "Failed", value: "failed" }, { title: "Cancelled", value: "cancelled" }] } },
+    { name: "galleryId", title: "Proof gallery document", type: "string", readOnly: true },
+    { name: "step", title: "Reminder number", type: "number", readOnly: true },
+    { name: "dueAt", title: "Due (UTC)", type: "datetime", readOnly: true },
+    { name: "createdAt", title: "Created (UTC)", type: "datetime", readOnly: true },
+    { name: "attemptedAt", title: "Email attempted (UTC)", type: "datetime", readOnly: true },
+    { name: "errorClass", title: "Failure class", type: "string", readOnly: true },
+  ],
+  preview: { select: { title: "galleryId", subtitle: "state" } },
+};
 
 /** The customer's working selection; only the reopen action changes it in Studio (decision 5). */
 export const clientProofSelectionType: SchemaTypeDefinition = {

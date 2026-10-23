@@ -136,6 +136,10 @@ const eslintConfig = defineConfig([
                 "Reach proof selection through `@/lib/proof-selection-access`. The selection credential's Sanity calls and the planner stay behind that facade, which owns the order a route must not reassemble — a closed or replaced gallery and a wrong key are refused before the gallery allowance, any write or any state (ADR-0038 decision 5).",
             },
             {
+              group: ["@/lib/proof-reminder", "@/lib/proof-reminder-delivery"],
+              message: "Run reminders through `@/lib/proof-reminder-access`, which owns the read order, the claim and the final check before sending (ADR-0038 decision 9).",
+            },
+            {
               group: ["@/lib/proof-gallery-sanity", "@/lib/proof-gallery-deployment"],
               message: "Use proof-gallery-access; CMS records and deployment settings stay server-only (ADR-0038).",
             },

@@ -71,6 +71,13 @@ export async function discoverProofGallery(handle: string, options: ProofSelecti
   return (result as { result: unknown }).result;
 }
 
+/** A published-perspective query with the selection credential (the reminder run's discovery). */
+export async function queryProofRecords(groq: string, params: Record<string, unknown>, options: ProofSelectionStoreOptions): Promise<unknown> {
+  const result = await call(options, `/data/query/${options.config.dataset}?perspective=published`, { method: "POST", body: { query: groq, params } }, "unavailable");
+  if (typeof result !== "object" || result === null || !("result" in result)) throw new ProofSelectionStoreError("unavailable");
+  return (result as { result: unknown }).result;
+}
+
 /** One document by ID, fresh; `null` when it does not exist. */
 export async function readProofSelectionDocument(id: string, options: ProofSelectionStoreOptions): Promise<unknown> {
   if (!DOCUMENT_ID.test(id) || id.includes("..")) throw new TypeError("Invalid document ID");

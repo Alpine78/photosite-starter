@@ -218,6 +218,9 @@ export type ProofNoticeEvent =
   | { readonly correlationId: string; readonly state: "delivered"; readonly errorClass?: never }
   | { readonly correlationId: string; readonly state: "delivery-failed" | "failed"; readonly errorClass: ProofNoticeErrorClass };
 
+/** One reminder decision of the daily run: a closed outcome only, never an address, link or key (ADR-0038 decision 9). */
+export type ProofReminderEvent = { readonly correlationId: string; readonly outcome: string; readonly errorClass?: string };
+
 export function createCorrelationId(): string {
   return randomUUID();
 }
@@ -371,3 +374,9 @@ export function logProofNoticeEvent(event: ProofNoticeEvent): void {
 export function logProofSelectionEvent(event: ProofSelectionEvent): void {
   writeSubmissionLine("proof.selection", event.correlationId, event.state, event.errorClass);
 }
+
+export function logProofReminderEvent(event: ProofReminderEvent): void {
+  const line = JSON.stringify({ event: "proof.reminder", correlationId: event.correlationId, outcome: event.outcome, ...(event.errorClass ? { errorClass: event.errorClass } : {}) });
+  if (event.outcome === "failed" || event.outcome === "ambiguous") console.error(line); else console.info(line);
+}
+

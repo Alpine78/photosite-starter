@@ -6,6 +6,8 @@ const resources = {
   "structure.proof-selections.title": "Vahvistetut vedosvalinnat",
   "structure.proof-working-selections.title": "Vedosvalinnat",
   "structure.proof-notices.title": "Toimenpiteitä vaativat vedosilmoitukset",
+  "structure.proof-reminders.title": "Toimenpiteitä vaativat muistutukset",
+  "structure.proof-reminder-settings.title": "Puutteelliset muistutusasetukset",
   "structure.content.title": "Sisältö",
   "structure.home-page.title": "Etusivu",
   "structure.site-settings.title": "Sivuston asetukset",

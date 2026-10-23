@@ -341,7 +341,8 @@ on Sanity private ID paths (`proofTerms.<id>`, `proofSelection.<id>[.v<n>]`,
 `clientProofSelectionVersion` and `clientProofNotice` describe the last three so Studio
 can show them read-only: no create template, no native action, no resend
 (`studio/editorial-policy.ts`). The only change Studio makes is reopening a confirmed
-working selection (ADR-0038 decision 5).
+working selection (ADR-0038 decision 5). `clientProofReminder` (`proofReminder.<id>.<n>`)
+records each customer reminder step without any address or link.
 
 AB#308's deterministic contract fixtures execute the actual runtime and native
 validation query strings with the first-party `groq-js/1` interpreter, pinned to

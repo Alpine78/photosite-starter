@@ -167,6 +167,11 @@ export type BuiltInLabels = {
     readonly title: string; readonly explain: string; readonly confirm: string; readonly working: string; readonly stopped: string;
     readonly unavailable: string; readonly incomplete: string; readonly failed: string; readonly rateLimited: string;
   };
+  /** The customer's reminder email (ADR-0038 decision 9), in the customer's language. `{title}`, `{published}`. */
+  readonly proofReminder: {
+    readonly subject: string; readonly untitled: string; readonly greeting: string; readonly notConfirmed: string;
+    readonly select: string; readonly possession: string; readonly stop: string; readonly reply: string;
+  };
   /** The proof page (ADR-0038). `{reference}` and `{date}` are the only placeholders. */
   readonly proofGallery: {
     readonly title: string; readonly unavailable: string; readonly reference: string; readonly deadline: string;
@@ -775,6 +780,15 @@ const englishLabels = {
     unavailable: "This reminder link is not valid.", incomplete: "This link is incomplete. Open the link from the reminder email again.",
     failed: "Stopping could not be confirmed. Try again.", rateLimited: "Too many attempts. Wait a moment and try again.",
   },
+  proofReminder: {
+    subject: "Reminder: your proofs are waiting for your selection ({title})", untitled: "your proofs",
+    greeting: "Hello, the proofs \"{title}\" published on {published} are waiting for your selection.",
+    notConfirmed: "No selection has been confirmed yet.",
+    select: "Choose and confirm your selection with your personal link:",
+    possession: "Anyone holding this link can make the selection, so please do not forward it.",
+    stop: "If you do not want further reminders, you can stop them here:",
+    reply: "You can also reply to this email to reach the photographer.",
+  },
   proofNotice: {
     subject: "Proof selection confirmed: {job} (version {version})",
     intro: "A customer confirmed a proof selection.",
@@ -1258,6 +1272,15 @@ const finnishLabels = {
     stopped: "Muistutukset on peruttu. Et saa enää muistutuksia näistä vedoksista.",
     unavailable: "Muistutuslinkki ei ole voimassa.", incomplete: "Linkki on vajaa. Avaa linkki muistutusviestistä uudelleen.",
     failed: "Perumista ei voitu vahvistaa. Yritä uudelleen.", rateLimited: "Liian monta yritystä. Odota hetki ja yritä uudelleen.",
+  },
+  proofReminder: {
+    subject: "Muistutus: vedoksesi odottavat valintaasi ({title})", untitled: "vedoksesi",
+    greeting: "Hei, {published} julkaistut vedokset \"{title}\" odottavat valintaasi.",
+    notConfirmed: "Valintaa ei ole vielä vahvistettu.",
+    select: "Valitse ja vahvista vedokset henkilökohtaisella linkilläsi:",
+    possession: "Kuka tahansa linkin haltija voi tehdä valinnan, joten älä välitä linkkiä eteenpäin.",
+    stop: "Jos et halua enempää muistutuksia, voit perua ne täältä:",
+    reply: "Voit myös vastata tähän viestiin, niin tavoitat valokuvaajan.",
   },
   proofNotice: {
     subject: "Vedosvalinta vahvistettu: {job} (versio {version})",
