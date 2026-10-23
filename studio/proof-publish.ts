@@ -66,13 +66,13 @@ export function proofRotateReadiness(state: ProofActionState, site: ClientGaller
 
 export type ProofTermsForm = {
   includedCount: string; extraUnitPrice: string; currency: string; jobReference: string;
-  reminder: boolean; reminderDays: string; customerEmail: string;
+  reminder: boolean; reminderDays: string; customerEmail: string; reminderLocale: string;
 };
-export type ProofTermsField = "includedCount" | "extraUnitPrice" | "currency" | "jobReference" | "reminderDays" | "customerEmail";
+export type ProofTermsField = "includedCount" | "extraUnitPrice" | "currency" | "jobReference" | "reminderDays" | "customerEmail" | "reminderLocale";
 
-/** The owner's defaults: euros, a reminder after a week (ADR-0038 decision 9). */
-export function defaultProofTermsForm(): ProofTermsForm {
-  return { includedCount: "", extraUnitPrice: "", currency: "EUR", jobReference: "", reminder: true, reminderDays: "7", customerEmail: "" };
+/** The owner's defaults: euros, a reminder after a week in the site's default language (ADR-0038 decision 9). */
+export function defaultProofTermsForm(defaultLocale = ""): ProofTermsForm {
+  return { includedCount: "", extraUnitPrice: "", currency: "EUR", jobReference: "", reminder: true, reminderDays: "7", customerEmail: "", reminderLocale: defaultLocale };
 }
 
 function boundedInteger(text: string, min: number, max: number): number | undefined {
@@ -83,7 +83,7 @@ function boundedInteger(text: string, min: number, max: number): number | undefi
 }
 
 /** The terms the route accepts, or the fields that need correcting. */
-export function readProofTermsForm(form: ProofTermsForm): { terms: ProofTerms } | { invalid: ProofTermsField[] } {
+export function readProofTermsForm(form: ProofTermsForm, locales: readonly string[]): { terms: ProofTerms } | { invalid: ProofTermsField[] } {
   const invalid: ProofTermsField[] = [];
   const includedCount = boundedInteger(form.includedCount, 0, PROOF_MAX_INCLUDED);
   if (includedCount === undefined) invalid.push("includedCount");
@@ -97,10 +97,12 @@ export function readProofTermsForm(form: ProofTermsForm): { terms: ProofTerms } 
   if (form.reminder && delayDays === undefined) invalid.push("reminderDays");
   const customerEmail = form.customerEmail.trim();
   if (form.reminder && !isProofCustomerEmail(customerEmail)) invalid.push("customerEmail");
+  // The customer's language for the reminder and its link: one of this site's locales.
+  if (form.reminder && !locales.includes(form.reminderLocale)) invalid.push("reminderLocale");
   if (invalid.length > 0) return { invalid };
   const terms = parseProofTerms({
     includedCount, extraUnitPriceMinor, currency, jobReference,
-    reminder: form.reminder ? { delayDays, customerEmail } : null,
+    reminder: form.reminder ? { delayDays, customerEmail, locale: form.reminderLocale } : null,
   });
   return terms ? { terms } : { invalid: ["jobReference"] };
 }
@@ -214,9 +216,10 @@ export function proofPublishCopy(locale: string) {
       includedCount: "Hintaan sisältyvien kuvien määrä", extraUnitPrice: "Lisäkuvan hinta", currency: "Valuutta",
       jobReference: "Työn tunniste (näkyy sinulle ilmoituksissa)", reminder: "Muistuta asiakasta, jos valintaa ei ole tehty",
       reminderDays: "Muistutus päivän kuluttua", customerEmail: "Asiakkaan sähköpostiosoite muistutusta varten",
+      reminderLocale: "Asiakkaan kieli (muistutus ja linkki)",
     } as Record<string, string>,
     fieldError: "Tarkista tämä kenttä.",
-    reminderNote: "Muistutusten lähetys otetaan käyttöön myöhemmin; asetus tallentuu jo nyt. Osoitetta ei tallenneta, jos muistutus on pois päältä.",
+    reminderNote: "Muistutusten lähetys otetaan käyttöön myöhemmin; asetus tallentuu jo nyt. Jokaisessa muistutuksessa on linkki, jolla asiakas voi perua muistutukset, ja asetuksia voi muuttaa myöhemmin kohdasta Muistutusasetukset. Osoitetta ei tallenneta, jos muistutus on pois päältä.",
     rotateWarning: "Uusi linkki korvaa nykyisen heti: vanha valintalinkki lakkaa toimimasta. Lähetä asiakkaalle uusi linkki.",
     once: "Linkki näytetään vain nyt. Jos suljet ikkunan kopioimatta sitä, luo uusi valintalinkki.",
     published: "Vedosgalleria julkaistiin.",
@@ -257,9 +260,10 @@ export function proofPublishCopy(locale: string) {
       includedCount: "Images included in the price", extraUnitPrice: "Price per additional image", currency: "Currency",
       jobReference: "Job reference (shown to you in notifications)", reminder: "Remind the customer if no selection has been made",
       reminderDays: "Reminder after days", customerEmail: "Customer email address for the reminder",
+      reminderLocale: "Customer language (reminder and link)",
     } as Record<string, string>,
     fieldError: "Check this field.",
-    reminderNote: "Reminder sending is enabled later; the setting is stored now. No address is stored when the reminder is off.",
+    reminderNote: "Reminder sending is enabled later; the setting is stored now. Every reminder carries a link with which the customer can cancel reminders, and you can change the settings later under Reminder settings. No address is stored when the reminder is off.",
     rotateWarning: "The new link replaces the current one immediately: the old selection link stops working. Send the customer the new link.",
     once: "The link is shown only now. If you close this window without copying it, create a new selection link.",
     published: "The proof gallery was published.",

@@ -507,6 +507,12 @@ without proof galleries keeps Sanity's default sign-in.
   finished images. While that gallery is available, the proof link opens it instead; clear
   the field and publish to show the proofs again. Only published client galleries can be
   chosen, and deleting the client gallery simply stops the redirect.
+- **Reminder settings / Muistutusasetukset** on a published proof gallery switches the
+  customer reminder on or off and changes the delay, the customer's address and their
+  language (Finnish or English among the site's locales). Prices are never changed here.
+  Switching on, or changing the delay, waits for the next reminder step rather than
+  sending at once; switching off removes the address. The first-publication dialog asks
+  for the same language, and the selection link it shows starts in that language.
 - **Proof notices needing action / Toimenpiteitä vaativat vedosilmoitukset** lists the
   photographer's emails that failed, or stayed pending for more than five minutes after a
   confirmation (the list reflects that age when opened or refreshed). Open a notice and

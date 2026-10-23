@@ -2,12 +2,22 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Proof reminder language and settings, 2026-10-23 — AB#130 **Active** (owner decisions
+2026-10-23, ADR-0038 amendment): the first-publication dialog records the customer's
+language with the reminder (validated against the site's locales by the route) and starts
+the selection link in it; a Studio **Reminder settings** action on a published proof
+gallery switches reminders on or off and changes delay, address and language under the
+loaded terms revision, recording `reminderResumeAfter` so a change waits for the next step.
+Expiry and replacement only pause reminders. Not yet: the daily sender and the customer's
+own stop link (next slice), data-flow documentation and the hosted check.
+
 Proof selection reopen, 2026-10-23 — AB#130 **Active** (ADR-0038 decision 5): Studio
 shows working selections read-only, and a confirmed one offers **Reopen selection**,
 which patches the state back to `open` under the revision reviewed in its confirmation
 dialog; versions and notices stay, the next confirmation becomes `v<n+1>`, and the
 999-version limit disables it. Not yet: reminders, the data-flow and retention
 documentation (action item 6) and the owner-run hosted check.
+
 Proof selection photographer notice, 2026-10-23 — AB#130 **Active** (ADR-0038 action
 item 4): after a committed confirmation the route emails the owner's contact mailbox from
 the immutable version (job reference, totals, proof numbers and filenames) with the

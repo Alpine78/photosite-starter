@@ -1,6 +1,7 @@
 /** Pure URL handoff; no CMS client, mutations, credentials or browser globals. */
 import { transactionSyncLocked } from "./editor-lock";
-export type ClientGallerySite = Readonly<{ origin: string; locales: readonly string[] }>;
+/** `defaultLocale`: the configured locale with the unprefixed routes. */
+export type ClientGallerySite = Readonly<{ origin: string; locales: readonly string[]; defaultLocale?: string }>;
 export function clientGallerySiteOrigin(value: string | undefined): string | undefined {
   if (value === undefined || value === "") return undefined;
   try {

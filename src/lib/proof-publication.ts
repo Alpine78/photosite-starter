@@ -122,7 +122,7 @@ function termsFields(terms: ProofTerms) {
     currency: terms.currency,
     jobReference: terms.jobReference,
     reminderDelayDays: terms.reminder?.delayDays ?? null,
-    ...(terms.reminder === null ? {} : { customerEmail: terms.reminder.customerEmail }),
+    ...(terms.reminder === null ? {} : { customerEmail: terms.reminder.customerEmail, customerLocale: terms.reminder.locale }),
   };
 }
 

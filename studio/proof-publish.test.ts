@@ -46,31 +46,36 @@ describe("publish readiness", () => {
 });
 
 describe("terms form", () => {
-  const filled = { ...defaultProofTermsForm(), includedCount: "20", extraUnitPrice: "12,50", jobReference: " Wedding 2026 ", customerEmail: "customer@example.com" };
+  const filled = { ...defaultProofTermsForm("fi"), includedCount: "20", extraUnitPrice: "12,50", jobReference: " Wedding 2026 ", customerEmail: "customer@example.com" };
 
   it("defaults to euros and a reminder after a week", () => {
     expect(defaultProofTermsForm()).toMatchObject({ currency: "EUR", reminder: true, reminderDays: "7" });
   });
 
   it("produces the closed terms in minor units, trimming text", () => {
-    expect(readProofTermsForm(filled)).toEqual({ terms: {
+    expect(readProofTermsForm(filled, ["fi", "en-GB"])).toEqual({ terms: {
       includedCount: 20, extraUnitPriceMinor: 1250, currency: "EUR", jobReference: "Wedding 2026",
-      reminder: { delayDays: 7, customerEmail: "customer@example.com" },
+      reminder: { delayDays: 7, customerEmail: "customer@example.com", locale: "fi" },
     } });
-    expect(readProofTermsForm({ ...filled, currency: "JPY", extraUnitPrice: "1500" })).toMatchObject({ terms: { extraUnitPriceMinor: 1500, currency: "JPY" } });
+    expect(readProofTermsForm({ ...filled, currency: "JPY", extraUnitPrice: "1500" }, ["fi", "en-GB"])).toMatchObject({ terms: { extraUnitPriceMinor: 1500, currency: "JPY" } });
   });
 
   it("stores no address when the reminder is off, even if one was typed", () => {
-    expect(readProofTermsForm({ ...filled, reminder: false, reminderDays: "x", customerEmail: "not an address" }))
+    expect(readProofTermsForm({ ...filled, reminder: false, reminderDays: "x", customerEmail: "not an address" }, ["fi", "en-GB"]))
       .toEqual({ terms: expect.objectContaining({ reminder: null }) });
   });
 
   it("names every field that needs correcting", () => {
-    expect(readProofTermsForm({ ...filled, includedCount: "257", extraUnitPrice: "1.234", jobReference: "  ", reminderDays: "0", customerEmail: "x@" }))
+    expect(readProofTermsForm({ ...filled, includedCount: "257", extraUnitPrice: "1.234", jobReference: "  ", reminderDays: "0", customerEmail: "x@" }, ["fi", "en-GB"]))
       .toEqual({ invalid: ["includedCount", "extraUnitPrice", "jobReference", "reminderDays", "customerEmail"] });
-    expect(readProofTermsForm({ ...filled, currency: "XYZ" })).toEqual({ invalid: ["currency", "extraUnitPrice"] });
-    expect(readProofTermsForm({ ...filled, includedCount: "-1" })).toEqual({ invalid: ["includedCount"] });
-    expect(readProofTermsForm({ ...filled, reminderDays: "366" })).toEqual({ invalid: ["reminderDays"] });
+    expect(readProofTermsForm({ ...filled, currency: "XYZ" }, ["fi", "en-GB"])).toEqual({ invalid: ["currency", "extraUnitPrice"] });
+    expect(readProofTermsForm({ ...filled, includedCount: "-1" }, ["fi", "en-GB"])).toEqual({ invalid: ["includedCount"] });
+    // The customer's language must be one of the site's locales whenever a reminder is on.
+    expect(readProofTermsForm({ ...filled, reminderLocale: "sv" }, ["fi", "en-GB"])).toEqual({ invalid: ["reminderLocale"] });
+    // An extended configured locale, as the site's own route table accepts it.
+    expect(readProofTermsForm({ ...filled, reminderLocale: "en-GB-u-hc-h23" }, ["fi", "en-GB-u-hc-h23"])).toMatchObject({ terms: { reminder: { locale: "en-GB-u-hc-h23" } } });
+    expect(readProofTermsForm({ ...filled, reminder: false, reminderLocale: "sv" }, ["fi", "en-GB"])).toMatchObject({ terms: { reminder: null } });
+    expect(readProofTermsForm({ ...filled, reminderDays: "366" }, ["fi", "en-GB"])).toEqual({ invalid: ["reminderDays"] });
   });
 });
 

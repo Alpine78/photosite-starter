@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const access = vi.hoisted(() => ({ runProofPublication: vi.fn() }));
 vi.mock("@/lib/proof-publication-access", () => access);
+vi.mock("@/lib/deployment-config", () => ({ getDeploymentConfig: () => ({ localeRoutes: { locales: [{ locale: "fi" }, { locale: "en-GB" }] } }) }));
 import { OPTIONS, POST } from "./route";
 
 const studio = "https://studio.example.com";
@@ -99,5 +100,12 @@ describe("proof publication route (ADR-0038 amendment 2026-10-22)", () => {
     expect(response.status).toBe(500);
     expect(JSON.stringify(await response.json())).not.toContain(token);
     expect(logs.join("\n")).not.toContain(token);
+  });
+
+  it("refuses a reminder language this site does not offer, before the publication runs", async () => {
+    const terms = { includedCount: 1, extraUnitPriceMinor: 0, currency: "EUR", jobReference: "j", reminder: { delayDays: 7, customerEmail: "a@example.fi", locale: "sv" } };
+    const response = await POST(request("POST", { body: { galleryId: "g1", operation: "publish", expectedDraftRevision: "rev1", terms } }));
+    expect(response.status).toBe(400);
+    expect(access.runProofPublication).not.toHaveBeenCalled();
   });
 });

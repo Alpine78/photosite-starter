@@ -25,7 +25,7 @@ describe("configured customer link origin", () => {
     expect(loadStudioSettings({ ...environment, SANITY_STUDIO_SITE_ORIGIN: "" })).toEqual(missing);
     const configured = loadStudioSettings({ ...environment, SANITY_STUDIO_SITE_ORIGIN: site.origin });
     expect(configured.authoringLanguages).toEqual(["fi", "en"]);
-    expect(configured.clientGallerySite).toEqual({ origin: site.origin, locales: ["fi", "en-GB", "en-US"] });
+    expect(configured.clientGallerySite).toEqual({ origin: site.origin, locales: ["fi", "en-GB", "en-US"], defaultLocale: "fi" });
   });
 });
 describe("published-only URL handoff", () => {

@@ -9,6 +9,7 @@ import {
   studioCorsHeaders,
 } from "@/lib/proof-publication-request";
 import { runProofPublication } from "@/lib/proof-publication-access";
+import { getDeploymentConfig } from "@/lib/deployment-config";
 
 /**
  * Proof gallery publication and selection-key rotation (ADR-0038 amendment
@@ -78,6 +79,9 @@ export async function POST(request: Request): Promise<Response> {
   if (!token) return reject("unauthenticated", 401);
   const parsed = parseProofPublicationBody(await readBoundedBody(request, PROOF_PUBLICATION_BODY_BYTES));
   if (!parsed) return reject("malformed-request", 400);
+  // The reminder language must be one of this site's locales (owner decision 2026-10-23).
+  const reminder = parsed.operation === "publish" ? parsed.terms?.reminder : undefined;
+  if (reminder && !getDeploymentConfig().localeRoutes.locales.some((route) => route.locale === reminder.locale)) return reject("malformed-request", 400);
 
   try {
     const result = await runProofPublication(parsed, token, config.secret);
