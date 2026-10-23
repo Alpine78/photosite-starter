@@ -322,4 +322,20 @@ describe("proof selection facade", () => {
       expect(world.documents.get("proofNotice.g1.v1")).toMatchObject({ state: "pending" });
     });
   });
+
+  it("lets a reopened selection be changed and confirmed as the next version, keeping the earlier one (decision 5)", async () => {
+    const saved = await run({ operation: "select", expectedRevision: null, references: ["001"] });
+    if (saved.outcome !== "ok") throw new Error(saved.outcome);
+    await run({ operation: "confirm", expectedRevision: saved.selection.revision });
+    // The Studio reopen action: one patch guarded by the reviewed revision.
+    const selection = world.documents.get("proofSelection.g1")!;
+    await world.store.commit([{ patch: { id: "proofSelection.g1", ifRevisionID: selection._rev, set: { state: "open" } } }]);
+    const reopened = await run({ operation: "read" });
+    expect(reopened).toMatchObject({ outcome: "ok", selection: { state: "open", references: ["001"] } });
+    const changed = await run({ operation: "select", expectedRevision: (reopened as { selection: { revision: string } }).selection.revision, references: ["001", "002"] });
+    if (changed.outcome !== "ok") throw new Error(changed.outcome);
+    expect(await run({ operation: "confirm", expectedRevision: changed.selection.revision })).toMatchObject({ outcome: "ok", selection: { state: "confirmed", version: 2, references: ["001", "002"] } });
+    expect(world.documents.get("proofSelection.g1.v1")).toMatchObject({ totals: { selected: 1 } });
+    expect(world.documents.get("proofNotice.g1.v1")).toBeDefined(); expect(world.documents.get("proofNotice.g1.v2")).toBeDefined();
+  });
 });

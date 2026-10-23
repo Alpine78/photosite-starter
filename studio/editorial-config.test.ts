@@ -40,6 +40,9 @@ describe("actual Studio configuration composition", () => {
     const { ProofReminderSettingsAction } = await import("./proof-reminder-settings-action");
     expect(actions.at(-1)).toBe(ProofReminderSettingsAction);
     expect(actions.at(-2)).toBe(RotateProofKeyAction);
+    const { ReopenProofSelectionAction } = await import("./proof-reopen-action");
+    expect(resolve(native, { schemaType: "clientProofSelection" })).toEqual([ReopenProofSelectionAction]);
+    expect(resolve(native, { schemaType: "clientProofNotice" })).toEqual([]);
     const templates = config.schema!.templates as (templates: { schemaType: string }[]) => { schemaType: string }[];
     expect(templates([{ schemaType: "clientProofGallery" }, { schemaType: "article" }]).map(({ schemaType }) => schemaType))
       .toEqual(enabled ? ["clientProofGallery", "article"] : ["article"]);

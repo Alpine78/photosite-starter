@@ -2,6 +2,7 @@ const resources = {
   "structure.client-galleries.title": "Client galleries",
   "structure.proof-galleries.title": "Proof galleries",
   "structure.proof-selections.title": "Confirmed proof selections",
+  "structure.proof-working-selections.title": "Proof selections",
   "structure.proof-notices.title": "Proof notices needing action",
   "structure.content.title": "Content",
   "structure.home-page.title": "Home page",

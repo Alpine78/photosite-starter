@@ -8,7 +8,23 @@ import type { SchemaTypeDefinition } from "./schema-types";
  * confirmed version. Nothing here is created, edited or resent in Studio
  * (owner answer 2).
  */
-export const CLIENT_PROOF_RECORD_TYPES = ["clientProofSelectionVersion", "clientProofNotice"] as const;
+export const CLIENT_PROOF_RECORD_TYPES = ["clientProofSelection", "clientProofSelectionVersion", "clientProofNotice"] as const;
+
+/** The customer's working selection; only the reopen action changes it in Studio (decision 5). */
+export const clientProofSelectionType: SchemaTypeDefinition = {
+  name: "clientProofSelection", title: "Proof selection", type: "document",
+  description: "The customer's current selection, written by the site. A confirmed selection can be reopened so the customer can confirm a new version; earlier versions stay.",
+  fields: [
+    { name: "state", title: "Selection state", type: "string", readOnly: true,
+      options: { list: [{ title: "Open", value: "open" }, { title: "Confirmed", value: "confirmed" }] } },
+    { name: "galleryId", title: "Proof gallery document", type: "string", readOnly: true },
+    { name: "latestVersion", title: "Latest confirmed version", type: "number", readOnly: true },
+    { name: "items", title: "Selected proofs", type: "array", readOnly: true, of: [{ type: "object", fields: [
+      { name: "reference", title: "Proof number", type: "string", readOnly: true },
+    ] }] },
+  ],
+  preview: { select: { title: "galleryId", subtitle: "state" } },
+};
 
 export const clientProofSelectionVersionType: SchemaTypeDefinition = {
   name: "clientProofSelectionVersion", title: "Confirmed proof selection", type: "document",

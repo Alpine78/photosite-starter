@@ -4,6 +4,7 @@ const resources = {
   "structure.client-galleries.title": "Asiakasgalleriat",
   "structure.proof-galleries.title": "Vedosgalleriat",
   "structure.proof-selections.title": "Vahvistetut vedosvalinnat",
+  "structure.proof-working-selections.title": "Vedosvalinnat",
   "structure.proof-notices.title": "Toimenpiteitä vaativat vedosilmoitukset",
   "structure.content.title": "Sisältö",
   "structure.home-page.title": "Etusivu",

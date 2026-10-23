@@ -19,6 +19,7 @@ const titleKeys = {
   clientDeliveryGallery: "structure.client-galleries.title",
   clientProofGallery: "structure.proof-galleries.title",
   clientProofSelectionVersion: "structure.proof-selections.title",
+  clientProofSelection: "structure.proof-working-selections.title",
   proofNoticesNeedingAction: "structure.proof-notices.title",
   content: "structure.content.title",
   homePage: "structure.home-page.title",

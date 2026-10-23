@@ -524,6 +524,18 @@ Records how decision 6 is implemented; it changes no decision.
   templates or actions, and a list of notices failed or pending for more than five
   minutes. Resend stays deferred (owner answer 2).
 
+## Implementation note — 2026-10-23: reopening a selection (decision 5)
+
+Records how the administrator's reopen is implemented; it changes no decision. A Studio
+document action on the read-only `clientProofSelection` record, with the editor's own
+session, patches the working selection's `state` back to `open` under the revision
+captured when its confirmation dialog opened, so a newer confirmation the editor never saw
+is never reopened. Items, `latestVersion`, versions, notices and the terms are untouched,
+so the customer's next confirmation creates `v<n+1>`. A conflict or an unknown result
+tells the editor to reload; nothing is retried. At the 999-version limit reopening is not
+offered, since the selection could never be confirmed again. An open customer page shows
+the change after a reload; nothing polls.
+
 ## Amendment — 2026-10-23: reminder language, settings and stopping (owner decisions)
 
 **Context.** Planning the reminder sender (action item 5) found three gaps in decision 9:

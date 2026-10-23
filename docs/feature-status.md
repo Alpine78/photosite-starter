@@ -11,6 +11,13 @@ loaded terms revision, recording `reminderResumeAfter` so a change waits for the
 Expiry and replacement only pause reminders. Not yet: the daily sender and the customer's
 own stop link (next slice), data-flow documentation and the hosted check.
 
+Proof selection reopen, 2026-10-23 — AB#130 **Active** (ADR-0038 decision 5): Studio
+shows working selections read-only, and a confirmed one offers **Reopen selection**,
+which patches the state back to `open` under the revision reviewed in its confirmation
+dialog; versions and notices stay, the next confirmation becomes `v<n+1>`, and the
+999-version limit disables it. Not yet: reminders, the data-flow and retention
+documentation (action item 6) and the owner-run hosted check.
+
 Proof selection photographer notice, 2026-10-23 — AB#130 **Active** (ADR-0038 action
 item 4): after a committed confirmation the route emails the owner's contact mailbox from
 the immutable version (job reference, totals, proof numbers and filenames) with the
