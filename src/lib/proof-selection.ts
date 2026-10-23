@@ -239,3 +239,24 @@ export function planConfirm(gallery: SelectionGallery, terms: SelectionTerms, se
     ],
   };
 }
+
+/** Just enough of the terms to authenticate a reminder stop; prices and selection state do not matter. */
+export type ReminderStopTerms = Readonly<{ revision: string; keyHash: string; remindersOn: boolean }>;
+
+export function parseReminderStopTerms(value: unknown, galleryId: string): ReminderStopTerms {
+  const row = record(value);
+  if (row._id !== proofTermsDocumentId(galleryId) || row._type !== TERMS_TYPE || row.galleryId !== galleryId) return invalid();
+  if (typeof row.selectionKeyHash !== "string" || !/^[a-f0-9]{64}$/u.test(row.selectionKeyHash)) return invalid();
+  return { revision: revision(row._rev), keyHash: row.selectionKeyHash, remindersOn: row.reminderDelayDays != null };
+}
+
+/**
+ * The customer's stop: reminders off, the address and language deleted, the
+ * stop recorded, under the revision whose key was checked. Nothing when they
+ * are already off.
+ */
+export function planReminderStop(galleryId: string, terms: ReminderStopTerms, now: string): readonly Record<string, unknown>[] | undefined {
+  if (!terms.remindersOn) return undefined;
+  return [{ patch: { id: proofTermsDocumentId(galleryId), ifRevisionID: terms.revision,
+    set: { reminderDelayDays: null, reminderStoppedAt: now, reminderStoppedBy: "customer" }, unset: ["customerEmail", "customerLocale"] } }];
+}

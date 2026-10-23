@@ -35,6 +35,8 @@ describe("proof selection request body", () => {
     expect(parseProofSelectionBody(JSON.stringify({ operation: "select", handle, key, expectedRevision: null, references: ["002", "001"] })))
       .toEqual({ operation: "select", handle, key, expectedRevision: null, references: ["002", "001"] });
     expect(parseProofSelectionBody(JSON.stringify({ operation: "confirm", handle, key, expectedRevision: "rev1" }))).toMatchObject({ operation: "confirm", expectedRevision: "rev1" });
+    expect(parseProofSelectionBody(JSON.stringify({ operation: "stop-reminders", handle, key }))).toEqual({ operation: "stop-reminders", handle, key });
+    expect(parseProofSelectionBody(JSON.stringify({ operation: "stop-reminders", handle, key, email: "x@example.fi" }))).toBeUndefined();
   });
 
   it.each([

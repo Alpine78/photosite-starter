@@ -87,6 +87,7 @@ export type SubmissionState =
   | "key-rotated"
   | "selected"
   | "confirmed"
+  | "reminders-stopped"
   | "unknown"
   | "failed";
 
@@ -208,7 +209,7 @@ export type ProofSelectionErrorClass =
   | "conflict" | "confirmed" | "unknown-reference" | "empty" | "stale-selection"
   | "malformed-record" | "store-unavailable" | "internal";
 export type ProofSelectionEvent =
-  | { readonly correlationId: string; readonly state: "selected" | "confirmed"; readonly errorClass?: never }
+  | { readonly correlationId: string; readonly state: "selected" | "confirmed" | "reminders-stopped"; readonly errorClass?: never }
   | { readonly correlationId: string; readonly state: "rejected" | "failed" | "unknown"; readonly errorClass: ProofSelectionErrorClass };
 
 /** The photographer's notice after a confirmation: closed classes only, never content (ADR-0038 decision 6). */

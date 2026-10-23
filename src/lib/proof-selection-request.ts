@@ -40,7 +40,9 @@ export function readProofSelectionConfig(environment: Readonly<Record<string, st
 export type ProofSelectionRequest =
   | Readonly<{ operation: "read"; handle: string; key: string }>
   | Readonly<{ operation: "select"; handle: string; key: string; expectedRevision: string | null; references: readonly string[] }>
-  | Readonly<{ operation: "confirm"; handle: string; key: string; expectedRevision: string }>;
+  | Readonly<{ operation: "confirm"; handle: string; key: string; expectedRevision: string }>
+  /** The customer's own reminder stop (ADR-0038 amendment 2026-10-23); works while selection is closed. */
+  | Readonly<{ operation: "stop-reminders"; handle: string; key: string }>;
 
 function exactKeys(record: Record<string, unknown>, names: readonly string[]): boolean {
   const keys = Object.keys(record);
@@ -57,6 +59,7 @@ export function parseProofSelectionBody(body: string | undefined): ProofSelectio
   if (!isClientGalleryHandle(row.handle) || typeof row.key !== "string" || !KEY.test(row.key)) return undefined;
   const base = { handle: row.handle, key: row.key };
   if (row.operation === "read") return exactKeys(row, ["operation", "handle", "key"]) ? { operation: "read", ...base } : undefined;
+  if (row.operation === "stop-reminders") return exactKeys(row, ["operation", "handle", "key"]) ? { operation: "stop-reminders", ...base } : undefined;
   if (row.operation === "confirm") {
     return exactKeys(row, ["operation", "handle", "key", "expectedRevision"]) && typeof row.expectedRevision === "string" && REVISION.test(row.expectedRevision)
       ? { operation: "confirm", ...base, expectedRevision: row.expectedRevision } : undefined;

@@ -29,10 +29,12 @@ function lake() {
         if (next.has(doc._id as string)) throw new ProofSelectionStoreError("conflict");
         next.set(doc._id as string, { ...doc, _rev: `r${++counter}` });
       } else {
-        const patch = mutation.patch as { id: string; ifRevisionID: string; set: Record<string, unknown> };
+        const patch = mutation.patch as { id: string; ifRevisionID: string; set?: Record<string, unknown>; unset?: string[] };
         const current = next.get(patch.id);
         if (!current || current._rev !== patch.ifRevisionID) throw new ProofSelectionStoreError("conflict");
-        next.set(patch.id, { ...current, ...patch.set, _rev: `r${++counter}` });
+        const updated: Record<string, unknown> = { ...current, ...patch.set, _rev: `r${++counter}` };
+        for (const field of patch.unset ?? []) delete updated[field];
+        next.set(patch.id, updated);
       }
     }
     documents.clear(); for (const [id, doc] of next) documents.set(id, doc);
@@ -337,5 +339,55 @@ describe("proof selection facade", () => {
     expect(await run({ operation: "confirm", expectedRevision: changed.selection.revision })).toMatchObject({ outcome: "ok", selection: { state: "confirmed", version: 2, references: ["001", "002"] } });
     expect(world.documents.get("proofSelection.g1.v1")).toMatchObject({ totals: { selected: 1 } });
     expect(world.documents.get("proofNotice.g1.v1")).toBeDefined(); expect(world.documents.get("proofNotice.g1.v2")).toBeDefined();
+  });
+
+  describe("the customer's reminder stop (ADR-0038 amendment 2026-10-23)", () => {
+    const remindersOn = () => world.put({ ...world.documents.get("proofTerms.g1")!, reminderDelayDays: 7, customerEmail: "c@example.fi", customerLocale: "fi" });
+    const stop = (key_ = key) => runProofSelection({ operation: "stop-reminders", handle, key: key_ } as never, "token", deps());
+
+    it("turns reminders off, deletes the address and language, and answers nothing about the selection", async () => {
+      remindersOn();
+      const result = await stop();
+      expect(result).toEqual({ outcome: "stopped" });
+      const terms = world.documents.get("proofTerms.g1")!;
+      expect(terms).toMatchObject({ reminderDelayDays: null, reminderStoppedBy: "customer", reminderStoppedAt: "2026-10-23T10:00:00.000Z" });
+      expect(terms).not.toHaveProperty("customerEmail"); expect(terms).not.toHaveProperty("customerLocale");
+      expect(terms).toMatchObject({ includedCount: 1, currency: "EUR", selectionKeyHash: hash });
+    });
+
+    it("works while the gallery is paused, expired or replaced, without reading the replacement", async () => {
+      for (const patch of [{ available: false }, { availabilityMode: "until", expiryInstant: "2026-10-01T00:00:00.000Z" }, { replacedBy: { _type: "reference", _ref: "delivery1", _weak: true } }]) {
+        world = lake(); remindersOn(); world.put({ ...world.documents.get("g1")!, ...patch });
+        const replacementAvailable = vi.fn(async () => true);
+        expect(await runProofSelection({ operation: "stop-reminders", handle, key } as never, "token", deps({ replacementAvailable }))).toEqual({ outcome: "stopped" });
+        expect(replacementAvailable).not.toHaveBeenCalled();
+      }
+    });
+
+    it("refuses a wrong or rotated key exactly like an unknown handle, and changes nothing", async () => {
+      remindersOn();
+      expect(await stop(other.key)).toEqual({ outcome: "unavailable" });
+      expect(await runProofSelection({ operation: "stop-reminders", handle: "d".repeat(32), key } as never, "token", deps())).toEqual({ outcome: "unavailable" });
+      expect(world.documents.get("proofTerms.g1")).toMatchObject({ reminderDelayDays: 7, customerEmail: "c@example.fi" });
+    });
+
+    it("answers stopped without writing when reminders are already off", async () => {
+      expect(await stop()).toEqual({ outcome: "stopped" });
+      expect(world.store.commit).not.toHaveBeenCalled();
+    });
+
+    it("re-plans once after a conflicting change and never reports a stop it did not make", async () => {
+      remindersOn();
+      const commit = world.store.commit.getMockImplementation()!;
+      world.store.commit.mockImplementationOnce(async (mutations) => {
+        world.put({ ...world.documents.get("proofTerms.g1")!, lastSelectedAt: "x" });
+        return commit(mutations);
+      });
+      expect(await stop()).toEqual({ outcome: "stopped" });
+      expect(world.documents.get("proofTerms.g1")).toMatchObject({ reminderDelayDays: null });
+      world = lake(); remindersOn();
+      world.store.commit.mockImplementation(async () => { throw new ProofSelectionStoreError("conflict"); });
+      expect(await stop()).toEqual({ outcome: "failed", reason: "store-unavailable" });
+    });
   });
 });
