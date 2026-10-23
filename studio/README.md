@@ -513,6 +513,12 @@ without proof galleries keeps Sanity's default sign-in.
   follow **Confirmed selection** to read the customer's version: job reference, totals and
   every proof number with its original filename. **Confirmed proof selections** lists all
   versions. Both are read-only; there is no resend.
+- **Proof selections / Vedosvalinnat** lists each customer's working selection. A
+  confirmed one offers **Reopen selection / Avaa valinta uudelleen**: after a confirmation
+  step it reopens exactly the state you reviewed (a selection changed meanwhile is left
+  alone), so the customer can change it and confirm the next version. Earlier versions and
+  their notices stay. A page the customer already has open shows the change after a
+  reload. At the 999-version limit reopening is not offered.
 - Unpublish and delete are not offered for proof galleries: the published document holds
   the fixed proof numbers, **Available to link holders** pauses the page, and deletion waits for a cleanup
   that also removes the private terms. Only discarding a draft remains.

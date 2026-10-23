@@ -2,6 +2,12 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Proof selection reopen, 2026-10-23 — AB#130 **Active** (ADR-0038 decision 5): Studio
+shows working selections read-only, and a confirmed one offers **Reopen selection**,
+which patches the state back to `open` under the revision reviewed in its confirmation
+dialog; versions and notices stay, the next confirmation becomes `v<n+1>`, and the
+999-version limit disables it. Not yet: reminders, the data-flow and retention
+documentation (action item 6) and the owner-run hosted check.
 Proof selection photographer notice, 2026-10-23 — AB#130 **Active** (ADR-0038 action
 item 4): after a committed confirmation the route emails the owner's contact mailbox from
 the immutable version (job reference, totals, proof numbers and filenames) with the

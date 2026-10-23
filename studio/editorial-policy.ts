@@ -32,8 +32,10 @@ export function isImporterType(type: string): boolean {
  */
 export const PROOF_GALLERY_LIST = { type: "clientProofGallery", title: "Proof galleries" } as const;
 /** Written only by the site (ADR-0038); read-only in Studio, never created, edited or resent. */
-export const PROOF_RECORD_TYPES = ["clientProofSelectionVersion", "clientProofNotice"] as const;
+export const PROOF_RECORD_TYPES = ["clientProofSelection", "clientProofSelectionVersion", "clientProofNotice"] as const;
 export const PROOF_SELECTION_LIST = { type: "clientProofSelectionVersion", title: "Confirmed proof selections" } as const;
+/** Working selections, where a confirmed one can be reopened (decision 5). */
+export const PROOF_WORKING_SELECTION_LIST = { type: "clientProofSelection", title: "Proof selections" } as const;
 /** Failed, or pending longer than five minutes: the email may not have arrived (decision 6). */
 export const PROOF_NOTICES_NEEDING_ACTION_FILTER =
   '_type == "clientProofNotice" && (state == "failed" || (state == "pending" && dateTime(createdAt) < dateTime(now()) - 300))';
