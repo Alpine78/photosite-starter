@@ -1,6 +1,7 @@
 import { CreateLanguageVersionAction } from "./localized-draft-action";
 import { ShareClientGalleryAction } from "./client-gallery-share-action";
 import { PublishProofGalleryAction, RotateProofKeyAction } from "./proof-publish-action";
+import { ProofReminderSettingsAction } from "./proof-reminder-settings-action";
 import { defineConfig, type SchemaTypeDefinition } from "sanity";
 import { coreLocaleAdditions } from "./core-locale-additions";
 import { LocaleNavbar, LocaleToolMenu } from "./locale-navbar";
@@ -56,7 +57,7 @@ export default defineConfig({
     actions: (actions, { schemaType }) => {
       const allowed = actions.filter(({ action }) => allowAction(schemaType, action));
       if (schemaType === "clientDeliveryGallery") return [...allowed, ShareClientGalleryAction];
-      if (schemaType === "clientProofGallery") return [PublishProofGalleryAction, ...allowed, RotateProofKeyAction];
+      if (schemaType === "clientProofGallery") return [PublishProofGalleryAction, ...allowed, RotateProofKeyAction, ProofReminderSettingsAction];
       return ["article", "gallery"].includes(schemaType) ? [...allowed, CreateLanguageVersionAction] : allowed;
     },
   },

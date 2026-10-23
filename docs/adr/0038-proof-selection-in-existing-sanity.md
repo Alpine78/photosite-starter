@@ -524,3 +524,45 @@ Records how decision 6 is implemented; it changes no decision.
   templates or actions, and a list of notices failed or pending for more than five
   minutes. Resend stays deferred (owner answer 2).
 
+## Amendment — 2026-10-23: reminder language, settings and stopping (owner decisions)
+
+**Context.** Planning the reminder sender (action item 5) found three gaps in decision 9:
+galleries have no language for the reminder, settings could only be given at first
+publication, and "stop for good" on expiry or replacement cannot be observed reliably by
+a daily job that sees only the current state.
+
+**Decisions (owner, 2026-10-23).**
+
+1. **Customer language.** Each gallery's reminder settings hold the customer's language,
+   one of the site's configured locales, chosen in the first-publication dialog beside
+   the other reminder fields (default: the site's default locale). The reminder's text,
+   the gallery title and the link's `?locale=` use it, and the selection link shown at
+   publication starts in the same language. The publication route and the Studio
+   settings action both refuse a language the site does not offer.
+2. **Changing reminders after publication.** A Studio **Reminder settings** action on a
+   published proof gallery switches reminders on or off and changes the delay, address
+   and language, with the editor's own session and one patch guarded by the revision it
+   loaded; prices and keys are never read or written. Switching off removes the address
+   and language and records `reminderStoppedAt` / `reminderStoppedBy`. Switching on, or
+   changing the delay, records `reminderResumeAfter`: a step is sent only if its due time
+   is strictly after it, so the first reminder after the change is the next 30-day step
+   (or the first step, if still in the future); step numbers and their records stay.
+   Re-enabling clears the stop marker. **Every reminder email also carries a link with
+   which the customer can cancel reminders themselves.**
+3. **Expiry and replacement pause reminders.** They continue when the gallery is
+   available, before its deadline and not replaced again. Reminders stop for good only
+   once a version has been confirmed — whether or not the selection was later reopened,
+   and an administrator re-enabling does not override it — or when the administrator or
+   the customer switches them off (an administrator can switch them back on).
+
+**Design of the customer's stop (implemented with the sender).** The link opens the proof
+page with the selection key in the fragment and a stop request; the page asks for an
+explicit confirmation, and only that button sends a same-origin POST authenticated by
+the key. Opening the link changes nothing, because mail clients and scanners fetch links
+on their own. Stopping must work while reminders are paused — after expiry or
+replacement — without showing expired proofs. It sets the reminder off and deletes the
+customer's address and language.
+
+**Sections affected:** Decision 9 (setting, cadence wording "stop for good", message
+language) and action item 5.
+

@@ -16,7 +16,7 @@ const gallery = (id: string, items: unknown[], extra: Record<string, unknown> = 
 });
 const assets = (...ns: string[]) => ns.map((n) => ({ _id: asset(n), _type: "sanity.imageAsset", extension: "webp", mimeType: "image/webp", sha1hash: n.repeat(40), width: 1600, height: 1000, restricted: false }));
 const terms = { _id: "proofTerms.g1", _rev: "termsrev", _type: "clientProofTerms", galleryId: "g1" };
-const entered = { includedCount: 10, extraUnitPriceMinor: 1500, currency: "EUR", jobReference: "job-1", reminder: { delayDays: 7, customerEmail: "asiakas@example.fi" } };
+const entered = { includedCount: 10, extraUnitPriceMinor: 1500, currency: "EUR", jobReference: "job-1", reminder: { delayDays: 7, customerEmail: "asiakas@example.fi", locale: "fi" } };
 function plan(read: Partial<PublicationRead>, overrides: Partial<PlanInput> = {}) {
   const full: PublicationRead = { draft: null, published: null, terms: null, versions: 0, ...read };
   // By default every asset the draft references exists and is valid.
@@ -39,7 +39,7 @@ describe("proof publication planning (ADR-0038, AB#130)", () => {
     expect(createGallery.create).not.toHaveProperty("_rev");
     const record = createTerms.create as Record<string, unknown>;
     expect(record).toMatchObject({ _id: "proofTerms.g1", _type: "clientProofTerms", galleryId: "g1", firstPublishedAt: now, keyIssuedAt: now,
-      includedCount: 10, extraUnitPriceMinor: 1500, currency: "EUR", jobReference: "job-1", reminderDelayDays: 7, customerEmail: "asiakas@example.fi" });
+      includedCount: 10, extraUnitPriceMinor: 1500, currency: "EUR", jobReference: "job-1", reminderDelayDays: 7, customerEmail: "asiakas@example.fi", customerLocale: "fi" });
     expect(record.selectionKeyHash).toBe(selectionKeyHash(result.selectionKey!));
     expect(decryptSelectionKey(record.selectionKeyCiphertext, "g1", secret)).toBe(result.selectionKey);
     expect(JSON.stringify(result.mutations)).not.toContain(result.selectionKey!);
@@ -108,6 +108,7 @@ describe("proof publication planning (ADR-0038, AB#130)", () => {
     const record = (noReminder.mutations[2] as { create: Record<string, unknown> }).create;
     expect(record.reminderDelayDays).toBeNull();
     expect(record).not.toHaveProperty("customerEmail");
+    expect(record).not.toHaveProperty("customerLocale");
   });
 
   it("refuses a handle conflict and private-only, mismatched or missing assets", () => {

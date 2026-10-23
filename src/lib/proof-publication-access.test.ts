@@ -7,7 +7,7 @@ const secret = Buffer.alloc(32, 9);
 const asset = `image-${"a".repeat(40)}-1600x1000-webp`;
 const draft = { _id: "drafts.GALLERY", _type: "clientProofGallery", _rev: "r1", handle: "c".repeat(32), available: false, availabilityMode: "indefinite",
   items: [{ _key: "k1", _type: "clientProofItem", mediaType: "image", originalFilename: "IMG_1.jpg", image: { _type: "image", asset: { _type: "reference", _ref: asset } } }] };
-const terms = { includedCount: 10, extraUnitPriceMinor: 1500, currency: "EUR", jobReference: "job-1", reminder: { delayDays: 7, customerEmail: "asiakas@example.fi" } };
+const terms = { includedCount: 10, extraUnitPriceMinor: 1500, currency: "EUR", jobReference: "job-1", reminder: { delayDays: 7, customerEmail: "asiakas@example.fi", locale: "fi" } };
 const assets = [{ _id: asset, _type: "sanity.imageAsset", extension: "webp", mimeType: "image/webp", sha1hash: "a".repeat(40), width: 1600, height: 1000, restricted: false }];
 
 function sanity(responses: Record<string, () => Response>) {

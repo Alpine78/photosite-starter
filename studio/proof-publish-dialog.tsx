@@ -14,9 +14,10 @@ export type ProofDialogRequest =
   | { operation: "rotate-key"; galleryId: string; handle: string };
 
 /** The selection link, shown once, with the same copy-or-select fallback as the client gallery link. */
-function SelectionLink({ site, handle, selectionKey, copy }: { site: ClientGallerySite; handle: string; selectionKey: string; copy: Copy }) {
+function SelectionLink({ site, handle, selectionKey, copy, initialLanguage = "" }: { site: ClientGallerySite; handle: string; selectionKey: string; copy: Copy; initialLanguage?: string }) {
   const id = useId(), input = useRef<HTMLInputElement>(null);
-  const [language, setLanguage] = useState("");
+  // Starts in the customer's language chosen at publication; the site default needs no query.
+  const [language, setLanguage] = useState(initialLanguage === site.defaultLocale ? "" : initialLanguage);
   const [outcome, setOutcome] = useState<{ url: string; result: "copied" | "manual" }>();
   const url = proofSelectionUrl(site, handle, selectionKey, language) ?? "";
   useEffect(() => { input.current?.focus(); input.current?.select(); }, []);
@@ -43,8 +44,8 @@ function SelectionLink({ site, handle, selectionKey, copy }: { site: ClientGalle
   </>;
 }
 
-function TermsFields({ form, invalid, onChange, copy, disabled }: {
-  form: ProofTermsForm; invalid: readonly ProofTermsField[]; onChange(next: ProofTermsForm): void; copy: Copy; disabled: boolean;
+function TermsFields({ form, invalid, onChange, copy, disabled, locales }: {
+  form: ProofTermsForm; invalid: readonly ProofTermsField[]; onChange(next: ProofTermsForm): void; copy: Copy; disabled: boolean; locales: readonly string[];
 }) {
   const id = useId();
   const field = (name: ProofTermsField, control: ReactNode) => <p>
@@ -64,6 +65,10 @@ function TermsFields({ form, invalid, onChange, copy, disabled }: {
     </select>)}
     {text("extraUnitPrice", "decimal")}
     {text("jobReference")}
+    {field("reminderLocale", <select id={`${id}-reminderLocale`} value={form.reminderLocale} disabled={disabled}
+      onChange={(event) => onChange({ ...form, reminderLocale: event.target.value })} {...describe("reminderLocale")}>
+      {locales.map((tag) => <option key={tag} value={tag}>{copy.languages[new Intl.Locale(tag).language] ?? tag} ({tag})</option>)}
+    </select>)}
     <p><label><input type="checkbox" checked={form.reminder} disabled={disabled}
       onChange={(event) => onChange({ ...form, reminder: event.target.checked })} />{" "}{copy.fields.reminder}</label></p>
     {form.reminder ? <>{text("reminderDays", "numeric")}{text("customerEmail", "email")}</> : null}
@@ -81,7 +86,7 @@ export function ProofPublishDialog({ request, site, locale, readToken, fetcher, 
   readToken(): string | undefined; fetcher: typeof fetch; onBusy(busy: boolean): void; onClose(): void;
 }) {
   const copy = proofPublishCopy(locale);
-  const [form, setForm] = useState(defaultProofTermsForm);
+  const [form, setForm] = useState(() => defaultProofTermsForm(site.defaultLocale ?? site.locales[0] ?? ""));
   const [invalid, setInvalid] = useState<ProofTermsField[]>([]);
   const [pending, setPending] = useState(false);
   const [problem, setProblem] = useState<string>();
@@ -97,7 +102,7 @@ export function ProofPublishDialog({ request, site, locale, readToken, fetcher, 
     else {
       body = { galleryId: request.galleryId, operation: "publish", expectedDraftRevision: request.expectedDraftRevision };
       if (first) {
-        const read = readProofTermsForm(form);
+        const read = readProofTermsForm(form, site.locales);
         if ("invalid" in read) { setInvalid(read.invalid); return; }
         body.terms = read.terms;
       }
@@ -121,14 +126,14 @@ export function ProofPublishDialog({ request, site, locale, readToken, fetcher, 
       {result.kind === "unknown" ? <p role="alert">{unknown}</p> : null}
       {result.kind === "published" ? <p role="status">{copy.published}</p> : null}
       {(result.kind === "published" || result.kind === "key-rotated") && result.selectionKey
-        ? <SelectionLink site={site} handle={request.handle} selectionKey={result.selectionKey} copy={copy} /> : null}
+        ? <SelectionLink site={site} handle={request.handle} selectionKey={result.selectionKey} copy={copy} initialLanguage={first ? form.reminderLocale : ""} /> : null}
       <button type="button" onClick={onClose}>{copy.close}</button>
     </div>;
   }
   const rotate = request.operation === "rotate-key";
   return <div>
     <p>{rotate ? copy.rotateWarning : first ? copy.first : copy.later}</p>
-    {first ? <TermsFields form={form} invalid={invalid} onChange={setForm} copy={copy} disabled={pending} /> : null}
+    {first ? <TermsFields form={form} invalid={invalid} onChange={setForm} copy={copy} disabled={pending} locales={site.locales} /> : null}
     <p role="alert">{problem ?? ""}</p>
     <button type="button" disabled={pending} onClick={() => void submit()}>
       {pending ? (rotate ? copy.rotating : copy.sending) : rotate ? copy.rotateConfirm : copy.send}

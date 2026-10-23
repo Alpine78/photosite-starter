@@ -86,3 +86,11 @@ describe("Studio proof gallery switch (ADR-0038, AB#130)", () => {
     expect(() => loadStudioSettings({ ...environment, SANITY_STUDIO_PROOF_GALLERIES: value })).toThrow("SANITY_STUDIO_PROOF_GALLERIES");
   });
 });
+
+describe("Studio site locales for proof links (ADR-0038)", () => {
+  it("names the locale that owns the unprefixed routes, wherever it sits in the table", () => {
+    const site = loadStudioSettings({ ...environment, SANITY_STUDIO_SITE_ORIGIN: "https://example.com", SANITY_STUDIO_LOCALE_ROUTES: "en-GB|en|stories,fi||tarinat" }).clientGallerySite;
+    expect(site).toEqual({ origin: "https://example.com", locales: ["en-GB", "fi"], defaultLocale: "fi" });
+  });
+});
+

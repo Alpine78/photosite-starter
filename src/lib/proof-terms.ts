@@ -14,7 +14,8 @@ export const PROOF_MAX_PRICE_MINOR = 100_000_000;
 export const PROOF_MAX_REMINDER_DAYS = 365;
 export const PROOF_JOB_REFERENCE_MAX = 100;
 
-export type ProofReminderTerms = Readonly<{ delayDays: number; customerEmail: string }>;
+/** `locale`: the customer's language for the reminder and its link (owner decision 2026-10-23). */
+export type ProofReminderTerms = Readonly<{ delayDays: number; customerEmail: string; locale: string }>;
 export type ProofTerms = Readonly<{
   includedCount: number;
   extraUnitPriceMinor: number;
@@ -41,6 +42,15 @@ export function isProofCustomerEmail(value: unknown): value is string {
     /^[A-Za-z]{2,63}$|^xn--[A-Za-z0-9-]{1,59}$/u.test(labels[labels.length - 1]);
 }
 
+/**
+ * A canonical BCP 47 tag, judged by `Intl.Locale` exactly as the site's locale
+ * configuration is; the route and Studio also require a configured locale.
+ */
+export function isProofLocaleTag(value: unknown): value is string {
+  if (typeof value !== "string" || value.length < 2 || value.length > 64) return false;
+  try { return new Intl.Locale(value).toString() === value; } catch { return false; }
+}
+
 /** The closed terms object, or `undefined`. */
 export function parseProofTerms(value: unknown): ProofTerms | undefined {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
@@ -56,9 +66,9 @@ export function parseProofTerms(value: unknown): ProofTerms | undefined {
   if (reminder !== null) {
     if (typeof reminder !== "object" || Array.isArray(reminder) || reminder === undefined) return undefined;
     const r = reminder as Record<string, unknown>;
-    if (Object.keys(r).length !== 2 || !Number.isSafeInteger(r.delayDays) || (r.delayDays as number) < 1 ||
-      (r.delayDays as number) > PROOF_MAX_REMINDER_DAYS || !isProofCustomerEmail(r.customerEmail)) return undefined;
-    parsedReminder = { delayDays: r.delayDays as number, customerEmail: r.customerEmail };
+    if (Object.keys(r).length !== 3 || !Number.isSafeInteger(r.delayDays) || (r.delayDays as number) < 1 ||
+      (r.delayDays as number) > PROOF_MAX_REMINDER_DAYS || !isProofCustomerEmail(r.customerEmail) || !isProofLocaleTag(r.locale)) return undefined;
+    parsedReminder = { delayDays: r.delayDays as number, customerEmail: r.customerEmail, locale: r.locale };
   }
   return { includedCount: includedCount as number, extraUnitPriceMinor: extraUnitPriceMinor as number,
     currency, jobReference: jobReference as string, reminder: parsedReminder };

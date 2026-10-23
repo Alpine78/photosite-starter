@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { isProofCustomerEmail, parseProofPrice, parseProofTerms } from "./proof-terms";
 
-const terms = { includedCount: 20, extraUnitPriceMinor: 1500, currency: "EUR", jobReference: "2026-17", reminder: { delayDays: 7, customerEmail: "asiakas@example.fi" } };
+const terms = { includedCount: 20, extraUnitPriceMinor: 1500, currency: "EUR", jobReference: "2026-17", reminder: { delayDays: 7, customerEmail: "asiakas@example.fi", locale: "fi" } };
 
 describe("proof terms (ADR-0038 decisions 3 and 9)", () => {
   it("parses prices as text in the currency's minor units", () => {
@@ -20,7 +20,7 @@ describe("proof terms (ADR-0038 decisions 3 and 9)", () => {
     for (const bad of [
       { ...terms, currency: "eur" }, { ...terms, currency: "XAU" }, { ...terms, includedCount: -1 }, { ...terms, includedCount: 1.5 },
       { ...terms, extraUnitPriceMinor: 100_000_001 }, { ...terms, jobReference: "" }, { ...terms, jobReference: " padded" },
-      { ...terms, jobReference: "x".repeat(101) }, { ...terms, reminder: { delayDays: 0, customerEmail: "a@example.fi" } },
+      { ...terms, jobReference: "x".repeat(101) }, { ...terms, reminder: { delayDays: 0, customerEmail: "a@example.fi", locale: "fi" } }, { ...terms, reminder: { delayDays: 7, customerEmail: "a@example.fi", locale: "Finnish" } },
       { ...terms, reminder: { delayDays: 7 } }, { ...terms, reminder: { delayDays: 7, customerEmail: "not-an-address" } },
       { ...terms, extra: 1 }, { includedCount: 1 }, null, [],
     ]) expect(parseProofTerms(bad)).toBeUndefined();
