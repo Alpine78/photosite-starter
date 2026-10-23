@@ -15,6 +15,7 @@ import { parseProofGallery, PROOF_GALLERY_OPTIONAL_FIELDS, publishedProofState, 
 import { assignProofReferences, NEVER_PUBLISHED, proofReferenceProblem, type PublishedProofState } from "@/lib/proof-references";
 import { createSelectionKey, encryptSelectionKey } from "@/lib/proof-selection-key";
 import type { ProofPublicationOperation } from "@/lib/proof-publication-request";
+import type { ProofTerms } from "@/lib/proof-terms";
 
 export const PROOF_TERMS_TYPE = "clientProofTerms";
 export const proofTermsId = (galleryId: string) => `proofTerms.${galleryId}`;
@@ -29,7 +30,10 @@ export type PublicationRejection =
   | "invalid-gallery"
   | "unsupported-release"
   | "inconsistent"
-  | "invalid-references";
+  | "invalid-references"
+  | "stale-draft"
+  | "terms-required"
+  | "terms-not-allowed";
 
 export type PublicationPlan =
   | Readonly<{ kind: "rejected"; reason: PublicationRejection }>
@@ -103,8 +107,24 @@ export type PlanInput = Readonly<{
   related?: PublicationRelated;
   now: string;
   secret: Buffer;
+  /** The draft revision the editor's validated view was based on (publish only). */
+  expectedDraftRevision?: string;
+  /** Required on a first publication, refused on a later one. */
+  terms?: ProofTerms;
   createKey?: typeof createSelectionKey;
 }>;
+
+/** The private record's snapshot of the terms; the address only when a reminder is on. */
+function termsFields(terms: ProofTerms) {
+  return {
+    includedCount: terms.includedCount,
+    extraUnitPriceMinor: terms.extraUnitPriceMinor,
+    currency: terms.currency,
+    jobReference: terms.jobReference,
+    reminderDelayDays: terms.reminder?.delayDays ?? null,
+    ...(terms.reminder === null ? {} : { customerEmail: terms.reminder.customerEmail }),
+  };
+}
 
 /** Which documents the plan needs related data for, so the route can read it before planning. */
 export function relatedQueryInput(galleryId: string, read: PublicationRead): Readonly<{ handle: string; assetIds: string[] }> | undefined {
@@ -146,9 +166,13 @@ export function planProofPublication(input: PlanInput): PublicationPlan {
   const draft = parse(read.draft, proofDraftId(galleryId));
   if (draft === undefined) return reject("not-found");
   if (draft === "invalid") return reject("invalid-gallery");
+  // Publish only the draft the editor reviewed: a newer edit must be validated first.
+  if (input.expectedDraftRevision === undefined || draft.revision !== input.expectedDraftRevision) return reject("stale-draft");
   // A first publication creates the private record; a later one needs it.
   if ((published === undefined) !== (existingTerms === undefined)) return reject("inconsistent");
   if (published !== undefined && published.handle !== draft.handle) return reject("invalid-gallery");
+  if (published === undefined && input.terms === undefined) return reject("terms-required");
+  if (published !== undefined && input.terms !== undefined) return reject("terms-not-allowed");
   const related = input.related;
   const conflicts = related?.conflicts;
   if (!Array.isArray(conflicts) || conflicts.length !== 0 || !assetsAreValid(draft, related?.assets)) return reject("invalid-gallery");
@@ -169,7 +193,7 @@ export function planProofPublication(input: PlanInput): PublicationPlan {
   const draftGuard = { patch: { id: proofDraftId(galleryId), ifRevisionID: draft.revision, set: { referenceHighWater: highWater } } };
   const removeDraft = { delete: { id: proofDraftId(galleryId) } };
 
-  if (published === undefined) {
+  if (published === undefined && input.terms !== undefined) {
     const { key, hash } = createKey();
     return {
       kind: "ready",
@@ -180,7 +204,7 @@ export function planProofPublication(input: PlanInput): PublicationPlan {
         { create: body },
         { create: {
           _id: proofTermsId(galleryId), _type: PROOF_TERMS_TYPE, galleryId,
-          firstPublishedAt: now, keyIssuedAt: now,
+          firstPublishedAt: now, keyIssuedAt: now, ...termsFields(input.terms),
           selectionKeyHash: hash, selectionKeyCiphertext: encryptSelectionKey(key, galleryId, secret),
         } },
         removeDraft,
@@ -189,6 +213,7 @@ export function planProofPublication(input: PlanInput): PublicationPlan {
   }
 
   // `_id` and `_type` never change; only authored content is set.
+  if (published === undefined) return reject("terms-required");
   const set = Object.fromEntries(Object.entries(body).filter(([name]) => name !== "_id" && name !== "_type"));
   const unset = PROOF_GALLERY_OPTIONAL_FIELDS.filter((name) => !(name in set) && name in published.authored);
   return {

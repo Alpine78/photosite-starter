@@ -32,8 +32,13 @@ describe("proof publication request boundary", () => {
     }
   });
   it("accepts exactly the closed body", () => {
-    expect(parseProofPublicationBody(JSON.stringify({ galleryId: "g1", operation: "publish" }))).toEqual({ galleryId: "g1", operation: "publish" });
+    expect(parseProofPublicationBody(JSON.stringify({ galleryId: "g1", operation: "publish", expectedDraftRevision: "rev1" }))).toEqual({ galleryId: "g1", operation: "publish", expectedDraftRevision: "rev1" });
+    const terms = { includedCount: 1, extraUnitPriceMinor: 0, currency: "EUR", jobReference: "j", reminder: null };
+    expect(parseProofPublicationBody(JSON.stringify({ galleryId: "g1", operation: "publish", expectedDraftRevision: "rev1", terms }))).toEqual({ galleryId: "g1", operation: "publish", expectedDraftRevision: "rev1", terms });
     expect(parseProofPublicationBody(JSON.stringify({ operation: "rotate-key", galleryId: "abc-123_x" }))).toEqual({ galleryId: "abc-123_x", operation: "rotate-key" });
+    expect(parseProofPublicationBody(JSON.stringify({ galleryId: "g1", operation: "publish" }))).toBeUndefined();
+    expect(parseProofPublicationBody(JSON.stringify({ galleryId: "g1", operation: "publish", expectedDraftRevision: "rev1", terms: { ...terms, currency: "XXX" } }))).toBeUndefined();
+    expect(parseProofPublicationBody(JSON.stringify({ galleryId: "g1", operation: "rotate-key", expectedDraftRevision: "rev1" }))).toBeUndefined();
     for (const body of [undefined, "", "[]", "null", "{bad", JSON.stringify({ galleryId: "g1" }), JSON.stringify({ galleryId: "g1", operation: "delete" }),
       JSON.stringify({ galleryId: "drafts.g1", operation: "publish" }), JSON.stringify({ galleryId: "a".repeat(97), operation: "publish" }),
       JSON.stringify({ galleryId: "g1", operation: "publish", extra: 1 })]) {

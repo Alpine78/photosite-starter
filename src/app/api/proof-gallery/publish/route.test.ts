@@ -17,7 +17,7 @@ function request(method: "POST" | "OPTIONS", options: { origin?: string | null; 
     if (auth !== null) headers.authorization = auth;
   } else headers["access-control-request-method"] = options.preflightMethod ?? "POST";
   return new Request("https://site.example/api/proof-gallery/publish", {
-    method, headers, ...(method === "POST" ? { body: JSON.stringify(options.body ?? { galleryId: "g1", operation: "publish" }) } : {}),
+    method, headers, ...(method === "POST" ? { body: JSON.stringify(options.body ?? { galleryId: "g1", operation: "publish", expectedDraftRevision: "rev1" }) } : {}),
   });
 }
 const logs: string[] = [];
@@ -71,7 +71,7 @@ describe("proof publication route (ADR-0038 amendment 2026-10-22)", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.headers.get("access-control-allow-origin")).toBe(studio);
     expect(await response.json()).toMatchObject({ status: "published", firstPublication: true, selectionKey: key });
-    expect(access.runProofPublication).toHaveBeenCalledWith({ galleryId: "g1", operation: "publish" }, token, expect.any(Buffer));
+    expect(access.runProofPublication).toHaveBeenCalledWith({ galleryId: "g1", operation: "publish", expectedDraftRevision: "rev1" }, token, expect.any(Buffer));
     expect(logs.join("\n")).not.toContain(token);
     expect(logs.join("\n")).not.toContain(key);
     expect(logs.join("\n")).not.toContain("g1");
@@ -80,6 +80,8 @@ describe("proof publication route (ADR-0038 amendment 2026-10-22)", () => {
     [{ outcome: "rejected", reason: "not-found" }, 404],
     [{ outcome: "rejected", reason: "invalid-references" }, 422],
     [{ outcome: "rejected", reason: "inconsistent" }, 409],
+    [{ outcome: "rejected", reason: "stale-draft" }, 409],
+    [{ outcome: "rejected", reason: "terms-required" }, 422],
     [{ outcome: "rejected", reason: "rate-limited" }, 429],
     [{ outcome: "failed", reason: "unauthenticated" }, 401],
     [{ outcome: "failed", reason: "forbidden" }, 403],

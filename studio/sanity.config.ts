@@ -1,5 +1,6 @@
 import { CreateLanguageVersionAction } from "./localized-draft-action";
 import { ShareClientGalleryAction } from "./client-gallery-share-action";
+import { PublishProofGalleryAction, RotateProofKeyAction } from "./proof-publish-action";
 import { defineConfig, type SchemaTypeDefinition } from "sanity";
 import { coreLocaleAdditions } from "./core-locale-additions";
 import { LocaleNavbar, LocaleToolMenu } from "./locale-navbar";
@@ -8,7 +9,7 @@ import { structureTool } from "sanity/structure";
 import { defineSchemaTypes } from "../sanity/schemas";
 import { studioSettings } from "./environment";
 import { allowAction, allowTemplate } from "./editorial-policy";
-import { editorialStructure } from "./structure";
+import { editorialStructureFor } from "./structure";
 import { FullFramePreview } from "./full-frame-preview";
 import { withLocalizedPreview } from "./localized-preview";
 import { LocalizedField, LocalizedInput } from "./localized-form";
@@ -41,17 +42,21 @@ export default defineConfig({
   title: studioSettings.title,
   projectId: studioSettings.projectId,
   dataset: studioSettings.dataset,
+  // Proof publication sends the editor's own token to the site route, so a
+  // Studio with proof galleries keeps it readable instead of in a cookie.
+  ...(studioSettings.proofGalleries ? { auth: { loginMethod: "token" as const } } : {}),
   i18n: { bundles: [...editorialLocaleBundles, ...coreLocaleAdditions] },
-  plugins: [structureTool({ structure: editorialStructure }), fiFILocale(), localizedPresentation()],
+  plugins: [structureTool({ structure: editorialStructureFor(studioSettings) }), fiFILocale(), localizedPresentation()],
   form: { components: { field: LocalizedField, input: LocalizedInput } },
   schema: {
     types: schemaTypes,
-    templates: (templates) => templates.filter(({ schemaType }) => allowTemplate(schemaType)),
+    templates: (templates) => templates.filter(({ schemaType }) => allowTemplate(schemaType, studioSettings)),
   },
   document: {
     actions: (actions, { schemaType }) => {
       const allowed = actions.filter(({ action }) => allowAction(schemaType, action));
       if (schemaType === "clientDeliveryGallery") return [...allowed, ShareClientGalleryAction];
+      if (schemaType === "clientProofGallery") return [PublishProofGalleryAction, ...allowed, RotateProofKeyAction];
       return ["article", "gallery"].includes(schemaType) ? [...allowed, CreateLanguageVersionAction] : allowed;
     },
   },

@@ -20,4 +20,26 @@ describe("actual Studio configuration composition", () => {
     expect(compiled.get("media")?.preview?.prepare?.({ alternatives: [{ value: "Coastal view", language: "en" }] }).title).toBe("Coastal view");
     expect(compiled.get("category")?.fieldsets.some((group) => !group.single && group.name === "photositeTechnicalIdentifiers")).toBe(true);
   }, 30_000);
+
+  it.each([[undefined, false], ["enabled", true]])("wires proof galleries only when SANITY_STUDIO_PROOF_GALLERIES=%s", async (value, enabled) => {
+    vi.resetModules();
+    for (const [name, setting] of Object.entries({
+      SANITY_STUDIO_PROJECT_ID: "example1", SANITY_STUDIO_DATASET: "example",
+      SANITY_STUDIO_DATASET_VISIBILITY: "public", SANITY_STUDIO_TITLE: "Example Studio",
+      SANITY_STUDIO_LOCALE_ROUTES: "en-GB||stories|services,fi|fi|tarinat|palvelut",
+      SANITY_STUDIO_PROOF_GALLERIES: value ?? "",
+    })) vi.stubEnv(name, setting);
+    const { default: config } = await import("./sanity.config");
+    const { PublishProofGalleryAction, RotateProofKeyAction } = await import("./proof-publish-action");
+    expect(config.auth).toEqual(enabled ? { loginMethod: "token" } : undefined);
+    const native = ["publish", "unpublish", "discardChanges", "delete", "duplicate"].map((action) => Object.assign(() => null, { action }));
+    const resolve = config.document!.actions as (actions: unknown[], context: { schemaType: string }) => unknown[];
+    const actions = resolve(native, { schemaType: "clientProofGallery" });
+    expect(actions[0]).toBe(PublishProofGalleryAction);
+    expect(actions.slice(1, -1)).toEqual([native[2]]);
+    expect(actions.at(-1)).toBe(RotateProofKeyAction);
+    const templates = config.schema!.templates as (templates: { schemaType: string }[]) => { schemaType: string }[];
+    expect(templates([{ schemaType: "clientProofGallery" }, { schemaType: "article" }]).map(({ schemaType }) => schemaType))
+      .toEqual(enabled ? ["clientProofGallery", "article"] : ["article"]);
+  }, 30_000);
 });

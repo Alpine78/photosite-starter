@@ -158,13 +158,15 @@ host and is never logged or stored.
   origin receives CORS headers or reaches any Sanity call.
 - `PROOF_SELECTION_KEY_SECRET`: 32 random bytes (base64url), server-only, encrypting the
   stored copy of each selection key; a `NEXT_PUBLIC_` mirror makes the route unavailable.
-- The Studio must use `auth.loginMethod: 'token'` for the action to read the editor's
-  token; that Studio change lands with the publish action (ADR-0038 amendment
-  2026-10-22 records the trade-off).
+- The Studio side is the **Publish proof gallery** action, present only when the Studio
+  sets `SANITY_STUDIO_PROOF_GALLERIES=enabled` and `SANITY_STUDIO_SITE_ORIGIN`. That
+  Studio signs in with `auth.loginMethod: 'token'` so the action can read the editor's
+  token (ADR-0038 amendments of 2026-10-22 record the trade-off); see
+  [the Studio guide](../studio/README.md#proof-galleries-ab130).
 
-Do not enable it before the slices that author the private terms and add the Studio
-action, and before an owner-run check on the hosted Studio that `/users/me` and the
-cross-origin call behave as the unit tests assume.
+Do not enable either side before the customer page and selection route exist, and before
+an owner-run check on the hosted Studio that `/users/me` and the cross-origin call behave
+as the unit tests assume.
 
 ## Standalone editor
 

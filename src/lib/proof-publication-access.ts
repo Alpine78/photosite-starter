@@ -54,6 +54,7 @@ export async function runProofPublication(
     const plan = planProofPublication({
       galleryId: request.galleryId, operation: request.operation, read, related,
       now: (dependencies.now?.() ?? new Date()).toISOString(), secret,
+      ...(request.operation === "publish" ? { expectedDraftRevision: request.expectedDraftRevision, terms: request.terms } : {}),
     });
     if (plan.kind === "rejected") return { outcome: "rejected", reason: plan.reason };
     await commitPublication(plan.mutations, options);
