@@ -9,6 +9,16 @@ language, also while the gallery is paused, expired or replaced; opening the pag
 nothing. Not yet: the daily reminder sender (next slice), data-flow documentation and the
 hosted check.
 
+Proof reminder daily run, 2026-10-23 — AB#130 **Active** (ADR-0038 action item 5):
+default-off `GET /api/proof-reminders` on a daily Vercel cron (`CRON_SECRET`) sends each
+gallery's latest due reminder once — terms read first, a create-once claim guarded by
+that terms revision, a final re-read that records `cancelled` on any change, a key that
+must match its hash — in the customer's language with the selection and stop links and
+Reply-To the owner mailbox. Fair progress via a private cursor and a 15 s start budget.
+Studio lists failed or long-pending reminders and galleries with incomplete settings.
+Not yet: the privacy notice naming the reminder, data-flow and retention documentation
+(action item 6), the owner-run hosted check and activation.
+
 Proof reminder language and settings, 2026-10-23 — AB#130 **Active** (owner decisions
 2026-10-23, ADR-0038 amendment): the first-publication dialog records the customer's
 language with the reminder (validated against the site's locales by the route) and starts

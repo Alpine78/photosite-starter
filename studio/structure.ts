@@ -1,7 +1,8 @@
 import type { StructureResolver } from "sanity/structure";
 import { STUDIO_VALIDATION_API_VERSION } from "../sanity/schemas/validation";
 import {
-  EDITORIAL_LISTS, PROOF_GALLERY_LIST, PROOF_NOTICES_NEEDING_ACTION_FILTER, PROOF_SELECTION_LIST, PROOF_WORKING_SELECTION_LIST, resolveSingletonDocumentId, SINGLETON_QUERY,
+  EDITORIAL_LISTS, PROOF_GALLERY_LIST, PROOF_NOTICES_NEEDING_ACTION_FILTER, PROOF_REMINDER_SETTINGS_INCOMPLETE_FILTER, PROOF_REMINDERS_NEEDING_ACTION_FILTER,
+  PROOF_SELECTION_LIST, PROOF_WORKING_SELECTION_LIST, resolveSingletonDocumentId, SINGLETON_QUERY,
   type EditorialPolicyOptions, type SingletonType,
 } from "./editorial-policy";
 import { editorialTitle } from "./editorial-locales";
@@ -30,6 +31,13 @@ export const editorialStructureFor = (options: EditorialPolicyOptions = {}): Str
         .child(S.documentList().id("proofNoticesNeedingAction").title("Proof notices needing action").i18n(editorialTitle("proofNoticesNeedingAction"))
           .schemaType("clientProofNotice").apiVersion(STUDIO_VALIDATION_API_VERSION).filter(PROOF_NOTICES_NEEDING_ACTION_FILTER)
           .defaultOrdering([{ field: "createdAt", direction: "desc" }])),
+      S.listItem().id("proofRemindersNeedingAction").title("Reminders needing action").i18n(editorialTitle("proofRemindersNeedingAction"))
+        .child(S.documentList().id("proofRemindersNeedingAction").title("Reminders needing action").i18n(editorialTitle("proofRemindersNeedingAction"))
+          .schemaType("clientProofReminder").apiVersion(STUDIO_VALIDATION_API_VERSION).filter(PROOF_REMINDERS_NEEDING_ACTION_FILTER)
+          .defaultOrdering([{ field: "createdAt", direction: "desc" }])),
+      S.listItem().id("proofReminderSettingsIncomplete").title("Incomplete reminder settings").i18n(editorialTitle("proofReminderSettingsIncomplete"))
+        .child(S.documentList().id("proofReminderSettingsIncomplete").title("Incomplete reminder settings").i18n(editorialTitle("proofReminderSettingsIncomplete"))
+          .schemaType("clientProofGallery").apiVersion(STUDIO_VALIDATION_API_VERSION).filter(PROOF_REMINDER_SETTINGS_INCOMPLETE_FILTER)),
       S.documentTypeListItem(PROOF_WORKING_SELECTION_LIST.type).title(PROOF_WORKING_SELECTION_LIST.title).i18n(editorialTitle(PROOF_WORKING_SELECTION_LIST.type))
         .child(S.documentTypeList(PROOF_WORKING_SELECTION_LIST.type).title(PROOF_WORKING_SELECTION_LIST.title).i18n(editorialTitle(PROOF_WORKING_SELECTION_LIST.type))),
       S.documentTypeListItem(PROOF_SELECTION_LIST.type).title(PROOF_SELECTION_LIST.title).i18n(editorialTitle(PROOF_SELECTION_LIST.type))

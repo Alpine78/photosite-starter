@@ -519,6 +519,12 @@ without proof galleries keeps Sanity's default sign-in.
   follow **Confirmed selection** to read the customer's version: job reference, totals and
   every proof number with its original filename. **Confirmed proof selections** lists all
   versions. Both are read-only; there is no resend.
+- **Reminders needing action / Toimenpiteitä vaativat muistutukset** lists customer
+  reminders that failed or stayed pending for more than five minutes (a cancelled one was
+  stopped on purpose because the gallery changed just before sending). **Incomplete
+  reminder settings / Puutteelliset muistutusasetukset** lists published proof galleries
+  whose reminders are on but lack a language, address or publication time; fix them with
+  **Reminder settings**. Nothing is resent from Studio.
 - **Proof selections / Vedosvalinnat** lists each customer's working selection. A
   confirmed one offers **Reopen selection / Avaa valinta uudelleen**: after a confirmation
   step it reopens exactly the state you reviewed (a selection changed meanwhile is left

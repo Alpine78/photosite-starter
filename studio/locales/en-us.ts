@@ -4,6 +4,8 @@ const resources = {
   "structure.proof-selections.title": "Confirmed proof selections",
   "structure.proof-working-selections.title": "Proof selections",
   "structure.proof-notices.title": "Proof notices needing action",
+  "structure.proof-reminders.title": "Reminders needing action",
+  "structure.proof-reminder-settings.title": "Incomplete reminder settings",
   "structure.content.title": "Content",
   "structure.home-page.title": "Home page",
   "structure.site-settings.title": "Site settings",

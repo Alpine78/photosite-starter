@@ -41,7 +41,7 @@ import {
   navigationItemType,
 } from "./site-link";
 import type { SchemaTypeDefinition } from "./schema-types";
-import { clientProofNoticeType, clientProofSelectionType, clientProofSelectionVersionType } from "./client-proof-records";
+import { clientProofNoticeType, clientProofReminderType, clientProofSelectionType, clientProofSelectionVersionType } from "./client-proof-records";
 
 export function defineSchemaTypes(
   options: MediaSchemaOptions & SiteSettingsSchemaOptions,
@@ -75,5 +75,6 @@ export function defineSchemaTypes(
     clientProofSelectionType,
     clientProofSelectionVersionType,
     clientProofNoticeType,
+    clientProofReminderType,
   ];
 }

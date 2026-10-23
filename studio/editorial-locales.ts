@@ -21,6 +21,8 @@ const titleKeys = {
   clientProofSelectionVersion: "structure.proof-selections.title",
   clientProofSelection: "structure.proof-working-selections.title",
   proofNoticesNeedingAction: "structure.proof-notices.title",
+  proofRemindersNeedingAction: "structure.proof-reminders.title",
+  proofReminderSettingsIncomplete: "structure.proof-reminder-settings.title",
   content: "structure.content.title",
   homePage: "structure.home-page.title",
   siteSettings: "structure.site-settings.title",
