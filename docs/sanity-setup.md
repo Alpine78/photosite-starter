@@ -201,6 +201,20 @@ Before activation, an owner-run check on the hosted Studio confirms that a signe
 editor sees a test notice on its dotted private ID in that list and can open its
 confirmed selection.
 
+### Deleting a proof gallery (AB#130, ADR-0038 decision 7)
+
+Proof galleries are deleted only with the Studio action **Delete proof gallery and its
+records**, which adds no credential: it uses the editor's own session for its fresh Doc
+API reads, its supplementary query and one transaction that removes the gallery and
+every private record together. The editor therefore needs read access to private dotted
+IDs and write access to the dataset. Image assets are kept; delete one separately only
+after checking that no other document uses it. What is removed, what is not and why is in
+[proof-selection-data-flow.md](proof-selection-data-flow.md#retention-and-deletion).
+
+Before activation, an owner-run check on the hosted Studio deletes a test gallery that has
+a confirmed version, a notice and a reminder, and confirms that the action lists them,
+deletes them all and leaves an unrelated gallery untouched.
+
 ## Standalone editor
 
 The optional [`studio/`](../studio/README.md) application consumes the canonical

@@ -36,10 +36,12 @@ describe("actual Studio configuration composition", () => {
     const resolve = config.document!.actions as (actions: unknown[], context: { schemaType: string }) => unknown[];
     const actions = resolve(native, { schemaType: "clientProofGallery" });
     expect(actions[0]).toBe(PublishProofGalleryAction);
-    expect(actions.slice(1, -2)).toEqual([native[2]]);
+    expect(actions.slice(1, -3)).toEqual([native[2]]);
     const { ProofReminderSettingsAction } = await import("./proof-reminder-settings-action");
-    expect(actions.at(-1)).toBe(ProofReminderSettingsAction);
-    expect(actions.at(-2)).toBe(RotateProofKeyAction);
+    const { DeleteProofGalleryAction } = await import("./proof-delete-action");
+    expect(actions.at(-1)).toBe(DeleteProofGalleryAction);
+    expect(actions.at(-2)).toBe(ProofReminderSettingsAction);
+    expect(actions.at(-3)).toBe(RotateProofKeyAction);
     const { ReopenProofSelectionAction } = await import("./proof-reopen-action");
     expect(resolve(native, { schemaType: "clientProofSelection" })).toEqual([ReopenProofSelectionAction]);
     expect(resolve(native, { schemaType: "clientProofNotice" })).toEqual([]);

@@ -2,6 +2,15 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Proof gallery deletion and data flow, 2026-10-23 — AB#130 **Active** (ADR-0038 action
+item 6): the Studio action **Delete proof gallery and its records** removes the gallery,
+its draft and every private record in one transaction guarded by the terms revision, from
+an inventory read fresh by deterministic IDs; it refuses unreadable, malformed, copied
+(draft or release) or referenced records, and keeps image assets.
+[proof-selection-data-flow.md](proof-selection-data-flow.md) records what is stored,
+processors, logs and retention. Not yet: the owner's activation decision and the hosted,
+live and privacy-notice checks.
+
 Proof reminder customer stop, 2026-10-23 — AB#130 **Active** (ADR-0038 amendment
 2026-10-23): `/client-proof/<handle>/reminders` shows no gallery data and a Stop reminders
 button; the POST with the fragment key turns reminders off and deletes the address and

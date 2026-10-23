@@ -657,8 +657,9 @@ to Sanity; ordinary changes stay in Studio.
   target; do not continue it under AB#29/145. Existing code stays off pending
   a separate removal audit. AB#29/145 now track unlisted Sanity delivery and
   administration. AB#130 proof selection follows ADR-0038 in existing Sanity:
-  the proof page, publication and customer selection are built and default-off;
-  the photographer notice and activation remain.
+  the proof page, publication, customer selection, photographer notice, reminders
+  and gallery deletion are built and default-off; the owner's activation decision
+  remains.
 - Optional image sales and fulfilment (enquiry first; checkout and cart only
   after a separate product, legal, security, and delivery decision)
 - Multilingual authoring workflow: articles and galleries have an owner-run linked-draft

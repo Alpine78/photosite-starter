@@ -618,3 +618,24 @@ mailbox; the idempotency key is `proof-reminder/<id>/<n>`. Reminders on but not 
 (no language, address or publication time) are skipped and listed in Studio; nothing is
 guessed.
 
+## Implementation note — 2026-10-23: deleting a proof gallery (action item 6)
+
+Records how decision 7's deletion is implemented; it changes no decision. The Studio
+action **Delete proof gallery and its records** (proof-gallery Studios only; native delete
+stays removed) reads with the editor's own session, fresh from the Doc API, the terms
+first, then the gallery, its draft, the working selection, versions and notices
+1..`latestVersion`, and reminder steps up to one past the latest any one-day delay could
+have reached. Completeness rests on those deterministic IDs, not the query index; the index
+is only a supplementary check. It refuses an unreadable or malformed record, any draft or
+release version of a record (from the Doc API's `includeAllVersions`), a record of the
+gallery outside the list and a reference from outside. After the editor types the gallery
+ID, one transaction — sent once, retries off — patches each listed document under the
+revision shown and deletes it, terms first, and creates-then-deletes each absent fixed
+document (gallery, draft, terms, selection) so one that appeared meanwhile fails it.
+Because every customer write and reminder claim already patches the terms under their
+revision, a write that lands first makes the deletion conflict and one that lands after
+fails. Image assets are kept and removed separately after the shared-use check; Sanity
+history, backups and sent emails are not affected. The data inventory, processors and
+retention are in [proof-selection-data-flow.md](../proof-selection-data-flow.md). The
+owner's activation decision remains.
+

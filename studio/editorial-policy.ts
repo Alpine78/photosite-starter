@@ -61,7 +61,8 @@ export function allowAction(schemaType: string, action: string | undefined): boo
   // Native publish is replaced by the proof publication action, which numbers
   // the proofs and creates the private record through the site route. No
   // unpublish (the published document holds the fixed numbers; `available`
-  // pauses the page) and no delete until private-record cleanup exists.
+  // pauses the page) and no native delete, which would orphan the private
+  // records: the proof deletion action removes them in one transaction.
   if (schemaType === "clientProofGallery") return action === "discardChanges";
   if (!isSingleton(schemaType)) return true;
   return action !== undefined && ["publish", "discardChanges", "restore"].includes(action);
