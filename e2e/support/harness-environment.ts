@@ -132,6 +132,8 @@ export const appUnderTestEnvironment: Record<string, string> = {
   LEGACY_GALLERY_ADAPTER: "fixture",
   CLIENT_GALLERY_ADAPTER: "fixture",
   PROOF_GALLERY_ADAPTER: "fixture",
+  // In-process synthetic selections, one partition per selection key (development only).
+  PROOF_SELECTION: "fixture",
   LEGACY_GALLERY_IMPORT_BATCH: "",
   LEGACY_GALLERY_HANDLES: "11111111111111111111111111111111",
   LEGACY_GALLERY_REDIRECTS: JSON.stringify([["/retained-delivery-source", "11111111111111111111111111111111"]]),

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { runProofSelection, type ProofSelectionDependencies } from "@/lib/proof-selection-access";
+import { runFixtureProofSelection, runProofSelection, type ProofSelectionDependencies } from "@/lib/proof-selection-access";
 import { ProofSelectionStoreError } from "@/lib/proof-selection-sanity";
 import { createSelectionKey } from "@/lib/proof-selection-key";
 
@@ -241,5 +241,13 @@ describe("proof selection facade", () => {
   it("answers the gallery allowance after the key matched", async () => {
     allowed.mockReturnValue(false);
     expect(await run({ operation: "read" })).toEqual({ outcome: "rate-limited" });
+  });
+
+  it("keeps each harness key's synthetic selection apart and refuses the reserved key prefix", async () => {
+    const first = createSelectionKey().key, second = createSelectionKey().key, handle7 = "7".repeat(32);
+    const saved = await runFixtureProofSelection({ operation: "select", handle: handle7, key: first, expectedRevision: null, references: ["014"] });
+    expect(saved).toMatchObject({ outcome: "ok", selection: { references: ["014"], currency: "EUR" } });
+    expect(await runFixtureProofSelection({ operation: "read", handle: handle7, key: second })).toMatchObject({ outcome: "ok", selection: { references: [] } });
+    expect(await runFixtureProofSelection({ operation: "read", handle: handle7, key: `AAAA${first.slice(4)}` })).toEqual({ outcome: "unavailable" });
   });
 });

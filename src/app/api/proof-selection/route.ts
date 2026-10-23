@@ -2,7 +2,7 @@ import { checkContactRequestHeaders, jsonNoStore, readBoundedBody, CONTACT_REJEC
 import { createContactRateLimiter, deriveClientKey } from "@/lib/contact-rate-limit";
 import { createCorrelationId, logProofSelectionEvent, type ProofSelectionErrorClass } from "@/lib/contact-log";
 import { parseProofSelectionBody, PROOF_SELECTION_BODY_BYTES, readProofSelectionConfig } from "@/lib/proof-selection-request";
-import { runProofSelection } from "@/lib/proof-selection-access";
+import { runFixtureProofSelection, runProofSelection } from "@/lib/proof-selection-access";
 
 /**
  * Proof selection (ADR-0038 decision 5, action item 3, AB#130): read, save the
@@ -47,7 +47,7 @@ export async function POST(request: Request): Promise<Response> {
     return jsonNoStore({ status: "rejected", reason: "malformed-request", correlationId }, 400);
   }
   try {
-    const result = await runProofSelection(parsed, config.token, {
+    const result = config.state === "fixture" ? await runFixtureProofSelection(parsed) : await runProofSelection(parsed, config.token, {
       galleryAllowed: (galleryId) => galleryLimiter.tryConsume(galleryId, Date.now()).allowed,
     });
     switch (result.outcome) {

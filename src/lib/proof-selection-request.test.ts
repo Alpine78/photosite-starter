@@ -16,6 +16,14 @@ describe("proof selection configuration", () => {
     ]) expect(readProofSelectionConfig({ ...enabled, ...patch }), JSON.stringify(patch)).toEqual({ state: "misconfigured" });
   });
 
+  it("offers the synthetic store only beside the local proof page fixture", () => {
+    const local = { PROOF_SELECTION: "fixture", PROOF_GALLERY_ADAPTER: "fixture", SITE_DEPLOYMENT_STAGE: "development", VERCEL_ENV: "" };
+    expect(readProofSelectionConfig(local)).toEqual({ state: "fixture" });
+    for (const patch of [{ PROOF_GALLERY_ADAPTER: "sanity" }, { SITE_DEPLOYMENT_STAGE: "production" }, { VERCEL_ENV: "preview" }]) {
+      expect(readProofSelectionConfig({ ...local, ...patch }), JSON.stringify(patch)).toEqual({ state: "misconfigured" });
+    }
+  });
+
   it("never accepts a browser-visible copy of the credential", () => {
     expect(readProofSelectionToken({ SANITY_PROOF_SELECTION_TOKEN: token, NEXT_PUBLIC_SANITY_PROOF_SELECTION_TOKEN: "x" })).toBeUndefined();
   });

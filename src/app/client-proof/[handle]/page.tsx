@@ -5,6 +5,7 @@ import { RestrictedPageLanguages } from "@/components/restricted-page-languages"
 import { getBuiltInLabels, getDeploymentConfig } from "@/lib/deployment-config";
 import { formatUtcDateTime } from "@/lib/date-format";
 import { getProofGallery } from "@/lib/proof-gallery-access";
+import { ProofSelectionProvider, ProofSelectToggle } from "@/components/proof-selection";
 
 export const dynamic = "force-dynamic";
 
@@ -24,8 +25,8 @@ function deliveryPath(handle: string, search: Search): string {
 /**
  * The read-only proof page (ADR-0038 action item 2): complete, uncropped
  * proofs with their permanent numbers, or a temporary redirect to the delivery
- * gallery that replaces them (owner answer 5). The selection link's fragment is
- * not read here; selecting arrives with the write path.
+ * gallery that replaces them (owner answer 5). With the selection key in the
+ * link's fragment, the client selection controls enhance the same page.
  */
 export default async function ProofGalleryPage({ params, searchParams }: { params: Promise<{ handle: string }>; searchParams: Promise<Search> }) {
   const { handle } = await params;
@@ -43,7 +44,7 @@ export default async function ProofGalleryPage({ params, searchParams }: { param
   });
   return (
     <main className="mx-auto max-w-7xl px-4 py-8">
-      <RestrictedPageLanguages pathname={`/client-proof/${handle}`} locale={locale} />
+      <RestrictedPageLanguages pathname={`/client-proof/${handle}`} locale={locale} keepSelectionKey />
       <h1 className="mb-6 text-2xl">{gallery.title || copy.title}</h1>
       {gallery.availableUntil && <p className="mb-6 text-sm text-muted">{beforeDate}<time dateTime={gallery.availableUntil}>{formatUtcDateTime(gallery.availableUntil, locale)}</time>{afterDate}</p>}
       <section aria-labelledby="proof-gallery-notice" className="mb-6 space-y-2 text-sm text-muted">
@@ -52,6 +53,7 @@ export default async function ProofGalleryPage({ params, searchParams }: { param
         <p>{copy.publicAccessNotice}</p>
         <p>{copy.fileRetentionNotice}</p>
       </section>
+      <ProofSelectionProvider handle={handle} locale={locale} labels={labels.proofSelection} referenceLabel={copy.reference}>
       <GalleryLightbox slides={slides} labels={labels.lightbox}>
         <ul className="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {slides.map((image, index) => <li key={image.itemId}>
@@ -62,10 +64,12 @@ export default async function ProofGalleryPage({ params, searchParams }: { param
                 <img src={image.src} alt={image.alt} width={image.width} height={image.height} className="h-auto w-full" style={{ maxWidth: image.width }} loading="lazy" decoding="async" referrerPolicy="no-referrer" />
               </GalleryLightboxTrigger>
               <figcaption className="mt-2 text-sm font-semibold tabular-nums">{image.caption}</figcaption>
+              <ProofSelectToggle reference={gallery.images[index].reference} />
             </figure>
           </li>)}
         </ul>
       </GalleryLightbox>
+      </ProofSelectionProvider>
     </main>
   );
 }

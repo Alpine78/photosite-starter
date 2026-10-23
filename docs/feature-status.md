@@ -2,6 +2,15 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Proof selection page, 2026-10-23 — AB#130 **Active** (ADR-0038 action item 3, slice 3b):
+with a `#select=` key in the proof link, the proof page shows per-proof select toggles
+(`aria-pressed`, keyboard), the counts and extra-image total, a two-step confirmation
+bound to the reviewed revision and the confirmed record with its proof list. Server state
+only; lost, unknown or committed-but-unread writes are read back, never replayed, and
+block changes until a read succeeds; a new key starts a fresh session; the language
+switch keeps the key. FI/EN copy. `PROOF_SELECTION=fixture` gives the harness one
+synthetic selection per key. Not yet: the photographer email and Studio notice list,
+reopen and reminders.
 Proof selection write route, 2026-10-23 — AB#130 **Active** (ADR-0038 action item 3,
 server side): default-off `POST /api/proof-selection` with its own
 `SANITY_PROOF_SELECTION_TOKEN` reads, saves (full set under `ifRevisionID`) and confirms a

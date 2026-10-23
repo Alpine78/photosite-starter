@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import type { LanguageLink } from "./language-switch";
+import { selectionFragment } from "@/lib/proof-selection-link";
 
 const subscribeToNothing = () => () => {};
 const subscribeToUrl = (listener: () => void) => {
@@ -14,12 +15,19 @@ const subscribeToUrl = (listener: () => void) => {
 };
 
 /** Plain document navigation; conservatively warn after an edit until reload. */
-export function RestrictedLanguageSwitch({ label, links, warning, requireCleanUrl = false }: {
+export function RestrictedLanguageSwitch({ label, links, warning, requireCleanUrl = false, keepSelectionKey = false }: {
   readonly label: string;
   readonly links: readonly LanguageLink[];
   readonly warning: string;
   readonly requireCleanUrl?: boolean;
+  /** A proof page carries its validated `#select=` key to the same gallery in another language. */
+  readonly keepSelectionKey?: boolean;
 }) {
+  const fragment = useSyncExternalStore(
+    keepSelectionKey ? subscribeToUrl : subscribeToNothing,
+    () => keepSelectionKey ? selectionFragment(window.location.hash) : "",
+    () => "",
+  );
   const clean = useSyncExternalStore(
     requireCleanUrl ? subscribeToUrl : subscribeToNothing,
     () => !requireCleanUrl || window.location.hash === "",
@@ -41,7 +49,7 @@ export function RestrictedLanguageSwitch({ label, links, warning, requireCleanUr
       <ul className="flex flex-wrap gap-4">
         {links.map((link) => (
           <li key={link.locale}>
-            <a href={link.href} lang={link.locale} hrefLang={link.locale}
+            <a href={`${link.href}${fragment}`} lang={link.locale} hrefLang={link.locale}
               onClick={(event) => {
                 if (edited.current && !window.confirm(warning)) event.preventDefault();
               }}
