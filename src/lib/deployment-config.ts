@@ -140,6 +140,20 @@ export type BuiltInLabels = {
    */
   readonly legacyGallery: { readonly title: string; readonly unavailable: string; readonly download: string; readonly noticeTitle: string; readonly publicAccessNotice: string; readonly fileRetentionNotice: string };
   readonly clientGallery: { readonly noticeTitle: string; readonly publicAccessNotice: string; readonly fileRetentionNotice: string; readonly deadline: string };
+  /**
+   * The selection on a proof page (ADR-0038 decisions 4, 5, 8). Placeholders:
+   * `{reference}`, `{count}`, `{included}`, `{price}`, `{total}`, `{version}`, `{date}`.
+   */
+  readonly proofSelection: {
+    readonly heading: string; readonly loading: string; readonly possession: string;
+    readonly select: string; readonly selected: string; readonly toggle: string;
+    readonly counts: string; readonly price: string; readonly summaryNote: string;
+    readonly confirm: string; readonly confirmReview: string; readonly confirmFinal: string; readonly cancel: string;
+    readonly confirmedHeading: string; readonly confirmedMeta: string; readonly confirmedList: string; readonly reopenNote: string;
+    readonly saving: string; readonly saved: string; readonly conflict: string; readonly stale: string; readonly saveAgain: string;
+    readonly unavailable: string; readonly rateLimited: string; readonly uncertain: string; readonly checkAgain: string;
+    readonly loadFailed: string; readonly emptyRefused: string;
+  };
   /** The proof page (ADR-0038). `{reference}` and `{date}` are the only placeholders. */
   readonly proofGallery: {
     readonly title: string; readonly unavailable: string; readonly reference: string; readonly deadline: string;
@@ -741,13 +755,34 @@ const englishLabels = {
     publicAccessNotice: "This gallery and its web images are publicly accessible without signing in. The link can be shared. Gallery information and image references can also be read from the public dataset; exclusion from listings and search engines does not restrict access.",
     fileRetentionNotice: "This gallery shows exported web images. Closing or expiring the page does not revoke direct image links or remove downloaded or cached copies. Contact the website owner to request removal; immediate removal from every cache or recipient’s copies cannot be promised.",
   },
+  proofSelection: {
+    heading: "Your selection", loading: "Loading your selection…",
+    possession: "This page accepts selections from anyone holding this exact link; it does not identify you. Do not forward the link if others should not choose for you.",
+    select: "Select", selected: "Selected", toggle: "Select {reference}",
+    counts: "{count} selected, {included} included in the price.",
+    price: "Additional images: {count} × {price} = {total}.",
+    summaryNote: "The total is a summary of the agreed terms, not an invoice or a payment.",
+    confirm: "Review and confirm", confirmReview: "Confirm {count} selected images? After confirming, changes are made through the photographer.",
+    confirmFinal: "Confirm selection", cancel: "Cancel",
+    confirmedHeading: "Selection confirmed", confirmedMeta: "Version {version}, confirmed {date} (UTC).",
+    confirmedList: "Confirmed images", reopenNote: "To change a confirmed selection, contact the photographer.",
+    saving: "Saving…", saved: "Selection saved.",
+    conflict: "Your selection changed in another window. The latest saved selection is shown; review it and try again.",
+    stale: "Some saved images are no longer in this gallery and were left out. Save the selection shown to continue.",
+    saveAgain: "Save the selection shown",
+    unavailable: "This selection link is not valid, or selecting is closed.",
+    rateLimited: "Too many changes in a short time. Wait a moment and try again.",
+    uncertain: "We could not confirm whether your last change was saved. Check the saved selection before continuing.",
+    checkAgain: "Check the saved selection", loadFailed: "Your selection could not be loaded. Try again shortly.",
+    emptyRefused: "Select at least one image before confirming.",
+  },
   proofGallery: {
     title: "Your proofs", unavailable: "These proofs are unavailable.", reference: "Proof {reference}",
     deadline: "Page deadline: {date} (UTC).",
     noticeTitle: "Sharing these proofs",
     publicAccessNotice: "This proof gallery and its images are publicly accessible without signing in. The link can be shared. Gallery information, image references and proof numbers can also be read from the public dataset; exclusion from listings and search engines does not restrict access.",
     fileRetentionNotice: "Closing or expiring the page does not revoke direct image links or remove downloaded or cached copies. Contact the website owner to request removal; immediate removal from every cache or recipient’s copies cannot be promised.",
-    selectionNotice: "Each proof keeps its number permanently. Selecting proofs is done through the personal selection link from the photographer; selection is not yet available on this page.",
+    selectionNotice: "Each proof keeps its number permanently. Proofs are selected through the personal selection link from the photographer; without it this page shows the proofs only.",
   },
   legacyGallery: {
     title: "Your gallery", unavailable: "This gallery is unavailable.", download: "Download all photographs (ZIP)",
@@ -1188,13 +1223,34 @@ const finnishLabels = {
     publicAccessNotice: "Tämä galleria ja sen verkkokuvat ovat julkisesti saatavilla ilman kirjautumista. Linkin voi välittää toiselle. Gallerian tiedot ja kuvaviittaukset ovat luettavissa myös julkisesta aineistosta; piilottaminen listauksista ja hakukoneilta ei rajoita pääsyä.",
     fileRetentionNotice: "Galleriassa näytetään vietyjä verkkokuvia. Sivun sulkeminen tai vanheneminen ei estä suorien kuvalinkkien käyttöä eikä poista ladattuja tai välimuistiin tallennettuja kopioita. Voit pyytää poistamista sivuston omistajalta; välitöntä poistumista kaikista välimuisteista tai vastaanottajien kopioista ei voida luvata.",
   },
+  proofSelection: {
+    heading: "Valintasi", loading: "Ladataan valintaasi…",
+    possession: "Tällä sivulla voi valita kuka tahansa, jolla on tämä täsmälleen sama linkki; se ei tunnista sinua. Älä välitä linkkiä, jos muiden ei pidä valita puolestasi.",
+    select: "Valitse", selected: "Valittu", toggle: "Valitse {reference}",
+    counts: "{count} valittu, hintaan sisältyy {included}.",
+    price: "Lisäkuvat: {count} × {price} = {total}.",
+    summaryNote: "Summa on yhteenveto sovituista ehdoista, ei lasku eikä maksu.",
+    confirm: "Tarkista ja vahvista", confirmReview: "Vahvistetaanko {count} valittua kuvaa? Vahvistuksen jälkeen muutokset tehdään valokuvaajan kautta.",
+    confirmFinal: "Vahvista valinta", cancel: "Peruuta",
+    confirmedHeading: "Valinta vahvistettu", confirmedMeta: "Versio {version}, vahvistettu {date} (UTC).",
+    confirmedList: "Vahvistetut kuvat", reopenNote: "Jos haluat muuttaa vahvistettua valintaa, ota yhteyttä valokuvaajaan.",
+    saving: "Tallennetaan…", saved: "Valinta tallennettu.",
+    conflict: "Valintasi muuttui toisessa ikkunassa. Näet viimeksi tallennetun valinnan; tarkista se ja yritä uudelleen.",
+    stale: "Osa tallennetuista kuvista ei ole enää tässä galleriassa, joten ne jätettiin pois. Tallenna näkyvä valinta jatkaaksesi.",
+    saveAgain: "Tallenna näkyvä valinta",
+    unavailable: "Valintalinkki ei ole voimassa, tai valinta on suljettu.",
+    rateLimited: "Liian monta muutosta lyhyessä ajassa. Odota hetki ja yritä uudelleen.",
+    uncertain: "Emme voineet varmistaa, tallentuiko viimeisin muutos. Tarkista tallennettu valinta ennen kuin jatkat.",
+    checkAgain: "Tarkista tallennettu valinta", loadFailed: "Valintaasi ei voitu ladata. Yritä hetken kuluttua uudelleen.",
+    emptyRefused: "Valitse vähintään yksi kuva ennen vahvistamista.",
+  },
   proofGallery: {
     title: "Vedoksesi", unavailable: "Vedokset eivät ole saatavilla.", reference: "Vedos {reference}",
     deadline: "Sivun määräaika: {date} (UTC).",
     noticeTitle: "Vedosten jakaminen",
     publicAccessNotice: "Tämä vedosgalleria ja sen kuvat ovat julkisesti saatavilla ilman kirjautumista. Linkin voi välittää toiselle. Gallerian tiedot, kuvaviittaukset ja vedosnumerot ovat luettavissa myös julkisesta aineistosta; piilottaminen listauksista ja hakukoneilta ei rajoita pääsyä.",
     fileRetentionNotice: "Sivun sulkeminen tai vanheneminen ei estä suorien kuvalinkkien käyttöä eikä poista ladattuja tai välimuistiin tallennettuja kopioita. Voit pyytää poistamista sivuston omistajalta; välitöntä poistumista kaikista välimuisteista tai vastaanottajien kopioista ei voida luvata.",
-    selectionNotice: "Jokainen vedos säilyttää numeronsa pysyvästi. Vedokset valitaan valokuvaajalta saadun henkilökohtaisen valintalinkin kautta; valinta ei ole vielä käytettävissä tällä sivulla.",
+    selectionNotice: "Jokainen vedos säilyttää numeronsa pysyvästi. Vedokset valitaan valokuvaajalta saadun henkilökohtaisen valintalinkin kautta; ilman sitä sivu näyttää vain vedokset.",
   },
   legacyGallery: {
     title: "Galleriasi", unavailable: "Galleria ei ole saatavilla.", download: "Lataa kaikki kuvat (ZIP)",

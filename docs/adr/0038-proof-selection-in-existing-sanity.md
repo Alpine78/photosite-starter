@@ -487,3 +487,16 @@ Records how decision 5 is implemented; it changes no decision. `POST /api/proof-
 - **Not yet:** the selection page (3b), the photographer email and Studio notice list
   (action item 4), the administrator's reopen action and reminders.
 
+## Implementation note — 2026-10-23: selection page (action item 3, slice 3b)
+
+Records how decision 4's page script is implemented; it changes no decision. The proof
+page reads `#select=<key>` in the browser (only the canonical 43-character encoding),
+leaves the fragment in place so a reload keeps working, and sends the key only in
+same-origin `POST /api/proof-selection` bodies. The server's answer is the only state
+shown; writes are serialized; an answer that is lost, unknown or committed-but-unread is
+recovered by one read, never by replaying the write, and changes stay blocked until a
+read succeeds. The confirmation step is bound to the revision it was opened on. A new
+key in the fragment starts a fresh session. The restricted language switch keeps a
+validated key on the same gallery. Forwarding the complete link grants selecting, which
+the page states.
+

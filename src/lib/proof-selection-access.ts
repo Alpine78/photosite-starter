@@ -27,6 +27,7 @@ import {
   commitProofSelection, discoverProofGallery, readProofSelectionDocument, ProofSelectionStoreError, type ProofSelectionStoreOptions,
 } from "@/lib/proof-selection-sanity";
 import { selectionKeyMatches } from "@/lib/proof-selection-key";
+import { fixtureProofSelectionStore } from "@/lib/proof-selection-memory";
 
 export type ProofSelectionResult =
   | Readonly<{ outcome: "ok"; selection: CustomerSelection; written?: "selected" | "confirmed" }>
@@ -41,6 +42,8 @@ export type ProofSelectionResult =
   | Readonly<{ outcome: "failed"; reason: "malformed-record" | "store-unavailable" }>;
 
 export type ProofSelectionDependencies = Readonly<{
+  /** Overrides the deployment's Sanity settings; only the fixture store uses this. */
+  sanityConfig?: ProofSelectionStoreOptions["config"];
   store?: Partial<Readonly<{
     discover: typeof discoverProofGallery; read: typeof readProofSelectionDocument; commit: typeof commitProofSelection;
   }>>;
@@ -58,7 +61,7 @@ type Authorized = Readonly<{
 class Refusal extends Error {}
 
 export async function runProofSelection(request: ProofSelectionRequest, token: string, dependencies: ProofSelectionDependencies): Promise<ProofSelectionResult> {
-  const options: ProofSelectionStoreOptions = { config: getSanityConfig(), token };
+  const options: ProofSelectionStoreOptions = { config: dependencies.sanityConfig ?? getSanityConfig(), token };
   const discover = dependencies.store?.discover ?? discoverProofGallery;
   const read = dependencies.store?.read ?? readProofSelectionDocument;
   const commit = dependencies.store?.commit ?? commitProofSelection;
@@ -134,4 +137,14 @@ export async function runProofSelection(request: ProofSelectionRequest, token: s
     if (error instanceof ProofSelectionStoreError) return error.kind === "unknown" ? { outcome: "unknown" } : { outcome: "failed", reason: "store-unavailable" };
     throw error;
   }
+}
+
+const FIXTURE_SANITY_CONFIG = { projectId: "fixture", dataset: "fixture", apiVersion: "v2026-06-24", datasetVisibility: "public" } as ProofSelectionStoreOptions["config"];
+
+/** The harness path (`PROOF_SELECTION=fixture`): the same facade over one key's synthetic partition. */
+export function runFixtureProofSelection(request: ProofSelectionRequest): Promise<ProofSelectionResult> {
+  return runProofSelection(request, "fixture", {
+    store: fixtureProofSelectionStore(request.key), sanityConfig: FIXTURE_SANITY_CONFIG,
+    replacementAvailable: async () => false, galleryAllowed: () => true,
+  });
 }

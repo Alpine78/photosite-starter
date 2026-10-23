@@ -71,7 +71,7 @@ test.describe("proof page without JavaScript", () => {
   });
 });
 
-test("the selection link's fragment is ignored and never sent", async ({ page, externalRequests }) => {
+test("the selection link's key never appears in a request URL", async ({ page, externalRequests }) => {
   const requested: string[] = [];
   page.on("request", (request) => requested.push(request.url()));
   const response = await page.goto(`${route}#select=${"K".repeat(43)}`);

@@ -18,16 +18,21 @@ const REVISION = /^[A-Za-z0-9_-]{1,128}$/u;
 export type ProofSelectionConfig =
   | Readonly<{ state: "disabled" }>
   | Readonly<{ state: "misconfigured" }>
-  | Readonly<{ state: "enabled"; token: string }>;
+  | Readonly<{ state: "enabled"; token: string }>
+  /** Synthetic in-process store for the harness; only beside the proof page fixture. */
+  | Readonly<{ state: "fixture" }>;
 
 /**
  * Off unless `PROOF_SELECTION=enabled` and the proof page reads real Sanity
  * content; an enabled but incomplete configuration is reported, not guessed.
  */
 export function readProofSelectionConfig(environment: Readonly<Record<string, string | undefined>>): ProofSelectionConfig {
-  if (environment.PROOF_SELECTION?.trim() !== "enabled") return { state: "disabled" };
+  const setting = environment.PROOF_SELECTION?.trim();
+  if (setting !== "enabled" && setting !== "fixture") return { state: "disabled" };
   let adapter: string;
   try { adapter = readProofGalleryDeployment(environment); } catch { return { state: "misconfigured" }; }
+  // The proof page fixture is itself refused outside local development.
+  if (setting === "fixture") return adapter === "fixture" ? { state: "fixture" } : { state: "misconfigured" };
   const token = readProofSelectionToken(environment);
   return adapter === "sanity" && token ? { state: "enabled", token } : { state: "misconfigured" };
 }

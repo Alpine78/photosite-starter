@@ -780,9 +780,18 @@ the number publication fixed. Paused, expired and missing galleries are an ordin
 unavailable page; malformed content logs only `[proof-gallery] malformed-content`. The
 namespace has the same reserved-path hygiene (`noindex`, `no-store`, `no-referrer`,
 literal handle grammar only), stays out of the sitemap, search and analytics, and
-accepts `?locale=`. The selection link's `#select=` fragment is ignored here; selecting
-and confirmation are later slices. As with delivery pages, public files and metadata
-stay discoverable.
+accepts `?locale=`. As with delivery pages, public files and metadata stay discoverable.
+
+**Selecting.** With `PROOF_SELECTION=enabled` (see [Sanity setup](sanity-setup.md)), a
+link carrying `#select=<key>` enhances the same page: the browser reads the key from the
+fragment and sends it only in same-origin `POST /api/proof-selection` bodies, never in a
+URL. Each proof gets a select toggle; the summary shows the counts and the extra-image
+total (a summary, not a charge), and confirming takes a deliberate second step. A
+confirmed selection is shown as recorded, with its proof list, and cannot be changed by
+the customer. Without the key, without JavaScript or with a refused key, the page stays
+read-only. The language switch carries a validated key to the same gallery's other
+language. `PROOF_SELECTION=fixture` is the harness's synthetic store and is refused
+outside local development.
 
 **Replacement by the delivery gallery (ADR-0038 owner answer 5).** A proof gallery's
 optional `replacedBy` names the client gallery holding the finished images. While exactly

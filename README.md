@@ -656,7 +656,9 @@ to Sanity; ordinary changes stay in Studio.
   and ADR-0015. The reference-deployment owner has rejected their S3/Postgres
   target; do not continue it under AB#29/145. Existing code stays off pending
   a separate removal audit. AB#29/145 now track unlisted Sanity delivery and
-  administration. AB#130 proof selection awaits a compatible design.
+  administration. AB#130 proof selection follows ADR-0038 in existing Sanity:
+  the proof page, publication and customer selection are built and default-off;
+  the photographer notice and activation remain.
 - Optional image sales and fulfilment (enquiry first; checkout and cart only
   after a separate product, legal, security, and delivery decision)
 - Multilingual authoring workflow: articles and galleries have an owner-run linked-draft
