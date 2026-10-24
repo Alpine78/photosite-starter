@@ -309,6 +309,16 @@ No customer import is performed by registering the types. See
 
 ## Ongoing unlisted client delivery (AB#302)
 
+AB#397 stores reviewed expiry-cleanup approval separately as a private operational
+`clientGalleryCleanup.<SHA256(published gallery ID)>` document. Its closed browser/server
+contract is `src/lib/client-gallery-cleanup-contract.ts`; it is not registered as an
+editable Studio schema/template and adds no field to `clientDeliveryGallery`.
+Only authenticated publication and the separately enabled cleanup worker may update it
+through revision guards. It holds IDs/revisions, approved policy and one latest
+attempt/result/receipt, without customer/contact or authored text fields. Dataset writers
+can forge controls; worker validation and actual role checks remain required. See
+[reviewed enrollment](../docs/client-gallery-retention.md#reviewed-enrollment-and-private-control-ab397).
+
 `clientDeliveryGallery` and its embedded `clientDeliveryItem` objects are separate
 from the read-only `legacyDeliveryGallery` / `legacyDeliveryImage` import types.
 The new closed document contains a generated immutable handle, bounded localized

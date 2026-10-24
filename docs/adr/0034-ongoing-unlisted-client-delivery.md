@@ -139,3 +139,23 @@ The six-month default and expiry worker are delivery-only; proofs must be delete
 when their linked replacement delivery is published. See the accepted
 [ADR-0038 amendment](0038-proof-selection-in-existing-sanity.md#replacement-deletion-amendment-2026-10-24).
 The publication/deletion implementation is AB#396, distinct from delivery expiry AB#395.
+
+### Enrollment implementation note — 2026-10-24 (AB#397)
+
+The retention amendment now has a source-only Studio enrollment slice: an explicit,
+default-off publication choice stores one private deterministic control record in the
+existing Sanity dataset. The reviewed source revision and unique publication identity
+audit approval separately from the gallery revision used by a fresh worker plan.
+Publication and control creation/CAS update are atomic; withdrawal fences old pending
+attempts. All unenrolled deliveries require deliberate opt-in, including new finite
+deliveries: current publication absence cannot prove a gallery was never published.
+Text edits retain consent,
+while changed retention policy is displayed for renewed review. Proofs, indefinite
+deliveries and legacy records cannot enroll in this contract.
+
+This bounded latest-state record avoids a separate service/history/outbox and excludes
+customer/contact data. Stored approval is not an access-control boundary against dataset
+writers and never replaces independent gallery validation. Kept shared assets receive no
+later sweep; open drafts and incoming gallery references can block cleanup until resolved.
+The server worker, hosted provider/role/race rehearsal and activation remain AB#395/398.
+This note changes no public-file exposure rule, ZIP eligibility or owner activation gate.

@@ -767,6 +767,15 @@ deadline from creation and remain paused (AB#393). Review it before publication;
 publishing never restarts it. Existing/legacy records and indefinite proof defaults are
 unchanged. File cleanup is required by AB#392 but not yet automatic; see
 [retention and implementation gates](client-gallery-retention.md).
+AB#397 adds default-off reviewed enrollment in the Studio publication action using
+`SANITY_STUDIO_CLIENT_GALLERY_CLEANUP=enabled`. Existing unenrolled galleries require
+deliberate opt-in, including new finite deliveries. The private
+control is saved atomically with publication, outside the public gallery schema.
+Editors need authenticated read/create/update access to its deterministic
+`clientGalleryCleanup.<SHA256(published ID)>` prefix. No editor token belongs in build
+settings. This flag does not start the separate server worker. Check the
+[FI/EN enrollment workflow](../studio/README.md#review-automatic-delivery-cleanup-enrollment-ab397)
+and hosted permissions before enabling it.
 Legacy imported fields/actions remain read-only. Bounded web-image authoring and
 the AB#303 reader are source implementations; the reader remains off by default.
 Its [runtime configuration](deployment.md#ongoing-unlisted-client-galleries-adr-0034)

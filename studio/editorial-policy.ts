@@ -49,11 +49,13 @@ const isProofRecord = (type: string) => PROOF_RECORD_TYPES.some((candidate) => c
 export type EditorialPolicyOptions = Readonly<{ proofGalleries?: boolean }>;
 
 export function allowTemplate(schemaType: string, options: EditorialPolicyOptions = {}): boolean {
+  if (schemaType === "clientGalleryCleanup") return false;
   if (schemaType === PROOF_GALLERY_LIST.type) return options.proofGalleries === true;
   return !isSingleton(schemaType) && !isImporterType(schemaType) && !isProofRecord(schemaType);
 }
 
 export function allowAction(schemaType: string, action: string | undefined): boolean {
+  if (schemaType === "clientGalleryCleanup") return false;
   if (isImporterType(schemaType) || isProofRecord(schemaType)) return false;
   if (schemaType === "clientDeliveryGallery") {
     return action !== undefined && ["unpublish", "discardChanges", "delete"].includes(action);
