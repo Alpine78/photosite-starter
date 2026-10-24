@@ -535,6 +535,14 @@ protected code stays disabled pending a separate removal audit. New-gallery
 creation/publication is not implemented by this decision. Earlier entries below
 record history under the superseded protected target.
 
+Expiry cleanup candidate planner, 2026-10-24 — AB#394 **Active**, parent AB#392:
+a pure, server-only module classifies enrolled new-delivery expiry using the existing
+reader's validator and plans revision-bound image/optional whole-ZIP candidates from
+complete caller-supplied evidence. Shared uses stay; copied, malformed, truncated or
+stale evidence blocks. [Planner contract](client-gallery-retention-planner.md).
+No runtime caller, enrollment storage, mutation or schedule is added; every result says
+`readyToDelete: false`. AB#395 remains **New** for the executor and hosted acceptance.
+
 AB#306 / AB#29 finite page deadlines, 2026-10-17 (partial, Active): new
 web-delivery pages now show their already validated deadline as a semantic
 FI/EN UTC timestamp, preserving seconds and nonzero milliseconds. Host/browser
