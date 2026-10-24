@@ -2,6 +2,18 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Scheduled delivery cleanup, 2026-10-24 — AB#398 **Active** (owner review/merge pending),
+parent AB#395 / AB#392 **Active**, dependency AB#397 (PR #614): default-off Production-only
+authenticated daily worker now uses one full-readable non-cursor snapshot and strict
+Doc reads to replan at fresh source/asset revisions. One private control arbitrates
+publication, pending fencing and atomic source/unshared-image deletion plus receipt.
+Observed shared/weak uses remain; drafts/releases, incoming gallery refs, malformed
+evidence and changed policies block visibly. Bounded active cursor progress, hard
+deadlines and uncertain-outcome reconciliation are fixture-tested. No proof timer,
+legacy enrollment, new ZIP support, live write or activation. Full-read/image-role
+breadth, controlled strong writers and hosted provider/race/capacity acceptance remain
+open under AB#395. See [the runbook](client-gallery-cleanup.md).
+
 Delivery cleanup enrollment, 2026-10-24 — AB#397 **Active** (owner review/merge pending),
 parent AB#395 / AB#392 **Active**: default-off FI/EN Studio publication now reviews
 finite-delivery cleanup consent, exact deadline/image set and latest private result.
@@ -11,7 +23,7 @@ galleries (including new deliveries) require deliberate opt-in. Pending attempts
 unknown results reconcile exact source/publication identity, including matching completion
 receipts after immediate expired deletion. No customer/contact fields, editable control
 schema, legacy/proof enrollment, new ZIP eligibility or live operation. The separate
-worker and hosted role/race/activation checks remain AB#398 / AB#395. See
+worker is source-built in AB#398; hosted role/race/activation checks remain AB#395. See
 [retention](client-gallery-retention.md#reviewed-enrollment-and-private-control-ab397).
 
 Proof replacement publication, 2026-10-24 — AB#396 **Closed** (PR #613 merged):
@@ -560,13 +572,14 @@ protected code stays disabled pending a separate removal audit. New-gallery
 creation/publication is not implemented by this decision. Earlier entries below
 record history under the superseded protected target.
 
-Expiry cleanup candidate planner, 2026-10-24 — AB#394 **Active**, parent AB#392:
+Expiry cleanup candidate planner, 2026-10-24 — AB#394 **Closed** (PR #611 merged), parent AB#392:
 a pure, server-only module classifies enrolled new-delivery expiry using the existing
 reader's validator and plans revision-bound image/optional whole-ZIP candidates from
 complete caller-supplied evidence. Shared uses stay; copied, malformed, truncated or
 stale evidence blocks. [Planner contract](client-gallery-retention-planner.md).
-No runtime caller, enrollment storage, mutation or schedule is added; every result says
-`readyToDelete: false`. AB#395 remains **New** for the executor and hosted acceptance.
+The planner itself adds no runtime IO, enrollment storage, mutation or schedule; every
+result says `readyToDelete: false`. Its default-off runtime caller now lives in AB#398,
+with enrollment in AB#397 and hosted acceptance/activation still **Active** under AB#395.
 
 AB#306 / AB#29 finite page deadlines, 2026-10-17 (partial, Active): new
 web-delivery pages now show their already validated deadline as a semantic

@@ -66,6 +66,10 @@ const eslintConfig = defineConfig([
         {
           patterns: [
             {
+              group: ["@/lib/client-gallery-cleanup-transport", "@/lib/client-gallery-cleanup-snapshot", "@/lib/client-gallery-cleanup-runner", "@/lib/client-gallery-cleanup-contract"],
+              message: "Run delivery cleanup through client-gallery-cleanup-access; provider evidence, private control records and deletion ordering stay behind the facade (AB#398).",
+            },
+            {
               group: ["@/lib/client-gallery-sanity", "@/lib/client-gallery-model", "@/lib/client-gallery-deployment"],
               message: "Use client-gallery-access; CMS records and deployment settings stay server-only (ADR-0034).",
             },

@@ -52,7 +52,7 @@ routes: "src/app — App Router" {
     class: planned
   }
 
-  unlisted: "Unlisted client delivery (selected — ADR-0034)\n/client-gallery/<handle>; no customer login.\n21 legacy pages observed live 2026-10-15.\nPublic Sanity metadata/files. Page: noindex, no-store.\nNew authoring + customer reader built, default-off.\nNative Studio roles; no new-gallery ZIP.\nProof page /client-proof/<handle> (ADR-0038):\nread-only, default-off; selection not built." {
+  unlisted: "Unlisted client delivery (selected — ADR-0034)\n/client-gallery/<handle>; no customer login.\n21 legacy pages observed live 2026-10-15.\nPublic Sanity metadata/files. Page: noindex, no-store.\nNew authoring + customer reader built, default-off.\nNative Studio roles; no new-gallery ZIP.\nProof selection + reviewed replacement deletion built, default-off.\nDelivery cleanup GET: cron bearer, counts only; source-built, off." {
     class: built
   }
 }
@@ -127,6 +127,10 @@ restricted: "Server-only modules" {
     class: built
   }
 
+  delivery-cleanup: "Delivery cleanup facade -> worker -> dedicated Sanity transport (AB#397–398)\nSOURCE BUILT, DEFAULT OFF; hosted role/deletion acceptance pending.\nOne full-readable snapshot + strict Doc reads; retain reference metadata only.\nPrivate control/cursor fence, fresh policy/revision guards, atomic source + asset deletion.\nShared/weak uses kept; arbitrary late weak/release writers remain an activation boundary.\nPublic projection and proof/legacy timers unchanged." {
+    class: built
+  }
+
   private-gallery: "private-gallery modules (inactive alternative — ADR-0034)\nBUILT: capability envelope, session + cookie contract,\nrate-limited exchange, and the one route-facing facade\n(private-gallery-access.ts) every other module hides behind;\na memory fixture store for development only.\nProtected adapters/outbox/retention are deferred.\nServer-only, ESLint-bounded; never reached by a public read." {
     class: planned
   }
@@ -164,5 +168,5 @@ lib -> restricted: "The only crossing there is.\nESLint refuses these imports fr
   style.bold: true
 }
 
-restricted -> external: "Published/unlisted Sanity reads; private-gallery\nS3 + Postgres access is deferred (ADR-0034);\natomic public poll writes through the separate voting token" {class: pending-flow}
+restricted -> external: "Published/unlisted Sanity reads; default-off delivery cleanup\nuses full dataset READ + restricted WRITE (hosted acceptance pending).\nPrivate-gallery S3 + Postgres deferred (ADR-0034);\natomic public poll writes through the separate voting token" {class: pending-flow}
 lib -> external: "Delivers one enquiry.\nNo form content is stored anywhere."

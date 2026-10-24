@@ -53,7 +53,8 @@ See [proof data flow](proof-selection-data-flow.md).
   operation, not part of the delivery expiry sweep.
 - **AB#397 — Active:** source implementation of reviewed Studio cleanup enrollment and
   the private control contract; owner review/merge and hosted verification remain.
-- **AB#398 — Active:** separate source worker/scheduler slice, followed by hosted gates.
+- **AB#398 — Active:** source worker/scheduler implemented, owner review/merge pending;
+  hosted provider/role/capacity/race acceptance and activation remain AB#395.
 
 **No automatic cleanup is deployed or configured by AB#393.** No gallery is enrolled
 by receiving a creation default. AB#397 implements enrollment in the separately enabled
@@ -119,6 +120,15 @@ synthetic atomic-transaction/race rehearsal and FI/EN keyboard/assistive-technol
 acceptance remain required under AB#395.
 
 ## Required safeguards before an executor is enabled
+
+The [source worker and runbook](client-gallery-cleanup.md) implement the bounded
+protocol and list the remaining hosted evidence. A committed daily cron never
+enables it; both Studio enrollment and Production worker flags default off.
+The worker currently removes expired new delivery documents and unshared web
+images only. A full dataset READ broadens transient private-field processing;
+WRITE cannot generally encode image ownership. The controlled strong-writer and
+no-release boundary must be established before activation. Shared images have
+no later sweep; provider history/backups, CDN and downloads remain outside scope.
 
 These are implementation requirements to verify in AB#395, not evidence of a running
 service or a final provider-read contract:

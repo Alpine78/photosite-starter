@@ -159,3 +159,20 @@ writers and never replaces independent gallery validation. Kept shared assets re
 later sweep; open drafts and incoming gallery references can block cleanup until resolved.
 The server worker, hosted provider/role/race rehearsal and activation remain AB#395/398.
 This note changes no public-file exposure rule, ZIP eligibility or owner activation gate.
+
+### Executor implementation note — 2026-10-24 (AB#398)
+
+The separate source worker and authenticated daily schedule are now built, default-off.
+One non-cursor full-readable dataset snapshot plus strict fresh Doc reads supplies
+reference evidence; the planner rebinds the approved policy to the current revision.
+The control revision fences pending/uncertain work before fresh attempts. Source,
+unshared web images and a matching completion receipt change atomically; shared images
+remain without a later sweep. No new ZIP schema/eligibility, legacy enrollment or proof
+timer is introduced.
+
+This is implementation evidence, not hosted acceptance or a change to the accepted
+activation boundary. Full dataset READ includes transient private proof fields; image
+WRITE grants can be broader than enrolled ownership. Late arbitrary weak/release
+writers remain outside the protocol. AB#395 retains the controlled-writer, role,
+capacity, provider-semantics and synthetic-race rehearsal before deliberate activation.
+See [the cleanup runbook](../client-gallery-cleanup.md) for limits and operational evidence.

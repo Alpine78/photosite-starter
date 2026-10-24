@@ -22,6 +22,17 @@ survive page closure. Review filenames/embedded metadata before upload; the
 [deployment contract](deployment.md#ongoing-unlisted-client-galleries-adr-0034)
 records read limits, publication delay and remaining live verification.
 
+AB#397–398 add explicit private operational enrollment and a default-off scheduled
+cleanup worker for these new unlisted deliveries. It stores only the approved
+policy/source identity and latest bounded attempt/result/receipt, without customer
+text or an address. A complete dataset reference snapshot can transiently parse
+private proof terms; only ID/revision/type/reference metadata is retained in
+memory. The raw export is never persisted or logged. Full dataset READ and the
+residual image-asset write grant need hosted verification. Shared images remain
+online without a later sweep; provider history/backups, CDN and downloaded copies
+remain outside ordinary deletion. See [cleanup data flow and activation
+evidence](client-gallery-cleanup.md). No processing is activated by this source.
+
 The sections below describe the deferred protected alternative and historical
 implementation, not requirements for the selected Sanity workflow.
 
