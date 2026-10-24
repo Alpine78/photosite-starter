@@ -658,8 +658,9 @@ to Sanity; ordinary changes stay in Studio.
   a separate removal audit. AB#29/145 now track unlisted Sanity delivery and
   administration. AB#130 proof selection follows ADR-0038 in existing Sanity:
   the proof page, publication, customer selection, photographer notice, reminders
-  and gallery deletion are built and default-off; the owner's activation decision
-  remains.
+  and manual gallery deletion are built and default-off; the owner's activation decision
+  remains. Required proof deletion at replacement delivery publication is still
+  [AB#396](docs/adr/0038-proof-selection-in-existing-sanity.md#replacement-deletion-amendment-2026-10-24), not implemented.
 - Optional image sales and fulfilment (enquiry first; checkout and cart only
   after a separate product, legal, security, and delivery decision)
 - Multilingual authoring workflow: articles and galleries have an owner-run linked-draft

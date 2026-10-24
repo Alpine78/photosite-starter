@@ -30,16 +30,24 @@ are never patched by an initial-value resolver.
 
 PR #609 implements **manual proof-gallery deletion** with its private records and
 unshared images. It is not an expiry worker. The accepted ADR-0038 proof default stays
-indefinite and its private records stay until gallery deletion. Whether the new default
-also applies to proofs is an open owner question; this slice changes no proof lifecycle.
+indefinite before replacement. The owner clarified on 2026-10-24 that proofs must be
+deleted when their linked replacement delivery is published, rather than acquiring a
+six-month timer. The [accepted ADR-0038 amendment](adr/0038-proof-selection-in-existing-sanity.md#replacement-deletion-amendment-2026-10-24)
+records the deletion unit and consequences, including removal of confirmed versions.
+**This publication-triggered deletion is not implemented** (AB#396). Current linking
+only redirects and can show proofs again when delivery is unavailable. Manual deletion
+is the only implemented removal mechanism, under its existing operational permissions.
 See [proof data flow](proof-selection-data-flow.md).
 
 ## Remaining implementation
 
-- **AB#394:** pure, non-executing eligibility/candidate planner. Its result is evidence
-  for further checks, never permission or an executable deletion.
-- **AB#395:** authenticated scheduled executor, enrollment storage, concurrency and
-  reconciliation, operational controls, hosted tests and deliberate activation.
+- **AB#393 / AB#394 — Closed:** creation defaults and the
+  [pure, non-executing planner](client-gallery-retention-planner.md) merged in PRs #610
+  and #611. A candidate result never authorizes deletion.
+- **AB#395 — New:** delivery-only expiry executor, enrollment, reconciliation,
+  operational controls, hosted tests and deliberate activation.
+- **AB#396 — New:** proof deletion together with linked replacement publication.
+  This is a publication operation, not part of the delivery expiry sweep.
 
 **No automatic cleanup is deployed or configured by AB#393.** No gallery is enrolled
 by receiving a creation default. Enrollment storage and how newly published galleries
@@ -51,9 +59,11 @@ convert an indefinite gallery to finite access or bulk-enroll the 21 legacy gall
 The new-ZIP authoring/transport decision remains [ADR-0035](adr/0035-unlisted-delivery-zip-proposal.md)
 (Proposed). A cleanup requirement grants no new file eligibility or upload permission.
 Legacy galleries have their own image records, manifests and batch constraints; a
-new-delivery planner does not establish their removal safety. A replaced proof may
-point at a closed delivery page after expiry; cleanup must not restore the old proofs
-or claim that replacement itself deletes them.
+new-delivery planner does not establish their removal safety. Current replacement
+redirection does not delete proofs; the required AB#396 operation must not restore
+proofs if delivery later closes. Its old-link continuity remains a design question.
+The existing delivery clock still starts at draft creation: check the actual deadline
+at handoff, because publication does not grant a fresh six months.
 
 ## Required safeguards before an executor is enabled
 
@@ -73,8 +83,8 @@ service or a final provider-read contract:
    The final design must resolve that limitation before claiming safe automation.
 4. Images and the one intact ZIP are inventoried together; no partial ZIP, splitting,
    unrelated asset sweeping or deletion by filename. A shared file stays and is reported.
-   If proof expiry is later included, use its terms guard and complete private-record
-   inventory, preserving confirmed versions until the gallery's actual deletion.
+   Proofs are outside this expiry sweep. AB#396 must reuse their terms guard and
+   complete private-record inventory for deletion on replacement publication.
 5. Bounded batches and time budgets with progress past blocked galleries, closed reason
    codes and counts, no customer values/links in logs. An uncertain commit is reconciled
    from current state, never blindly retried. A failed deletion must be visible.

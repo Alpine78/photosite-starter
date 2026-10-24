@@ -10,9 +10,10 @@ It records the **reference deployment**. A clone configures its own accounts and
 its own version of this file. Decisions: [ADR-0038](adr/0038-proof-selection-in-existing-sanity.md)
 (accepted 2026-10-22, with its amendments and implementation notes). Work item: AB#130.
 
-**Status, 2026-10-23:** every part below is implemented and **default-off**. Nothing is
-active until the owner's activation decision and the pre-activation checks in
-[Before activation](#before-activation).
+**Status, 2026-10-24:** the data path and manual deletion below are implemented and
+**default-off**. The newly required proof deletion on replacement delivery publication
+is not yet implemented (AB#396). Nothing is active until the owner's activation
+decision and the pre-activation checks in [Before activation](#before-activation).
 
 ## What is stored
 
@@ -73,8 +74,17 @@ metadata, outside the application's control.
 
 The owner set the retention on 2026-10-22: **confirmed versions and the other private
 records are kept until the proof gallery is deleted** (ADR-0038 decision 7, owner answers
-3). There is no automatic deletion and no deletion schedule; page availability and the
-deadline only stop access and writes.
+3). **Current runtime:** manual deletion only, with no deletion schedule; page
+availability and the deadline only stop access and writes.
+
+**Accepted change, 2026-10-24:** [ADR-0038's amendment](adr/0038-proof-selection-in-existing-sanity.md#replacement-deletion-amendment-2026-10-24)
+requires deleting that same unit when the linked replacement delivery is published,
+including confirmed versions and their price snapshots. AB#396 is **New**, not an
+implemented automatic removal. There is no six-month proof timer. Until this exists,
+the manual action remains the only removal mechanism. For an interim handoff, use is
+a separate authorized operation after checking successful delivery publication. Selection and
+reminder rules apply until deletion; existing mail/history/backup/cache limits below
+remain unchanged.
 
 **Deleting a proof gallery** is a Studio action on the gallery: **Delete proof gallery and
 its records / Poista vedosgalleria ja sen tiedot**, available when the Studio has proof

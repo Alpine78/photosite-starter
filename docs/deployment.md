@@ -816,7 +816,7 @@ Every reminder links to the customer's stop page
 reminder. With manual production releases, a schedule change takes effect only with the
 next release.
 
-**Replacement by the delivery gallery (ADR-0038 owner answer 5).** A proof gallery's
+**Current replacement runtime (ADR-0038 owner answer 5).** A proof gallery's
 optional `replacedBy` names the client gallery holding the finished images. While exactly
 that document is an available new delivery gallery — through the delivery reader, so it
 needs `CLIENT_GALLERY_ADAPTER` and is never a retained legacy handle — the proof link
@@ -824,7 +824,10 @@ answers `307` to `/client-gallery/<handle>`, even when the proofs themselves are
 or expired. The redirect keeps a single configured `?locale=` and ends in an empty
 fragment, so a browser does not carry `#select=` over to the delivery URL. Clearing the
 field, deleting or pausing the delivery gallery shows the proofs again if they are
-available. Delivery provider failures stay server errors.
+available. Delivery provider failures stay server errors. The
+[2026-10-24 amendment](adr/0038-proof-selection-in-existing-sanity.md#replacement-deletion-amendment-2026-10-24)
+requires deletion at replacement publication instead (AB#396, not implemented).
+No deployment flag currently makes this redirect perform deletion.
 
 ### Build one whole delivery ZIP offline (AB#319)
 

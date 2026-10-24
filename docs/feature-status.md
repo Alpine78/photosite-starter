@@ -2,6 +2,14 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Proof replacement lifecycle clarification, 2026-10-24 — AB#130 / AB#392 **Active**:
+the owner requires proof deletion when the linked replacement delivery is published,
+with no six-month proof timer. [ADR-0038 amendment](adr/0038-proof-selection-in-existing-sanity.md#replacement-deletion-amendment-2026-10-24).
+AB#396 **New** tracks the guarded publication/deletion operation; current code only
+redirects reversibly and offers manual deletion. This is a requirement update, not an
+automated deletion implementation or activation. Delivery-only expiry remains AB#395
+**New**. PRs #610/#611 are merged; their AB#393 / AB#394 items are **Closed**.
+
 Delivery expiry defaults and cleanup requirement, 2026-10-24 — AB#392 / AB#393 **Active**:
 new Studio delivery drafts suggest an editable six-calendar-month UTC deadline from
 creation, clamping the day to month-end, and stay paused. Existing/legacy documents and

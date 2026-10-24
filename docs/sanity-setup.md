@@ -203,13 +203,18 @@ confirmed selection.
 
 ### Deleting a proof gallery (AB#130, ADR-0038 decision 7)
 
-Proof galleries are deleted only with the Studio action **Delete proof gallery and its
+Proof galleries are currently deleted only with the Studio action **Delete proof gallery and its
 records**, which adds no credential: it uses the editor's own session for its fresh Doc
 API reads, its supplementary query and one transaction that removes the gallery and
 every private record together, with the gallery's image assets — except an asset another
 document uses, which is kept. The editor therefore needs read access to private dotted
 IDs and write access to the dataset, including asset documents. What is removed, what is not and why is in
 [proof-selection-data-flow.md](proof-selection-data-flow.md#retention-and-deletion).
+
+The owner requires deletion together with replacement delivery publication (AB#396,
+not implemented); see the [ADR-0038 amendment](adr/0038-proof-selection-in-existing-sanity.md#replacement-deletion-amendment-2026-10-24).
+Current linking only redirects. For an interim handoff, verify delivery publication
+before separately authorized manual removal; these two actions are not atomic replacement.
 
 Before activation, an owner-run check on the hosted Studio deletes a test gallery that has
 a confirmed version, a notice and a reminder, and confirms that the action lists them,
