@@ -531,9 +531,20 @@ without proof galleries keeps Sanity's default sign-in.
   alone), so the customer can change it and confirm the next version. Earlier versions and
   their notices stay. A page the customer already has open shows the change after a
   reload. At the 999-version limit reopening is not offered.
-- Unpublish and delete are not offered for proof galleries: the published document holds
-  the fixed proof numbers, **Available to link holders** pauses the page, and deletion waits for a cleanup
-  that also removes the private terms. Only discarding a draft remains.
+- Unpublish and native delete are not offered for proof galleries: the published document
+  holds the fixed proof numbers, **Available to link holders** pauses the page, and native
+  delete would leave the private records behind. Discarding a draft remains.
+- **Delete proof gallery and its records / Poista vedosgalleria ja sen tiedot** deletes the
+  gallery, its draft and every private record — terms with prices, key and customer
+  address, the working selection, confirmed versions, notices and reminders — and the
+  gallery's image files in one transaction. It first lists what it found (counts only) and refuses when something
+  cannot be read, a record has a draft or release version, or other content references
+  the gallery. Type the gallery's document ID to confirm. If the customer confirms or a
+  reminder is claimed meanwhile, nothing is deleted: reload and review again. An unknown
+  outcome means reload and check, not retry. An image that other content uses is kept and
+  shown separately. Downloaded copies, the CDN's cache for a while, Sanity's history,
+  backups and emails already sent are not affected. See the
+  [proof selection data flow](../docs/proof-selection-data-flow.md#retention-and-deletion).
 
 The site route must be enabled separately; see
 [proof gallery publication](../docs/sanity-setup.md#proof-gallery-publication-ab130-adr-0038).
