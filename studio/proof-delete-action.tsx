@@ -31,7 +31,7 @@ export const DeleteProofGalleryAction: DocumentActionComponent = (props) => {
     docs: (ids, allVersions) => raw.request({
       url: raw.getDataUrl("doc", ids.join(",")), json: true, tag: "proof-delete", ...(allVersions ? { query: { includeAllVersions: "true" } } : {}),
     }),
-    sweep: (galleryId, ids) => raw.fetch(PROOF_DELETE_SWEEP_QUERY, { galleryId, ids }, { tag: "proof-delete" }),
+    sweep: (galleryId, ids, assetIds) => raw.fetch(PROOF_DELETE_SWEEP_QUERY, { galleryId, ids, assetIds }, { tag: "proof-delete" }),
   };
 
   async function load() {

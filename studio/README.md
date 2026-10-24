@@ -536,14 +536,14 @@ without proof galleries keeps Sanity's default sign-in.
   delete would leave the private records behind. Discarding a draft remains.
 - **Delete proof gallery and its records / Poista vedosgalleria ja sen tiedot** deletes the
   gallery, its draft and every private record — terms with prices, key and customer
-  address, the working selection, confirmed versions, notices and reminders — in one
-  transaction. It first lists what it found (counts only) and refuses when something
+  address, the working selection, confirmed versions, notices and reminders — and the
+  gallery's image files in one transaction. It first lists what it found (counts only) and refuses when something
   cannot be read, a record has a draft or release version, or other content references
   the gallery. Type the gallery's document ID to confirm. If the customer confirms or a
   reminder is claimed meanwhile, nothing is deleted: reload and review again. An unknown
-  outcome means reload and check, not retry. Image files are kept — remove an image only
-  after checking that nothing else uses it — and Sanity's history, backups and emails
-  already sent are not affected. See the
+  outcome means reload and check, not retry. An image that other content uses is kept and
+  shown separately. Downloaded copies, the CDN's cache for a while, Sanity's history,
+  backups and emails already sent are not affected. See the
   [proof selection data flow](../docs/proof-selection-data-flow.md#retention-and-deletion).
 
 The site route must be enabled separately; see

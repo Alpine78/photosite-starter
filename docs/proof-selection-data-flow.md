@@ -83,15 +83,17 @@ records behind.
 
 1. Opening the action reads, fresh from the Doc API with the editor's own session, the
    terms first, then the gallery and its draft, the working selection, every version and
-   notice up to the latest version, and every reminder step any clock could have reached.
-   It lists counts only.
+   notice up to the latest version, every reminder step any clock could have reached, and
+   the image assets the gallery and its draft use. It lists counts only.
 2. It refuses rather than guesses when a record cannot be read, a record is malformed,
    any record has a draft or a release version, the query index shows a record of the
    gallery outside the list, or other content references a record in it.
 3. The editor types the gallery's document ID to confirm. A reload clears it.
 4. One transaction deletes every listed document at the revision shown, guarded by the
    terms revision read first, and asserts that an absent gallery, draft, terms or selection
-   is still absent. A customer confirmation, reminder claim, publication or new draft that
+   is still absent. The same transaction then deletes the gallery's image assets — which
+   deletes the files — except an asset the query index shows another document using; that
+   one is kept and counted separately (owner decision 2026-10-24). A customer confirmation, reminder claim, publication or new draft that
    lands in between makes the deletion conflict and delete nothing; one that lands after
    it fails, because its own guarded terms write finds no terms. The transaction is sent
    once with retries off: a conflict asks for a fresh review, and a lost answer is an
@@ -102,11 +104,11 @@ records behind.
 
 **What deletion does not do:**
 
-- **Image files are kept.** Remove an image asset separately, and only after checking that
-  no other document uses it (ADR-0034 action items). Content Lake refuses to delete an
-  asset that a document still references strongly. Copies already downloaded, forwarded or
-  cached remain reachable wherever they are, and a deleted asset's URL may stay in CDN
-  caches for a while.
+- **Copies of the images stay where they are.** Images already downloaded, forwarded or
+  copied are outside the deployment's reach, and Sanity's CDN may serve a deleted file from
+  its cache for a while. An image another document uses is kept (the ADR-0034 shared-use
+  check); if such a use appears after the review, Content Lake refuses to delete the still
+  referenced asset, so the whole transaction fails and nothing is deleted.
 - **History and backups stay.** Sanity keeps earlier revisions of deleted documents for
   its history retention; purging history is a separate, higher-permission operation that
   this action does not perform.

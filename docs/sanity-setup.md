@@ -206,14 +206,15 @@ confirmed selection.
 Proof galleries are deleted only with the Studio action **Delete proof gallery and its
 records**, which adds no credential: it uses the editor's own session for its fresh Doc
 API reads, its supplementary query and one transaction that removes the gallery and
-every private record together. The editor therefore needs read access to private dotted
-IDs and write access to the dataset. Image assets are kept; delete one separately only
-after checking that no other document uses it. What is removed, what is not and why is in
+every private record together, with the gallery's image assets — except an asset another
+document uses, which is kept. The editor therefore needs read access to private dotted
+IDs and write access to the dataset, including asset documents. What is removed, what is not and why is in
 [proof-selection-data-flow.md](proof-selection-data-flow.md#retention-and-deletion).
 
 Before activation, an owner-run check on the hosted Studio deletes a test gallery that has
 a confirmed version, a notice and a reminder, and confirms that the action lists them,
-deletes them all and leaves an unrelated gallery untouched.
+deletes them and the test images (the image URLs stop answering once the CDN cache
+expires) and leaves an unrelated gallery and a shared image untouched.
 
 ## Standalone editor
 

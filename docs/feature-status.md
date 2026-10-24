@@ -6,7 +6,8 @@ Proof gallery deletion and data flow, 2026-10-23 — AB#130 **Active** (ADR-0038
 item 6): the Studio action **Delete proof gallery and its records** removes the gallery,
 its draft and every private record in one transaction guarded by the terms revision, from
 an inventory read fresh by deterministic IDs; it refuses unreadable, malformed, copied
-(draft or release) or referenced records, and keeps image assets.
+(draft or release) or referenced records. Its image assets are deleted in the same
+transaction unless another document uses one (owner decision 2026-10-24).
 [proof-selection-data-flow.md](proof-selection-data-flow.md) records what is stored,
 processors, logs and retention. Not yet: the owner's activation decision and the hosted,
 live and privacy-notice checks.

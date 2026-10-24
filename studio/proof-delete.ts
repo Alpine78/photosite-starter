@@ -12,6 +12,9 @@
  * created after the inventory either makes the deletion conflict or fails
  * itself. Each listed document is deleted at the revision shown; an absent
  * fixed document is asserted absent with a `create` that fails if it appeared.
+ * The gallery's image assets are deleted with it (owner decision 2026-10-24)
+ * unless the index shows another document using one; Content Lake refuses to
+ * delete an asset that is still referenced, which fails the whole transaction.
  */
 
 const GALLERY_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,95}$/u;
@@ -26,6 +29,7 @@ export const PROOF_DELETE_READ_CHUNK = 40;
 /** Mutation bodies are limited to 4 MB; the deletion is never split, so a larger one is refused. */
 export const PROOF_DELETE_MAX_BODY_BYTES = 3_500_000;
 const SWEEP_LIMIT = 5;
+const IMAGE_ASSET_ID = /^image-[A-Za-z0-9_-]{1,128}-\d{1,6}x\d{1,6}-[a-z0-9]{1,8}$/u;
 
 export const proofDeletionIds = (galleryId: string) => ({
   published: galleryId,
@@ -42,6 +46,10 @@ export type ProofDeletionInventory = Readonly<{
   galleryId: string;
   published?: DeletionRecord; draft?: DeletionRecord; terms?: DeletionRecord; selection?: DeletionRecord;
   versions: readonly DeletionRecord[]; notices: readonly DeletionRecord[]; reminders: readonly DeletionRecord[];
+  /** Image assets deleted with the gallery. */
+  assets: readonly string[];
+  /** Image assets another document uses, kept. */
+  sharedAssets: readonly string[];
 }>;
 export type ProofDeletionBlock = "unreadable" | "inconsistent" | "copies" | "unexpected" | "referenced" | "too-large" | "nothing";
 export type ProofDeletionReadiness = Readonly<{ ready: ProofDeletionInventory }> | Readonly<{ reason: ProofDeletionBlock; ids?: readonly string[] }>;
@@ -50,14 +58,18 @@ export type ProofDeletionReadiness = Readonly<{ ready: ProofDeletionInventory }>
 export type ProofDeletionReader = Readonly<{
   /** Fresh reads by ID; `allVersions` adds drafts and release versions of each ID. */
   docs(ids: readonly string[], allVersions: boolean): Promise<unknown>;
-  /** The query index, a supplementary check: `PROOF_DELETE_SWEEP_QUERY` with `$galleryId` and `$ids`. */
-  sweep(galleryId: string, ids: readonly string[]): Promise<unknown>;
+  /** The query index, a supplementary check: `PROOF_DELETE_SWEEP_QUERY` with `$galleryId`, `$ids` and `$assetIds`. */
+  sweep(galleryId: string, ids: readonly string[], assetIds: readonly string[]): Promise<unknown>;
 }>;
 
-/** Records of the gallery outside the inventory, and documents outside it that reference one inside. */
+/**
+ * Records of the gallery outside the inventory, documents outside it that
+ * reference one inside, and the gallery's assets another document uses.
+ */
 export const PROOF_DELETE_SWEEP_QUERY = `{
   "extra": *[galleryId == $galleryId && !(_id in $ids)][0...${SWEEP_LIMIT}]._id,
-  "referencing": *[references($ids) && !(_id in $ids)][0...${SWEEP_LIMIT}]._id
+  "referencing": *[references($ids) && !(_id in $ids)][0...${SWEEP_LIMIT}]._id,
+  "sharedAssets": $assetIds[count(*[references(^) && !(_id in $ids)]) > 0]
 }`;
 
 class Blocked extends Error {
@@ -105,6 +117,23 @@ function revisionOf(doc: Record<string, unknown> | undefined, type: string, gall
   return { id: doc._id as string, revision: doc._rev };
 }
 
+/** The image assets the gallery's items use, each once; a malformed reference blocks. */
+function galleryAssets(...docs: (Record<string, unknown> | undefined)[]): string[] {
+  const assets = new Set<string>();
+  for (const doc of docs) {
+    if (!doc || doc.items === undefined) continue;
+    if (!Array.isArray(doc.items)) throw new Blocked("inconsistent");
+    for (const item of doc.items) {
+      const image = record(record(item)?.image);
+      if (image?.asset === undefined) continue;
+      const ref = record(image.asset)?._ref;
+      if (typeof ref !== "string" || !IMAGE_ASSET_ID.test(ref)) throw new Blocked("inconsistent");
+      assets.add(ref);
+    }
+  }
+  return [...assets];
+}
+
 /** Reminder steps up to the latest any clock could have claimed: one step past the shortest delay, now. */
 export function proofDeletionReminderSteps(firstPublishedAt: number, now: number): number {
   const steps = Math.floor((now - firstPublishedAt) / PROOF_DELETE_REMINDER_STEP_MS) + 2;
@@ -137,7 +166,8 @@ export async function collectProofDeletion(galleryId: string, reader: ProofDelet
     const numbers = (count: number) => Array.from({ length: count }, (_, index) => index + 1);
     const versionIds = numbers(latestVersion as number).map(ids.version), noticeIds = numbers(latestVersion as number).map(ids.notice);
     const reminderIds = numbers(steps).map(ids.reminder);
-    const variable = await readExact(reader, [...versionIds, ...noticeIds, ...reminderIds]);
+    const assetIds = galleryAssets(fixed.get(ids.published), fixed.get(ids.draft));
+    const variable = await readExact(reader, [...versionIds, ...noticeIds, ...reminderIds, ...assetIds]);
     const present = (list: string[], type: string) => list.flatMap((id) => {
       const found = revisionOf(variable.get(id), type, galleryId);
       return found ? [found] : [];
@@ -146,6 +176,7 @@ export async function collectProofDeletion(galleryId: string, reader: ProofDelet
       galleryId, ...(published ? { published } : {}), ...(draft ? { draft } : {}), ...(terms ? { terms } : {}), ...(selection ? { selection } : {}),
       versions: present(versionIds, "clientProofSelectionVersion"), notices: present(noticeIds, "clientProofNotice"),
       reminders: present(reminderIds, "clientProofReminder"),
+      assets: assetIds.filter((id) => revisionOf(variable.get(id), "sanity.imageAsset", undefined) !== undefined), sharedAssets: [],
     };
     const listed = inventoryIds(inventory);
     if (listed.length === 0) return { reason: "nothing" };
@@ -164,20 +195,22 @@ export async function collectProofDeletion(galleryId: string, reader: ProofDelet
     }
     if (copies.length > 0) return { reason: "copies", ids: copies.slice(0, SWEEP_LIMIT) };
 
-    const swept = record(await reader.sweep(galleryId, listed));
+    const swept = record(await reader.sweep(galleryId, listed, inventory.assets));
     const list = (value: unknown) => Array.isArray(value) && value.every((id) => typeof id === "string") ? value as string[] : undefined;
-    const extra = list(swept?.extra), referencing = list(swept?.referencing);
-    if (!extra || !referencing) return { reason: "unreadable" };
+    const extra = list(swept?.extra), referencing = list(swept?.referencing), shared = list(swept?.sharedAssets);
+    if (!extra || !referencing || !shared || shared.some((id) => !inventory.assets.includes(id))) return { reason: "unreadable" };
     if (extra.length > 0) return { reason: "unexpected", ids: extra };
     if (referencing.length > 0) return { reason: "referenced", ids: referencing };
-    if (JSON.stringify({ mutations: planProofDeletion(inventory, new Date(now).toISOString()) }).length > PROOF_DELETE_MAX_BODY_BYTES) return { reason: "too-large" };
-    return { ready: inventory };
+    const ready = { ...inventory, assets: inventory.assets.filter((id) => !shared.includes(id)), sharedAssets: shared };
+    if (JSON.stringify({ mutations: planProofDeletion(ready, new Date(now).toISOString()) }).length > PROOF_DELETE_MAX_BODY_BYTES) return { reason: "too-large" };
+    return { ready };
   } catch (error) {
     if (error instanceof Blocked) return { reason: error.reason, ...(error.ids ? { ids: error.ids } : {}) };
     return { reason: "unreadable" };
   }
 }
 
+/** The gallery and its records; the assets are listed separately. */
 export function inventoryIds(inventory: ProofDeletionInventory): string[] {
   return [inventory.terms, inventory.published, inventory.draft, inventory.selection, ...inventory.versions, ...inventory.notices, ...inventory.reminders]
     .flatMap((entry) => entry ? [entry.id] : []);
@@ -191,7 +224,8 @@ export type ProofDeletionMutation =
 /**
  * One transaction. A listed document is patched under the revision shown, then
  * deleted; an absent gallery, draft, terms or selection is created and deleted
- * again, which fails if it appeared meanwhile. The terms guard comes first.
+ * again, which fails if it appeared meanwhile. The terms guard comes first;
+ * the assets go last, once nothing in the transaction references them.
  */
 export function planProofDeletion(inventory: ProofDeletionInventory, now: string): ProofDeletionMutation[] {
   const ids = proofDeletionIds(inventory.galleryId);
@@ -205,6 +239,7 @@ export function planProofDeletion(inventory: ProofDeletionInventory, now: string
     ...fixed(inventory.draft, ids.draft, "clientProofGallery"),
     ...fixed(inventory.selection, ids.selection, "clientProofSelection"),
     ...[...inventory.versions, ...inventory.notices, ...inventory.reminders].flatMap(guarded),
+    ...inventory.assets.map((id): ProofDeletionMutation => ({ delete: { id } })),
   ];
 }
 
@@ -241,6 +276,7 @@ export function proofDeletionCounts(inventory: ProofDeletionInventory) {
   return {
     gallery: (inventory.published ? 1 : 0) + (inventory.draft ? 1 : 0), terms: inventory.terms ? 1 : 0, selection: inventory.selection ? 1 : 0,
     versions: inventory.versions.length, notices: inventory.notices.length, reminders: inventory.reminders.length,
+    images: inventory.assets.length, sharedImages: inventory.sharedAssets.length,
   };
 }
 
@@ -250,15 +286,16 @@ export function proofDeleteCopy(locale: string) {
     working: "Poistetaan…", loading: "Luetaan poistettavia tietoja…",
     explain: "Poistaa samassa transaktiossa gallerian ja kaikki sen yksityiset tiedot. Asiakkaan sivu ja valintalinkki lakkaavat toimimasta.",
     counts: { gallery: "Galleriadokumentit (julkaistu ja luonnos)", terms: "Yksityiset ehdot (hinnat, avain, muistutusten asetukset ja osoite)", selection: "Työn alla oleva valinta",
-      versions: "Vahvistetut valintaversiot", notices: "Ilmoitukset valokuvaajalle", reminders: "Muistutukset" },
+      versions: "Vahvistetut valintaversiot", notices: "Ilmoitukset valokuvaajalle", reminders: "Muistutukset",
+      images: "Kuvatiedostot", sharedImages: "Kuvatiedostot, joita muu sisältö käyttää (säilytetään)" },
     limits: [
-      "Kuvatiedostot säilyvät. Poista ne erikseen vasta tarkistettuasi, ettei mikään muu sisältö käytä niitä; jo kopioidut tai välimuistissa olevat kuvat voivat yhä löytyä osoitteestaan.",
+      "Gallerian kuvatiedostot poistetaan, paitsi kuva, jota muu sisältö käyttää. Ladatut ja kopioidut kuvat säilyvät, ja CDN voi tarjoilla poistettua kuvaa välimuistista vielä hetken.",
       "Sanity säilyttää dokumenttien aiemmat versiot historiassaan oman säilytysaikansa; tämä ei tyhjennä historiaa eikä varmuuskopioita.",
       "Jo lähetettyjä tai parhaillaan lähteviä sähköposteja ei voi perua.",
     ],
     typeId: "Vahvista kirjoittamalla gallerian tunniste {id}",
     deleted: "Vedosgalleria ja sen tiedot poistettiin.",
-    conflict: "Tiedot muuttuivat tällä välin, joten mitään ei poistettu. Lataa uudelleen ja tarkista luettelo ennen uutta yritystä.",
+    conflict: "Tiedot muuttuivat tällä välin tai muu sisältö käyttää kuvaa, joten mitään ei poistettu. Lataa uudelleen ja tarkista luettelo ennen uutta yritystä.",
     refused: "Sanity hylkäsi poiston, eikä mitään poistettu. Tarkista oikeutesi ja viittaukset galleriaan.",
     uncertain: "Tulos ei selvinnyt. Älä yritä heti uudelleen: lataa uudelleen ja tarkista, onko galleria jo poistettu.",
     off: "Vedosgalleriat eivät ole käytössä tässä Studiossa.", unavailable: "Toiminto ei ole nyt käytettävissä.",
@@ -274,15 +311,16 @@ export function proofDeleteCopy(locale: string) {
     working: "Deleting…", loading: "Reading what will be deleted…",
     explain: "Deletes the gallery and all its private records in one transaction. The customer's page and selection link stop working.",
     counts: { gallery: "Gallery documents (published and draft)", terms: "Private terms (prices, key, reminder settings and address)", selection: "Working selection",
-      versions: "Confirmed selection versions", notices: "Photographer notices", reminders: "Reminders" },
+      versions: "Confirmed selection versions", notices: "Photographer notices", reminders: "Reminders",
+      images: "Image files", sharedImages: "Image files other content uses (kept)" },
     limits: [
-      "Image files are kept. Remove them separately only after checking that no other content uses them; images already copied or cached may still be reachable at their URLs.",
+      "The gallery's image files are deleted, except an image other content uses. Downloaded or copied images remain, and the CDN may serve a deleted image from its cache for a while.",
       "Sanity keeps earlier document revisions in its history for its own retention period; this clears neither history nor backups.",
       "Emails already sent or being sent cannot be withdrawn.",
     ],
     typeId: "Confirm by typing the gallery ID {id}",
     deleted: "The proof gallery and its records were deleted.",
-    conflict: "The records changed meanwhile, so nothing was deleted. Reload and check the list before trying again.",
+    conflict: "The records changed meanwhile or other content uses an image, so nothing was deleted. Reload and check the list before trying again.",
     refused: "Sanity refused the deletion and nothing was deleted. Check your permissions and references to the gallery.",
     uncertain: "The outcome is unknown. Do not retry straight away: reload and check whether the gallery is already gone.",
     off: "Proof galleries are not enabled in this Studio.", unavailable: "This action is not available now.",

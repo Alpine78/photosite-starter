@@ -26,8 +26,8 @@ function lake(initial: Record<string, unknown>[]) {
       }
       return { documents: ids.flatMap((id) => docs.has(id) ? [docs.get(id)] : []), omitted: ids.filter((id) => !docs.has(id)).map((id) => ({ id, reason: "existence" })) };
     },
-    async sweep(galleryId, ids) {
-      return (await evaluate(parse(PROOF_DELETE_SWEEP_QUERY), { dataset: index ?? [...docs.values()], params: { galleryId, ids } })).get();
+    async sweep(galleryId, ids, assetIds) {
+      return (await evaluate(parse(PROOF_DELETE_SWEEP_QUERY), { dataset: index ?? [...docs.values()], params: { galleryId, ids, assetIds } })).get();
     },
   };
   function commit(mutations: readonly Record<string, unknown>[]) {
@@ -47,14 +47,23 @@ function lake(initial: Record<string, unknown>[]) {
         next.delete((mutation.delete as { id: string }).id);
       }
     }
+    // Content Lake refuses to delete a document a remaining one references strongly.
+    const strong = (value: unknown): string[] => Array.isArray(value) ? value.flatMap(strong)
+      : typeof value === "object" && value !== null
+        ? [...(typeof (value as Doc)._ref === "string" && (value as Doc)._weak !== true ? [(value as Doc)._ref as string] : []), ...Object.values(value).flatMap(strong)]
+        : [];
+    if ([...next.values()].flatMap(strong).some((ref) => docs.has(ref) && !next.has(ref))) throw Object.assign(new Error("referenced"), { statusCode: 409 });
     docs.clear();
     next.forEach((value, key) => docs.set(key, value));
   }
   return { docs, put, reader, commit, freezeIndex: () => { index = [...docs.values()]; } };
 }
 
+const asset = (id: string) => ({ _id: id, _type: "sanity.imageAsset" });
+const item = (key: string, ref: string) => ({ _key: key, image: { _type: "image", asset: { _type: "reference", _ref: ref } } });
 const gallery = (id = "g1") => [
-  { _id: id, _type: "clientProofGallery", handle: `h-${id}`, items: [{ _key: "a", image: { asset: { _ref: "image-abc-10x10-jpg" } } }] },
+  { _id: id, _type: "clientProofGallery", handle: `h-${id}`, items: [item("a", `image-${id}a-10x10-jpg`), item("b", `image-${id}b-10x10-jpg`)] },
+  asset(`image-${id}a-10x10-jpg`), asset(`image-${id}b-10x10-jpg`),
   { _id: proofTermsDocumentId(id), _type: "clientProofTerms", galleryId: id, firstPublishedAt: PUBLISHED, reminderDelayDays: 7, customerEmail: "c@example.fi" },
   { _id: proofSelectionId(id), _type: "clientProofSelection", galleryId: id, state: "confirmed", latestVersion: 2 },
   { _id: proofVersionId(id, 1), _type: "clientProofSelectionVersion", galleryId: id, version: 1 },
@@ -65,7 +74,8 @@ const gallery = (id = "g1") => [
   { _id: proofReminderId(id, 2), _type: "clientProofReminder", galleryId: id, step: 2 },
 ];
 const shared = [
-  { _id: "image-abc-10x10-jpg", _type: "sanity.imageAsset" },
+  asset("image-other-10x10-jpg"),
+  { _id: "article1", _type: "article", cover: { _type: "image", asset: { _type: "reference", _ref: "image-other-10x10-jpg" } } },
   { _id: "proofReminderCursor.daily", _type: "clientProofReminderCursor", after: "proofTerms.g1" },
 ];
 
@@ -85,14 +95,42 @@ describe("collecting a proof gallery deletion", () => {
       "proofTerms.g1", "g1", "proofSelection.g1", "proofSelection.g1.v1", "proofSelection.g1.v2", "proofNotice.g1.v1", "proofNotice.g1.v2",
       "proofReminder.g1.1", "proofReminder.g1.2",
     ]);
-    expect(proofDeletionCounts(inventory)).toEqual({ gallery: 1, terms: 1, selection: 1, versions: 2, notices: 2, reminders: 2 });
+    expect(inventory.assets).toEqual(["image-g1a-10x10-jpg", "image-g1b-10x10-jpg"]);
+    expect(proofDeletionCounts(inventory)).toEqual({ gallery: 1, terms: 1, selection: 1, versions: 2, notices: 2, reminders: 2, images: 2, sharedImages: 0 });
   });
 
-  it("deletes exactly those records, keeping images, the shared cursor and other galleries", async () => {
-    const store = lake([...gallery(), { _id: "drafts.g1", _type: "clientProofGallery" }, ...gallery("g2"), ...shared]);
+  it("deletes exactly those records and the gallery's images, keeping the shared cursor and other galleries", async () => {
+    const draft = { _id: "drafts.g1", _type: "clientProofGallery", items: [item("a", "image-g1a-10x10-jpg"), item("c", "image-g1c-10x10-jpg")] };
+    const store = lake([...gallery(), draft, asset("image-g1c-10x10-jpg"), ...gallery("g2"), ...shared]);
     const inventory = await ready(store);
-    expect(await run(store, planProofDeletion(inventory, "2026-10-23T12:00:00.000Z"))).toBe("deleted");
+    expect(inventory.assets).toEqual(["image-g1a-10x10-jpg", "image-g1b-10x10-jpg", "image-g1c-10x10-jpg"]);
+    const plan = planProofDeletion(inventory, "2026-10-23T12:00:00.000Z");
+    expect(plan.slice(-3)).toEqual(inventory.assets.map((id) => ({ delete: { id } })));
+    expect(await run(store, plan)).toBe("deleted");
     expect([...store.docs.keys()].sort()).toEqual([...gallery("g2").map((doc) => doc._id), ...shared.map((doc) => doc._id)].sort());
+  });
+
+  it("keeps an image another document uses and deletes the rest", async () => {
+    const store = lake([...gallery(), ...shared, { _id: "article2", _type: "article", cover: { _type: "image", asset: { _type: "reference", _ref: "image-g1b-10x10-jpg" } } }]);
+    const inventory = await ready(store);
+    expect(inventory).toMatchObject({ assets: ["image-g1a-10x10-jpg"], sharedAssets: ["image-g1b-10x10-jpg"] });
+    expect(await run(store, planProofDeletion(inventory, "t"))).toBe("deleted");
+    expect(store.docs.has("image-g1b-10x10-jpg")).toBe(true);
+    expect(store.docs.has("image-g1a-10x10-jpg")).toBe(false);
+  });
+
+  it("deletes nothing when a use of an image appears after the inventory", async () => {
+    const store = lake([...gallery(), ...shared]);
+    const inventory = await ready(store);
+    store.put({ _id: "article2", _type: "article", cover: { _type: "image", asset: { _type: "reference", _ref: "image-g1a-10x10-jpg" } } });
+    expect(await run(store, planProofDeletion(inventory, "t"))).toBe("conflict");
+    expect(store.docs.has("g1")).toBe(true);
+    expect((await ready(store)).sharedAssets).toEqual(["image-g1a-10x10-jpg"]);
+  });
+
+  it("skips an image asset that is already gone", async () => {
+    const store = lake([...gallery().filter((doc) => doc._id !== "image-g1b-10x10-jpg")]);
+    expect((await ready(store)).assets).toEqual(["image-g1a-10x10-jpg"]);
   });
 
   it("includes a record the lagging query index does not show yet", async () => {
@@ -133,6 +171,8 @@ describe("collecting a proof gallery deletion", () => {
     ["terms of another gallery", { _id: proofTermsDocumentId("g1"), _type: "clientProofTerms", galleryId: "g2", firstPublishedAt: PUBLISHED }],
     ["terms without a publication time", { _id: proofTermsDocumentId("g1"), _type: "clientProofTerms", galleryId: "g1" }],
     ["a record of another type", { _id: proofVersionId("g1", 1), _type: "clientProofNotice", galleryId: "g1" }],
+    ["a malformed image reference", { _id: "g1", _type: "clientProofGallery", items: [item("a", "file-x-pdf")] }],
+    ["an image asset ID of another type", { _id: "image-g1a-10x10-jpg", _type: "clientProofNotice" }],
   ])("refuses %s as inconsistent", async (_name, replacement) => {
     const store = lake([...gallery().filter((doc) => doc._id !== replacement._id), replacement]);
     expect(await collectProofDeletion("g1", store.reader, NOW)).toEqual({ reason: "inconsistent" });

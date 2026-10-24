@@ -634,8 +634,13 @@ revision shown and deletes it, terms first, and creates-then-deletes each absent
 document (gallery, draft, terms, selection) so one that appeared meanwhile fails it.
 Because every customer write and reminder claim already patches the terms under their
 revision, a write that lands first makes the deletion conflict and one that lands after
-fails. Image assets are kept and removed separately after the shared-use check; Sanity
-history, backups and sent emails are not affected. The data inventory, processors and
+fails. Sanity history, backups and sent emails are not affected.
+**Owner decision, 2026-10-24:** proof images are never used elsewhere or after the gallery,
+so the same transaction also deletes the gallery's image assets (the asset documents and
+so the files), after decision 7's shared-use check: an asset the query index shows
+another document using is kept and shown separately, and a use that appears later makes
+Content Lake refuse the delete, so the transaction deletes nothing. Copies already
+downloaded and the CDN's cache are outside its reach. The data inventory, processors and
 retention are in [proof-selection-data-flow.md](../proof-selection-data-flow.md). The
 owner's activation decision remains.
 
