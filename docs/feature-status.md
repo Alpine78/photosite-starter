@@ -2,6 +2,14 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Delivery expiry defaults and cleanup requirement, 2026-10-24 — AB#392 / AB#393 **Active**:
+new Studio delivery drafts suggest an editable six-calendar-month UTC deadline from
+creation, clamping the day to month-end, and stay paused. Existing/legacy documents and
+indefinite proof defaults are unchanged. [Retention](client-gallery-retention.md) records
+the owner-requested automatic image/whole-ZIP deletion after expiry and its safeguards.
+AB#394 is the separate planner slice; the executor/enrollment/activation remain AB#395
+**New**. No files are deleted automatically. Hosted editor acceptance remains.
+
 Proof gallery deletion and data flow, 2026-10-23 — AB#130 **Active** (ADR-0038 action
 item 6): the Studio action **Delete proof gallery and its records** removes the gallery,
 its draft and every private record in one transaction guarded by the terms revision, from

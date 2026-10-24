@@ -113,7 +113,7 @@ export const clientDeliveryGalleryType: SchemaTypeDefinition = {
       description: "Pause or enable the page, then publish the change. Native unpublished documents are always unavailable.", validation: (rule) => rule.required() },
     { name: "availabilityMode", title: "Page availability", type: "string", options: { list: [{ title: "Until a deadline", value: "until" }, { title: "Explicitly indefinite", value: "indefinite" }] }, validation: (rule) => rule.required() },
     { name: "expiryInstant", title: "Exclusive UTC deadline", type: "datetime",
-      description: "Required for a deadline; clear it for indefinite access. Closing a page does not revoke public image URLs." },
+      description: "New Studio galleries suggest six calendar months from creation. Review before publishing; publication does not reset it. Clear for indefinite access. Page expiry alone does not delete files." },
     { name: "items", title: "Client gallery images", type: "array", of: [{ type: "clientDeliveryItem" }], validation: (rule) => rule.required().min(1).max(CLIENT_DELIVERY_MAX_ITEMS) },
     { name: "handle", title: "Permanent gallery link identifier", type: "string", readOnly: true,
       description: "Generated on creation. Copy this identifier for the customer link; keep it unchanged.", validation: (rule) => rule.required() },

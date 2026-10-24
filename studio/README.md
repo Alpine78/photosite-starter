@@ -302,9 +302,16 @@ For a new document:
    Sanity files are public immediately, including while their document is a draft.
    Add real alternative text in at least one language; further language entries
    are authored independently. The editor does not generate translations.
-3. Choose **Until a deadline / Määräaikaan asti** or **Explicitly indefinite /
-   Nimenomaisesti toistaiseksi voimassa**. A deadline is an exclusive UTC instant, not an
-   inferred six-month period. Clear the deadline when choosing indefinite access.
+3. New Studio delivery galleries start with **Until a deadline / Määräaikaan asti**
+   and an editable deadline **six calendar months from creation** (AB#393). The day
+   clamps to the target month-end; UTC time stays the same, while the local display
+   may shift across DST. Review before publishing: publication does not restart the
+   clock. You can instead choose **Explicitly indefinite / Nimenomaisesti toistaiseksi
+   voimassa** and clear the deadline.
+   **Uuden toimitusgallerian oletus on kuusi kalenterikuukautta luomisesta. Tarkista
+   määräaika ennen julkaisua: julkaisu ei aloita aikaa uudelleen.**
+   [Retention and remaining automatic cleanup](../docs/client-gallery-retention.md).
+   This default changes no existing gallery and deletes no files.
 4. **Available to link holders / Sivu käytettävissä linkillä** is an editor-controlled
    pause setting, initially false. Publish the document to apply that setting or
    any other change. Native unpublished documents are always unavailable.

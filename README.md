@@ -773,7 +773,9 @@ That is Preview evidence; custom-domain Production promotion (AB#18), the launch
 security/privacy gate (AB#117), and exercised rollback and handoff (AB#118) remain open.
 Production content migration is partial (AB#137). Protected client-gallery code
 remains an inactive development implementation, superseded for this deployment
-by ADR-0034's ongoing unlisted Sanity direction.
+by ADR-0034's ongoing unlisted Sanity direction. New Studio delivery galleries suggest
+an editable six-month deadline from creation (AB#393); automatic image/ZIP cleanup
+is tracked separately and remains unimplemented ([retention](docs/client-gallery-retention.md)).
 Keyword-driven dynamic galleries remain post-MVP. See the MVP checklist above and
 [detailed implementation history](docs/feature-status.md).
 
