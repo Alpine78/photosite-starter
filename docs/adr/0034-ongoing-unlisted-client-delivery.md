@@ -133,3 +133,9 @@ receiving a date default. [Client gallery retention](../client-gallery-retention
 records the required safeguards and limits, with the final concurrency/provider
 contract still to verify before activation. The amendment does not accept ADR-0035
 or authorize a new ZIP upload, real deletion or production activation.
+
+**Owner clarification later on 2026-10-24:** the proof question above is resolved.
+The six-month default and expiry worker are delivery-only; proofs must be deleted
+when their linked replacement delivery is published. See the accepted
+[ADR-0038 amendment](0038-proof-selection-in-existing-sanity.md#replacement-deletion-amendment-2026-10-24).
+The publication/deletion implementation is AB#396, distinct from delivery expiry AB#395.

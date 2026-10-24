@@ -510,10 +510,13 @@ without proof galleries keeps Sanity's default sign-in.
   create a new selection link. If every attempt ends that way and nothing is published,
   the site route is probably off or does not list this Studio's origin: an answer without
   its CORS headers cannot be read, so the Studio cannot tell a refusal from a lost answer.
-- **Replaced by client gallery** links the published client gallery that delivers the
-  finished images. While that gallery is available, the proof link opens it instead; clear
-  the field and publish to show the proofs again. Only published client galleries can be
-  chosen, and deleting the client gallery simply stops the redirect.
+- **Replaced by client gallery** is currently a reversible link-only mechanism: while
+  the linked published delivery is available, the proof link opens it instead; otherwise
+  open proofs can reappear. It deletes nothing. The owner now requires proof deletion
+  together with replacement publication ([AB#396, not implemented](../docs/adr/0038-proof-selection-in-existing-sanity.md#replacement-deletion-amendment-2026-10-24)).
+  Until then, the manual delete action below is the only implemented removal. For an
+  interim handoff, an authorized operator verifies delivery publication first. These separate actions
+  do not provide the required atomic replacement.
 - **Reminder settings / Muistutusasetukset** on a published proof gallery switches the
   customer reminder on or off and changes the delay, the customer's address and their
   language (Finnish or English among the site's locales). Prices are never changed here.

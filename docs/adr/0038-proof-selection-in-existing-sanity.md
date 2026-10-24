@@ -1,6 +1,6 @@
 # ADR-0038: Proof selection for unlisted client galleries in the existing Sanity project
 
-**Status:** Accepted (2026-10-22)
+**Status:** Accepted (2026-10-22); [replacement-deletion amendment, 2026-10-24](#replacement-deletion-amendment-2026-10-24)
 **Date:** 2026-10-21
 **Deciders:** Project owner
 **Work item:** AB#130 (parent AB#63; related AB#29, AB#145, AB#28, AB#95)
@@ -166,6 +166,8 @@ activation is a separate owner decision.
    references, keys or job data.
 
 7. **Expiry and retention are explicit, and different for pages and records.**
+   **Partly amended 2026-10-24:** [replacement publication now requires deletion](#replacement-deletion-amendment-2026-10-24); the original decision below is preserved.
+
    The proof page follows the gallery's availability fields like delivery; after the
    deadline, selection writes are refused even with a valid key. Confirmed versions are
    business records and are kept until the administrator deletes them, with a
@@ -295,6 +297,7 @@ same day.
    delivery gallery replaces the proof gallery once the images are finished (answer
    5). Decision 7's owner-set retention period is therefore "kept until the
    administrator deletes the proof gallery", with no automatic deletion.
+   **Partly superseded:** see the [2026-10-24 amendment](#replacement-deletion-amendment-2026-10-24) for deletion on replacement publication.
 4. **Default availability: indefinite.** A new proof gallery has no deadline unless the
    administrator sets one.
 5. **The delivery gallery replaces the proof gallery, and the two must be linked.**
@@ -305,6 +308,7 @@ same day.
    the reference or the delivery gallery's availability shows the proofs again. The
    delivery gallery's own availability rules are unchanged; the redirect reveals the
    delivery link only to holders of the proof link, who are the same customer.
+   **Partly superseded:** the [2026-10-24 amendment](#replacement-deletion-amendment-2026-10-24) replaces this reversible fallback with required proof deletion.
 
 Reminder questions (Decision 9), answered by the owner on 2026-10-22:
 
@@ -644,3 +648,47 @@ downloaded and the CDN's cache are outside its reach. The data inventory, proces
 retention are in [proof-selection-data-flow.md](../proof-selection-data-flow.md). The
 owner's activation decision remains.
 
+## Replacement deletion amendment (2026-10-24)
+
+**Accepted product direction; technical implementation pending — AB#130 / AB#396.**
+Asked whether the six-month delivery default and expiry cleanup also apply to proofs,
+the owner answered on 2026-10-24:
+
+> Ei, vedosgalleria pitää poistaa samalla, kun korvaava varsinainen 6 kk asiakasgalleria julkaistaan.
+
+English: No; delete the proof gallery at the same time its replacement six-month
+delivery gallery is published. This amends Decision 7 and Owner answers 3 and 5;
+answer 4's indefinite proof default before replacement remains. There is no six-month
+proof timer. The existing editable delivery deadline is unchanged: its Studio suggestion
+is six calendar months from draft creation, with no publication reset (AB#393).
+
+The replacement operation must publish the explicitly linked delivery and delete the
+proof gallery together. A failed publication must leave the proofs intact, and pausing,
+expiring or removing the delivery afterwards must never restore them. Reversible
+redirection alone is no longer the target behavior.
+
+Deletion keeps the existing unit from Decision 7 and PR #609: the proof gallery and its
+draft, private terms, working selection, confirmed versions, notices and reminders,
+and its image assets except those shared with the delivery or other documents. This
+also removes the durable confirmed selection and its price snapshots; already-sent
+email is not a substitute record. No separate archive, export/invoicing gate or longer
+retention is established here. Those would need their own requirement. Existing
+limits for downloaded copies, caches, history, backups and sent mail still apply.
+
+**Current implementation:** a linked available delivery causes a reversible redirect;
+only the manual Studio delete action removes the proof unit. Automatic deletion at
+replacement publication is **not implemented**. AB#396 owns the authenticated, guarded
+publication/deletion path, including preventing native publication from bypassing it.
+Until it exists, the manual delete action is the only implemented removal mechanism;
+for an interim handoff, a separately authorized operator verifies successful delivery
+publication before using it. Two manual actions do not satisfy the required atomic replacement.
+
+AB#396's reviewed design must resolve publication versus availability, paused/expired
+targets, a link added after publication, link cardinality, shared-reference races,
+unknown outcomes and retries. A successful handoff must leave a usable delivery; a
+pre-created draft's deadline therefore needs review. Old-proof-link behavior after
+deletion is not decided here: no promise of a surviving redirect or a new retained
+mapping follows. Any mapping needs its own data/URL review and cannot retain proof
+content as a fallback. Existing selection and reminder rules remain until deletion;
+this amendment adds no reminder cadence or timer. It authorizes no live deletion,
+upload, deployment or activation.
