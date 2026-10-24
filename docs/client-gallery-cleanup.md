@@ -5,7 +5,12 @@ This implements the accepted delivery-expiry direction in ADR-0034/AB#392 using
 existing Sanity and Vercel. Merge and the committed cron schedule do not enable it.
 The Studio enrollment slice is AB#397; the executor is AB#398 under AB#395.
 Both source slices merged in PR #614/#615. AB#399 adds the separately invoked
-read-only readiness probe below; **no real probe has been run for this source change**.
+read-only readiness probe below. The separately authorized **AB#401 rehearsal on
+2026-10-24** measured the real dataset and exercised synthetic publication,
+replacement and expiry deletion through an isolated local production build.
+Narrow write grants, editor identity, working mail credentials and hosted checks
+remain open; **activation is still blocked**. See the
+[dated results and limitations](audits/client-gallery-lifecycle-rehearsal-2026-10-24.md).
 
 Only explicitly enrolled, finite new `clientDeliveryGallery` records qualify.
 Legacy deliveries and proof galleries cannot enroll. Proof deletion happens in

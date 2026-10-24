@@ -2,7 +2,22 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
-Proof selection review focus, 2026-10-24 — AB#400 **Active** (owner review/merge pending):
+Synthetic gallery rehearsal, 2026-10-24 — AB#401 **Active** (review/merge pending):
+accepted source `42a462b` ran from a guarded loopback production build against the
+real Sanity dataset. Known public/private/draft/version reads passed: 24,079,826
+bytes, 21,237 documents, 24,270 references in 10.41 seconds. Real proof publication,
+FI/EN HTTP reads, selection/immutable confirmation, replacement deletion and enrolled
+expiry deletion passed; a draft blocked deletion and a shared image remained.
+All synthetic records/assets and both temporary robots were removed. Editor's
+dry-run write grant was too broad; the current user check accepted a robot
+(follow-up AB#402 **New**). The notice failed with HTTP 400, and the cached local
+mail key was a Vercel Sensitive placeholder; its exact error cause and actual
+delivery remain unverified.
+Hosted Studio/browser/cron/function and controlled-writer checks remain. No ZIP or
+Production activation; AB#395 / AB#392 / AB#130 stay **Active**. See the
+[dated evidence and limits](audits/client-gallery-lifecycle-rehearsal-2026-10-24.md).
+
+Proof selection review focus, 2026-10-24 — AB#400 **Closed** (PR #617 merged):
 entering confirmation review now focuses its semantic summary heading before the
 final confirmation control. The existing FI/EN browser journey covers keyboard and
 pointer entry, tab order, cancellation focus and successful-result focus. The original
@@ -15,8 +30,9 @@ Cleanup read-readiness source, 2026-10-24 — AB#399 **Closed** (PR #616 merged)
 an explicit owner-run probe uses the real bounded export/Doc transport with synthetic
 fixture coverage, private target/canary manifest and GET-only egress. It reports
 capacity/known-copy measurements, always withholding deletion/activation readiness.
-Default tests/CI exclude the live suite. No actual probe, canary creation, role change,
-provider write or activation was performed; full-role/hosted acceptance remains
+Default tests/CI exclude the live suite. Its source change performed no actual probe,
+canary creation, role change, provider write or activation; AB#401's subsequent
+separately authorized run is recorded above. Full-role/hosted acceptance remains
 AB#395 / AB#392 **Active**. See [the probe runbook](client-gallery-cleanup.md#read-only-capacity-and-known-canary-probe-ab399).
 
 Scheduled delivery cleanup, 2026-10-24 — AB#398 **Closed** (PR #615 merged),
@@ -173,7 +189,7 @@ customer page, the selection route, reminder sending and an owner-run hosted che
 
 Proof publication route, 2026-10-22 — AB#130 **Active** (owner decision: option 1):
 `/api/proof-gallery/publish`, off by default, publishes a proof gallery and rotates its
-selection key with the **editor's own Sanity token** — `/users/me` proves a user session
+selection key with the **editor's own Sanity token** — the route checks `/users/me`
 and Sanity enforces permissions on every read and the one atomic transaction, so the
 route holds no write credential. Exact-origin CORS for the Studio only, per-client limit
 before the session check, per-gallery limit after it, independent server-side validation,
@@ -182,6 +198,10 @@ bound to the gallery, key returned only after commit, closed-class logs. Recorde
 [ADR-0038 amendment](adr/0038-proof-selection-in-existing-sanity.md). Not active: the
 terms authoring, the Studio action (with `loginMethod: 'token'`) and an owner-run hosted
 check come first.
+
+AB#401 correction, 2026-10-24: the actual Editor robot passed that `/users/me`
+check. A human user session is not established by the current check; resolving
+the identity contract remains an activation prerequisite. See the dated evidence above.
 
 
 
