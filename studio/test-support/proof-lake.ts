@@ -48,4 +48,3 @@ export function lake(initial: Record<string, unknown>[]) {
   }
   return { docs, put, reader, commit, freezeIndex: () => { index = [...docs.values()]; } };
 }
-
