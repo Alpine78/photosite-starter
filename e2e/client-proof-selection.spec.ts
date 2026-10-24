@@ -28,14 +28,25 @@ for (const locale of [appUnderTestEnvironment.SITE_LOCALE, PREFIXED_LOCALE.prefi
       await toggle(page, "002").press("Space");
       await expect(toggle(page, "002")).toHaveAttribute("aria-pressed", "true");
       await expect(region(page)).toContainText(labels.counts.replace("{count}", "2").replace("{included}", "1"));
-      await page.getByRole("button", { name: labels.confirm }).click();
+      await page.getByRole("button", { name: labels.confirm }).focus();
+      await page.keyboard.press("Enter");
       await expect(region(page)).toContainText(labels.confirmReview.replace("{count}", "2"));
+      const review = region(page).getByRole("heading", { name: labels.confirmReview.replace("{count}", "2") });
+      await expect(review).toBeFocused();
+      await expect(page.getByRole("heading", { name: labels.confirmedHeading })).toHaveCount(0);
       // The proofs being confirmed are listed before the record is locked.
       await expect(region(page).getByRole("list", { name: labels.confirmedList }).getByRole("listitem")).toHaveText([proof("002"), proof("014")]);
-      await page.getByRole("button", { name: labels.cancel }).click();
+      await page.keyboard.press("Tab");
+      await expect(page.getByRole("button", { name: labels.confirmFinal })).toBeFocused();
+      await page.keyboard.press("Tab");
+      await expect(page.getByRole("button", { name: labels.cancel })).toBeFocused();
+      await page.keyboard.press("Enter");
       await expect(page.getByRole("button", { name: labels.confirm })).toBeFocused();
       await page.getByRole("button", { name: labels.confirm }).click();
-      await page.getByRole("button", { name: labels.confirmFinal }).click();
+      await expect(review).toBeFocused();
+      await page.keyboard.press("Tab");
+      await expect(page.getByRole("button", { name: labels.confirmFinal })).toBeFocused();
+      await page.keyboard.press("Enter");
       const confirmed = page.getByRole("heading", { name: labels.confirmedHeading });
       await expect(confirmed).toBeFocused();
       const list = page.getByRole("region", { name: labels.confirmedHeading }).getByRole("list");

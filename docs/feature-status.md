@@ -2,7 +2,16 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
-Cleanup read-readiness source, 2026-10-24 — AB#399 **Active** (owner review/merge pending):
+Proof selection review focus, 2026-10-24 — AB#400 **Active** (owner review/merge pending):
+entering confirmation review now focuses its semantic summary heading before the
+final confirmation control. The existing FI/EN browser journey covers keyboard and
+pointer entry, tab order, cancellation focus and successful-result focus. The original
+summary was present but inactive in the pre-fix production-build reproduction.
+Revision, selection writes and uncertain-outcome handling are unchanged. This fixes
+entry focus; focus after a server-invalidated review remains a separate existing limit.
+AB#130 remains **Active** for hosted acceptance and activation.
+
+Cleanup read-readiness source, 2026-10-24 — AB#399 **Closed** (PR #616 merged):
 an explicit owner-run probe uses the real bounded export/Doc transport with synthetic
 fixture coverage, private target/canary manifest and GET-only egress. It reports
 capacity/known-copy measurements, always withholding deletion/activation readiness.

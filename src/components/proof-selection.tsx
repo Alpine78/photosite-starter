@@ -82,6 +82,7 @@ function SelectionSession({ handle, locale, labels, referenceLabel, children, se
   const [reviewing, setReviewing] = useState<string | null>(null);
   const generation = useRef(0);
   const reviewButton = useRef<HTMLButtonElement>(null), resultHeading = useRef<HTMLHeadingElement>(null);
+  const reviewHeading = useRef<HTMLHeadingElement>(null);
   const focusResult = useRef(false);
 
   /** One authoritative read; `true` when it produced a state to show. */
@@ -153,6 +154,10 @@ function SelectionSession({ handle, locale, labels, referenceLabel, children, se
   // The confirmation step stays bound to the exact state the customer opened it on.
   const reviewOpen = reviewing !== null && reviewing === selection?.revision && selection.state === "open";
   const canConfirm = selection?.state === "open" && !selection.stale && selection.selectedCount > 0 && !busy && !blocked && selection.revision !== null;
+  useEffect(() => {
+    // The trigger unmounts on entry. Read the summary before tabbing to confirmation.
+    if (reviewOpen) reviewHeading.current?.focus();
+  }, [reviewOpen]);
 
   return <SelectionContext.Provider value={context}>
     {active ? <section aria-labelledby="proof-selection-heading" className="mb-8 space-y-3 rounded-sm border border-border p-4">
@@ -180,7 +185,7 @@ function SelectionSession({ handle, locale, labels, referenceLabel, children, se
             <button type="button" disabled={busy || blocked} onClick={() => void write({ operation: "select", expectedRevision: selection.revision, references: selection.references })}
               className="underline focus-visible:outline-2 focus-visible:outline-focus disabled:opacity-60">{labels.saveAgain}</button></p> : null}
           {reviewOpen ? <div className="space-y-2">
-            <p>{fill(labels.confirmReview, { count: selection.selectedCount })}</p>
+            <h3 ref={reviewHeading} tabIndex={-1} className="focus-visible:outline-2 focus-visible:outline-focus">{fill(labels.confirmReview, { count: selection.selectedCount })}</h3>
             <ul aria-label={labels.confirmedList} className="flex flex-wrap gap-x-4 gap-y-1 tabular-nums">{selection.references.map((reference) => <li key={reference}>{labelFor(reference)}</li>)}</ul>
             <button type="button" disabled={!canConfirm} onClick={() => { focusResult.current = true; void write({ operation: "confirm", expectedRevision: reviewing }); }}
               className="mr-3 rounded-sm border border-border-strong px-3 py-1 font-semibold focus-visible:outline-2 focus-visible:outline-focus disabled:opacity-60">{labels.confirmFinal}</button>

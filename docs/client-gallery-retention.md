@@ -55,7 +55,7 @@ See [proof data flow](proof-selection-data-flow.md).
   private control contract merged; hosted verification remains.
 - **AB#398 — Closed (PR #615):** source worker/scheduler merged;
   hosted provider/role/capacity/race acceptance and activation remain AB#395.
-- **AB#399 — Active:** separately invoked read-only capacity/canary probe source;
+- **AB#399 — Closed (PR #616):** separately invoked read-only capacity/canary probe source;
   no actual verification run or activation. See [the runbook](client-gallery-cleanup.md).
 
 **No automatic cleanup is deployed or configured by AB#393.** No gallery is enrolled
