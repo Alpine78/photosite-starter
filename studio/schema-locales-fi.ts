@@ -70,6 +70,7 @@ export const schemaFinnish = {
   "Pause or enable the page, then publish the change. Native unpublished documents are always unavailable.": "Keskeytä tai salli sivun näyttäminen ja julkaise muutos. Sanityssä julkaisemattomat galleriat eivät koskaan näy sivustolla.",
   "Page availability": "Sivun voimassaolo",
   "Required for a deadline; clear it for indefinite access. Closing a page does not revoke public image URLs.": "Pakollinen määräaikaiselle sivulle; tyhjennä toistaiseksi voimassa olevalta sivulta. Sivun sulkeminen ei peru julkisia kuvaosoitteita.",
+  "New Studio galleries suggest six calendar months from creation. Review before publishing; publication does not reset it. Clear for indefinite access. Page expiry alone does not delete files.": "Uuden Studio-gallerian ehdotus on kuusi kalenterikuukautta luomisesta. Tarkista ennen julkaisua; julkaisu ei aloita aikaa uudelleen. Tyhjennä, jos voimassa toistaiseksi. Sivun vanheneminen ei yksin poista tiedostoja.",
   "Client gallery images": "Asiakasgallerian kuvat",
   "Permanent gallery link identifier": "Gallerian linkin pysyvä tunniste",
   "Generated on creation. Copy this identifier for the customer link; keep it unchanged.": "Luodaan automaattisesti. Kopioi tunniste asiakaslinkkiä varten ja säilytä se ennallaan.",

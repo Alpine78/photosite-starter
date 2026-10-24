@@ -757,6 +757,11 @@ list for new `clientDeliveryGallery` documents and their embedded
 no S3/PostgreSQL or custom site-administrator login is required. See the
 [schema contract](../sanity/README.md#ongoing-unlisted-client-delivery-ab302) and
 [editor workflow](../studio/README.md#ongoing-client-galleries-ab302--ab145).
+New delivery documents created in Studio suggest an editable six-calendar-month UTC
+deadline from creation and remain paused (AB#393). Review it before publication;
+publishing never restarts it. Existing/legacy records and indefinite proof defaults are
+unchanged. File cleanup is required by AB#392 but not yet automatic; see
+[retention and implementation gates](client-gallery-retention.md).
 Legacy imported fields/actions remain read-only. Bounded web-image authoring and
 the AB#303 reader are source implementations; the reader remains off by default.
 Its [runtime configuration](deployment.md#ongoing-unlisted-client-galleries-adr-0034)

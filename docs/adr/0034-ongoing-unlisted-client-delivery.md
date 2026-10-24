@@ -109,3 +109,27 @@ viewing requires no login.
   separate explicit boundary; no automatic public-write permission follows.
 - Audit inactive protected routes, fixtures, adapters, tests and documentation
   before proposing removal; keep the production feature off meanwhile.
+
+
+## Scoped retention amendment — 2026-10-24 (AB#392)
+
+The owner's request after PR #609 adds automatic removal of customer images and the
+whole ZIP when a client gallery expires, with a six-month delivery default. This
+amends decisions 5–6 and the removal action item: the historical removal of the
+protected model's mandatory six-month worker no longer means the selected Sanity
+workflow needs no cleanup. The rest of ADR-0034, including public-file exposure,
+shared-use checks, no S3/PostgreSQL and separately authorized activation, remains.
+
+AB#393 supplies an editable Studio creation suggestion of six calendar months from
+draft creation, with UTC time preserved and the target day clamped to month-end.
+Publication does not restart the clock. Existing/legacy records and indefinite access
+are not migrated. ADR-0038's proof default and private-record retention are untouched;
+the owner's answer on extending the new default to proofs is still needed.
+
+The requested product behavior is recorded; an automatic executor is **not yet
+implemented**. AB#394 covers pure eligibility planning and AB#395 covers enrollment,
+execution, scheduling and hosted verification. No new gallery is enrolled merely by
+receiving a date default. [Client gallery retention](../client-gallery-retention.md)
+records the required safeguards and limits, with the final concurrency/provider
+contract still to verify before activation. The amendment does not accept ADR-0035
+or authorize a new ZIP upload, real deletion or production activation.

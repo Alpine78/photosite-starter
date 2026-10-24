@@ -314,6 +314,10 @@ from the read-only `legacyDeliveryGallery` / `legacyDeliveryImage` import types.
 The new closed document contains a generated immutable handle, bounded localized
 title/alternative text, an editor-controlled pause flag, explicit finite or
 indefinite page availability and an ordered set of public web-image references.
+The standalone Studio's creation resolver suggests an editable six-calendar-month
+UTC deadline from draft creation and starts paused (AB#393); publication does not
+restart it. Existing records, API-created records and proof defaults are unaffected.
+Expiry still closes only the page; [automatic cleanup remains separate work](../docs/client-gallery-retention.md).
 It permits at most 256 items and 256 KiB of UTF-8 authored document JSON (excluding Sanity-managed
 identity, revision, timestamps and system metadata). Measured asset
 identity, format, dimensions (at most 2048 px), neutral crop, strong references

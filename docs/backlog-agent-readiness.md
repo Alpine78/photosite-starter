@@ -58,6 +58,7 @@ actions, approvals or accounts; an agent can prepare evidence but cannot close t
 | --- | --- | --- |
 | AB#377 — e2e flake root causes | Active | Open: the WebKit `article-reading-position` locale case (run 1398) and the aborted `goBack` in the inactive private-gallery spec (run 1445, recorded on the item). The section-pointer race has a PR. |
 | AB#160 — Vulnerable dependencies | Active | Continuous. Vitest 4.1.12 fixes run 1430's two moderate advisories (PR open). Studio `sprintf-js` (Dependabot #66) has no patched version and is triaged under AB#278. |
+| AB#392 — Client gallery expiry cleanup | Active | Owner requirement recorded; AB#393 creation default and AB#394 planner are separate source slices; AB#395 executor/enrollment and hosted acceptance remain. [Retention](client-gallery-retention.md). |
 | AB#391 — Import metadata and no re-encoding | New | [Import path inventory](audits/ab391-import-path-inventory-2026-10-22.md) done; implementation waits for AB#54's test files to verify the metadata tool. |
 
 ## Post-MVP branches
