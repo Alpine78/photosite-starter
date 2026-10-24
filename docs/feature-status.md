@@ -2,7 +2,15 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
-Scheduled delivery cleanup, 2026-10-24 — AB#398 **Active** (owner review/merge pending),
+Cleanup read-readiness source, 2026-10-24 — AB#399 **Active** (owner review/merge pending):
+an explicit owner-run probe uses the real bounded export/Doc transport with synthetic
+fixture coverage, private target/canary manifest and GET-only egress. It reports
+capacity/known-copy measurements, always withholding deletion/activation readiness.
+Default tests/CI exclude the live suite. No actual probe, canary creation, role change,
+provider write or activation was performed; full-role/hosted acceptance remains
+AB#395 / AB#392 **Active**. See [the probe runbook](client-gallery-cleanup.md#read-only-capacity-and-known-canary-probe-ab399).
+
+Scheduled delivery cleanup, 2026-10-24 — AB#398 **Closed** (PR #615 merged),
 parent AB#395 / AB#392 **Active**, dependency AB#397 (PR #614): default-off Production-only
 authenticated daily worker now uses one full-readable non-cursor snapshot and strict
 Doc reads to replan at fresh source/asset revisions. One private control arbitrates
@@ -14,7 +22,7 @@ legacy enrollment, new ZIP support, live write or activation. Full-read/image-ro
 breadth, controlled strong writers and hosted provider/race/capacity acceptance remain
 open under AB#395. See [the runbook](client-gallery-cleanup.md).
 
-Delivery cleanup enrollment, 2026-10-24 — AB#397 **Active** (owner review/merge pending),
+Delivery cleanup enrollment, 2026-10-24 — AB#397 **Closed** (PR #614 merged),
 parent AB#395 / AB#392 **Active**: default-off FI/EN Studio publication now reviews
 finite-delivery cleanup consent, exact deadline/image set and latest private result.
 Publication creates/CAS-updates or withdraws one deterministic private control atomically;

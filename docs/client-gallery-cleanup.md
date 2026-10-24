@@ -1,9 +1,11 @@
-# Scheduled delivery cleanup (AB#397–398)
+# Scheduled delivery cleanup (AB#397–399)
 
 Source implementation, **default off; hosted acceptance and activation pending**.
 This implements the accepted delivery-expiry direction in ADR-0034/AB#392 using
 existing Sanity and Vercel. Merge and the committed cron schedule do not enable it.
 The Studio enrollment slice is AB#397; the executor is AB#398 under AB#395.
+Both source slices merged in PR #614/#615. AB#399 adds the separately invoked
+read-only readiness probe below; **no real probe has been run for this source change**.
 
 Only explicitly enrolled, finite new `clientDeliveryGallery` records qualify.
 Legacy deliveries and proof galleries cannot enroll. Proof deletion happens in
@@ -159,6 +161,108 @@ Ordinary provider history/backups, CDN copies and already downloaded files remai
 outside this deletion. Page expiry still takes effect independently of cleanup.
 
 ## Separately authorized activation evidence
+
+### Read-only capacity and known-canary probe (AB#399)
+
+This is the first evidence step, not an activation check or a write rehearsal.
+Run only with the owner's explicit authorization for the actual dataset read.
+It uses the worker's bounded non-cursor export and strict all-version Doc API,
+with an additional exact-URL GET-only guard. It cannot invoke a mutation, query,
+cron, role change or deployment, and does not create its own canaries.
+
+Before the authorized run, separately prepare synthetic, non-customer records:
+a published record, its draft and one release copy, a dotted private record,
+and an unused flat ID. Use unique random suffixes and the **actual** IDs/types;
+the following is an example, not a command to create these records. Keep this
+manifest outside Git on the native Linux/POSIX filesystem (WSL: not `/mnt/c`),
+owned by the current user, regular, mode `0600`, with one link and no symlinks:
+
+```json
+{
+  "version": 1,
+  "target": { "projectId": "example", "dataset": "production", "apiVersion": "v2026-10-01" },
+  "canaries": {
+    "published": { "id": "cleanupProbe-random", "type": "cleanupCanary" },
+    "private": { "id": "cleanupProbe.private-random", "type": "cleanupCanary" },
+    "draft": { "id": "drafts.cleanupProbe-random", "type": "cleanupCanary" },
+    "release": { "id": "versions.release-random.cleanupProbe-random", "type": "cleanupCanary" }
+  },
+  "missingDocumentId": "cleanupProbe-missing-random"
+}
+```
+
+The strict manifest (maximum 32 KiB) is the **only target source**. Missing fields,
+unknown fields, duplicate JSON keys, invalid UTF-8/BOM, invalid IDs/types or
+inconsistent copies are refused. The API must be a real date from `v2025-02-19`
+through today. Canary IDs under `clientGalleryCleanup.` and the
+`clientGalleryCleanup` type are reserved for the worker and refused. Selecting
+genuinely synthetic records remains the operator's responsibility. Optional `limits`
+may contain only `maxSnapshotBytes`, `maxDocuments` and `exportTimeoutMs`, with the
+production bounds above. All other caps stay fixed. The declared target says
+nothing about actual dataset visibility.
+
+In a private, mode `0600` env file outside Git, set just these operator inputs:
+
+```dotenv
+CLIENT_GALLERY_CLEANUP_READINESS=enabled
+CLIENT_GALLERY_CLEANUP_READINESS_MANIFEST=/absolute/private/cleanup-readiness.json
+SANITY_CLIENT_GALLERY_CLEANUP_TOKEN=<dedicated-cleanup-token>
+```
+
+Never use a browser-prefixed token. The file guard applies to the manifest, not
+to Node's env file: the operator must protect the latter. Node's `--env-file`
+preserves existing shell variables, so remove any ambient copies of **these three
+settings** before running in the repository with the pinned Node 24:
+
+```bash
+env -u CLIENT_GALLERY_CLEANUP_READINESS -u CLIENT_GALLERY_CLEANUP_READINESS_MANIFEST -u SANITY_CLIENT_GALLERY_CLEANUP_TOKEN \
+  node --env-file="/absolute/private/cleanup-readiness.env" \
+  node_modules/vitest/vitest.mjs run --config vitest.cleanup-readiness.config.mts
+```
+
+Alternatively, `npm run verify:client-gallery-cleanup-readiness` uses settings
+already resolved in the environment. Neither command implicitly loads `.env.local`.
+The probe does not require or change the runtime/Studio cleanup flags or
+`CRON_SECRET`. Ordinary `SANITY_*` target/read-token settings are ignored.
+Missing opt-in, token or absolute manifest path fails before file/provider IO.
+The dedicated config discovers only this live test; default `npm test`, existing
+live-verification configs and CI exclude it. Never run it in CI or publish its logs
+as pipeline artifacts. Run with a synchronized local clock.
+
+The report is a closed JSON object inside Vitest's console output (the whole
+stdout is not a JSON file). It contains target/manifest SHA-256 fingerprints,
+timestamp, known-canary/copy/absence counts, export bytes/documents/references,
+largest NDJSON line and export elapsed milliseconds including transfer/parsing,
+plus effective limits. One outer 75-second abort covers provider reads and their
+setup; each export/Doc operation also retains its own deadline. Vitest allows
+90 seconds for teardown. No raw export, token, canary ID/type, target names or
+authored field is saved or printed. As with the worker, complete readable records,
+including private proof terms, pass through memory on the operator's machine;
+only the normalized reference inventory is retained during the probe.
+
+All four named canaries must occur in the export. Fresh Doc reads must then match
+**every observed copy** of both base IDs by identity/type/revision, and explicitly
+omit the unused ID for `existence`. Missing canaries report a fixed kind-specific
+`canary_*_not_observed`; a changed/new/disappeared copy reports `canary_changed`.
+A new canary not yet visible to export, or concurrent edits between reads, can
+cause a refusal: inspect the synthetic records, wait for the expected state to
+settle, then request/re-run the authorized probe. There is no automatic retry.
+`provider_refused` covers HTTP 4xx; `provider_invalid` covers malformed/permission
+omissions; clock, deadline, snapshot limits and unavailable provider have separate
+closed codes. Diagnostics retain no original provider error/cause or input path.
+
+Even `read-checks-passed` always reports `readyToDelete: false`,
+`readyToActivate: false`, `fullReadGrantProven: false` and
+`writeGrantsVerified: false`. A broad administrator token could also pass this
+probe: independently record the token's intended role/identity, full READ grant
+policy, restricted WRITE, atomic deletion/races, writer controls, actual function
+allowance and hosted Studio/privacy acceptance. Named reads cannot prove that no
+other document is hidden; local capacity is not Vercel capacity. The fingerprints
+bind the report to inputs, not to a grant, source commit or approval. Keep a private
+run record with the source commit and operator-reviewed limits. This source task
+uses only mocked provider responses; all actual hosted evidence remains pending.
+
+### Remaining hosted rehearsal
 
 Before enabling either flag, record a synthetic hosted rehearsal, with no real
 customer deletion and no credentials/raw exports in CI or public artifacts:

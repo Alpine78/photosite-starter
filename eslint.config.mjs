@@ -66,7 +66,7 @@ const eslintConfig = defineConfig([
         {
           patterns: [
             {
-              group: ["@/lib/client-gallery-cleanup-transport", "@/lib/client-gallery-cleanup-snapshot", "@/lib/client-gallery-cleanup-runner", "@/lib/client-gallery-cleanup-contract"],
+              group: ["@/lib/client-gallery-cleanup-transport", "@/lib/client-gallery-cleanup-snapshot", "@/lib/client-gallery-cleanup-runner", "@/lib/client-gallery-cleanup-contract", "@/lib/client-gallery-cleanup-readiness"],
               message: "Run delivery cleanup through client-gallery-cleanup-access; provider evidence, private control records and deletion ordering stay behind the facade (AB#398).",
             },
             {
