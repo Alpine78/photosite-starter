@@ -26,6 +26,13 @@ still reproduces RangeError, but the current compiled Studio graph and normal YA
 library import do not load it. The advisory remains open and unpatched; owner residual
 risk acceptance and final hosted-release review are not inferred.
 
+The [2026-10-24 synthetic gallery rehearsal](audits/client-gallery-lifecycle-rehearsal-2026-10-24.md)
+records real-provider checks under AB#401: the current proof-publication identity
+check accepted an Editor robot, and the tested built-in Editor grant was too broad
+for cleanup. Those activation findings remain open. Local mail used a secret
+placeholder and establishes failure handling only. This is scoped operational
+evidence, not a rerun or approval of the full launch review.
+
 ## How this review was run
 
 A plan for this review was sent to Codex (OpenAI's CLI, `codex-review-loop` skill,
@@ -661,7 +668,7 @@ release behavior or provider concurrency. No live operation or activation perfor
 
 2026-10-23 AB#130 proof page: `/client-proof/<handle>` is a default-off, read-only public page for published proof galleries. It projects only display data (no filenames, high-water mark, terms or selection data), reads the published document by its own ID and refuses drafts, dotted private records, private-only assets and unnumbered proofs, and carries the reserved-path hygiene. The selection key in the link's fragment is neither read nor sent. Public files and metadata remain enumerable, as ADR-0038 records.
 
-2026-10-22 AB#130: a new write route, `/api/proof-gallery/publish`, is off by default. It accepts only an exact Studio origin (CORS without credentials), proves the caller's Sanity user session with `/users/me` and performs every read and its one atomic transaction with that editor token, so it holds no write credential; selection keys are stored hashed plus AES-256-GCM-encrypted under a server-only secret and returned once after commit. Activation waits for the terms and Studio-action slices and an owner-run hosted check ([ADR-0038 amendment](adr/0038-proof-selection-in-existing-sanity.md)).
+2026-10-22 AB#130: a new write route, `/api/proof-gallery/publish`, is off by default. It accepts only an exact Studio origin (CORS without credentials), checks `/users/me` and performs every read and its one atomic transaction with that editor token, so it holds no write credential; selection keys are stored hashed plus AES-256-GCM-encrypted under a server-only secret and returned once after commit. **Corrected 2026-10-24:** an Editor robot passed this identity check; it does not currently prove a human user session ([AB#401 evidence](audits/client-gallery-lifecycle-rehearsal-2026-10-24.md), follow-up AB#402). Activation waits for the terms and Studio-action slices and an owner-run hosted check ([ADR-0038 amendment](adr/0038-proof-selection-in-existing-sanity.md)).
 
 2026-10-22 AB#130 Studio action: the publish action exists only in a Studio built with `SANITY_STUDIO_PROOF_GALLERIES=enabled`, and only that Studio signs in with `loginMethod: 'token'`, which makes the editor's token readable by scripts on the Studio origin (accepted in the ADR-0038 amendment). The action posts once, cookieless, to the configured site origin; the route binds publication to the validated draft revision and refuses unrequested terms; the customer's address is stored only when a reminder is on. Any answer other than the route's own rejection is shown as an unknown outcome without retry. Native unpublish and delete are removed so no private terms are orphaned.
 
@@ -1244,4 +1251,7 @@ GET-only exact export/Doc URLs, bounded file/response processing and cause-free
 closed diagnostics. Raw private records pass through local operator memory, never
 reports/persistence/CI. Named canary matches and capacity measurements do not prove
 global READ or token-role identity, WRITE/atomic deletion or hosted allowance.
-Synthetic fixtures cover refusals and redaction; no actual probe was executed.
+Synthetic fixtures cover refusals and redaction; that source slice executed no
+actual probe. The separately authorized AB#401 run on 2026-10-24 subsequently
+measured real reads and synthetic deletion, with readiness still false. See the
+[dated evidence and remaining findings](audits/client-gallery-lifecycle-rehearsal-2026-10-24.md).

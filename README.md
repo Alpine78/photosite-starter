@@ -635,8 +635,11 @@ CMS metadata and direct file URLs remain discoverable without a shared link;
 page expiry does not revoke those files. A separate native Studio list now
 supports new web-image deliveries; the default-off `CLIENT_GALLERY_ADAPTER=sanity`
 reader serves them at `/client-gallery/<handle>` without changing the legacy
-adapter. No new-gallery ZIP is offered yet. Source checks use synthetic content;
-hosted Studio, actual roles and deliberate production activation remain open.
+adapter. No new-gallery ZIP is offered yet. A separately authorized
+[synthetic rehearsal](docs/audits/client-gallery-lifecycle-rehearsal-2026-10-24.md)
+exercised real Sanity publication, confirmation, replacement and expiry deletion
+from an isolated local production build. Hosted Studio, narrow roles, editor
+identity, real mail delivery and deliberate production activation remain open.
 See the [new-gallery workflow](studio/README.md#ongoing-client-galleries-ab302--ab145)
 and [runtime configuration](docs/deployment.md#ongoing-unlisted-client-galleries-adr-0034).
 
@@ -780,8 +783,10 @@ an editable six-month deadline from creation (AB#393). AB#397 adds default-off r
 Studio enrollment for finite deliveries, stored atomically with publication. The separate
 automatic cleanup worker and authenticated daily schedule are source-built, default-off
 (AB#398). Hosted role/race checks and activation remain AB#395; no new ZIP eligibility
-is granted. A separate owner-run capacity/canary read probe is source-built (AB#399),
-with no actual live run or activation ([cleanup runbook](docs/client-gallery-cleanup.md)).
+is granted. The separate owner-run capacity/canary read probe (AB#399) and bounded
+synthetic lifecycle were exercised against real Sanity under AB#401; activation
+remains blocked ([results](docs/audits/client-gallery-lifecycle-rehearsal-2026-10-24.md),
+[cleanup runbook](docs/client-gallery-cleanup.md)).
 Keyword-driven dynamic galleries remain post-MVP. See the MVP checklist above and
 [detailed implementation history](docs/feature-status.md).
 

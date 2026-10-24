@@ -149,10 +149,16 @@ credential is already on its way to every visitor.
 `/api/proof-gallery/publish` publishes a proof gallery (numbering its proofs and, on first
 publication, creating the selection key) and rotates a gallery's key. It is **off** unless
 `PROOF_PUBLICATION=enabled`, and it adds **no Sanity credential**: the Studio publish action
-sends the editor's own Sanity token, the route proves it is a user session with
-`/users/me`, and every read and the one atomic transaction use that same token, so Sanity
+sends the editor's own Sanity token, the route checks `/users/me`, and every read
+and the one atomic transaction use that same token, so Sanity
 enforces membership and publish permission. The token is sent only to this project's API
 host and is never logged or stored.
+
+**AB#401 actual-provider finding, 2026-10-24:** the project-host `/users/me` check
+accepted a temporary Editor robot. It does **not** currently prove a human user
+session. Reconcile that identity contract and regression coverage before activation;
+do not rely on the earlier source comment's stronger claim. See the
+[synthetic rehearsal](audits/client-gallery-lifecycle-rehearsal-2026-10-24.md).
 
 - `PROOF_PUBLICATION_STUDIO_ORIGINS`: the exact https origin(s) of the Studio; no other
   origin receives CORS headers or reaches any Sanity call.
