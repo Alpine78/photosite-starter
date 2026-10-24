@@ -778,8 +778,9 @@ remains an inactive development implementation, superseded for this deployment
 by ADR-0034's ongoing unlisted Sanity direction. New Studio delivery galleries suggest
 an editable six-month deadline from creation (AB#393). AB#397 adds default-off reviewed
 Studio enrollment for finite deliveries, stored atomically with publication. The separate
-automatic cleanup worker, hosted checks and activation remain AB#395/398; no new ZIP
-eligibility is granted ([retention](docs/client-gallery-retention.md)).
+automatic cleanup worker and authenticated daily schedule are source-built, default-off
+(AB#398). Hosted role/race checks and activation remain AB#395; no new ZIP eligibility
+is granted ([cleanup runbook](docs/client-gallery-cleanup.md)).
 Keyword-driven dynamic galleries remain post-MVP. See the MVP checklist above and
 [detailed implementation history](docs/feature-status.md).
 

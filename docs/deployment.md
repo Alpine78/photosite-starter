@@ -708,6 +708,22 @@ production deployment or upload/publish customer content.
 | `CLIENT_GALLERY_ADAPTER=sanity` | Requires `SITE_CONTENT_SOURCE=sanity`, `SANITY_DATASET_VISIBILITY=public` and its existing `SANITY_*` settings; real content refused in Preview |
 | `CLIENT_GALLERY_ADAPTER=fixture` | Synthetic local development/CI only; refused by production/Preview deployment stages |
 
+Scheduled delivery cleanup (AB#397–398) is source-built and **off pending hosted
+acceptance**. The separate `CLIENT_GALLERY_CLEANUP=enabled` flag requires this
+deployment's real Sanity delivery adapter, Production stage/platform, a dedicated
+`SANITY_CLIENT_GALLERY_CLEANUP_TOKEN`, dated API at least `v2025-02-19`, and
+`CRON_SECRET` of at least 16 characters. Preview is refused. The committed daily
+07:00 UTC cron does not activate it. No automatic retries or customer deletion
+are authorized by merging its PR. HEAD and non-GET methods return 405.
+
+Before activation, verify the actual 200-second function allowance, full dataset
+READ (including private/draft/release records), restricted WRITE and its residual
+image-asset breadth, controlled strong-reference writers, capacity and synthetic
+race/deletion outcomes. See [the cleanup runbook](client-gallery-cleanup.md) for
+caps, cursor progress, failure/status handling and the explicit activation
+evidence. Server and Studio enrollment flags are independent; both stay off in
+the supplied examples. Legacy/proof galleries and new ZIP delivery are excluded.
+
 After accepted source merges, deploy the Studio and verify actual author/editor
 permissions, FI/EN keyboard workflow and a synthetic published gallery before
 separately enabling the runtime on the intended environment. Use

@@ -127,6 +127,14 @@ records behind.
 
 ## Before activation
 
+The separate default-off delivery-cleanup worker (AB#398) can transiently parse
+these private proof terms while taking a complete dataset reference snapshot.
+It retains only document/revision/type/reference metadata in memory and never
+saves or logs the export, address, prices or encrypted key. It does not delete
+proof records. Its full-read role, controlled-writer boundary and privacy wording
+need the separate [activation evidence](client-gallery-cleanup.md). Sanity and
+Vercel remain the processors; merging the source does not enable that processing.
+
 Owner actions, recorded so they are not lost; none is performed by the code:
 
 - The customer-facing privacy notice names the proof page, the selection, the optional

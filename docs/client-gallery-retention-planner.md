@@ -97,3 +97,16 @@ routine logs. No ID is a permission credential, and no result belongs in a publi
 
 No instruction here authorizes a live write, file deletion, upload or activation.
 The separate creation-default slice is AB#393; this branch does not depend on it.
+
+## Executor integration — 2026-10-24 (AB#397–398)
+
+The [default-off worker](client-gallery-cleanup.md) now consumes this planner.
+Private persistent approval binds the reviewed retention policy; each attempt
+independently validates the full fresh gallery and constructs this module's
+`{galleryId, revision}` evidence at the **current** source revision. Text-only
+edits do not silently withdraw consent. A changed policy requires Studio review.
+The executor deletes the complete expired gallery, asserts draft absence and
+guards current assets in one transaction with its private completion receipt.
+It never executes this module's output without that fresh evidence and control
+revision fence. The pure API remains provisional and grants no new ZIP field.
+All hosted provider/role/concurrency checks and deliberate activation remain open.

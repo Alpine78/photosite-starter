@@ -1219,3 +1219,22 @@ Vercel's role for Web Analytics data under its current DPA is still to be
 recorded; and whether the processing is exempt from consent is a legal question
 this review does not answer. No tracking cookie, banner or third-party origin is
 introduced by this change.
+
+### 2026-10-24 source review: delivery cleanup (AB#397–398)
+
+The separately gated delivery-cleanup endpoint authenticates before provider IO,
+rejects Preview, holds a dedicated server-only token behind an ESLint-bounded
+facade and returns/logs closed counts only. HEAD cannot invoke the mutating GET.
+Snapshots and Doc responses are bounded and validated; uncertain mutations are
+read back and fenced by the exact private control revision before another attempt.
+Source/gallery/asset revisions and strong-reference integrity arbitrate atomic
+deletion against competing publication and known asset uses.
+
+Residuals requiring hosted acceptance: full dataset READ includes transient private
+proof fields; the export cannot attest hidden documents. Image-asset WRITE grants
+may be broader than enrolled ownership. Late weak/direct-API release writers are
+not closed by Studio validation. Shared assets are retained without a later sweep;
+provider caches, downloads, history and backups are outside ordinary deletion.
+The [cleanup runbook](client-gallery-cleanup.md) records the role, capacity,
+provider-semantics, synthetic-race and privacy-notice checks. Source tests/review
+do not establish live permission or authorize activation. Both flags remain off.

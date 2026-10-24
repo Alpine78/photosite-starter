@@ -1,5 +1,5 @@
-/** Guarded delivery publication and optional proof deletion (AB#396).
- * IO uses the signed-in editor's client. No public mapping or new record is written.
+/** Guarded delivery publication, proof deletion and private cleanup enrollment (AB#396–397).
+ * IO uses the signed-in editor's client. No public replacement mapping is written.
  */
 import { validateClientDeliveryGallery } from "../sanity/schemas/client-delivery-gallery";
 import type { SchemaValidationContext } from "../sanity/schemas/schema-types";

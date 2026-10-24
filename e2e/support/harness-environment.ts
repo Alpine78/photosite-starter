@@ -131,6 +131,8 @@ export const appUnderTestEnvironment: Record<string, string> = {
   VERCEL_ENV: "",
   LEGACY_GALLERY_ADAPTER: "fixture",
   CLIENT_GALLERY_ADAPTER: "fixture",
+  CLIENT_GALLERY_CLEANUP: "off",
+  SANITY_CLIENT_GALLERY_CLEANUP_TOKEN: "",
   PROOF_GALLERY_ADAPTER: "fixture",
   // In-process synthetic selections, one partition per selection key (development only).
   PROOF_SELECTION: "fixture",

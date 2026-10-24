@@ -765,7 +765,7 @@ no S3/PostgreSQL or custom site-administrator login is required. See the
 New delivery documents created in Studio suggest an editable six-calendar-month UTC
 deadline from creation and remain paused (AB#393). Review it before publication;
 publishing never restarts it. Existing/legacy records and indefinite proof defaults are
-unchanged. File cleanup is required by AB#392 but not yet automatic; see
+unchanged. Default-off cleanup source is implemented in AB#397–398 but not activated; see
 [retention and implementation gates](client-gallery-retention.md).
 AB#397 adds default-off reviewed enrollment in the Studio publication action using
 `SANITY_STUDIO_CLIENT_GALLERY_CLEANUP=enabled`. Existing unenrolled galleries require
@@ -776,6 +776,17 @@ Editors need authenticated read/create/update access to its deterministic
 settings. This flag does not start the separate server worker. Check the
 [FI/EN enrollment workflow](../studio/README.md#review-automatic-delivery-cleanup-enrollment-ab397)
 and hosted permissions before enabling it.
+
+The server worker additionally needs a dedicated cleanup token with verified full
+dataset READ, including dotted private records, drafts and releases. Its ordinary
+export is complete only for readable documents. Restrict WRITE to new delivery
+documents, cleanup control/cursor prefixes and image assets; asset grants cannot
+generally express current enrolled ownership. Transient exports can include private
+proof terms, discarded after reference normalization. Before activation, establish
+the controlled strong-reference/no-release writer boundary and verify provider
+atomicity, all-version omissions, capacity and races on synthetic records. See
+[the exact protocol and hosted evidence](client-gallery-cleanup.md). No token,
+role, real deletion or activation is provisioned by this source.
 Legacy imported fields/actions remain read-only. Bounded web-image authoring and
 the AB#303 reader are source implementations; the reader remains off by default.
 Its [runtime configuration](deployment.md#ongoing-unlisted-client-galleries-adr-0034)

@@ -44,6 +44,7 @@ there is no other documentation to hunt for.
 | `docs/cms-recovery-rehearsal.md` | the owner and recovery operator (AB#267) | the local CMS and original-asset recovery rehearsal command or its evidence change |
 | `docs/dependency-security.md` | the maintainer triaging dependency advisories (AB#160) | the scheduled audit, Dependabot settings, triage process or an accepted exception changes |
 | `docs/client-gallery-retention-planner.md` | maintainer implementing expiry cleanup (AB#394) | pure planner evidence, outcomes, limits or executor integration requirements change |
+| `docs/client-gallery-cleanup.md` | owner and maintainer of scheduled delivery cleanup (AB#397–398) | enrollment/worker protocol, limits, role boundary, progress or activation evidence changes |
 | `docs/gallery-removal-impact.md` | the owner preparing a reviewed gallery removal (AB#326) | the read-only removal-impact inventory or its report contract changes |
 | `docs/image-sales-discovery.md` | the owner deciding the image sales boundary (AB#95) | sales evidence, options or the decision gate change |
 | `docs/jpeg-export-audit.md` | the owner verifying a JPEG export set (AB#327) | the local decode audit command or its guarantees change |

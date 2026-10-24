@@ -50,7 +50,7 @@ describe("maintenance response boundary", () => {
     vi.stubEnv("NEXT_PUBLIC_SITE_MAINTENANCE_MODE", "");
     const { proxy } = await import("@/proxy");
     const { NextRequest } = await import("next/server");
-    for (const path of ["/", "/fi/tarinat", "/unknown", "/sitemap.xml", "/robots.txt", "/favicon.ico", "/private/test", "/admin/login", "/client-gallery/test", "/api/poll-vote"]) {
+    for (const path of ["/", "/fi/tarinat", "/unknown", "/sitemap.xml", "/robots.txt", "/favicon.ico", "/private/test", "/admin/login", "/client-gallery/test", "/api/poll-vote", "/api/client-gallery-cleanup"]) {
       for (const method of ["GET", "HEAD", "POST"]) {
         const response = proxy(new NextRequest(`https://maintenance.test${path}?maintenance=off`, {
           method,

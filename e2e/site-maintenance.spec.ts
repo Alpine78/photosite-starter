@@ -92,7 +92,7 @@ test("same-build maintenance gates readers and an already prepared write while p
     expect(headerText, path).toMatch(/cache-control: no-store/i);
     expect(wire.toString(), path).toContain("Temporarily unavailable");
   }
-  for (const path of ["/api/contact", "/api/enquiry", "/api/poll-vote", "/api/gallery", "/api/article-gallery", "/api/revalidate", "/api/search"]) {
+  for (const path of ["/api/contact", "/api/enquiry", "/api/poll-vote", "/api/gallery", "/api/article-gallery", "/api/revalidate", "/api/search", "/api/client-gallery-cleanup"]) {
     for (const method of ["GET", "HEAD", "POST", "OPTIONS", "PUT", "PATCH", "DELETE"]) {
       const response = await request.fetch(path, { method, data: method === "POST" ? {} : undefined });
       expect(response.status(), `${method} ${path}`).toBe(503);
