@@ -11,6 +11,8 @@ export type StudioSettings = {
   clientGallerySite?: ClientGallerySite;
   /** Proof galleries (ADR-0038) can be created and published only when explicitly enabled. */
   proofGalleries: boolean;
+  /** Source workflow only; the separate server worker remains disabled by default. */
+  clientGalleryCleanup: boolean;
 };
 
 function proofGalleriesSetting(value: string | undefined): boolean {
@@ -18,6 +20,12 @@ function proofGalleriesSetting(value: string | undefined): boolean {
   if (setting === "" || setting === "off") return false;
   if (setting === "enabled") return true;
   throw new Error("Invalid SANITY_STUDIO_PROOF_GALLERIES: use enabled or leave it unset");
+}
+function cleanupSetting(value: string | undefined): boolean {
+  const setting = value?.trim() ?? "";
+  if (setting === "" || setting === "off") return false;
+  if (setting === "enabled") return true;
+  throw new Error("Invalid SANITY_STUDIO_CLIENT_GALLERY_CLEANUP: use enabled or leave it unset");
 }
 
 function required(environment: StudioEnvironment, name: string): string {
@@ -99,6 +107,7 @@ export function loadStudioSettings(environment: StudioEnvironment): StudioSettin
     storyRootPaths: studioStoryRoots(required(environment, "SANITY_STUDIO_LOCALE_ROUTES")),
     authoringLanguages: [...new Set(required(environment, "SANITY_STUDIO_LOCALE_ROUTES").split(",").map((row) => row.trim()).filter(Boolean).map((row) => new Intl.Locale(row.split("|")[0].trim()).language))],
     proofGalleries: proofGalleriesSetting(environment.SANITY_STUDIO_PROOF_GALLERIES),
+    clientGalleryCleanup: cleanupSetting(environment.SANITY_STUDIO_CLIENT_GALLERY_CLEANUP),
     ...(siteOrigin ? { clientGallerySite: siteLocales(siteOrigin, localeTable) } : {}),
   };
 }

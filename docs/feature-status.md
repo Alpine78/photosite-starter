@@ -2,7 +2,19 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
-Proof replacement publication, 2026-10-24 — AB#396 **Active** (pending review/merge):
+Delivery cleanup enrollment, 2026-10-24 — AB#397 **Active** (owner review/merge pending),
+parent AB#395 / AB#392 **Active**: default-off FI/EN Studio publication now reviews
+finite-delivery cleanup consent, exact deadline/image set and latest private result.
+Publication creates/CAS-updates or withdraws one deterministic private control atomically;
+text edits preserve consent, policy edits require renewed review, all unenrolled
+galleries (including new deliveries) require deliberate opt-in. Pending attempts are fenced by control revisions;
+unknown results reconcile exact source/publication identity, including matching completion
+receipts after immediate expired deletion. No customer/contact fields, editable control
+schema, legacy/proof enrollment, new ZIP eligibility or live operation. The separate
+worker and hosted role/race/activation checks remain AB#398 / AB#395. See
+[retention](client-gallery-retention.md#reviewed-enrollment-and-private-control-ab397).
+
+Proof replacement publication, 2026-10-24 — AB#396 **Closed** (PR #613 merged):
 the FI/EN Studio delivery action requires an explicit ordinary/replacement choice;
 replacement publishes the revision-reviewed delivery and deletes the exact selected
 proof gallery, draft, terms, selection, confirmed versions, notices, reminders and unused
@@ -12,16 +24,16 @@ Native publication/scheduling is constrained for client/proof types; public stor
 scheduling stays. No new persisted mapping: the old proof link becomes unknown/404.
 [ADR-0038 implementation](adr/0038-proof-selection-in-existing-sanity.md#replacement-deletion-amendment-2026-10-24)
 records the concurrency and hosted activation limits. Proof creation stays indefinite.
-AB#130 / AB#392 remain **Active**; delivery-only expiry worker AB#395 remains **New**.
+AB#130 / AB#392 / delivery-only expiry work AB#395 remain **Active**.
 PRs #610/#611 are merged; AB#393 / AB#394 are **Closed**. No live deletion or activation.
 
-Delivery expiry defaults and cleanup requirement, 2026-10-24 — AB#392 / AB#393 **Active**:
+Delivery expiry defaults and cleanup requirement, 2026-10-24 — AB#392 **Active**, AB#393 **Closed**:
 new Studio delivery drafts suggest an editable six-calendar-month UTC deadline from
 creation, clamping the day to month-end, and stay paused. Existing/legacy documents and
 indefinite proof defaults are unchanged. [Retention](client-gallery-retention.md) records
 the owner-requested automatic image/whole-ZIP deletion after expiry and its safeguards.
 AB#394 is the separate planner slice; the executor/enrollment/activation remain AB#395
-**New**. No files are deleted automatically. Hosted editor acceptance remains.
+**Active**. No files are deleted automatically. Hosted editor acceptance remains.
 
 Proof gallery deletion and data flow, 2026-10-23 — AB#130 **Active** (ADR-0038 action
 item 6): the Studio action **Delete proof gallery and its records** removes the gallery,

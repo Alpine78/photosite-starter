@@ -526,6 +526,54 @@ external URL copies and stale editor buffers have the limits in
 [ADR-0038](../docs/adr/0038-proof-selection-in-existing-sanity.md#replacement-deletion-amendment-2026-10-24).
 No hosted mutation, deployment or activation is implied by this source change.
 
+## Review automatic delivery cleanup enrollment (AB#397)
+
+`SANITY_STUDIO_CLIENT_GALLERY_CLEANUP` is public build configuration: blank or `off`
+disables the workflow, `enabled` exposes it, and other values fail configuration.
+This Studio setting does not enable the separate server worker (AB#398). Leave it
+unset until the authenticated roles and hosted acceptance checks are complete.
+
+With the workflow enabled, **Publish client gallery / Julkaise asiakasgalleria**
+reads the private control record before showing the cleanup choice. Every unenrolled
+delivery starts unchecked and requires deliberate opt-in, including a new delivery.
+Current absence of publication cannot distinguish new drafts from previously published,
+then unpublished galleries. Existing enrolled/pending approval stays checked across
+text edits. Disabled/completed records never silently re-enroll. Indefinite deliveries,
+proofs and imported legacy galleries cannot enroll. The six-month creation suggestion
+and actual deadline are unchanged. Review the displayed deadline and image count:
+an already expired ordinary delivery can become eligible immediately after publication.
+
+Publication saves enrollment, renewal or withdrawal in the same atomic transaction,
+with the exact existing control revision or a create-only absence assertion. A changed
+deadline or image set is shown for renewed review. Withdrawal changes the control
+revision and clears any pending attempt, fencing its old destructive transaction.
+With the flag off, publication reads/writes no cleanup control; a later worker must
+recheck policy and fresh gallery revisions, and cannot adopt a changed policy silently.
+
+The dialog shows the stored state and latest closed cleanup result in FI/EN. An open
+draft or any incoming reference to delivery (including a retained proof link) can block
+cleanup indefinitely until resolved. Shared images stay online and receive no later
+sweep from this worker. Inspect blocked results and resolve their cause before a new
+review; do not delete private controls to force a retry. Unknown publication outcomes
+use read-only reconciliation of the exact publication/source identity. A matching
+completion receipt can prove publication even if cleanup already removed an expired
+delivery. Other mixed states remain unknown; never blindly replay the transaction.
+
+The operational `clientGalleryCleanup.<SHA256(published gallery ID)>` record has no
+editable schema/template or native actions. It contains only IDs, revisions, the
+approved handle/deadline/image set and one latest attempt/result/receipt; no customer
+names, titles, email, filenames or URLs. Its source revision is the reviewed draft or
+published revision, not the server-assigned revision after publishing. The record
+remains until deliberate re-enrollment or separately authorized operator removal;
+there is no new purge timer. Dataset writers can forge it, so the worker independently
+validates the current gallery and policy. Studio editor roles need authenticated
+read/create/update access to this private prefix. Verify anonymous reads cannot expose
+it, control CAS races, permissions, FI/EN keyboard/assistive-technology behavior and
+provider transaction semantics using synthetic records before activation.
+
+No live enrollment, publication, deletion, deployment or activation is performed by
+this source slice. [Retention and remaining gates](../docs/client-gallery-retention.md).
+
 ## Proof galleries (AB#130)
 
 Proof galleries ([ADR-0038](../docs/adr/0038-proof-selection-in-existing-sanity.md))

@@ -5,6 +5,10 @@ import { validateClientDeliveryGallery } from "../sanity/schemas/client-delivery
 import type { SchemaValidationContext } from "../sanity/schemas/schema-types";
 import { publicImageAssetRef, record } from "../sanity/schemas/closed-document";
 import { transactionSyncLocked } from "./editor-lock";
+import {
+  cleanupControlId, cleanupControlMutation, cleanupPoliciesEqual, cleanupPolicyFromGallery, parseCleanupControl,
+  type CleanupControl, type CleanupPolicy,
+} from "../src/lib/client-gallery-cleanup-contract";
 import type { ProofActionState, ProofValidationState } from "./proof-publish";
 import {
   collectProofDeletion, planProofDeletion, proofDocumentCopies, readProofDocuments,
@@ -25,6 +29,7 @@ export type DeliveryPublishReader = ProofDeletionReader & {
 };
 export type DeliveryPublishRequest = Readonly<{
   id: string; expectedRevision: string; proofId?: string; proofsEnabled: boolean;
+  cleanup?: Readonly<{ enroll: boolean; publicationId: string; expectedPublished: boolean; expectedControlRevision?: string }>;
 }>;
 export type DeliveryMutation = Readonly<Record<string, unknown>>;
 export type DeliveryPublishPlan = Readonly<{
@@ -34,9 +39,10 @@ export type DeliveryPublishPlan = Readonly<{
   draft?: Readonly<Record<string, unknown>>;
   proof?: ProofDeletionInventory;
   selectionState?: string;
+  cleanup?: Readonly<{ previous?: CleanupControl; next?: CleanupControl; policy?: CleanupPolicy; enroll: boolean; expired: boolean; policyChanged: boolean }>;
   mutations: readonly DeliveryMutation[];
 }>;
-export type DeliveryPublishBlock = "unreadable" | "invalid" | "stale" | "copies" | "proof" | "linked" | "unavailable" | "too-large" | "deletion";
+export type DeliveryPublishBlock = "unreadable" | "invalid" | "stale" | "copies" | "proof" | "linked" | "unavailable" | "too-large" | "deletion" | "cleanup";
 export type DeliveryPublishReview = { ready: DeliveryPublishPlan } | { reason: DeliveryPublishBlock };
 export type DeliveryPublishOutcome = "published" | "conflict" | "refused" | "uncertain";
 export type DeliveryReconciliation = "published" | "not-observed" | "uncertain";
@@ -74,6 +80,20 @@ const revisionGuard = (doc: Readonly<Record<string, unknown>>): DeliveryMutation
   patch: { id: doc._id, ifRevisionID: doc._rev, set: { handle: doc.handle } },
 });
 
+/** Strict existence/permission handling; operational documents never use the query index. */
+export async function readDeliveryCleanup(id: string, reader: DeliveryPublishReader): Promise<CleanupControl | undefined> {
+  const controlId = await cleanupControlId(id), docs = await readProofDocuments(reader, [controlId]);
+  const value = docs.get(controlId);
+  if (!value) return undefined;
+  const control = parseCleanupControl(value, controlId, id);
+  if (!control._rev) throw new Error("Missing cleanup revision");
+  return control;
+}
+/** Current absence cannot prove a gallery was never published (native unpublish retains a draft). */
+export function deliveryCleanupDefault(gallery: Readonly<Record<string, unknown>>, control?: CleanupControl): boolean {
+  return !!cleanupPolicyFromGallery(gallery) && !!control && ["enrolled", "pending"].includes(control.state);
+}
+
 /** Build exactly the operation the editor reviews. Submit never recollects a different deletion. */
 export async function reviewDeliveryPublication(request: DeliveryPublishRequest, reader: DeliveryPublishReader): Promise<DeliveryPublishReview> {
   if (!ID.test(request.id) || !REVISION.test(request.expectedRevision) ||
@@ -90,6 +110,26 @@ export async function reviewDeliveryPublication(request: DeliveryPublishRequest,
     if (published && published.handle !== source.handle) return { reason: "invalid" };
     // Copy only the fully validated authored content, never draft/system metadata.
     const target = { ...authored(source), _id: request.id };
+    let cleanup: DeliveryPublishPlan["cleanup"];
+    if (request.cleanup) {
+      if (!REVISION.test(request.cleanup.publicationId) || typeof request.cleanup.enroll !== "boolean") return { reason: "cleanup" };
+      const previous = await readDeliveryCleanup(request.id, reader), policy = cleanupPolicyFromGallery(source);
+      if (typeof request.cleanup.expectedPublished !== "boolean" || request.cleanup.expectedPublished !== !!published ||
+        request.cleanup.expectedControlRevision !== previous?._rev) return { reason: "stale" };
+      const controlId = await cleanupControlId(request.id);
+      const controlDocs = new Map<string, Record<string, unknown> | undefined>([[controlId, previous as Record<string, unknown> | undefined]]);
+      if ((await proofDocumentCopies(reader, [controlId], controlDocs)).length) return { reason: "copies" };
+      if (request.cleanup.enroll && !policy) return { reason: "cleanup" };
+      const next = policy || previous ? parseCleanupControl({
+        _id: controlId, _type: "clientGalleryCleanup", version: 1, galleryId: request.id,
+        policy: policy ?? previous!.policy, sourceDocumentId: source._id, sourceRevision: source._rev,
+        publicationId: request.cleanup.publicationId, enrolledAt: new Date(now).toISOString(),
+        state: request.cleanup.enroll ? "enrolled" : "disabled",
+      }, controlId, request.id) : undefined;
+      cleanup = { previous, next, policy, enroll: request.cleanup.enroll,
+        expired: !!policy && Date.parse(policy.expiryInstant) <= now,
+        policyChanged: !!previous && !!policy && !cleanupPoliciesEqual(previous.policy, policy) };
+    }
     let proof: ProofDeletionInventory | undefined, selectionState: string | undefined;
     if (request.proofsEnabled) {
       const links = await reader.links(request.id);
@@ -132,10 +172,11 @@ export async function reviewDeliveryPublication(request: DeliveryPublishRequest,
     ] : [
       revisionGuard(published!), { create: { _id: draftId, _type: "clientDeliveryGallery" } }, { delete: { id: draftId } },
     ];
-    const mutations = [...deletion, ...publication, ...(proof?.assets.map((id) => ({ delete: { id } })) ?? [])];
+    const mutations = [...(cleanup?.next ? [cleanupControlMutation(cleanup.previous, cleanup.next)] : []),
+      ...deletion, ...publication, ...(proof?.assets.map((id) => ({ delete: { id } })) ?? [])];
     if (new TextEncoder().encode(JSON.stringify({ mutations })).byteLength > PROOF_DELETE_MAX_BODY_BYTES) return { reason: "too-large" };
     // Snapshot caller data: subsequent edits cannot change what gets committed.
-    return { ready: structuredClone({ request, target, published, draft, proof, selectionState, mutations }) };
+    return { ready: structuredClone({ request, target, published, draft, proof, selectionState, cleanup, mutations }) };
   } catch { return { reason: "unreadable" }; }
 }
 
@@ -162,9 +203,18 @@ export async function reconcileDeliveryPublication(plan: DeliveryPublishPlan, re
   try {
     const docs = await readProofDocuments(reader, [id, draftId, ...sentinels]);
     const target = docs.get(id);
-    if (target && canonical(authored(target)) === canonical(authored(plan.target)) && !docs.get(draftId) && sentinels.every((key) => !docs.get(key))) return "published";
+    const cleanup = plan.cleanup ? await readDeliveryCleanup(id, reader) : undefined;
+    const intended = plan.cleanup?.next;
+    const cleanupMatches = !plan.cleanup || !intended && !cleanup || !!intended && !!cleanup &&
+      intended.publicationId === cleanup.publicationId && intended.sourceDocumentId === cleanup.sourceDocumentId &&
+      intended.sourceRevision === cleanup.sourceRevision && intended.enrolledAt === cleanup.enrolledAt &&
+      cleanupPoliciesEqual(intended.policy, cleanup.policy) &&
+      (intended.state === "disabled" ? cleanup.state === "disabled" : ["enrolled", "pending", "complete"].includes(cleanup.state));
+    const publishedTarget = target ? canonical(authored(target)) === canonical(authored(plan.target)) :
+      !!intended && intended.state === "enrolled" && cleanup?.state === "complete";
+    if (publishedTarget && cleanupMatches && !docs.get(draftId) && sentinels.every((key) => !docs.get(key))) return "published";
     const same = (key: string, revision: unknown) => docs.get(key)?._rev === revision;
-    if (same(id, plan.published?._rev) && same(draftId, plan.draft?._rev) && (!plan.proof ||
+    if (cleanup?._rev === plan.cleanup?.previous?._rev && same(id, plan.published?._rev) && same(draftId, plan.draft?._rev) && (!plan.proof ||
       same(plan.proof.galleryId, plan.proof.published?.revision) && same(`drafts.${plan.proof.galleryId}`, plan.proof.draft?.revision) &&
       same(`proofTerms.${plan.proof.galleryId}`, plan.proof.terms?.revision))) return "not-observed";
     return "uncertain";

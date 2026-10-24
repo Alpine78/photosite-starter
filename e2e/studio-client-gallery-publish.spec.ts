@@ -3,7 +3,7 @@ import { createServer, type ViteDevServer } from "vite";
 import { renderToStaticMarkup } from "react-dom/server";
 import { test, expect } from "./support/fixtures";
 import type { DeliveryPublishDialogProps } from "../studio/client-gallery-publish-dialog";
-import { deliveryPublishCopy } from "../studio/client-gallery-publish-copy";
+import { deliveryCleanupCopy, deliveryPublishCopy } from "../studio/client-gallery-publish-copy";
 
 let server: ViteDevServer, view: ComponentType<DeliveryPublishDialogProps>;
 test.beforeAll(async () => {
@@ -27,6 +27,41 @@ const review: DeliveryPublishDialogProps["review"] = { ready: {
 
 // Actual component markup/native controls. No hydration, authenticated Studio or hosted release claim.
 for (const locale of ["fi-FI", "en-GB"]) {
+  test(`cleanup choice and latest blocked status have labelled keyboard controls ${locale}`, async ({ page }) => {
+    const copy = deliveryCleanupCopy(locale), publish = deliveryPublishCopy(locale);
+    const props = fixture(locale, { mode: "ordinary", cleanup: { enroll: true, eligible: true, unreadable: false, loading: false,
+      control: { _id: "clientGalleryCleanup." + "a".repeat(64), _type: "clientGalleryCleanup", version: 1, galleryId: "delivery-fixture", state: "enrolled",
+        sourceDocumentId: "drafts.delivery-fixture", sourceRevision: "r1", publicationId: "p1", enrolledAt: "2026-10-24T12:00:00Z",
+        policy: { handle: "1".repeat(32), expiryInstant: "2027-04-24T12:00:00Z", assetIds: [] }, lastResult: { reason: "gallery_variants", at: "2026-10-24T12:00:00Z" } },
+    } });
+    await page.setContent(`<!doctype html><html lang="${locale}"><body>${renderToStaticMarkup(createElement(view, props))}</body></html>`);
+    await expect(page.getByRole("group", { name: copy.title, exact: true })).toBeVisible();
+    await expect(page.getByText(copy.reasons.gallery_variants, { exact: false })).toBeVisible();
+    const choice = page.getByRole("checkbox", { name: copy.choice, exact: true });
+    await expect(choice).toBeChecked(); await choice.focus(); await page.keyboard.press("Space"); await expect(choice).not.toBeChecked();
+    await page.keyboard.press("Tab"); await expect(page.getByRole("button", { name: publish.review, exact: true })).toBeFocused();
+    await expect(page.getByText(copy.limits, { exact: true })).toBeVisible();
+  });
+  test(`expired cleanup review and unreadable state are explicit ${locale}`, async ({ page }) => {
+    const copy = deliveryCleanupCopy(locale), publish = deliveryPublishCopy(locale);
+    const ready = { ...review!.ready, proof: undefined, cleanup: { enroll: true, expired: true, policyChanged: true } };
+    await page.setContent(`<!doctype html><html lang="${locale}"><body>${renderToStaticMarkup(createElement(view, fixture(locale, { review: { ready } })))}</body></html>`);
+    await expect(page.getByRole("alert")).toHaveText(copy.expired);
+    await expect(page.getByText(copy.changed, { exact: true })).toBeVisible();
+    await page.setContent(`<!doctype html><html lang="${locale}"><body>${renderToStaticMarkup(createElement(view, fixture(locale, { mode: "ordinary", cleanup: { enroll: false, eligible: true, unreadable: true, loading: false } })))}</body></html>`);
+    await expect(page.getByRole("alert")).toHaveText(copy.unreadable);
+    await expect(page.getByRole("checkbox", { name: copy.choice, exact: true })).toBeDisabled();
+    await expect(page.getByRole("button", { name: publish.review, exact: true })).toBeDisabled();
+  });
+  test(`cleanup loading status never claims no enrollment before its read ${locale}`, async ({ page }) => {
+    const copy = deliveryCleanupCopy(locale), publish = deliveryPublishCopy(locale);
+    const props = fixture(locale, { mode: "ordinary", cleanup: { enroll: false, eligible: true, unreadable: false, loading: true } });
+    await page.setContent(`<!doctype html><html lang="${locale}"><body>${renderToStaticMarkup(createElement(view, props))}</body></html>`);
+    await expect(page.getByRole("status").filter({ hasText: copy.loading })).toBeVisible();
+    await expect(page.getByText(`${copy.status}: ${copy.states.none}`, { exact: true })).toHaveCount(0);
+    await expect(page.getByRole("checkbox", { name: copy.choice, exact: true })).toBeDisabled();
+    await expect(page.getByRole("button", { name: publish.review, exact: true })).toBeDisabled();
+  });
   test(`delivery publication choice has explicit labelled keyboard controls ${locale}`, async ({ page }) => {
     const copy = deliveryPublishCopy(locale), props = fixture(locale, { mode: "replacement" });
     await page.setContent(`<!doctype html><html lang="${locale}"><body>${renderToStaticMarkup(createElement(view, props))}</body></html>`);

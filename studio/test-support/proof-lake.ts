@@ -28,11 +28,13 @@ export function lake(initial: Record<string, unknown>[]) {
         if ("create" in mutation && next.has(doc._id)) throw Object.assign(new Error("exists"), { statusCode: 409 });
         next.set(doc._id, { ...doc, _rev: `r${++counter}` });
       } else if ("patch" in mutation) {
-        const patch = mutation.patch as { id: string; ifRevisionID?: string; set?: Record<string, unknown> };
+        const patch = mutation.patch as { id: string; ifRevisionID?: string; set?: Record<string, unknown>; unset?: string[] };
         const current = next.get(patch.id);
         if (!current) throw Object.assign(new Error("missing"), { statusCode: 409 });
         if (patch.ifRevisionID !== undefined && patch.ifRevisionID !== current._rev) throw Object.assign(new Error("revision"), { statusCode: 409 });
-        next.set(patch.id, { ...current, ...patch.set, _rev: `r${++counter}` });
+        const changed = { ...current, ...patch.set, _rev: `r${++counter}` };
+        for (const key of patch.unset ?? []) delete changed[key];
+        next.set(patch.id, changed);
       } else {
         next.delete((mutation.delete as { id: string }).id);
       }

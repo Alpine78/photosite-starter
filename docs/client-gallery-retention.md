@@ -46,17 +46,21 @@ See [proof data flow](proof-selection-data-flow.md).
 - **AB#393 / AB#394 — Closed:** creation defaults and the
   [pure, non-executing planner](client-gallery-retention-planner.md) merged in PRs #610
   and #611. A candidate result never authorizes deletion.
-- **AB#395 — New:** delivery-only expiry executor, enrollment, reconciliation,
+- **AB#395 — Active:** delivery-only expiry executor, enrollment, reconciliation,
   operational controls, hosted tests and deliberate activation.
-- **AB#396 — Active:** guarded Studio proof deletion together with linked replacement publication.
-  Source implementation awaits review/merge and hosted acceptance. This is a publication
+- **AB#396 — Closed:** guarded Studio proof deletion together with linked replacement publication,
+  merged in PR #613; hosted acceptance remains separate. This is a publication
   operation, not part of the delivery expiry sweep.
+- **AB#397 — Active:** source implementation of reviewed Studio cleanup enrollment and
+  the private control contract; owner review/merge and hosted verification remain.
+- **AB#398 — Active:** separate source worker/scheduler slice, followed by hosted gates.
 
 **No automatic cleanup is deployed or configured by AB#393.** No gallery is enrolled
-by receiving a creation default. Enrollment storage and how newly published galleries
-join the enabled workflow belong to AB#395. They must avoid silently losing enrollment
-after an unrelated text edit; an execution-time revision mismatch requires fresh
-planning. Existing and legacy records require a reviewed enrollment decision. Do not
+by receiving a creation default. AB#397 implements enrollment in the separately enabled
+Studio publication workflow; the server worker is separate and remains default-off.
+An execution-time revision mismatch requires fresh planning rather than silently losing
+approval after a text edit. Existing new-delivery records require a reviewed enrollment
+decision. Legacy enrollment remains outside this contract. Do not
 convert an indefinite gallery to finite access or bulk-enroll the 21 legacy galleries.
 
 The new-ZIP authoring/transport decision remains [ADR-0035](adr/0035-unlisted-delivery-zip-proposal.md)
@@ -67,6 +71,52 @@ replacement publication removes proofs permanently; they do not return if delive
 closes. Send the customer the new delivery link: the old proof URL becomes unknown/404.
 The existing delivery clock still starts at draft creation: check the actual deadline
 at handoff, because publication does not grant a fresh six months.
+
+## Reviewed enrollment and private control (AB#397)
+
+The Studio flag `SANITY_STUDIO_CLIENT_GALLERY_CLEANUP=enabled` exposes an explicit
+FI/EN cleanup checkbox, deadline, image count, current state and latest closed result.
+Blank/`off` does no cleanup IO; invalid values fail configuration. The flag does not
+start the server worker. Every unenrolled delivery is initially unchecked and requires
+explicit consent, including a new finite delivery. Current absence cannot prove it was
+never published: native unpublish can leave the same draft shape. Existing enrolled/pending state
+persists by default across text edits. Disabled/completed approval needs deliberate
+re-enrollment. Indefinite, proof and legacy galleries cannot enroll. An expired ordinary
+publication warns that enabled cleanup may begin immediately; no grace period is added.
+
+One private deterministic `clientGalleryCleanup.<SHA256(published ID)>` record holds
+version 1, gallery ID, approved handle/deadline/sorted image IDs, reviewed source document
+ID/revision, unique publication identity, enrollment time and latest state. Pending
+stores only operation ID/time, never an executable plan. Completed receipt stores the
+actual deleted/shared image IDs, revisions and counts, partitioning the approved set.
+Only one latest result/receipt is kept; it remains until re-enrollment or separately
+authorized removal, with no added purge timer. Customer/contact data, authored titles,
+filenames, URLs and raw CMS payloads are excluded. No public gallery field or editable
+control schema/template is added. [Sanity IDs and paths](https://www.sanity.io/docs/content-lake/ids)
+describe authenticated access to dotted IDs; verify actual project roles before use.
+
+Every enabled publication creates or CAS-patches the control in the same transaction
+as publication and any selected proof deletion. Renewing or withdrawing consent changes
+the control revision and fences an old pending worker. Deadline/image changes are shown
+for renewed review; the creation deadline is never reset. Flag-off publication leaves
+an existing control unchanged: fresh worker policy/revision checks still have to reject
+changed policy. Dataset writers can forge controls, so stored approval never replaces
+the worker's independent current-gallery validation. The source revision audits the
+reviewed draft/published source, not the new server-assigned publication revision.
+
+Unknown publication results are read back without retries. Exact publication/source
+identity and policy must match, including worker advance to pending/completed. A matching
+completion receipt can prove publication after immediate expired-gallery removal;
+other mixed or unreadable states remain uncertain. See the
+[Studio workflow](../studio/README.md#review-automatic-delivery-cleanup-enrollment-ab397).
+
+Open drafts and incoming gallery references, including a retained proof link, block
+cleanup until an operator resolves them. Shared images stay online with no later sweep
+by this worker. A latest blocked result is visible in Studio; do not treat page expiry
+as evidence that file deletion succeeded. This source PR performs no live enrollment,
+CMS write, deletion, deployment or activation. Hosted role/anonymous-read checks,
+synthetic atomic-transaction/race rehearsal and FI/EN keyboard/assistive-technology
+acceptance remain required under AB#395.
 
 ## Required safeguards before an executor is enabled
 

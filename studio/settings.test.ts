@@ -13,7 +13,7 @@ describe("Studio configuration", () => {
   it("derives all locale roots with the default in any position", () => {
     expect(loadStudioSettings(environment)).toEqual({
       projectId: "example1", dataset: "example", datasetVisibility: "public",
-      title: "Example Studio", authoringLanguages: ["fi", "en"], storyRootPaths: ["/tarinat", "/en/stories"], proofGalleries: false,
+      title: "Example Studio", authoringLanguages: ["fi", "en"], storyRootPaths: ["/tarinat", "/en/stories"], proofGalleries: false, clientGalleryCleanup: false,
     });
     expect(studioStoryRoots("en-GB|en|stories,fi||tarinat")).toEqual(["/en/stories", "/tarinat"]);
   });

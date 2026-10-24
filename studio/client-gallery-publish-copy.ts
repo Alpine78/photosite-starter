@@ -23,6 +23,7 @@ export function deliveryPublishCopy(locale: string) {
       unavailable: "Korvaavan toimituksen pitää olla saatavilla. Määräajan pitää olla yli viiden minuutin päässä palvelimen ajasta.",
       "too-large": "Operaatio on liian suuri yhdeksi transaktioksi. Sitä ei jaeta osiin; pyydä ylläpitoa selvittämään aineisto.",
       deletion: "Vedosten poistoa ei voitu koota turvallisesti. Tarkista tiedot vedosgallerian omalla poistotoiminnolla; älä tee korvaamista erillisenä julkaisuna ja poistona.",
+      cleanup: "Automaattiseen siivoukseen voi liittää vain määräaikaisen varsinaisen asiakasgallerian. Tarkista siivousvalinta ja tiedot uudelleen.",
     },
   } : {
     action: "Publish client gallery", choose: "Purpose of publication", ordinary: "Publish without replacing a proof gallery",
@@ -48,6 +49,53 @@ export function deliveryPublishCopy(locale: string) {
       unavailable: "The replacement delivery must be available. Its deadline must be more than five minutes after server time.",
       "too-large": "The operation is too large for one transaction. It is never split; ask the maintainer to investigate the records.",
       deletion: "Proof deletion could not be safely collected. Inspect the proof gallery's own deletion action; do not replace it with separate publication and deletion.",
+      cleanup: "Only a finite delivery gallery can enroll in automatic cleanup. Review the cleanup choice and content again.",
+    },
+  };
+}
+
+export function deliveryCleanupCopy(locale: string) {
+  return /^fi(?:-|$)/u.test(locale) ? {
+    title: "Automaattinen siivous", choice: "Poista galleria ja sen omat verkkokuvat pysyvästi määräajan jälkeen",
+    loading: "Luetaan siivouksen tilaa…", unreadable: "Siivouksen tilaa ei voitu lukea. Julkaisua ei voi jatkaa.",
+    note: "Valinta tallentuu julkaisun kanssa. Julkaisu ei siirrä määräaikaa. Ajastettu poisto edellyttää erikseen käyttöön otettua palvelintyötä; tämä asetus ei käynnistä sitä.",
+    limits: "Muualla käytetyt kuvat säilyvät, eikä niitä poisteta myöhemmin tällä työllä. Avoin luonnos tai galleriaan viittaava vedoslinkki estää poiston. Varmuuskopiot, välimuistit ja jo ladatut tiedostot eivät poistu.",
+    expired: "Määräaika on jo mennyt. Kun siivous on käytössä, poistoon voidaan ryhtyä heti julkaisun jälkeen.",
+    changed: "Siivouksen määräaika tai kuvajoukko muuttui. Tarkista uusi rajaus ennen julkaisua.",
+    ineligible: "Toistaiseksi voimassa olevaa toimitusta ei voi liittää siivoukseen. Aiempi liittyminen perutaan tässä julkaisussa.",
+    withdrawal: "Julkaisu peruu aiemman siivousluvan ja estää vanhan odottavan poistoyrityksen.",
+    images: "Siivousluvan kuvia", status: "Tallennettu siivoustila", blocked: "Viimeisin siivoustulos",
+    states: { none: "Ei liittymistä", enrolled: "Liitetty", pending: "Poistoyritys odottaa selvitystä", complete: "Poisto valmistui", disabled: "Siivous ei käytössä" },
+    reasons: {
+      policy_changed: "Määräaika tai kuvajoukko muuttui; tarkista ja julkaise siivouslupa uudelleen.",
+      gallery_variants: "Avoin luonnos tai julkaisuversio estää poiston.", control_variants: "Siivoustietueella on luonnos tai julkaisuversio.",
+      cursor_variants: "Siivoustyön etenemistiedolla on luonnos tai julkaisuversio.", incomplete_evidence: "Poistoon tarvittava aineisto on puutteellinen.",
+      invalid_gallery: "Gallerian tiedot eivät kelpaa siivoukseen.", invalid_assets: "Kuvien tietoja ei voitu vahvistaa.", missing_gallery: "Galleria puuttuu eikä valmistumisesta ole kuittia.",
+      incoming_reference: "Toinen tietue tai vedoslinkki viittaa galleriaan ja estää poiston.", conflict: "Tiedot muuttuivat; siivous tarkistaa ne myöhemmällä ajokerralla.",
+      refused: "Palvelu hylkäsi poiston; ylläpidon pitää tarkistaa oikeudet ja viittaukset.", uncertain: "Poistoyrityksen lopputulos selvitetään ennen uutta yritystä.",
+      internal_error: "Siivoustyö kohtasi sisäisen virheen.", snapshot_limit_exceeded: "Aineisto ylitti siivoustyön turvarajan; ylläpidon pitää tarkistaa rajat.",
+      clock_skew: "Palvelinten kellot poikkeavat; poisto keskeytettiin.", provider_unavailable: "Sisältöpalvelua ei voitu lukea luotettavasti.",
+    },
+  } : {
+    title: "Automatic cleanup", choice: "Permanently delete the gallery and its exclusive web images after the deadline",
+    loading: "Reading cleanup status…", unreadable: "Cleanup status could not be read. Publication cannot continue.",
+    note: "This choice is saved with publication. Publishing does not move the deadline. Scheduled deletion requires the separately enabled server worker; this setting does not start it.",
+    limits: "Images used elsewhere are kept and are not swept later by this worker. An open draft or a proof link pointing to the gallery blocks deletion. Backups, caches and previously downloaded files remain.",
+    expired: "The deadline has passed. With cleanup enabled, deletion may begin immediately after publication.",
+    changed: "The cleanup deadline or image set changed. Review the new scope before publishing.",
+    ineligible: "Indefinite delivery cannot enroll. Any previous enrollment is withdrawn by this publication.",
+    withdrawal: "Publication withdraws the previous cleanup approval and fences its pending deletion attempt.",
+    images: "Images approved for cleanup", status: "Stored cleanup state", blocked: "Latest cleanup result",
+    states: { none: "Not enrolled", enrolled: "Enrolled", pending: "Deletion attempt awaiting reconciliation", complete: "Cleanup completed", disabled: "Cleanup disabled" },
+    reasons: {
+      policy_changed: "The deadline or image set changed; review and publish the cleanup approval again.",
+      gallery_variants: "An open draft or release version blocks deletion.", control_variants: "The cleanup record has a draft or release version.",
+      cursor_variants: "The cleanup progress record has a draft or release version.", incomplete_evidence: "Required deletion evidence is incomplete.",
+      invalid_gallery: "The gallery does not meet cleanup requirements.", invalid_assets: "Image evidence could not be verified.", missing_gallery: "The gallery is missing without a completion receipt.",
+      incoming_reference: "Another record or proof link points to the gallery and blocks deletion.", conflict: "Records changed; cleanup will check again on a later run.",
+      refused: "The provider refused deletion; the maintainer must inspect permissions and references.", uncertain: "The deletion outcome must be reconciled before another attempt.",
+      internal_error: "The cleanup worker encountered an internal error.", snapshot_limit_exceeded: "The dataset exceeded a cleanup safety limit; the maintainer must review the limits.",
+      clock_skew: "Server clocks disagree; deletion was stopped.", provider_unavailable: "The content provider could not be read reliably.",
     },
   };
 }
