@@ -787,6 +787,10 @@ the controlled strong-reference/no-release writer boundary and verify provider
 atomicity, all-version omissions, capacity and races on synthetic records. See
 [the exact protocol and hosted evidence](client-gallery-cleanup.md). No token,
 role, real deletion or activation is provisioned by this source.
+The separate AB#399 [owner-run read probe](client-gallery-cleanup.md#read-only-capacity-and-known-canary-probe-ab399)
+uses a private explicit target/canary manifest and the dedicated token, independently
+of ambient site settings. It is source-built, not run on the actual dataset; a pass
+measures readable evidence only and does not prove the token's full READ/WRITE role.
 Legacy imported fields/actions remain read-only. Bounded web-image authoring and
 the AB#303 reader are source implementations; the reader remains off by default.
 Its [runtime configuration](deployment.md#ongoing-unlisted-client-galleries-adr-0034)

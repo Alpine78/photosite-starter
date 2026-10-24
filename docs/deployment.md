@@ -723,6 +723,10 @@ race/deletion outcomes. See [the cleanup runbook](client-gallery-cleanup.md) for
 caps, cursor progress, failure/status handling and the explicit activation
 evidence. Server and Studio enrollment flags are independent; both stay off in
 the supplied examples. Legacy/proof galleries and new ZIP delivery are excluded.
+AB#399 adds an explicitly invoked local [read-readiness probe](client-gallery-cleanup.md#read-only-capacity-and-known-canary-probe-ab399),
+excluded from CI. No real run has been performed. Its local measurements/known
+canaries do not establish hosted function capacity, full-role grants or activation.
+Its operator-only opt-in/manifest path do not belong in Vercel runtime settings.
 
 After accepted source merges, deploy the Studio and verify actual author/editor
 permissions, FI/EN keyboard workflow and a synthetic published gallery before

@@ -1238,3 +1238,10 @@ provider caches, downloads, history and backups are outside ordinary deletion.
 The [cleanup runbook](client-gallery-cleanup.md) records the role, capacity,
 provider-semantics, synthetic-race and privacy-notice checks. Source tests/review
 do not establish live permission or authorize activation. Both flags remain off.
+
+AB#399's source-only read-readiness probe adds a private manifest, explicit opt-in,
+GET-only exact export/Doc URLs, bounded file/response processing and cause-free
+closed diagnostics. Raw private records pass through local operator memory, never
+reports/persistence/CI. Named canary matches and capacity measurements do not prove
+global READ or token-role identity, WRITE/atomic deletion or hosted allowance.
+Synthetic fixtures cover refusals and redaction; no actual probe was executed.

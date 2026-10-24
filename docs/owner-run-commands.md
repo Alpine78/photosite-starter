@@ -7,6 +7,7 @@ never writes CMS). Read the command's own documentation before running or changi
 
 ```bash
 npm run verify:preview -- <url> <dpl_id> # assert ownership, protection, and noindex
+npm run verify:client-gallery-cleanup-readiness # owner-run: explicit opt-in + private target/canary manifest; bounded GET-only export/Doc reads, never writes or enables deletion; docs/client-gallery-cleanup.md
 npm run verify:legacy-redirects -- report [--csv] # AB#19: mapping report or pending review CSV; check <origin> [<canonical-origin>] probes a production build
 npm run benchmark:keywords -- plan # AB#65 spike: fixture + query-strategy benchmark (owner-run for the live matrix)
 npm run convert:joomla -- --source <articles.ndjson> --out <dir> # owner-run: convert legacy content, report only, never writes

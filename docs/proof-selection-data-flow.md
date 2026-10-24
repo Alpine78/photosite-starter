@@ -135,6 +135,13 @@ proof records. Its full-read role, controlled-writer boundary and privacy wordin
 need the separate [activation evidence](client-gallery-cleanup.md). Sanity and
 Vercel remain the processors; merging the source does not enable that processing.
 
+The separately authorized AB#399 read-readiness probe performs the same transient
+full-readable export on the operator's machine, using the same Sanity service.
+It prints closed capacity/count/fingerprint evidence only, never proof fields or
+raw records, and has no mutation operation. It is excluded from routine tests/CI.
+No actual run has been made for this source slice; it cannot establish full READ
+policy or authorize activation. See [the probe runbook](client-gallery-cleanup.md#read-only-capacity-and-known-canary-probe-ab399).
+
 Owner actions, recorded so they are not lost; none is performed by the code:
 
 - The customer-facing privacy notice names the proof page, the selection, the optional

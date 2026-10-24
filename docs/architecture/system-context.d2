@@ -85,6 +85,7 @@ visitor -> vercel: "Optional cookieless page-view statistics\n(ADR-0037; off by 
 visitor -> site: Sends an enquiry
 
 owner -> repo: Commits
+owner -> sanity: "Optional GET-only cleanup readiness probe (AB#399)\nSource-built, not run; private local manifest + transient export.\nCounts/fingerprints only; no role proof, write or activation." {class: pending-flow}
 owner -> studio: "Edits content with a Sanity account\n(authenticated workflow unverified)" {class: pending-flow}
 studio -> sanity: "Authenticated editor reads/writes\n(authenticated workflow unverified)" {class: pending-flow}
 owner -> site: "Administers client galleries\nthrough the protected model's admin route\n(deferred — ADR-0034)" {class: pending-flow}

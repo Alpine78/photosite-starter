@@ -780,7 +780,8 @@ an editable six-month deadline from creation (AB#393). AB#397 adds default-off r
 Studio enrollment for finite deliveries, stored atomically with publication. The separate
 automatic cleanup worker and authenticated daily schedule are source-built, default-off
 (AB#398). Hosted role/race checks and activation remain AB#395; no new ZIP eligibility
-is granted ([cleanup runbook](docs/client-gallery-cleanup.md)).
+is granted. A separate owner-run capacity/canary read probe is source-built (AB#399),
+with no actual live run or activation ([cleanup runbook](docs/client-gallery-cleanup.md)).
 Keyword-driven dynamic galleries remain post-MVP. See the MVP checklist above and
 [detailed implementation history](docs/feature-status.md).
 

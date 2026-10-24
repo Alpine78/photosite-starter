@@ -51,10 +51,12 @@ See [proof data flow](proof-selection-data-flow.md).
 - **AB#396 — Closed:** guarded Studio proof deletion together with linked replacement publication,
   merged in PR #613; hosted acceptance remains separate. This is a publication
   operation, not part of the delivery expiry sweep.
-- **AB#397 — Active:** source implementation of reviewed Studio cleanup enrollment and
-  the private control contract; owner review/merge and hosted verification remain.
-- **AB#398 — Active:** source worker/scheduler implemented, owner review/merge pending;
+- **AB#397 — Closed (PR #614):** reviewed Studio cleanup enrollment and
+  private control contract merged; hosted verification remains.
+- **AB#398 — Closed (PR #615):** source worker/scheduler merged;
   hosted provider/role/capacity/race acceptance and activation remain AB#395.
+- **AB#399 — Active:** separately invoked read-only capacity/canary probe source;
+  no actual verification run or activation. See [the runbook](client-gallery-cleanup.md).
 
 **No automatic cleanup is deployed or configured by AB#393.** No gallery is enrolled
 by receiving a creation default. AB#397 implements enrollment in the separately enabled
