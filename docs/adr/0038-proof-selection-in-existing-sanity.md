@@ -353,7 +353,12 @@ decision.
 **Verified facts it rests on.** Sanity Studio 6.18.0's `auth.loginMethod` is `dual` by
 default (an HTTP-only cookie where possible), so a document action cannot read the
 editor's token unless the Studio uses `loginMethod: 'token'` (token in `localStorage`).
-`/users/me` accepts only user sessions, not robot tokens. Documents on a dotted ID path
+The implementation originally assumed `/users/me` accepts only user sessions,
+not robot tokens. **AB#401's actual-provider test on 2026-10-24 disproved that
+assumption for the current project-host call:** an Editor robot passed the check.
+Resolving the identity contract remains required before activation; the
+[dated evidence](../audits/client-gallery-lifecycle-rehearsal-2026-10-24.md)
+does not accept robot publication as a replacement design. Documents on a dotted ID path
 need authentication with read permission, and writes need a member with write access.
 Mutation transactions are atomic; `ifRevisionID` and `create` fail with a conflict when the
 document changed or already exists.
@@ -366,7 +371,8 @@ document changed or already exists.
 2. CORS only for an exact configured Studio origin, without credentials; any other origin
    is refused before work. Then: JSON content type, a per-client limit, a bounded bearer
    token and an exact `{galleryId, operation}` body (`publish` or `rotate-key`).
-3. The route proves the token is a user session with `/users/me`, spends the per-gallery
+3. The route checks the token with `/users/me` (the human-session assumption above
+   remains unresolved), spends the per-gallery
    allowance only then, and makes every read and the transaction **with the editor's own
    token**. Sanity therefore enforces membership and publish permission; the route holds no
    write credential. The token goes only to this project's API host and is never logged.

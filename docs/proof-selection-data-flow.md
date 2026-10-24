@@ -139,8 +139,14 @@ The separately authorized AB#399 read-readiness probe performs the same transien
 full-readable export on the operator's machine, using the same Sanity service.
 It prints closed capacity/count/fingerprint evidence only, never proof fields or
 raw records, and has no mutation operation. It is excluded from routine tests/CI.
-No actual run has been made for this source slice; it cannot establish full READ
-policy or authorize activation. See [the probe runbook](client-gallery-cleanup.md#read-only-capacity-and-known-canary-probe-ab399).
+The separately authorized AB#401 rehearsal on 2026-10-24 ran it against real
+synthetic canaries and exercised durable confirmation and replacement deletion.
+It did not establish full READ policy or authorize activation. The notice returned
+HTTP 400; the local mail key was a Vercel Sensitive placeholder, but the exact
+provider error cause was not retained. Real mail delivery remains unverified.
+The current editor check also accepted a robot (follow-up AB#402). See the
+[results and hosted limitations](audits/client-gallery-lifecycle-rehearsal-2026-10-24.md)
+and [probe runbook](client-gallery-cleanup.md#read-only-capacity-and-known-canary-probe-ab399).
 
 Owner actions, recorded so they are not lost; none is performed by the code:
 
