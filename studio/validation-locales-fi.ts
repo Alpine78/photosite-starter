@@ -1,5 +1,7 @@
 /** {{pN}} placeholders retain the original validation values verbatim. */
 export const validationFinnish = {
+  "Proof records are written only by the site and cannot be published in Content Releases or scheduled drafts.": "Vedosgallerian yksityiset tiedot kirjoittaa vain sivusto. Niitä ei voi julkaista Content Releases -julkaisuversioina tai ajastettuina luonnoksina.",
+  "Client and proof galleries must be published with their own publication action, outside Content Releases and scheduled drafts.": "Asiakas- ja vedosgalleriat pitää julkaista omalla julkaisutoiminnollaan, ilman Content Releases -julkaisuversioita tai ajastettuja luonnoksia.",
   "Check the proof gallery fields, image order and filenames.": "Tarkista vedosgallerian kentät, kuvajärjestys ja tiedostonimet.",
   "Use complete exported web proofs up to 2048 pixels; check their uploaded asset metadata.": "Käytä kokonaisia, enintään 2048 pikselin verkkovedoksia ja tarkista ladattujen tiedostojen metatiedot.",
   "Proof numbers are assigned on publishing and never change. A published proof keeps its image; add a new proof for a different image.": "Vedosnumerot annetaan julkaistaessa, eivätkä ne muutu. Julkaistu vedos säilyttää kuvansa; lisää eri kuvalle uusi vedos.",

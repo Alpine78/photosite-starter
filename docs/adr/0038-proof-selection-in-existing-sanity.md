@@ -650,7 +650,7 @@ owner's activation decision remains.
 
 ## Replacement deletion amendment (2026-10-24)
 
-**Accepted product direction; technical implementation pending — AB#130 / AB#396.**
+**Accepted product direction; source implementation in AB#396, pending hosted acceptance — AB#130 / AB#396.**
 Asked whether the six-month delivery default and expiry cleanup also apply to proofs,
 the owner answered on 2026-10-24:
 
@@ -675,20 +675,81 @@ email is not a substitute record. No separate archive, export/invoicing gate or 
 retention is established here. Those would need their own requirement. Existing
 limits for downloaded copies, caches, history, backups and sent mail still apply.
 
-**Current implementation:** a linked available delivery causes a reversible redirect;
-only the manual Studio delete action removes the proof unit. Automatic deletion at
-replacement publication is **not implemented**. AB#396 owns the authenticated, guarded
-publication/deletion path, including preventing native publication from bypassing it.
-Until it exists, the manual delete action is the only implemented removal mechanism;
-for an interim handoff, a separately authorized operator verifies successful delivery
-publication before using it. Two manual actions do not satisfy the required atomic replacement.
+**AB#396 source implementation:** every delivery publication uses the Studio's
+**Publish client gallery** action in FI/EN, replacing native publish. The editor must
+choose ordinary delivery or replacement explicitly; replacement selects one exact
+published proof document ID and confirms that ID again after reviewing counts. No
+persisted link, tombstone, new public URL mapping, credential or provider is added.
+Legacy `replacedBy` stays readable but read-only. Any legacy link to this delivery,
+including one link, blocks ordinary publication, even a text edit: select that exact
+proof for explicit replacement (which deletes it), or delete the old proofs with their
+own deletion action before ordinary publication. Conflicting/multiple links require
+that manual resolution. With proofs off,
+ordinary delivery publication does not inspect inactive proof links.
 
-AB#396's reviewed design must resolve publication versus availability, paused/expired
-targets, a link added after publication, link cardinality, shared-reference races,
-unknown outcomes and retries. A successful handoff must leave a usable delivery; a
-pre-created draft's deadline therefore needs review. Old-proof-link behavior after
-deletion is not decided here: no promise of a surviving redirect or a new retained
-mapping follows. Any mapping needs its own data/URL review and cannot retain proof
-content as a fallback. Existing selection and reminder rules remain until deletion;
-this amendment adds no reminder cadence or timer. It authorizes no live deletion,
-upload, deployment or activation.
+The reviewed draft (or an explicitly selected already-published target without a draft)
+is validated afresh, using the delivery's existing closed schema/asset contract. Tests
+also pass the exact published payload through the independent runtime parser. A
+replacement must have `available: true` and a deadline more than five minutes beyond
+fresh provider `now()` both at review and immediately before submission, or be explicitly
+indefinite. The margin exceeds the provider's three-minute mutation execution limit;
+publication does not reset the deadline. Ordinary delivery may still publish a paused
+page. An existing published target without a draft is revision-guarded without rewriting
+its authored content; a draft appearing meanwhile makes the operation conflict.
+
+One Content Lake mutation contains the complete proof deletion with the terms guard,
+the target's draft/published revision or absence guards, publication and finally the
+unused image deletions. The payload is the exact reviewed snapshot; it is never
+recollected into a different deletion at submit. Target images are always kept by ID,
+independently of the eventually consistent shared-use query. Other indexed uses are
+kept; a late strong reference makes the entire transaction fail. The transaction is
+refused above 3.5 MB UTF-8 and is never split. The provider documents a 4 MB mutation
+body limit; no separate mutation-count limit is specified in its current technical
+limits. No new selection, export or invoicing prerequisite is invented: the dialog
+shows the working state, confirmed versions and record/image counts being destroyed.
+
+Writes use the editor's existing session, `maxRetries: 0` and synchronous visibility.
+409 means conflict; other 4xx responses refuse; network errors, timeouts and 5xx remain
+uncertain. The dialog retains its frozen plan and disables publication until its
+**Check outcome** read classifies fresh target/proof/terms sentinels. Intended target
+content plus absent draft and proof sentinels reports success; unchanged original
+revisions mean only **not observed applied** and allow a fresh review. A delayed first
+request can still finish; the terms/target guards arbitrate competing attempts. Mixed
+or unreadable state remains uncertain. Single-flight is a dialog convenience, not a
+cross-editor lock. There is no persistent application receipt; provider history is the
+remaining historical evidence, within its retention limits.
+
+**Old links:** after deletion the proof page is unknown/404 and selection requests are
+refused. No redirect survives; send the new delivery URL to the customer. The generic
+reminder-stop page can still render but its POST is refused. Later delivery closure,
+expiry, unpublication or deletion cannot restore the removed proof unit. Existing
+legacy links keep the earlier runtime behavior only until that proof is deleted.
+
+**Publication paths and activation limits:** native delivery publish/schedule actions
+are removed; gallery and private-record validators reject `versions.*` documents, blocking Studio
+release publication and scheduled drafts through their validation errors. Public
+`gallery` and `article` scheduling remains configured as before. Fresh Doc API
+`includeAllVersions` checks refuse existing release copies and permission omissions.
+This is an editorial workflow, not a Content Lake ACL: other Studios, direct APIs,
+already-scheduled releases and unsupported concurrent weak-reference/custom writers
+remain operational constraints. Before activation, verify no scheduled gallery versions
+exist and that all writers use this workflow and strong asset references. A late weak
+reference or a URL string cannot protect an asset; an unrelated browser's stale buffer
+can recreate a private draft. No guarantee covers those unsupported writers. Hosted
+acceptance must verify the pinned Studio's release/scheduled-draft validation (including
+mixed public/client releases), FI/EN keyboard flow, Doc API permissions and editor rights
+for private records and image deletion. No live operation or activation was performed.
+
+Provider references: [atomic transactions](https://www.sanity.io/docs/content-lake/transactions),
+[validation is client-side](https://www.sanity.io/docs/studio/validation),
+[release and scheduled-draft configuration](https://www.sanity.io/docs/studio/content-releases-configuration),
+[technical limits](https://www.sanity.io/docs/content-lake/technical-limits).
+
+AB#396 hosted checks must verify the exact `includeAllVersions=true` response: each
+requested base ID appears in `documents`, or in `omitted` with `reason: "existence"`;
+permission omissions, missing `omitted` arrays and unreported IDs are refused. Check
+draft-only records too. The synthetic fixture is not provider evidence for that shape.
+Also verify focus moves to the dialog heading on loading/review/outcome transitions,
+returns to the action on close, and that a screen reader announces asynchronous results
+from the already-mounted status region. Static markup tests do not prove hydration,
+focus transitions or announcements in authenticated Studio.

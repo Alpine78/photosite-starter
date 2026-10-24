@@ -54,7 +54,7 @@ export const schemaFinnish = {
   "Email attempted (UTC)": "Sähköpostia yritetty (UTC)",
   "Failure class": "Virheluokka",
   "Replaced by client gallery": "Korvaava asiakasgalleria",
-  "When the finished images are delivered, choose their published client gallery. While it is available, the proof link opens it instead. Clear the field to show the proofs again.": "Kun valmiit kuvat on toimitettu, valitse niiden julkaistu asiakasgalleria. Kun se on saatavilla, vedoslinkki avaa sen vedosten sijaan. Tyhjennä kenttä, niin vedokset näkyvät taas.",
+  "Legacy replacement link, retained read-only for compatibility. Use Publish client gallery on the delivery to replace and delete this proof gallery. Resolve conflicting old links with the proof deletion action.": "Aiempi korvauslinkki, säilytetään vain luettavana yhteensopivuuden vuoksi. Korvaa ja poista tämä vedosgalleria toimituksen Julkaise asiakasgalleria -toiminnolla. Ristiriitaiset vanhat linkit selvitetään vedosgallerian poistotoiminnolla.",
   "End-gallery sections": "Loppugallerian osiot",
   "End-gallery filter heading": "Loppugallerian suodattimen otsikko",
   "Optional ordered sections of the end gallery. Publish the catalog before assigning placements; coordinate shared multilingual changes in a checked batch.": "Loppugallerian valinnaiset järjestetyt osiot. Julkaise osioluettelo ennen kuvasijoitusten luokittelua. Tee yhteisten kieliversioiden muutokset tarkistetussa sisältömuutoserässä.",

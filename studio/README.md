@@ -476,8 +476,55 @@ part of this implementation.
 The optional [offline availability planner](../docs/deployment.md#optional-offline-availability-plans-ab304)
 prepares private revision-bound evidence for future operator changes; it does not
 replace native Studio editing or write to Sanity. A paused published document is
-still public metadata. No remote writer is provided, and later native publication
+still public metadata. No remote writer is provided by the planner, and later publication
 can overwrite any separately applied root-document patch.
+
+## Publish a client gallery and replace proofs (AB#396)
+
+Every delivery uses **Publish client gallery / Julkaise asiakasgalleria**, after validation
+and syncing finish. Choose explicitly whether this is an ordinary publication or replaces
+proofs. Ordinary publication preserves the previous draft-to-published behavior and the
+chosen deadline, including publishing paused pages.
+
+For a replacement, enable proof galleries in Studio, copy the exact proof document ID
+from its document menu, and enter it in the delivery publication dialog. Review the target
+ID, absolute deadline, working-selection state and counts of records/images to remove.
+Type the proof ID again and choose **Publish and permanently delete proofs**. This deletes
+the proofs, terms, current selection, confirmed versions/price snapshots, notices,
+reminders and unused images in the same guarded transaction as publication. Images in
+the delivery or used elsewhere are kept. The target must be available, with a deadline
+more than five minutes after server time, or explicitly indefinite. Publication does not
+restart the six-month creation-time suggestion. An already-published target may be selected
+explicitly with no draft; ordinary publication still requires a draft.
+
+The old proof link stops working (404); send the customer the new delivery link. Later
+pausing, expiry, unpublishing or deleting delivery cannot restore proofs. Copies already
+downloaded, CDN caches, provider history/backups and in-flight email retain their limits.
+No invoice/export retention gate or new ZIP eligibility is introduced.
+
+A conflict/refusal leaves the operation unapplied and requires a new review. For an unknown
+outcome, use **Check outcome / Tarkista lopputulos**; publication stays disabled and the
+reviewed plan survives closing this dialog. Checking is read-only. **Not observed applied**
+allows a fresh review, but a timed-out request might still finish; revision guards prevent
+duplicate operations. A mixed/unreadable state stays unknown. Never bypass this by ordinary
+publication followed by manual deletion. Large operations are refused, never split.
+
+Old `replacedBy` links are read-only. Any legacy link to this delivery, including a
+single link, blocks ordinary publication, even a text edit. Select the exact linked
+proof for explicit replacement (which deletes it), or delete the old proofs with their
+own deletion action before ordinary publication. Conflicting or multiple links require
+that manual resolution. No source is chosen by name or handle. With proofs disabled, ordinary delivery does
+not inspect inactive proof links.
+
+Client/proof and private-record release versions are invalid and native scheduling is removed for those types;
+public galleries and stories keep scheduling. Existing release copies block the operation.
+This is a Studio workflow, not an API permission rule. Before activating, check the hosted
+FI/EN keyboard flow, private-record/asset permissions, fresh all-versions reads and release
+validation (including mixed public/client releases); clear already-scheduled client/proof
+versions and ensure other writers use this workflow and strong references. Weak references,
+external URL copies and stale editor buffers have the limits in
+[ADR-0038](../docs/adr/0038-proof-selection-in-existing-sanity.md#replacement-deletion-amendment-2026-10-24).
+No hosted mutation, deployment or activation is implied by this source change.
 
 ## Proof galleries (AB#130)
 
@@ -510,13 +557,8 @@ without proof galleries keeps Sanity's default sign-in.
   create a new selection link. If every attempt ends that way and nothing is published,
   the site route is probably off or does not list this Studio's origin: an answer without
   its CORS headers cannot be read, so the Studio cannot tell a refusal from a lost answer.
-- **Replaced by client gallery** is currently a reversible link-only mechanism: while
-  the linked published delivery is available, the proof link opens it instead; otherwise
-  open proofs can reappear. It deletes nothing. The owner now requires proof deletion
-  together with replacement publication ([AB#396, not implemented](../docs/adr/0038-proof-selection-in-existing-sanity.md#replacement-deletion-amendment-2026-10-24)).
-  Until then, the manual delete action below is the only implemented removal. For an
-  interim handoff, an authorized operator verifies delivery publication first. These separate actions
-  do not provide the required atomic replacement.
+- **Replaced by client gallery** is now a read-only legacy field. New replacements use
+  **Publish client gallery / Julkaise asiakasgalleria** on the delivery document; see below.
 - **Reminder settings / Muistutusasetukset** on a published proof gallery switches the
   customer reminder on or off and changes the delay, the customer's address and their
   language (Finnish or English among the site's locales). Prices are never changed here.
@@ -558,3 +600,12 @@ without proof galleries keeps Sanity's default sign-in.
 
 The site route must be enabled separately; see
 [proof gallery publication](../docs/sanity-setup.md#proof-gallery-publication-ab130-adr-0038).
+
+AB#396 hosted checks must verify the exact `includeAllVersions=true` response: each
+requested base ID appears in `documents`, or in `omitted` with `reason: "existence"`;
+permission omissions, missing `omitted` arrays and unreported IDs are refused. Check
+draft-only records too. The synthetic fixture is not provider evidence for that shape.
+Also verify focus moves to the dialog heading on loading/review/outcome transitions,
+returns to the action on close, and that a screen reader announces asynchronous results
+from the already-mounted status region. Static markup tests do not prove hydration,
+focus transitions or announcements in authenticated Studio.

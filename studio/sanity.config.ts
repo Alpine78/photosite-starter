@@ -1,3 +1,4 @@
+import { PublishClientGalleryAction } from "./client-gallery-publish-action";
 import { CreateLanguageVersionAction } from "./localized-draft-action";
 import { ShareClientGalleryAction } from "./client-gallery-share-action";
 import { PublishProofGalleryAction, RotateProofKeyAction } from "./proof-publish-action";
@@ -58,7 +59,7 @@ export default defineConfig({
   document: {
     actions: (actions, { schemaType }) => {
       const allowed = actions.filter(({ action }) => allowAction(schemaType, action));
-      if (schemaType === "clientDeliveryGallery") return [...allowed, ShareClientGalleryAction];
+      if (schemaType === "clientDeliveryGallery") return [PublishClientGalleryAction, ...allowed, ShareClientGalleryAction];
       if (schemaType === "clientProofGallery") return [PublishProofGalleryAction, ...allowed, RotateProofKeyAction, ProofReminderSettingsAction, DeleteProofGalleryAction];
       if (schemaType === "clientProofSelection") return [ReopenProofSelectionAction];
       return ["article", "gallery"].includes(schemaType) ? [...allowed, CreateLanguageVersionAction] : allowed;

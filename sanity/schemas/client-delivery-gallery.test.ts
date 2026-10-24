@@ -98,7 +98,7 @@ describe("Sanity client delivery authoring", () => {
   it.each(["2026-12-01T00:00:00Z", "2026-12-01T00:00:00.123Z"])("accepts explicit canonical UTC deadlines without inventing durations: %s", async (expiryInstant) => {
     expect(await setup().run({ ...gallery(), availabilityMode: "until", expiryInstant })).toBe(true);
   });
-  it.each(["new-gallery", "drafts.new-gallery", "versions.release1.new-gallery"])("keeps the same published identity for %s", async (_id) => {
+  it.each(["new-gallery", "drafts.new-gallery"])("keeps the same published identity for %s", async (_id) => {
     const f = setup({ identity: { conflicts: [], published: { _type: "clientDeliveryGallery", handle: "b".repeat(32) } } });
     expect(await f.run({ ...gallery(), _id })).toBe(true);
   });

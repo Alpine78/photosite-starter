@@ -203,23 +203,23 @@ confirmed selection.
 
 ### Deleting a proof gallery (AB#130, ADR-0038 decision 7)
 
-Proof galleries are currently deleted only with the Studio action **Delete proof gallery and its
-records**, which adds no credential: it uses the editor's own session for its fresh Doc
-API reads, its supplementary query and one transaction that removes the gallery and
-every private record together, with the gallery's image assets — except an asset another
-document uses, which is kept. The editor therefore needs read access to private dotted
-IDs and write access to the dataset, including asset documents. What is removed, what is not and why is in
-[proof-selection-data-flow.md](proof-selection-data-flow.md#retention-and-deletion).
+Proof galleries can be deleted with **Delete proof gallery and its records**, or as part
+of **Publish client gallery** on an explicitly selected replacement delivery (AB#396).
+Both use the authenticated editor's session and one guarded transaction for the gallery,
+draft, private terms, working selection, confirmed versions, notices, reminders and unused
+images. Replacement always keeps target images, independently of the shared-use index;
+late strong references reject the whole operation. No new write token or site route.
+See [editor steps](../studio/README.md#publish-a-client-gallery-and-replace-proofs-ab396),
+[proof data flow](proof-selection-data-flow.md#retention-and-deletion) and
+[ADR-0038 concurrency/activation limits](adr/0038-proof-selection-in-existing-sanity.md#replacement-deletion-amendment-2026-10-24).
 
-The owner requires deletion together with replacement delivery publication (AB#396,
-not implemented); see the [ADR-0038 amendment](adr/0038-proof-selection-in-existing-sanity.md#replacement-deletion-amendment-2026-10-24).
-Current linking only redirects. For an interim handoff, verify delivery publication
-before separately authorized manual removal; these two actions are not atomic replacement.
-
-Before activation, an owner-run check on the hosted Studio deletes a test gallery that has
-a confirmed version, a notice and a reminder, and confirms that the action lists them,
-deletes them and the test images (the image URLs stop answering once the CDN cache
-expires) and leaves an unrelated gallery and a shared image untouched.
+Before activation, use synthetic hosted galleries to verify the exact paired publication,
+record/asset permissions, fresh Doc API omissions/all-versions reads, conflict rollback,
+lost-response checks, FI/EN keyboard flow and unknown/404 old proof links. Confirm client/
+proof release validation blocks native and mixed-release publication and scheduling, while
+public stories/galleries still schedule. Remove already-scheduled client/proof versions;
+verify no other writers use unsupported copies or weak asset references. No live test,
+CMS mutation or activation is authorized by this source change.
 
 ## Standalone editor
 

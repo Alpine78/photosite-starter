@@ -321,7 +321,7 @@ Expiry still closes only the page; [automatic cleanup remains separate work](../
 It permits at most 256 items and 256 KiB of UTF-8 authored document JSON (excluding Sanity-managed
 identity, revision, timestamps and system metadata). Measured asset
 identity, format, dimensions (at most 2048 px), neutral crop, strong references
-and private-only media exclusions are checked before native Studio publication.
+and private-only media exclusions are checked before the custom Studio delivery publication (AB#396).
 No ZIP, category, shared-media, customer/contact/job or archive fields are added.
 Studio validation is an editorial check: the default-off AB#303 reader validates
 fresh published data independently, with bounded strict JSON transports and a
@@ -344,8 +344,9 @@ on Sanity private ID paths (`proofTerms.<id>`, `proofSelection.<id>[.v<n>]`,
 `proofNotice.<id>.v<n>`), written only by the site. `clientProofSelection`,
 `clientProofSelectionVersion` and `clientProofNotice` describe the last three so Studio
 can show them read-only: no create template, no native action, no resend
-(`studio/editorial-policy.ts`). The only change Studio makes is reopening a confirmed
-working selection (ADR-0038 decision 5). `clientProofReminder` (`proofReminder.<id>.<n>`)
+(`studio/editorial-policy.ts`). Studio can reopen a confirmed
+working selection (ADR-0038 decision 5) or delete the complete proof unit manually or
+with guarded replacement publication (AB#396). `clientProofReminder` (`proofReminder.<id>.<n>`)
 records each customer reminder step without any address or link.
 
 AB#308's deterministic contract fixtures execute the actual runtime and native
@@ -356,3 +357,10 @@ query bounds, draft/release/legacy collisions and fresh availability precedence.
 No resolved package or application dependency changes. Every fetch is blocked;
 synthetic local interpretation does not establish deployed perspectives, roles,
 CDN behavior, quotas or provider latency.
+
+AB#396 keeps `replacedBy` read-only for legacy compatibility; the new delivery action
+selects the exact proof ID at operation time, without a stored link or public mapping.
+Gallery and private-record validators reject release/scheduled-draft `versions.*` documents so native
+release publication cannot bypass the custom actions. This is client-side editorial
+validation, not a Content Lake ACL; public gallery/article scheduling is unaffected.
+See [the workflow and hosted checks](../studio/README.md#publish-a-client-gallery-and-replace-proofs-ab396).

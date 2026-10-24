@@ -2,13 +2,18 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
-Proof replacement lifecycle clarification, 2026-10-24 — AB#130 / AB#392 **Active**:
-the owner requires proof deletion when the linked replacement delivery is published,
-with no six-month proof timer. [ADR-0038 amendment](adr/0038-proof-selection-in-existing-sanity.md#replacement-deletion-amendment-2026-10-24).
-AB#396 **New** tracks the guarded publication/deletion operation; current code only
-redirects reversibly and offers manual deletion. This is a requirement update, not an
-automated deletion implementation or activation. Delivery-only expiry remains AB#395
-**New**. PRs #610/#611 are merged; their AB#393 / AB#394 items are **Closed**.
+Proof replacement publication, 2026-10-24 — AB#396 **Active** (pending review/merge):
+the FI/EN Studio delivery action requires an explicit ordinary/replacement choice;
+replacement publishes the revision-reviewed delivery and deletes the exact selected
+proof gallery, draft, terms, selection, confirmed versions, notices, reminders and unused
+images atomically. Target/shared images stay. The target must be available with a reviewed
+deadline; unknown outcomes use read-only reconciliation, never automatic retries.
+Native publication/scheduling is constrained for client/proof types; public story/gallery
+scheduling stays. No new persisted mapping: the old proof link becomes unknown/404.
+[ADR-0038 implementation](adr/0038-proof-selection-in-existing-sanity.md#replacement-deletion-amendment-2026-10-24)
+records the concurrency and hosted activation limits. Proof creation stays indefinite.
+AB#130 / AB#392 remain **Active**; delivery-only expiry worker AB#395 remains **New**.
+PRs #610/#611 are merged; AB#393 / AB#394 are **Closed**. No live deletion or activation.
 
 Delivery expiry defaults and cleanup requirement, 2026-10-24 — AB#392 / AB#393 **Active**:
 new Studio delivery drafts suggest an editable six-calendar-month UTC deadline from
