@@ -826,8 +826,13 @@ fragment, so a browser does not carry `#select=` over to the delivery URL. Clear
 field, deleting or pausing the delivery gallery shows the proofs again if they are
 available. Delivery provider failures stay server errors. The
 [2026-10-24 amendment](adr/0038-proof-selection-in-existing-sanity.md#replacement-deletion-amendment-2026-10-24)
-requires deletion at replacement publication instead (AB#396, not implemented).
-No deployment flag currently makes this redirect perform deletion.
+is implemented in source by AB#396's guarded Studio delivery publication/deletion.
+It deletes the selected proof unit in the publication transaction; the old proof link
+then becomes unknown/404 and never falls back. No retained mapping is added. The runtime
+redirect above remains only for undeleted legacy-linked proofs. No deployment flag makes
+a redirect perform deletion. Before activation, complete the [hosted editor/permission/
+release checks](sanity-setup.md#deleting-a-proof-gallery-ab130-adr-0038-decision-7); public
+story/gallery scheduling stays enabled. This source change performs no live operation.
 
 ### Build one whole delivery ZIP offline (AB#319)
 

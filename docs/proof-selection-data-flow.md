@@ -10,10 +10,9 @@ It records the **reference deployment**. A clone configures its own accounts and
 its own version of this file. Decisions: [ADR-0038](adr/0038-proof-selection-in-existing-sanity.md)
 (accepted 2026-10-22, with its amendments and implementation notes). Work item: AB#130.
 
-**Status, 2026-10-24:** the data path and manual deletion below are implemented and
-**default-off**. The newly required proof deletion on replacement delivery publication
-is not yet implemented (AB#396). Nothing is active until the owner's activation
-decision and the pre-activation checks in [Before activation](#before-activation).
+**Status, 2026-10-24:** the data path, manual deletion and guarded replacement
+publication/deletion (AB#396) are implemented in source and **default-off**. Nothing is
+active until the owner's activation decision and the pre-activation checks in [Before activation](#before-activation).
 
 ## What is stored
 
@@ -74,17 +73,17 @@ metadata, outside the application's control.
 
 The owner set the retention on 2026-10-22: **confirmed versions and the other private
 records are kept until the proof gallery is deleted** (ADR-0038 decision 7, owner answers
-3). **Current runtime:** manual deletion only, with no deletion schedule; page
-availability and the deadline only stop access and writes.
-
-**Accepted change, 2026-10-24:** [ADR-0038's amendment](adr/0038-proof-selection-in-existing-sanity.md#replacement-deletion-amendment-2026-10-24)
-requires deleting that same unit when the linked replacement delivery is published,
-including confirmed versions and their price snapshots. AB#396 is **New**, not an
-implemented automatic removal. There is no six-month proof timer. Until this exists,
-the manual action remains the only removal mechanism. For an interim handoff, use is
-a separate authorized operation after checking successful delivery publication. Selection and
-reminder rules apply until deletion; existing mail/history/backup/cache limits below
-remain unchanged.
+3). Page availability and the deadline only stop access and writes; there is no six-month
+proof timer. The [2026-10-24 amendment](adr/0038-proof-selection-in-existing-sanity.md#replacement-deletion-amendment-2026-10-24)
+is implemented by AB#396's guarded Studio delivery publication: the editor explicitly
+selects the proof ID, reviews counts and confirms permanent deletion of the same unit,
+including confirmed versions and price snapshots. Publication and deletion are one
+transaction; target/shared images are kept. The target must be available beyond the
+reviewed margin. No new persisted link or public mapping is retained: the old proof URL
+is unknown/404, and the photographer sends the delivery URL. Later closing or deleting
+delivery cannot restore the proofs. Unknown outcomes use fresh read-only sentinel checks
+and guarded fresh review, never blind retry. The manual deletion action remains available.
+See the [editor steps](../studio/README.md#publish-a-client-gallery-and-replace-proofs-ab396).
 
 **Deleting a proof gallery** is a Studio action on the gallery: **Delete proof gallery and
 its records / Poista vedosgalleria ja sen tiedot**, available when the Studio has proof
@@ -135,5 +134,9 @@ Owner actions, recorded so they are not lost; none is performed by the code:
 - The hosted-Studio checks in [sanity-setup.md](sanity-setup.md#proof-gallery-publication-ab130-adr-0038),
   including reading private dotted IDs and
   [running this deletion on a test gallery](sanity-setup.md#deleting-a-proof-gallery-ab130-adr-0038-decision-7).
+- Replacement publication: verify FI/EN keyboard flow, exact counts, editor permissions,
+  lost-answer reconciliation and release validation. Remove pre-existing scheduled
+  client/proof versions; verify other writers and asset references obey the
+  [documented limits](adr/0038-proof-selection-in-existing-sanity.md#replacement-deletion-amendment-2026-10-24).
 - Live Resend delivery and one live cron run, as listed in
   [deployment.md](deployment.md).

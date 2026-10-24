@@ -27,8 +27,8 @@ describe("new client gallery Studio creation", () => {
   });
   it("allows authenticated native editing while blocking identity-copy and restoration actions", () => {
     expect(allowTemplate("clientDeliveryGallery")).toBe(true);
-    for (const action of ["publish", "unpublish", "discardChanges", "delete"]) expect(allowAction("clientDeliveryGallery", action)).toBe(true);
-    for (const action of ["duplicate", "restore", "custom", undefined]) expect(allowAction("clientDeliveryGallery", action)).toBe(false);
+    for (const action of ["unpublish", "discardChanges", "delete"]) expect(allowAction("clientDeliveryGallery", action)).toBe(true);
+    for (const action of ["publish", "duplicate", "restore", "custom", undefined]) expect(allowAction("clientDeliveryGallery", action)).toBe(false);
     expect(allowTemplate("legacyDeliveryGallery")).toBe(false);
     expect(allowAction("legacyDeliveryGallery", "publish")).toBe(false);
   });

@@ -34,9 +34,11 @@ indefinite before replacement. The owner clarified on 2026-10-24 that proofs mus
 deleted when their linked replacement delivery is published, rather than acquiring a
 six-month timer. The [accepted ADR-0038 amendment](adr/0038-proof-selection-in-existing-sanity.md#replacement-deletion-amendment-2026-10-24)
 records the deletion unit and consequences, including removal of confirmed versions.
-**This publication-triggered deletion is not implemented** (AB#396). Current linking
-only redirects and can show proofs again when delivery is unavailable. Manual deletion
-is the only implemented removal mechanism, under its existing operational permissions.
+**AB#396 implements this publication-triggered deletion in source** through the guarded
+Studio delivery action, reusing the complete manual-deletion unit. It preserves target
+and shared images; the old proof URL becomes unknown/404 with no retained mapping.
+Hosted acceptance and activation remain separate. Legacy links retain their earlier
+redirect behavior until that proof is deleted.
 See [proof data flow](proof-selection-data-flow.md).
 
 ## Remaining implementation
@@ -46,8 +48,9 @@ See [proof data flow](proof-selection-data-flow.md).
   and #611. A candidate result never authorizes deletion.
 - **AB#395 — New:** delivery-only expiry executor, enrollment, reconciliation,
   operational controls, hosted tests and deliberate activation.
-- **AB#396 — New:** proof deletion together with linked replacement publication.
-  This is a publication operation, not part of the delivery expiry sweep.
+- **AB#396 — Active:** guarded Studio proof deletion together with linked replacement publication.
+  Source implementation awaits review/merge and hosted acceptance. This is a publication
+  operation, not part of the delivery expiry sweep.
 
 **No automatic cleanup is deployed or configured by AB#393.** No gallery is enrolled
 by receiving a creation default. Enrollment storage and how newly published galleries
@@ -59,9 +62,9 @@ convert an indefinite gallery to finite access or bulk-enroll the 21 legacy gall
 The new-ZIP authoring/transport decision remains [ADR-0035](adr/0035-unlisted-delivery-zip-proposal.md)
 (Proposed). A cleanup requirement grants no new file eligibility or upload permission.
 Legacy galleries have their own image records, manifests and batch constraints; a
-new-delivery planner does not establish their removal safety. Current replacement
-redirection does not delete proofs; the required AB#396 operation must not restore
-proofs if delivery later closes. Its old-link continuity remains a design question.
+new-delivery planner does not establish their removal safety. AB#396
+replacement publication removes proofs permanently; they do not return if delivery later
+closes. Send the customer the new delivery link: the old proof URL becomes unknown/404.
 The existing delivery clock still starts at draft creation: check the actual deadline
 at handoff, because publication does not grant a fresh six months.
 

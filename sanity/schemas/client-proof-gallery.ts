@@ -18,9 +18,8 @@ import { publishedIdOf, validationClientOf } from "./validation";
  * externally watermarked web proofs, each with its complete original filename
  * and a permanent reference. Nothing customer-, job- or price-specific belongs
  * here: terms, selections and the selection key live on Sanity private ID
- * paths. `replacedBy` (owner answer 5) names the delivery gallery that
- * replaces the proofs once the images are finished: while it is available, the
- * proof link redirects there.
+ * paths. Legacy `replacedBy` links remain readable for compatibility. New
+ * replacement publication deletes the proof unit atomically (AB#396).
  */
 export const CLIENT_PROOF_MAX_ITEMS = 256;
 export const CLIENT_PROOF_ID_MAX_LENGTH = 96;
@@ -84,6 +83,7 @@ function publishedState(published: unknown, handle: string): PublishedProofState
 /** Editorial guard only. The runtime must independently validate API-written data. */
 export async function validateClientProofGallery(value: unknown, context: SchemaValidationContext): Promise<true | string> {
   try {
+    if (record(value) && typeof value._id === "string" && value._id.startsWith("versions.")) return "Client and proof galleries must be published with their own publication action, outside Content Releases and scheduled drafts.";
     if (!record(value) || !closed(value, GALLERY_FIELDS) || value._type !== "clientProofGallery" ||
       typeof value.available !== "boolean" || !localized(value.title, false, 200) || !Array.isArray(value.items) ||
       value.items.length < 1 || value.items.length > CLIENT_PROOF_MAX_ITEMS ||
@@ -173,9 +173,9 @@ export const clientProofGalleryType: SchemaTypeDefinition = {
       description: "Generated on creation. Keep it unchanged.", validation: (rule) => rule.required() },
     { name: "referenceHighWater", title: "Highest proof number assigned", type: "number", readOnly: true,
       description: "Never decreases, so a removed proof's number is not reused." },
-    { name: "replacedBy", title: "Replaced by client gallery", type: "reference", to: [{ type: "clientDeliveryGallery" }], weak: true,
+    { name: "replacedBy", title: "Replaced by client gallery", type: "reference", to: [{ type: "clientDeliveryGallery" }], weak: true, readOnly: true,
       options: { filter: '!(_id in path("drafts.**")) && !(_id in path("versions.**"))', disableNew: true },
-      description: "When the finished images are delivered, choose their published client gallery. While it is available, the proof link opens it instead. Clear the field to show the proofs again." },
+      description: "Legacy replacement link, retained read-only for compatibility. Use Publish client gallery on the delivery to replace and delete this proof gallery. Resolve conflicting old links with the proof deletion action." },
   ],
   validation: (rule) => rule.custom(validateClientProofGallery),
   preview: { select: { title: "title.0.value", media: "items.0.image" } },

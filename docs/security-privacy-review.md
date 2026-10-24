@@ -644,6 +644,19 @@ candidate. AB#117 remains Active with its independent live privacy/security gate
 
 2026-10-23 AB#130 selection write route: `/api/proof-selection` is default-off, same-origin JSON only, with per-client and per-gallery limits, a bounded closed body and a separate server-only `SANITY_PROOF_SELECTION_TOKEN`. A closed or replaced gallery, an unknown handle and a wrong key are one indistinguishable 404, decided before any private read or write; the key is compared in constant time against the terms' hash read fresh. Responses carry only the holder's own selection and the price terms, never the job reference, address or key material; logs carry a correlation ID and a closed class.
 
+2026-10-24 AB#396 replacement publication: the FI/EN Studio action uses the signed-in
+editor's session and one revision/create-guarded mutation for delivery publication and
+the complete selected proof deletion. No new route, token, persisted public linkage or
+processor. Target images are protected by ID; late strong references fail the whole
+transaction. Unknown answers retain the exact reviewed plan for read-only reconciliation;
+no automatic retry. Client/proof and private-record release versions fail Studio validation, while public
+story/gallery scheduling remains. Old proof URLs become unknown/404 after deletion.
+These are editorial controls, not an API ACL. Pre-existing schedules, other Studios,
+direct/weak-reference writers and stale editor buffers need the
+[documented pre-activation checks](adr/0038-proof-selection-in-existing-sanity.md#replacement-deletion-amendment-2026-10-24).
+Fixture tests and the runtime-parser payload check do not prove hosted permissions,
+release behavior or provider concurrency. No live operation or activation performed.
+
 2026-10-23 AB#130 proof replacement: a replaced proof link redirects only to the exact referenced, available new delivery gallery (ID-bound, never a legacy handle), revealing the delivery link only to proof-link holders as ADR-0038 accepts; the redirect drops the `#select=` fragment so the selection key never travels to a delivery URL.
 
 2026-10-23 AB#130 proof page: `/client-proof/<handle>` is a default-off, read-only public page for published proof galleries. It projects only display data (no filenames, high-water mark, terms or selection data), reads the published document by its own ID and refuses drafts, dotted private records, private-only assets and unnumbered proofs, and carries the reserved-path hygiene. The selection key in the link's fragment is neither read nor sent. Public files and metadata remain enumerable, as ADR-0038 records.

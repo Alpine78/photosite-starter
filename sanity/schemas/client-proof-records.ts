@@ -1,4 +1,11 @@
-import type { SchemaTypeDefinition } from "./schema-types";
+import { record } from "./closed-document";
+import type { SchemaValidation, SchemaTypeDefinition } from "./schema-types";
+
+/** Private records must not be recreated through a later release after deletion. */
+const recordPublication: SchemaValidation = (rule) => rule.custom((value) =>
+  record(value) && typeof value._id === "string" && value._id.startsWith("versions.")
+    ? "Proof records are written only by the site and cannot be published in Content Releases or scheduled drafts."
+    : true);
 
 /**
  * Private proof records the site writes (ADR-0038 decisions 3, 5 and 6, AB#130):
@@ -12,7 +19,7 @@ export const CLIENT_PROOF_RECORD_TYPES = ["clientProofSelection", "clientProofSe
 
 /** One customer reminder step (decision 9); no address or link is stored on it. */
 export const clientProofReminderType: SchemaTypeDefinition = {
-  name: "clientProofReminder", title: "Proof reminder", type: "document",
+  name: "clientProofReminder", title: "Proof reminder", type: "document", validation: recordPublication,
   description: "One automatic reminder to the customer, written by the site. Failed or pending for more than a few minutes means it may not have been sent; cancelled means the gallery changed just before sending.",
   fields: [
     { name: "state", title: "Reminder state", type: "string", readOnly: true,
@@ -29,7 +36,7 @@ export const clientProofReminderType: SchemaTypeDefinition = {
 
 /** The customer's working selection; only the reopen action changes it in Studio (decision 5). */
 export const clientProofSelectionType: SchemaTypeDefinition = {
-  name: "clientProofSelection", title: "Proof selection", type: "document",
+  name: "clientProofSelection", title: "Proof selection", type: "document", validation: recordPublication,
   description: "The customer's current selection, written by the site. A confirmed selection can be reopened so the customer can confirm a new version; earlier versions stay.",
   fields: [
     { name: "state", title: "Selection state", type: "string", readOnly: true,
@@ -44,7 +51,7 @@ export const clientProofSelectionType: SchemaTypeDefinition = {
 };
 
 export const clientProofSelectionVersionType: SchemaTypeDefinition = {
-  name: "clientProofSelectionVersion", title: "Confirmed proof selection", type: "document",
+  name: "clientProofSelectionVersion", title: "Confirmed proof selection", type: "document", validation: recordPublication,
   description: "Written by the site when a customer confirms. Read-only and never changed.",
   fields: [
     { name: "galleryId", title: "Proof gallery document", type: "string", readOnly: true },
@@ -71,7 +78,7 @@ export const clientProofSelectionVersionType: SchemaTypeDefinition = {
 };
 
 export const clientProofNoticeType: SchemaTypeDefinition = {
-  name: "clientProofNotice", title: "Proof selection notice", type: "document",
+  name: "clientProofNotice", title: "Proof selection notice", type: "document", validation: recordPublication,
   description: "The photographer's email for one confirmed version. Pending for more than a few minutes or failed means the email may not have arrived: open the confirmed selection.",
   fields: [
     { name: "state", title: "Email state", type: "string", readOnly: true,

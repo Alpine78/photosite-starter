@@ -56,7 +56,7 @@ export function allowTemplate(schemaType: string, options: EditorialPolicyOption
 export function allowAction(schemaType: string, action: string | undefined): boolean {
   if (isImporterType(schemaType) || isProofRecord(schemaType)) return false;
   if (schemaType === "clientDeliveryGallery") {
-    return action !== undefined && ["publish", "unpublish", "discardChanges", "delete"].includes(action);
+    return action !== undefined && ["unpublish", "discardChanges", "delete"].includes(action);
   }
   // Native publish is replaced by the proof publication action, which numbers
   // the proofs and creates the private record through the site route. No

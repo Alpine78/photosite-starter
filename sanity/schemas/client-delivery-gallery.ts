@@ -47,6 +47,7 @@ export function isClientDeliveryAsset(asset: unknown): asset is ClientDeliveryAs
 /** Editorial guard only. The runtime must independently validate API-written data. */
 export async function validateClientDeliveryGallery(value: unknown, context: SchemaValidationContext): Promise<true | string> {
   try {
+    if (record(value) && typeof value._id === "string" && value._id.startsWith("versions.")) return "Client and proof galleries must be published with their own publication action, outside Content Releases and scheduled drafts.";
     if (!record(value) || !closed(value, ["_id", "_type", "_rev", "_createdAt", "_updatedAt", "_system", "handle", "title", "available", "availabilityMode", "expiryInstant", "items"]) ||
       value._type !== "clientDeliveryGallery" || typeof value.available !== "boolean" ||
       !localized(value.title, false, 200) || !Array.isArray(value.items) || value.items.length < 1 ||

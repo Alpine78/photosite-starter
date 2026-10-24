@@ -90,7 +90,7 @@ function canonicalInstant(value: unknown): number | undefined {
  * does not exist. Anything else — a permission omission, an unreported ID, a
  * document not requested — is unreadable, never "no record".
  */
-async function readExact(reader: ProofDeletionReader, ids: readonly string[]): Promise<Map<string, Record<string, unknown> | undefined>> {
+export async function readProofDocuments(reader: ProofDeletionReader, ids: readonly string[]): Promise<Map<string, Record<string, unknown> | undefined>> {
   const found = new Map<string, Record<string, unknown> | undefined>();
   for (let start = 0; start < ids.length; start += PROOF_DELETE_READ_CHUNK) {
     const chunk = ids.slice(start, start + PROOF_DELETE_READ_CHUNK);
@@ -109,6 +109,37 @@ async function readExact(reader: ProofDeletionReader, ids: readonly string[]): P
     if (chunk.some((id) => !found.has(id))) throw new Blocked("unreadable");
   }
   return found;
+}
+
+/** Fail closed on unreadable variants or a revision changing during collection. */
+export async function proofDocumentCopies(
+  reader: ProofDeletionReader, bases: readonly string[],
+  expected: ReadonlyMap<string, Record<string, unknown> | undefined>, allowedDraft?: string,
+): Promise<string[]> {
+  const copies: string[] = [];
+  for (let start = 0; start < bases.length; start += PROOF_DELETE_READ_CHUNK) {
+    const chunk = bases.slice(start, start + PROOF_DELETE_READ_CHUNK);
+    const body = record(await reader.docs(chunk, true));
+    if (!body || !Array.isArray(body.documents) || !Array.isArray(body.omitted)) throw new Blocked("unreadable");
+    const seen = new Set<string>();
+    for (const value of body.documents) {
+      const doc = record(value), id = doc?._id;
+      if (!doc || typeof id !== "string" || seen.has(id)) throw new Blocked("unreadable");
+      seen.add(id);
+      if (chunk.includes(id) || id === allowedDraft && chunk.includes(id.slice(7))) {
+        if (doc._rev !== expected.get(id)?._rev) throw new Blocked("inconsistent");
+      } else if (chunk.some((base) => id === `drafts.${base}` || id.startsWith("versions.") && id.endsWith(`.${base}`))) copies.push(id);
+      else throw new Blocked("unreadable");
+    }
+    for (const value of body.omitted) {
+      const entry = record(value);
+      if (!entry || typeof entry.id !== "string" || !chunk.includes(entry.id) || seen.has(entry.id) || entry.reason !== "existence" || expected.get(entry.id)) throw new Blocked("unreadable");
+      seen.add(entry.id);
+    }
+    if (chunk.some((id) => !seen.has(id))) throw new Blocked("unreadable");
+    if (allowedDraft && chunk.includes(allowedDraft.slice(7)) && expected.get(allowedDraft) && !seen.has(allowedDraft)) throw new Blocked("unreadable");
+  }
+  return copies;
 }
 
 function revisionOf(doc: Record<string, unknown> | undefined, type: string, galleryId: string | undefined): DeletionRecord | undefined {
@@ -149,7 +180,7 @@ export async function collectProofDeletion(galleryId: string, reader: ProofDelet
   if (!GALLERY_ID.test(galleryId)) return { reason: "inconsistent" };
   const ids = proofDeletionIds(galleryId);
   try {
-    const fixed = await readExact(reader, [ids.terms, ids.published, ids.draft, ids.selection]);
+    const fixed = await readProofDocuments(reader, [ids.terms, ids.published, ids.draft, ids.selection]);
     const termsDoc = fixed.get(ids.terms), selectionDoc = fixed.get(ids.selection);
     const terms = revisionOf(termsDoc, "clientProofTerms", galleryId);
     const published = revisionOf(fixed.get(ids.published), "clientProofGallery", undefined);
@@ -167,7 +198,7 @@ export async function collectProofDeletion(galleryId: string, reader: ProofDelet
     const versionIds = numbers(latestVersion as number).map(ids.version), noticeIds = numbers(latestVersion as number).map(ids.notice);
     const reminderIds = numbers(steps).map(ids.reminder);
     const assetIds = galleryAssets(fixed.get(ids.published), fixed.get(ids.draft));
-    const variable = await readExact(reader, [...versionIds, ...noticeIds, ...reminderIds, ...assetIds]);
+    const variable = await readProofDocuments(reader, [...versionIds, ...noticeIds, ...reminderIds, ...assetIds]);
     const present = (list: string[], type: string) => list.flatMap((id) => {
       const found = revisionOf(variable.get(id), type, galleryId);
       return found ? [found] : [];
@@ -181,18 +212,10 @@ export async function collectProofDeletion(galleryId: string, reader: ProofDelet
     const listed = inventoryIds(inventory);
     if (listed.length === 0) return { reason: "nothing" };
 
-    // Drafts and release versions of every record. Only the gallery's own draft is expected.
-    const copies: string[] = [];
+    // Check complete, fresh all-versions responses, including permission omissions.
     const bases = [ids.published, ids.terms, ids.selection, ...versionIds, ...noticeIds, ...reminderIds];
-    for (let start = 0; start < bases.length; start += PROOF_DELETE_READ_CHUNK) {
-      const body = record(await reader.docs(bases.slice(start, start + PROOF_DELETE_READ_CHUNK), true));
-      if (!body || !Array.isArray(body.documents)) throw new Blocked("unreadable");
-      for (const value of body.documents) {
-        const id = record(value)?._id;
-        if (typeof id !== "string") throw new Blocked("unreadable");
-        if (!bases.includes(id) && id !== ids.draft) copies.push(id);
-      }
-    }
+    const expected = new Map([...fixed, ...variable]);
+    const copies = await proofDocumentCopies(reader, bases, expected, ids.draft);
     if (copies.length > 0) return { reason: "copies", ids: copies.slice(0, SWEEP_LIMIT) };
 
     const swept = record(await reader.sweep(galleryId, listed, inventory.assets));
@@ -202,7 +225,7 @@ export async function collectProofDeletion(galleryId: string, reader: ProofDelet
     if (extra.length > 0) return { reason: "unexpected", ids: extra };
     if (referencing.length > 0) return { reason: "referenced", ids: referencing };
     const ready = { ...inventory, assets: inventory.assets.filter((id) => !shared.includes(id)), sharedAssets: shared };
-    if (JSON.stringify({ mutations: planProofDeletion(ready, new Date(now).toISOString()) }).length > PROOF_DELETE_MAX_BODY_BYTES) return { reason: "too-large" };
+    if (new TextEncoder().encode(JSON.stringify({ mutations: planProofDeletion(ready, new Date(now).toISOString()) })).byteLength > PROOF_DELETE_MAX_BODY_BYTES) return { reason: "too-large" };
     return { ready };
   } catch (error) {
     if (error instanceof Blocked) return { reason: error.reason, ...(error.ids ? { ids: error.ids } : {}) };
