@@ -643,6 +643,8 @@ identity, hosted mail delivery and deliberate production activation remain open.
 A separate [mail-only module test](docs/audits/proof-notice-mail-verification-2026-10-24.md)
 verified real Resend acceptance and durable `sent` state with a local test credential;
 the owner separately confirmed mailbox receipt on 2026-10-25.
+Proof deletion and replacement also guard the reviewed image revisions (AB#404);
+changed or missing image candidates prevent the entire deletion/publication.
 See the [new-gallery workflow](studio/README.md#ongoing-client-galleries-ab302--ab145)
 and [runtime configuration](docs/deployment.md#ongoing-unlisted-client-galleries-adr-0034).
 

@@ -58,9 +58,12 @@ describe("atomic delivery publication replacing proofs", () => {
     // The query index predates the target draft and cannot report its image use.
     store.put({ ...delivery, _updatedAt: "2026-10-24T11:59:00.000Z", _system: { base: { id: "delivery" } } });
     const plan = await ready(store);
-    expect(plan.proof?.assets).toEqual([UNUSED]);
+    expect(plan.proof?.assets).toEqual([{ id: UNUSED, revision: store.docs.get(UNUSED)!._rev }]);
     expect(plan.selectionState).toBe("reopened");
     expect(plan.mutations.at(-1)).toEqual({ delete: { id: UNUSED } });
+    expect(plan.mutations.at(-2)).toEqual({ patch: {
+      id: UNUSED, ifRevisionID: store.docs.get(UNUSED)!._rev, set: { proofDeletionAt: new Date(NOW).toISOString() },
+    } });
     expect(await run(store, plan)).toBe("published");
     expect([...store.docs.keys()].sort()).toEqual([ASSET, "delivery"].sort());
     const target = store.docs.get("delivery")!;
@@ -78,6 +81,28 @@ describe("atomic delivery publication replacing proofs", () => {
     expect(plan.proof?.assets).toEqual([]);
     expect(await run(store, plan)).toBe("published");
     expect(store.docs.has(UNUSED)).toBe(true);
+  });
+  it.each(["draft", "published"])("guards reviewed asset revisions when the replacement target is %s", async (target) => {
+    const docs = initial().map((doc) => target === "published" && doc._id === "drafts.delivery" ? { ...doc, _id: "delivery" } : doc);
+    for (const change of ["changed", "deleted"]) {
+      const store = setup(docs), plan = await ready(store);
+      if (change === "changed") store.put({ ...store.docs.get(UNUSED)!, description: "Metadata updated" });
+      else store.docs.delete(UNUSED);
+      const before = snapshot(store);
+      expect(await run(store, plan)).toBe("conflict");
+      expect(snapshot(store)).toEqual(before);
+      expect(store.docs.has("proofTerms.proof")).toBe(true);
+      expect(store.docs.has("proof")).toBe(true);
+    }
+  });
+  it("does not patch or delete retained shared and target images when their metadata changes", async () => {
+    const store = setup([...initial(), { _id: "article", _type: "article", cover: image(UNUSED) }]);
+    const plan = await ready(store);
+    for (const id of [ASSET, UNUSED]) store.put({ ...store.docs.get(id)!, description: "Metadata updated" });
+    const kept = [store.docs.get(ASSET), store.docs.get(UNUSED)];
+    expect(plan.proof?.assets).toEqual([]);
+    expect(await run(store, plan)).toBe("published");
+    expect([store.docs.get(ASSET), store.docs.get(UNUSED)]).toEqual(kept);
   });
   it.each([
     ["target draft", (s: ReturnType<typeof setup>) => s.put({ ...s.docs.get("drafts.delivery")!, title: [{ _key: "en", _type: "localizedText", language: "en", value: "New" }] })],

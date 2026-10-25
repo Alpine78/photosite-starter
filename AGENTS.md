@@ -109,6 +109,24 @@ documentation, and project management practices (Azure DevOps, AZ-400 learning).
   original-file/metadata exception or permission to publish. New authoring and
   proof-selection boundaries require their own implementation. Other clones may
   choose a separately approved protected model.
+  **Future unlisted delivery ZIPs (owner acceptance 2026-10-25,
+  [ADR-0035](docs/adr/0035-unlisted-delivery-zip-proposal.md)) are a scoped exception:**
+  at most one whole public Sanity ZIP per delivery gallery may contain explicitly
+  owner-approved, per-batch full-resolution processed JPEG exports with reviewed
+  embedded metadata. Full-resolution JPEGs stay inside that ZIP; separate complete-frame
+  web previews remain at most 2048 px on their longest edge. No individual full-resolution
+  image assets, camera masters/RAW, archive locators, `privateOnly`/AB#95 sales assets
+  or public approval manifests are permitted. Use neutral package/entry names; verify
+  exact ZIP membership/CRC and bytes identical to the approved export set, then compare
+  the entire uploaded Sanity file's hash with the local strong hash before referencing
+  it in a gallery. Keep approval and integrity evidence private. A supplied package
+  must stay whole: never split it, omit photographs or silently drop its download as
+  a workaround. Files and metadata are public and forwardable; closing the page does
+  not revoke them or downloaded copies. This does not extend ADR-0028's separate
+  21-gallery file-import exception or grant S3/Postgres or another new service.
+  Other future file/media exceptions need their own owner decision. Verify supported
+  whole-file transport and account capacity for each package before upload; each batch's
+  upload, publication and Production activation require separate authorization.
 - **Privacy by default.** No tracking cookies, no Google Analytics, no auto-loading
   third-party embeds. Goal: no cookie banner.
 - **Accessibility:** target WCAG 2.1 AA. Keyboard navigation matters, especially in galleries.
