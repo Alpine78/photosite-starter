@@ -2,7 +2,18 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
-Synthetic gallery rehearsal, 2026-10-24 — AB#401 **Active** (review/merge pending):
+Synthetic photographer notice, 2026-10-24 — AB#403 **Active** (review/merge pending):
+source `e5aff4e` ran the actual confirmation planner and notice/sender modules
+against four fresh private Sanity records and real Resend. Exactly one request
+received HTTP 200, the notice became `sent`, the immutable v1 stayed unchanged,
+and re-entering that sent notice made no second provider request. All four records
+were removed and independently checked absent. This used the owner's personal
+Sanity session, a local mail credential and an operator-prepared gallery descriptor;
+no public gallery, customer HTTP route or hosted workflow was tested. The owner
+separately confirmed mailbox receipt on 2026-10-25. No activation; see the
+[dated results and limits](audits/proof-notice-mail-verification-2026-10-24.md).
+
+Synthetic gallery rehearsal, 2026-10-24 — AB#401 **Closed** (PR #618 merged):
 accepted source `42a462b` ran from a guarded loopback production build against the
 real Sanity dataset. Known public/private/draft/version reads passed: 24,079,826
 bytes, 21,237 documents, 24,270 references in 10.41 seconds. Real proof publication,
@@ -11,8 +22,9 @@ expiry deletion passed; a draft blocked deletion and a shared image remained.
 All synthetic records/assets and both temporary robots were removed. Editor's
 dry-run write grant was too broad; the current user check accepted a robot
 (follow-up AB#402 **New**). The notice failed with HTTP 400, and the cached local
-mail key was a Vercel Sensitive placeholder; its exact error cause and actual
-delivery remain unverified.
+mail key was a Vercel Sensitive placeholder; that run established no actual
+delivery or exact provider error cause. AB#403's subsequent provider acceptance
+is recorded above.
 Hosted Studio/browser/cron/function and controlled-writer checks remain. No ZIP or
 Production activation; AB#395 / AB#392 / AB#130 stay **Active**. See the
 [dated evidence and limits](audits/client-gallery-lifecycle-rehearsal-2026-10-24.md).

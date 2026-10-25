@@ -30,8 +30,12 @@ The [2026-10-24 synthetic gallery rehearsal](audits/client-gallery-lifecycle-reh
 records real-provider checks under AB#401: the current proof-publication identity
 check accepted an Editor robot, and the tested built-in Editor grant was too broad
 for cleanup. Those activation findings remain open. Local mail used a secret
-placeholder and establishes failure handling only. This is scoped operational
-evidence, not a rerun or approval of the full launch review.
+placeholder and establishes failure handling only. The later
+[AB#403 mail-only test](audits/proof-notice-mail-verification-2026-10-24.md)
+verified one locally configured Resend acceptance and durable notice state, with
+all four test records removed. The owner separately confirmed mailbox receipt on
+2026-10-25; hosted delivery remains untested. These are scoped operational records,
+not a rerun or approval of the full launch review.
 
 ## How this review was run
 
