@@ -12,7 +12,7 @@
  * created after the inventory either makes the deletion conflict or fails
  * itself. Each listed document is deleted at the revision shown; an absent
  * fixed document is asserted absent with a `create` that fails if it appeared.
- * The gallery's image assets are deleted with it (owner decision 2026-10-24)
+ * The gallery's image assets are revision-guarded and deleted with it (owner decision 2026-10-24)
  * unless the index shows another document using one; Content Lake refuses to
  * delete an asset that is still referenced, which fails the whole transaction.
  */
@@ -46,8 +46,8 @@ export type ProofDeletionInventory = Readonly<{
   galleryId: string;
   published?: DeletionRecord; draft?: DeletionRecord; terms?: DeletionRecord; selection?: DeletionRecord;
   versions: readonly DeletionRecord[]; notices: readonly DeletionRecord[]; reminders: readonly DeletionRecord[];
-  /** Image assets deleted with the gallery. */
-  assets: readonly string[];
+  /** Fresh image revisions reviewed for deletion with the gallery. */
+  assets: readonly DeletionRecord[];
   /** Image assets another document uses, kept. */
   sharedAssets: readonly string[];
 }>;
@@ -207,7 +207,11 @@ export async function collectProofDeletion(galleryId: string, reader: ProofDelet
       galleryId, ...(published ? { published } : {}), ...(draft ? { draft } : {}), ...(terms ? { terms } : {}), ...(selection ? { selection } : {}),
       versions: present(versionIds, "clientProofSelectionVersion"), notices: present(noticeIds, "clientProofNotice"),
       reminders: present(reminderIds, "clientProofReminder"),
-      assets: assetIds.filter((id) => revisionOf(variable.get(id), "sanity.imageAsset", undefined) !== undefined), sharedAssets: [],
+      assets: assetIds.map((id) => {
+        const asset = revisionOf(variable.get(id), "sanity.imageAsset", undefined);
+        if (!asset) throw new Blocked("inconsistent");
+        return asset;
+      }), sharedAssets: [],
     };
     const listed = inventoryIds(inventory);
     if (listed.length === 0) return { reason: "nothing" };
@@ -218,13 +222,13 @@ export async function collectProofDeletion(galleryId: string, reader: ProofDelet
     const copies = await proofDocumentCopies(reader, bases, expected, ids.draft);
     if (copies.length > 0) return { reason: "copies", ids: copies.slice(0, SWEEP_LIMIT) };
 
-    const swept = record(await reader.sweep(galleryId, listed, inventory.assets));
+    const swept = record(await reader.sweep(galleryId, listed, inventory.assets.map((asset) => asset.id)));
     const list = (value: unknown) => Array.isArray(value) && value.every((id) => typeof id === "string") ? value as string[] : undefined;
     const extra = list(swept?.extra), referencing = list(swept?.referencing), shared = list(swept?.sharedAssets);
-    if (!extra || !referencing || !shared || shared.some((id) => !inventory.assets.includes(id))) return { reason: "unreadable" };
+    if (!extra || !referencing || !shared || shared.some((id) => !inventory.assets.some((asset) => asset.id === id))) return { reason: "unreadable" };
     if (extra.length > 0) return { reason: "unexpected", ids: extra };
     if (referencing.length > 0) return { reason: "referenced", ids: referencing };
-    const ready = { ...inventory, assets: inventory.assets.filter((id) => !shared.includes(id)), sharedAssets: shared };
+    const ready = { ...inventory, assets: inventory.assets.filter((asset) => !shared.includes(asset.id)), sharedAssets: shared };
     if (new TextEncoder().encode(JSON.stringify({ mutations: planProofDeletion(ready, new Date(now).toISOString()) })).byteLength > PROOF_DELETE_MAX_BODY_BYTES) return { reason: "too-large" };
     return { ready };
   } catch (error) {
@@ -244,6 +248,15 @@ export type ProofDeletionMutation =
   | Readonly<{ create: { _id: string; _type: string } }>
   | Readonly<{ delete: { id: string } }>;
 
+/** Guard every reviewed asset before deletion; shared assets never enter this list. */
+export function planProofAssetDeletion(assets: readonly DeletionRecord[], now: string): ProofDeletionMutation[] {
+  if (new Set(assets.map((asset) => asset.id)).size !== assets.length) throw new Error("Duplicate proof image");
+  return assets.flatMap((asset) => [
+    { patch: { id: asset.id, ifRevisionID: asset.revision, set: { proofDeletionAt: now } } },
+    { delete: { id: asset.id } },
+  ]);
+}
+
 /**
  * One transaction. A listed document is patched under the revision shown, then
  * deleted; an absent gallery, draft, terms or selection is created and deleted
@@ -262,7 +275,7 @@ export function planProofDeletion(inventory: ProofDeletionInventory, now: string
     ...fixed(inventory.draft, ids.draft, "clientProofGallery"),
     ...fixed(inventory.selection, ids.selection, "clientProofSelection"),
     ...[...inventory.versions, ...inventory.notices, ...inventory.reminders].flatMap(guarded),
-    ...inventory.assets.map((id): ProofDeletionMutation => ({ delete: { id } })),
+    ...planProofAssetDeletion(inventory.assets, now),
   ];
 }
 
@@ -323,7 +336,7 @@ export function proofDeleteCopy(locale: string) {
     uncertain: "Tulos ei selvinnyt. Älä yritä heti uudelleen: lataa uudelleen ja tarkista, onko galleria jo poistettu.",
     off: "Vedosgalleriat eivät ole käytössä tässä Studiossa.", unavailable: "Toiminto ei ole nyt käytettävissä.",
     unreadable: "Kaikkia gallerian tietoja ei voitu lukea, joten poistoa ei voi koota luotettavasti. Mitään ei poistettu.",
-    inconsistent: "Gallerian tiedot ovat ristiriitaiset, joten poistoa ei koottu. Mitään ei poistettu.",
+    inconsistent: "Gallerian tiedot ovat ristiriitaiset, joten poistoa ei koottu. Tarkista myös puuttuvat kuvat ja lataa luettelo uudelleen. Mitään ei poistettu.",
     copies: "Jollakin tiedolla on luonnos tai julkaisuversio (release). Poista ne ensin: {ids}",
     unexpected: "Galleriaan liittyy tietoja, joita poisto ei tunne: {ids}",
     referenced: "Muu sisältö viittaa poistettaviin tietoihin. Poista viittaukset ensin: {ids}",
@@ -348,7 +361,7 @@ export function proofDeleteCopy(locale: string) {
     uncertain: "The outcome is unknown. Do not retry straight away: reload and check whether the gallery is already gone.",
     off: "Proof galleries are not enabled in this Studio.", unavailable: "This action is not available now.",
     unreadable: "Not every record of the gallery could be read, so the deletion cannot be assembled reliably. Nothing was deleted.",
-    inconsistent: "The gallery's records are inconsistent, so no deletion was assembled. Nothing was deleted.",
+    inconsistent: "The gallery's records are inconsistent, so no deletion was assembled. Check for missing images and reload the list. Nothing was deleted.",
     copies: "A record has a draft or a release version. Remove those first: {ids}",
     unexpected: "Records belong to the gallery that the deletion does not know: {ids}",
     referenced: "Other content references records being deleted. Remove the references first: {ids}",

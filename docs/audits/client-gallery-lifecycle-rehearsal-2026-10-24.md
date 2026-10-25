@@ -89,6 +89,10 @@ The replacement-publication transport prepended operator-only revision assertion
 for every asset deletion. The real Studio review and publication logic ran, but
 this stronger transport is a test deviation: it does not establish that ordinary
 hosted Studio publication has identical asset-revision protection.
+The later AB#404 source correction adds the guarded asset step to both manual deletion
+and replacement publication with deterministic rollback fixtures. It does not change
+this historical test result or establish hosted parity; see the current
+[deletion procedure](../proof-selection-data-flow.md).
 
 The version canary was a raw `versions.…` document. No Content Release metadata,
 scheduling or release publication was created or exercised. These results do not

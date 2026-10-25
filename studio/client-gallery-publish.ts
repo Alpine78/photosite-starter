@@ -11,7 +11,7 @@ import {
 } from "../src/lib/client-gallery-cleanup-contract";
 import type { ProofActionState, ProofValidationState } from "./proof-publish";
 import {
-  collectProofDeletion, planProofDeletion, proofDocumentCopies, readProofDocuments,
+  collectProofDeletion, planProofAssetDeletion, planProofDeletion, proofDocumentCopies, readProofDocuments,
   PROOF_DELETE_MAX_BODY_BYTES, type ProofDeletionInventory, type ProofDeletionReader,
 } from "./proof-delete";
 
@@ -156,8 +156,8 @@ export async function reviewDeliveryPublication(request: DeliveryPublishRequest,
         deletion.ready.draft?.revision !== proofDocs.get(`drafts.${request.proofId}`)?._rev) return { reason: "stale" };
       const protectedAssets = new Set((source.items as Record<string, unknown>[]).map((item) => publicImageAssetRef(item.image)));
       proof = { ...deletion.ready,
-        assets: deletion.ready.assets.filter((id) => !protectedAssets.has(id)),
-        sharedAssets: [...new Set([...deletion.ready.sharedAssets, ...deletion.ready.assets.filter((id) => protectedAssets.has(id))])],
+        assets: deletion.ready.assets.filter((asset) => !protectedAssets.has(asset.id)),
+        sharedAssets: [...new Set([...deletion.ready.sharedAssets, ...deletion.ready.assets.filter((asset) => protectedAssets.has(asset.id)).map((asset) => asset.id)])],
       };
       if (proof.selection) {
         const selection = (await readProofDocuments(reader, [proof.selection.id])).get(proof.selection.id);
@@ -173,7 +173,7 @@ export async function reviewDeliveryPublication(request: DeliveryPublishRequest,
       revisionGuard(published!), { create: { _id: draftId, _type: "clientDeliveryGallery" } }, { delete: { id: draftId } },
     ];
     const mutations = [...(cleanup?.next ? [cleanupControlMutation(cleanup.previous, cleanup.next)] : []),
-      ...deletion, ...publication, ...(proof?.assets.map((id) => ({ delete: { id } })) ?? [])];
+      ...deletion, ...publication, ...planProofAssetDeletion(proof?.assets ?? [], new Date(now).toISOString())];
     if (new TextEncoder().encode(JSON.stringify({ mutations })).byteLength > PROOF_DELETE_MAX_BODY_BYTES) return { reason: "too-large" };
     // Snapshot caller data: subsequent edits cannot change what gets committed.
     return { ready: structuredClone({ request, target, published, draft, proof, selectionState, cleanup, mutations }) };

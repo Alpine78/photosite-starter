@@ -2,6 +2,16 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Proof-image deletion revisions, 2026-10-25 — AB#404 **Active** (review/merge pending):
+manual proof deletion and replacement publication retain the fresh image revisions
+and use the same patch-before-delete planner in their atomic operation. Changed or
+removed candidates roll back the whole unit; missing/malformed image evidence blocks
+review. Shared/target images remain untouched. Deterministic fixtures cover both paths,
+including already-published delivery targets and full rollback. This closes the source
+gap behind AB#401's operator-added asset assertions, without rewriting that rehearsal.
+Hosted provider/role acceptance and activation remain open under AB#130 / AB#395.
+See [the deletion procedure](proof-selection-data-flow.md) and [Studio workflow](../studio/README.md).
+
 Synthetic photographer notice, 2026-10-24 — AB#403 **Active** (review/merge pending):
 source `e5aff4e` ran the actual confirmation planner and notice/sender modules
 against four fresh private Sanity records and real Resend. Exactly one request
