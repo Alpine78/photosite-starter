@@ -56,11 +56,15 @@ See [proof data flow](proof-selection-data-flow.md).
 - **AB#398 — Closed (PR #615):** source worker/scheduler merged;
   hosted provider/role/capacity/race acceptance and activation remain AB#395.
 - **AB#399 — Closed (PR #616):** separately invoked read-only capacity/canary probe source.
-- **AB#401 — Active:** the separately authorized 2026-10-24 synthetic rehearsal
+- **AB#401 — Closed (PR #618):** the separately authorized 2026-10-24 synthetic rehearsal
   measured real reads and exercised replacement/expiry deletion with shared-image
-  retention. Role, editor-identity, mail-credential and hosted acceptance gaps
+  retention. Role, editor-identity and hosted acceptance gaps
   remain; no activation. See [the evidence](audits/client-gallery-lifecycle-rehearsal-2026-10-24.md)
   and [the runbook](client-gallery-cleanup.md).
+- **AB#403 — Active:** a later mail-only module test verified Resend acceptance
+  and persistent notice state using a fresh local credential. The owner separately
+  confirmed mailbox receipt on 2026-10-25; cleanup activation remains open.
+  See [the mail evidence](audits/proof-notice-mail-verification-2026-10-24.md).
 
 **No automatic cleanup is deployed or configured by AB#393.** No gallery is enrolled
 by receiving a creation default. AB#397 implements enrollment in the separately enabled

@@ -727,8 +727,11 @@ AB#399 adds an explicitly invoked local [read-readiness probe](client-gallery-cl
 excluded from CI. AB#401's separately authorized 2026-10-24 rehearsal ran this probe
 and real synthetic gallery writes through an isolated loopback production build.
 Its measured reads/deletion do not establish hosted function capacity, full-role
-grants or activation. Role breadth, robot acceptance and an unusable local mail
-credential remain explicit findings; see the
+grants or activation. Role breadth and robot acceptance remain explicit findings;
+the original local mail credential was unusable. The separate
+[AB#403 mail-only test](audits/proof-notice-mail-verification-2026-10-24.md)
+subsequently verified Resend acceptance with a fresh local credential; it does not
+test the Production secret or hosted delivery. See the
 [dated results](audits/client-gallery-lifecycle-rehearsal-2026-10-24.md).
 Its operator-only opt-in/manifest path do not belong in Vercel runtime settings.
 

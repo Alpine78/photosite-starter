@@ -3,8 +3,12 @@
 **Result: the rehearsal completed with failed editor-identity and mail-acceptance
 checks; activation remains blocked.**
 This was a separately owner-authorized operational test, not a customer migration,
-hosted Studio acceptance or Production activation. AB#401 is Active pending review
-and merge; AB#395, AB#392 and AB#130 remain Active.
+hosted Studio acceptance or Production activation. AB#401 is Closed after PR #618;
+AB#395, AB#392 and AB#130 remain Active. The separately authorized
+[AB#403 mail-only follow-up](proof-notice-mail-verification-2026-10-24.md)
+subsequently verified local module-level Resend acceptance with a fresh synthetic
+confirmation. The original failed check and remaining activation limits below
+are historical evidence, not rewritten as a passing AB#401 run.
 
 ## Source, target and containment
 

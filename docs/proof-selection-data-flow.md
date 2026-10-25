@@ -143,7 +143,12 @@ The separately authorized AB#401 rehearsal on 2026-10-24 ran it against real
 synthetic canaries and exercised durable confirmation and replacement deletion.
 It did not establish full READ policy or authorize activation. The notice returned
 HTTP 400; the local mail key was a Vercel Sensitive placeholder, but the exact
-provider error cause was not retained. Real mail delivery remains unverified.
+provider error cause was not retained. A later separately authorized
+[AB#403 module-level test](audits/proof-notice-mail-verification-2026-10-24.md)
+received Resend HTTP 200 with a fresh local credential and recorded `sent`;
+re-entering that notice sent nothing further. All four private test records were
+removed. The owner separately confirmed mailbox receipt on 2026-10-25. The local
+module test and that owner confirmation do not establish hosted delivery.
 The current editor check also accepted a robot (follow-up AB#402). See the
 [results and hosted limitations](audits/client-gallery-lifecycle-rehearsal-2026-10-24.md)
 and [probe runbook](client-gallery-cleanup.md#read-only-capacity-and-known-canary-probe-ab399).

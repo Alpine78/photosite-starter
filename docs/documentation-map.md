@@ -46,6 +46,7 @@ there is no other documentation to hunt for.
 | `docs/client-gallery-retention-planner.md` | maintainer implementing expiry cleanup (AB#394) | pure planner evidence, outcomes, limits or executor integration requirements change |
 | `docs/client-gallery-cleanup.md` | owner and maintainer of scheduled delivery cleanup (AB#397–399) | enrollment/worker or read-readiness verification protocol, limits, role boundary, progress or activation evidence changes |
 | `docs/audits/client-gallery-lifecycle-rehearsal-2026-10-24.md` | owner reviewing AB#401 and gallery activation | the dated synthetic rehearsal evidence, cleanup verification or finding disposition is corrected; later runs need their own dated record |
+| `docs/audits/proof-notice-mail-verification-2026-10-24.md` | owner reviewing AB#403 and proof-notice activation | the dated mail-only verification evidence or finding disposition is corrected; owner-reported mailbox receipt remains distinct from provider acceptance |
 | `docs/gallery-removal-impact.md` | the owner preparing a reviewed gallery removal (AB#326) | the read-only removal-impact inventory or its report contract changes |
 | `docs/image-sales-discovery.md` | the owner deciding the image sales boundary (AB#95) | sales evidence, options or the decision gate change |
 | `docs/jpeg-export-audit.md` | the owner verifying a JPEG export set (AB#327) | the local decode audit command or its guarantees change |
