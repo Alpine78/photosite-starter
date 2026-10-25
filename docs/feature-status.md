@@ -2,6 +2,14 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Cleanup credential decision preparation, 2026-10-25 — AB#405 **Active**:
+[ADR-0040 (Proposed)](adr/0040-client-gallery-cleanup-credential-options.md) compares
+custom-role verification, an explicitly accepted broad Editor exception and keeping
+unattended cleanup off. Read-only project metadata showed no custom roles or listed
+advanced-role feature; this is not runtime-grant or plan verification. No option is
+accepted, the restricted-WRITE policy remains, and AB#395 / AB#392 stay **Active**.
+No provisioning, account change, CMS mutation, deployment or activation.
+
 Synthetic photographer notice, 2026-10-24 — AB#403 **Active** (review/merge pending):
 source `e5aff4e` ran the actual confirmation planner and notice/sender modules
 against four fresh private Sanity records and real Resend. Exactly one request

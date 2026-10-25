@@ -269,6 +269,14 @@ bind the report to inputs, not to a grant, source commit or approval. Keep a pri
 run record with the source commit and operator-reviewed limits. This source task
 uses only mocked provider responses; all actual hosted evidence remains pending.
 
+### Cleanup credential decision (AB#405)
+
+[Proposed ADR-0040](adr/0040-client-gallery-cleanup-credential-options.md) records
+the 2026-10-25 read-only role observation and concrete custom-role, broad-Editor
+and disabled-cleanup options. No option is accepted; the existing restricted-WRITE
+requirement and activation block remain. A dedicated Editor token is not approved
+by this proposal or by the synthetic rehearsal.
+
 ### Remaining hosted rehearsal
 
 Before enabling either flag, record a synthetic hosted rehearsal, with no real

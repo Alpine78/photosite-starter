@@ -131,6 +131,11 @@ acceptance remain required under AB#395.
 
 ## Required safeguards before an executor is enabled
 
+[ADR-0040 (Proposed)](adr/0040-client-gallery-cleanup-credential-options.md)
+presents the unresolved cleanup credential choice. The narrow-credential requirement
+and default-off state remain; a broad Editor token has not been accepted.
+
+
 The [source worker and runbook](client-gallery-cleanup.md) implement the bounded
 protocol and list the remaining hosted evidence. A committed daily cron never
 enables it; both Studio enrollment and Production worker flags default off.

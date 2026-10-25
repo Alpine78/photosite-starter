@@ -734,6 +734,9 @@ subsequently verified Resend acceptance with a fresh local credential; it does n
 test the Production secret or hosted delivery. See the
 [dated results](audits/client-gallery-lifecycle-rehearsal-2026-10-24.md).
 Its operator-only opt-in/manifest path do not belong in Vercel runtime settings.
+[ADR-0040 (Proposed)](adr/0040-client-gallery-cleanup-credential-options.md) records
+the unresolved cleanup credential choice. Neither a broad Editor writer nor a plan
+change is approved; keep the current restricted-WRITE requirement and flags off.
 
 After accepted source merges, deploy the Studio and verify actual author/editor
 permissions, FI/EN keyboard workflow and a synthetic published gallery before

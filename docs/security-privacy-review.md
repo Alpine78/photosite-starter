@@ -37,6 +37,11 @@ all four test records removed. The owner separately confirmed mailbox receipt on
 2026-10-25; hosted delivery remains untested. These are scoped operational records,
 not a rerun or approval of the full launch review.
 
+The [2026-10-25 credential options (ADR-0040, Proposed)](adr/0040-client-gallery-cleanup-credential-options.md)
+record a read-only project-role observation and the broader content exposure of a
+possible Editor cleanup token. No exception is accepted; restricted WRITE and the
+activation block remain. This is decision preparation, not a full launch-review rerun.
+
 ## How this review was run
 
 A plan for this review was sent to Codex (OpenAI's CLI, `codex-review-loop` skill,
