@@ -727,7 +727,10 @@ AB#399 adds an explicitly invoked local [read-readiness probe](client-gallery-cl
 excluded from CI. AB#401's separately authorized 2026-10-24 rehearsal ran this probe
 and real synthetic gallery writes through an isolated loopback production build.
 Its measured reads/deletion do not establish hosted function capacity, full-role
-grants or activation. Role breadth and robot acceptance remain explicit findings;
+grants or activation. Role breadth and actual editor/robot acceptance remain open;
+AB#402 replaces the source identity check with the documented
+[project-member check](sanity-setup.md#proof-gallery-publication-ab130-adr-0038),
+without supplying actual hosted acceptance;
 the original local mail credential was unusable. The separate
 [AB#403 mail-only test](audits/proof-notice-mail-verification-2026-10-24.md)
 subsequently verified Resend acceptance with a fresh local credential; it does not

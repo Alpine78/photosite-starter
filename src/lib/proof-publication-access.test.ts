@@ -13,29 +13,31 @@ const assets = [{ _id: asset, _type: "sanity.imageAsset", extension: "webp", mim
 function sanity(responses: Record<string, () => Response>) {
   const calls: string[] = [];
   const send = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
-    const path = String(url).replace("https://abc123.api.sanity.io/v2026-06-24", "");
+    const path = new URL(String(url)).pathname;
     const body = init?.body ? String(init.body) : "";
-    const kind = path === "/users/me" ? "me" : path.startsWith("/data/mutate") ? "mutate" : body.includes("termsId") ? "state" : "related";
+    const kind = path === "/v2021-12-15/projects/abc123" ? "member" : path.startsWith("/v2026-06-24/data/mutate") ? "mutate" : body.includes("termsId") ? "state" : "related";
     calls.push(kind);
     return responses[kind]();
   });
   return { send: send as unknown as typeof fetch, calls };
 }
 const json = (value: unknown, status = 200) => () => new Response(JSON.stringify(value), { status });
-const ok = { me: json({ id: "u1" }), state: json({ result: { draft, published: null, terms: null, versions: 0 } }), related: json({ result: { conflicts: [], assets } }), mutate: json({ transactionId: "t" }) };
+const editor = { id: "abc123", members: [{ id: "editor-1", isCurrentUser: true, isRobot: false, roles: [{ name: "editor" }] }] };
+const ok = { member: json(editor), state: json({ result: { draft, published: null, terms: null, versions: 0 } }), related: json({ result: { conflicts: [], assets } }), mutate: json({ transactionId: "t" }) };
 
 describe("proof publication facade order", () => {
-  it("proves the session, reads, plans and returns the key only after the commit", async () => {
+  it("proves a non-admin Editor, reads, plans and returns the key only after the commit", async () => {
     const { send, calls } = sanity(ok);
     const result = await runProofPublication({ galleryId: "GALLERY", operation: "publish", expectedDraftRevision: "r1", terms }, "token-0123456789-abcdefgh", secret, { config, fetchImplementation: send });
-    expect(calls).toEqual(["me", "state", "related", "mutate"]);
+    expect(calls).toEqual(["member", "state", "related", "mutate"]);
     expect(result).toMatchObject({ outcome: "committed", firstPublication: true, selectionKey: expect.any(String) });
+    for (const call of vi.mocked(send).mock.calls) expect(call[1]?.headers).toMatchObject({ Authorization: "Bearer token-0123456789-abcdefgh" });
   });
   it("stops at an unproven session before any read or allowance", async () => {
-    const { send, calls } = sanity({ ...ok, me: json({}, 401) });
+    const { send, calls } = sanity({ ...ok, member: json({}, 401) });
     expect(await runProofPublication({ galleryId: "OTHER1", operation: "publish", expectedDraftRevision: "r1", terms }, "token-0123456789-abcdefgh", secret, { config, fetchImplementation: send }))
       .toEqual({ outcome: "failed", reason: "unauthenticated" });
-    expect(calls).toEqual(["me"]);
+    expect(calls).toEqual(["member"]);
   });
   it("writes nothing for a rejected plan and returns no key when the commit fails", async () => {
     const rejected = sanity({ ...ok, related: json({ result: { conflicts: [{ _id: "x" }], assets } }) });
@@ -50,11 +52,19 @@ describe("proof publication facade order", () => {
       expect(failing.calls).toContain("mutate");
     }
   });
-  it("spends a gallery's allowance only after a proven session", async () => {
-    const strangers = sanity({ ...ok, me: json({}, 401) });
+  it("a human identity never substitutes for provider write permission", async () => {
+    const viewer = { ...editor, members: [{ ...editor.members[0], roles: [{ name: "viewer" }] }] };
+    const { send, calls } = sanity({ ...ok, member: json(viewer), mutate: json({}, 403) });
+    expect(await runProofPublication({ galleryId: "GALLERY", operation: "publish", expectedDraftRevision: "r1", terms }, "token-0123456789-abcdefgh", secret, { config, fetchImplementation: send }))
+      .toEqual({ outcome: "failed", reason: "forbidden" });
+    expect(calls).toEqual(["member", "state", "related", "mutate"]);
+  });
+  it("robot denials cannot spend a gallery's allowance or reach content reads", async () => {
+    const strangers = sanity({ ...ok, member: json({ ...editor, members: [{ ...editor.members[0], isRobot: true }] }) });
     for (let attempt = 0; attempt < 20; attempt++) {
       await runProofPublication({ galleryId: "TARGET", operation: "publish", expectedDraftRevision: "r1", terms }, "token-0123456789-abcdefgh", secret, { config, fetchImplementation: strangers.send });
     }
+    expect(strangers.calls).toEqual(Array(20).fill("member"));
     const { send } = sanity({ ...ok, state: json({ result: { draft: { ...draft, _id: "drafts.TARGET" }, published: null, terms: null, versions: 0 } }) });
     expect((await runProofPublication({ galleryId: "TARGET", operation: "publish", expectedDraftRevision: "r1", terms }, "token-0123456789-abcdefgh", secret, { config, fetchImplementation: send })).outcome).toBe("committed");
   });

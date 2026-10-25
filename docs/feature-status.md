@@ -2,7 +2,19 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
-Synthetic photographer notice, 2026-10-24 — AB#403 **Active** (review/merge pending):
+Proof publication identity, 2026-10-25 — AB#402 **Active** (review/merge pending):
+`verifyEditorSession` replaces `/users/me`'s nonempty-ID inference with one
+same-project-host metadata read at the installed Studio project store's
+`v2021-12-15` API version. Exactly one current member must explicitly be a person;
+missing, malformed, robot or ambiguous evidence fails closed. There is no admin
+role requirement or global-token fallback, and every content read/write still
+uses that same editor token. Deterministic tests cover the intended non-admin
+human Editor, old inference/robot refusals, permission denial and limiter ordering.
+This is source verification: actual Editor/owner/robot and hosted acceptance remain
+under AB#130, with activation off. See the
+[identity contract](sanity-setup.md#proof-gallery-publication-ab130-adr-0038).
+
+Synthetic photographer notice, 2026-10-24 — AB#403 **Closed** (PR #621 merged):
 source `e5aff4e` ran the actual confirmation planner and notice/sender modules
 against four fresh private Sanity records and real Resend. Exactly one request
 received HTTP 200, the notice became `sent`, the immutable v1 stayed unchanged,
@@ -212,8 +224,9 @@ terms authoring, the Studio action (with `loginMethod: 'token'`) and an owner-ru
 check come first.
 
 AB#401 correction, 2026-10-24: the actual Editor robot passed that `/users/me`
-check. A human user session is not established by the current check; resolving
-the identity contract remains an activation prerequisite. See the dated evidence above.
+check. That earlier check did not establish a human user session. AB#402's
+source correction is recorded above; actual intended-role/hosted acceptance
+remains an activation prerequisite. See the dated evidence above.
 
 
 

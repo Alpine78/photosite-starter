@@ -584,7 +584,11 @@ any value other than `enabled`, `off` or blank fails the Studio configuration.
 When enabled, this Studio signs in with `auth.loginMethod: 'token'`: the editor's token is
 kept in the browser's `localStorage` instead of an HTTP-only cookie, so scripts on the Studio
 origin can read it. The Studio runs only its own bundle and renders no user HTML; a Studio
-without proof galleries keeps Sanity's default sign-in.
+without proof galleries keeps Sanity's default sign-in. The site checks the same
+token against documented project-member identity flags, permitting a non-admin human
+Editor subject to their actual content permissions. Actual Editor/owner/robot
+acceptance remains required before activation; see the
+[publication contract](../docs/sanity-setup.md#proof-gallery-publication-ab130-adr-0038).
 
 - **Publish proof gallery / Julkaise vedosgalleria** replaces native publish. It becomes
   available when the draft has been validated for its current revision with no errors.
