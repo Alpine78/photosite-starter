@@ -22,7 +22,7 @@ const review: DeliveryPublishDialogProps["review"] = { ready: {
   target: { expiryInstant: "2027-04-24T12:00:00.000Z" }, mutations: [], selectionState: "confirmed",
   proof: { galleryId: "proof-fixture", published: { id: "proof-fixture", revision: "r2" }, terms: { id: "proofTerms.proof-fixture", revision: "r3" },
     selection: { id: "proofSelection.proof-fixture", revision: "r4" }, versions: [{ id: "proofSelection.proof-fixture.v1", revision: "r5" }],
-    notices: [], reminders: [], assets: ["image-unused-10x10-webp"], sharedAssets: ["image-shared-10x10-webp"] },
+    notices: [], reminders: [], assets: [{ id: "image-unused-10x10-webp", revision: "r6" }], sharedAssets: ["image-shared-10x10-webp"] },
 } };
 
 // Actual component markup/native controls. No hydration, authenticated Studio or hosted release claim.

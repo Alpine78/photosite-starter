@@ -95,18 +95,27 @@ records behind.
    notice up to the latest version, every reminder step any clock could have reached, and
    the image assets the gallery and its draft use. It lists counts only.
 2. It refuses rather than guesses when a record cannot be read, a record is malformed,
-   any record has a draft or a release version, the query index shows a record of the
-   gallery outside the list, or other content references a record in it.
+   any record has a draft or a release version, a referenced image is missing or has
+   an invalid revision, the query index shows a record of the gallery outside the list,
+   or other content references a record in it.
 3. The editor types the gallery's document ID to confirm. A reload clears it.
 4. One transaction deletes every listed document at the revision shown, guarded by the
    terms revision read first, and asserts that an absent gallery, draft, terms or selection
-   is still absent. The same transaction then deletes the gallery's image assets — which
-   deletes the files — except an asset the query index shows another document using; that
-   one is kept and counted separately (owner decision 2026-10-24). A customer confirmation, reminder claim, publication or new draft that
-   lands in between makes the deletion conflict and delete nothing; one that lands after
+   is still absent. The same transaction patches each candidate image under its reviewed
+   revision immediately before deleting its asset document and file (AB#404). An image
+   changed or removed after review makes the whole transaction fail. It excludes an
+   asset the query index shows another document using; that one is kept and counted
+   separately (owner decision 2026-10-24). A customer confirmation, reminder claim,
+   publication or new draft that lands in between makes the deletion conflict and
+   delete nothing; one that lands after
    it fails, because its own guarded terms write finds no terms. The transaction is sent
    once with retries off: a conflict asks for a fresh review, and a lost answer is an
    unknown outcome to check by reloading, not to retry blindly.
+   Missing-image refusals require resolving dangling references in both the published
+   gallery and its draft through the ordinary Studio editing/publication workflow
+   before another review; metadata changes require a fresh review. No image is silently
+   skipped and no automatic repair is performed. Shared assets also require valid fresh
+   read evidence, though they receive no mutation.
 5. Afterwards the customer page and selection route treat the handle as unknown. The
    reminder-stop page is generic and still renders, but its button is refused. The shared
    reminder cursor is left as it is.

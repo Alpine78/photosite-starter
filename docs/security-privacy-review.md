@@ -1264,3 +1264,16 @@ Synthetic fixtures cover refusals and redaction; that source slice executed no
 actual probe. The separately authorized AB#401 run on 2026-10-24 subsequently
 measured real reads and synthetic deletion, with readiness still false. See the
 [dated evidence and remaining findings](audits/client-gallery-lifecycle-rehearsal-2026-10-24.md).
+
+## 2026-10-25 proof-image deletion guards (AB#404)
+
+The manual proof-deletion and replacement-publication source now retains each
+candidate image's fresh revision and submits a guarded patch immediately before
+its delete, within the existing atomic operation. Deterministic fixtures cover
+changed/deleted assets rolling back the whole unit, malformed/missing read evidence,
+and untouched shared/target images. The shared-use query and Content Lake's strong
+reference check remain the separate reference-integrity boundary; an asset revision
+does not change when another document adds a reference. This is source verification,
+not a rerun of AB#401 or the launch review. Hosted permission/error-shape acceptance,
+controlled writers and unsupported weak references remain open. See the
+[deletion procedure](proof-selection-data-flow.md).

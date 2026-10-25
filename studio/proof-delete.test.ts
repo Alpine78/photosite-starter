@@ -1,11 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  collectProofDeletion, createProofDeletionGuard, inventoryIds, planProofDeletion, proofDeleteCopy, proofDeletionCounts, proofDeletionReminderSteps,
+  collectProofDeletion, createProofDeletionGuard, inventoryIds, planProofAssetDeletion, planProofDeletion, proofDeleteCopy, proofDeletionCounts, proofDeletionReminderSteps,
   runProofDeletion, PROOF_DELETE_MAX_REMINDER_STEP, PROOF_DELETE_MAX_VERSION, PROOF_DELETE_REMINDER_STEP_MS,
+  PROOF_DELETE_MAX_BODY_BYTES,
   type ProofDeletionMutation, type ProofDeletionReader,
 } from "./proof-delete";
 import { PROOF_MAX_VERSION, proofNoticeId, proofSelectionId, proofTermsDocumentId, proofVersionId } from "../src/lib/proof-selection";
 import { PROOF_MAX_REMINDER_STEP, proofReminderId, REMINDER_STEP_MS } from "../src/lib/proof-reminder";
+import { CLIENT_PROOF_MAX_ITEMS } from "../sanity/schemas/client-proof-gallery";
 
 import { lake } from "./test-support/proof-lake";
 
@@ -39,6 +41,9 @@ async function ready(store: ReturnType<typeof lake>, id = "g1") {
 }
 const run = (store: ReturnType<typeof lake>, mutations: ProofDeletionMutation[]) =>
   runProofDeletion(mutations, async (list) => store.commit(list as unknown as Record<string, unknown>[]));
+const reviewedAssets = (store: ReturnType<typeof lake>, ids: string[]) =>
+  ids.map((id) => ({ id, revision: store.docs.get(id)!._rev }));
+const snapshot = (store: ReturnType<typeof lake>) => structuredClone([...store.docs]);
 
 describe("collecting a proof gallery deletion", () => {
   it("lists every record by deterministic ID, terms first", async () => {
@@ -48,7 +53,7 @@ describe("collecting a proof gallery deletion", () => {
       "proofTerms.g1", "g1", "proofSelection.g1", "proofSelection.g1.v1", "proofSelection.g1.v2", "proofNotice.g1.v1", "proofNotice.g1.v2",
       "proofReminder.g1.1", "proofReminder.g1.2",
     ]);
-    expect(inventory.assets).toEqual(["image-g1a-10x10-jpg", "image-g1b-10x10-jpg"]);
+    expect(inventory.assets).toEqual(reviewedAssets(store, ["image-g1a-10x10-jpg", "image-g1b-10x10-jpg"]));
     expect(proofDeletionCounts(inventory)).toEqual({ gallery: 1, terms: 1, selection: 1, versions: 2, notices: 2, reminders: 2, images: 2, sharedImages: 0 });
   });
 
@@ -56,9 +61,11 @@ describe("collecting a proof gallery deletion", () => {
     const draft = { _id: "drafts.g1", _type: "clientProofGallery", items: [item("a", "image-g1a-10x10-jpg"), item("c", "image-g1c-10x10-jpg")] };
     const store = lake([...gallery(), draft, asset("image-g1c-10x10-jpg"), ...gallery("g2"), ...shared]);
     const inventory = await ready(store);
-    expect(inventory.assets).toEqual(["image-g1a-10x10-jpg", "image-g1b-10x10-jpg", "image-g1c-10x10-jpg"]);
+    expect(inventory.assets).toEqual(reviewedAssets(store, ["image-g1a-10x10-jpg", "image-g1b-10x10-jpg", "image-g1c-10x10-jpg"]));
     const plan = planProofDeletion(inventory, "2026-10-23T12:00:00.000Z");
-    expect(plan.slice(-3)).toEqual(inventory.assets.map((id) => ({ delete: { id } })));
+    expect(plan.slice(-6)).toEqual(inventory.assets.flatMap(({ id, revision }) => [
+      { patch: { id, ifRevisionID: revision, set: { proofDeletionAt: "2026-10-23T12:00:00.000Z" } } }, { delete: { id } },
+    ]));
     expect(await run(store, plan)).toBe("deleted");
     expect([...store.docs.keys()].sort()).toEqual([...gallery("g2").map((doc) => doc._id), ...shared.map((doc) => doc._id)].sort());
   });
@@ -66,7 +73,7 @@ describe("collecting a proof gallery deletion", () => {
   it("keeps an image another document uses and deletes the rest", async () => {
     const store = lake([...gallery(), ...shared, { _id: "article2", _type: "article", cover: { _type: "image", asset: { _type: "reference", _ref: "image-g1b-10x10-jpg" } } }]);
     const inventory = await ready(store);
-    expect(inventory).toMatchObject({ assets: ["image-g1a-10x10-jpg"], sharedAssets: ["image-g1b-10x10-jpg"] });
+    expect(inventory).toMatchObject({ assets: reviewedAssets(store, ["image-g1a-10x10-jpg"]), sharedAssets: ["image-g1b-10x10-jpg"] });
     expect(await run(store, planProofDeletion(inventory, "t"))).toBe("deleted");
     expect(store.docs.has("image-g1b-10x10-jpg")).toBe(true);
     expect(store.docs.has("image-g1a-10x10-jpg")).toBe(false);
@@ -81,9 +88,51 @@ describe("collecting a proof gallery deletion", () => {
     expect((await ready(store)).sharedAssets).toEqual(["image-g1a-10x10-jpg"]);
   });
 
-  it("skips an image asset that is already gone", async () => {
+  it("refuses a referenced image asset that is already gone instead of silently skipping it", async () => {
     const store = lake([...gallery().filter((doc) => doc._id !== "image-g1b-10x10-jpg")]);
-    expect((await ready(store)).assets).toEqual(["image-g1a-10x10-jpg"]);
+    expect(await collectProofDeletion("g1", store.reader, NOW)).toEqual({ reason: "inconsistent" });
+  });
+
+  it.each([undefined, "", "bad revision", "r".repeat(129)])("refuses an asset revision of %s", async (revision) => {
+    const store = lake(gallery());
+    Object.assign(store.docs.get("image-g1a-10x10-jpg")!, { _rev: revision });
+    const before = snapshot(store);
+    expect(await collectProofDeletion("g1", store.reader, NOW)).toEqual({ reason: "inconsistent" });
+    expect(snapshot(store)).toEqual(before);
+  });
+
+  it("refuses a permission omission for a gallery image", async () => {
+    const store = lake(gallery());
+    const reader: ProofDeletionReader = { ...store.reader, async docs(ids, all) {
+      const response = await store.reader.docs(ids, all) as { documents: { _id: string }[]; omitted: { id: string; reason: string }[] };
+      const id = "image-g1a-10x10-jpg";
+      return ids.includes(id) ? { documents: response.documents.filter((doc) => doc._id !== id),
+        omitted: [...response.omitted, { id, reason: "permission" }] } : response;
+    } };
+    expect(await collectProofDeletion("g1", reader, NOW)).toEqual({ reason: "unreadable" });
+  });
+
+  it("guards and deletes a repeatedly referenced asset only once across published and draft copies", async () => {
+    const store = lake([...gallery(), { _id: "drafts.g1", _type: "clientProofGallery",
+      items: [item("a", "image-g1a-10x10-jpg"), item("b", "image-g1a-10x10-jpg")] }]);
+    const inventory = await ready(store), plan = planProofDeletion(inventory, "t");
+    expect(inventory.assets).toHaveLength(2);
+    expect(plan.filter((mutation) => "delete" in mutation && mutation.delete.id === "image-g1a-10x10-jpg")).toHaveLength(1);
+    expect(await run(store, plan)).toBe("deleted");
+    expect(store.docs.size).toBe(0);
+  });
+
+  it("rejects duplicate asset guards instead of producing a transaction that conflicts with itself", () => {
+    const asset = { id: "image-g1a-10x10-jpg", revision: "r1" };
+    expect(() => planProofAssetDeletion([asset, asset], "t")).toThrow("Duplicate proof image");
+  });
+
+  it("keeps zero-image draft deletion free of asset mutations", async () => {
+    const store = lake([{ _id: "drafts.g1", _type: "clientProofGallery", items: [] }]);
+    const inventory = await ready(store);
+    expect(inventory.assets).toEqual([]);
+    expect(await run(store, planProofDeletion(inventory, "t"))).toBe("deleted");
+    expect(store.docs.size).toBe(0);
   });
 
   it("includes a record the lagging query index does not show yet", async () => {
@@ -154,6 +203,18 @@ describe("collecting a proof gallery deletion", () => {
 });
 
 describe("deletion racing other writes", () => {
+  it.each(["changed", "deleted"])("rolls back the whole reviewed deletion when an image asset is %s", async (change) => {
+    const store = lake(gallery()), inventory = await ready(store);
+    const id = "image-g1b-10x10-jpg";
+    if (change === "changed") store.put({ ...store.docs.get(id)!, description: "Metadata updated" });
+    else store.docs.delete(id);
+    const before = snapshot(store);
+    expect(await run(store, planProofDeletion(inventory, "t"))).toBe("conflict");
+    expect(snapshot(store)).toEqual(before);
+    expect(store.docs.has("proofTerms.g1")).toBe(true);
+    expect(store.docs.has("image-g1a-10x10-jpg")).toBe(true);
+  });
+
   /** The site's guarded customer write: a new version and notice, with the terms guard. */
   const confirm = (store: ReturnType<typeof lake>, termsRevision: string) => store.commit([
     { create: { _id: proofVersionId("g1", 3), _type: "clientProofSelectionVersion", galleryId: "g1" } },
@@ -236,6 +297,14 @@ describe("running a deletion", () => {
 });
 
 describe("bounds and copy", () => {
+  it("keeps the maximum schema-sized published/draft image union below a tenth of the transaction byte budget", () => {
+    const assets = Array.from({ length: 2 * CLIENT_PROOF_MAX_ITEMS }, (_, index) => ({
+      id: `image-${String(index).padStart(128, "a")}-999999x999999-webp`, revision: "r".repeat(128),
+    }));
+    const bytes = new TextEncoder().encode(JSON.stringify({ mutations: planProofAssetDeletion(assets, "2026-10-25T00:00:00.000Z") })).byteLength;
+    expect(bytes).toBeLessThan(PROOF_DELETE_MAX_BODY_BYTES / 10);
+  });
+
   it("keeps the limits and IDs in step with the site's planners", () => {
     expect(PROOF_DELETE_MAX_VERSION).toBe(PROOF_MAX_VERSION);
     expect(PROOF_DELETE_MAX_REMINDER_STEP).toBe(PROOF_MAX_REMINDER_STEP);
