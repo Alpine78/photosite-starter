@@ -691,8 +691,8 @@ and bindings with `verify:legacy-delivery-assets --live`; this standalone check
 cannot replace those gates. Its shared HTTP core keeps that compiler and the
 existing **3 GB** legacy declaration limit unchanged. No S3, PostgreSQL, new
 service, CMS write or runtime-gallery setting is read or introduced. Current
-new-gallery runtime remains web-preview-only while ADR-0035 is Proposed and
-whole-upload feasibility is unresolved.
+new-gallery runtime remains web-preview-only pending AB#407 implementation and
+whole-upload feasibility; the ADR-0035 media contract is accepted.
 
 ### Ongoing unlisted client galleries (ADR-0034)
 
@@ -717,8 +717,9 @@ deployment's real Sanity delivery adapter, Production stage/platform, a dedicate
 are authorized by merging its PR. HEAD and non-GET methods return 405.
 
 Before activation, verify the actual 200-second function allowance, full dataset
-READ (including private/draft/release records), restricted WRITE and its residual
-image-asset breadth, controlled strong-reference writers, capacity and synthetic
+READ (including private/draft/release records), the actual grants under the accepted
+reference Editor cleanup policy (ADR-0040 option B), controlled strong-reference
+writers, capacity and synthetic
 race/deletion outcomes. See [the cleanup runbook](client-gallery-cleanup.md) for
 caps, cursor progress, failure/status handling and the explicit activation
 evidence. Server and Studio enrollment flags are independent; both stay off in
@@ -734,9 +735,10 @@ subsequently verified Resend acceptance with a fresh local credential; it does n
 test the Production secret or hosted delivery. See the
 [dated results](audits/client-gallery-lifecycle-rehearsal-2026-10-24.md).
 Its operator-only opt-in/manifest path do not belong in Vercel runtime settings.
-[ADR-0040 (Proposed)](adr/0040-client-gallery-cleanup-credential-options.md) records
-the unresolved cleanup credential choice. Neither a broad Editor writer nor a plan
-change is approved; keep the current restricted-WRITE requirement and flags off.
+[ADR-0040 option B (Accepted)](adr/0040-client-gallery-cleanup-credential-options.md)
+records the reference cleanup owner's acceptance of a dedicated Editor writer and its
+broad project-content rights. No plan change, credential provisioning or activation
+is performed; keep flags off until actual token/grant and hosted checks pass.
 
 After accepted source merges, deploy the Studio and verify actual author/editor
 permissions, FI/EN keyboard workflow and a synthetic published gallery before
@@ -942,8 +944,8 @@ SIGKILL or power loss can leave incomplete files without a valid receipt; inspec
 and remove such private artifacts deliberately before retrying in a new output
 directory. Recheck the package independently before any separately authorized
 upload. The existing 100 MB audit covers small packages only; larger ones need a
-separately available whole-package verifier. ADR-0035 remains Proposed and actual
-whole-file provider transport remains unresolved.
+separately available whole-package verifier. ADR-0035's media contract is accepted;
+actual whole-file provider transport remains unresolved.
 
 ### Optional offline availability plans (AB#304)
 

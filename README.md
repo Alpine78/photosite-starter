@@ -638,8 +638,11 @@ reader serves them at `/client-gallery/<handle>` without changing the legacy
 adapter. No new-gallery ZIP is offered yet. A separately authorized
 [synthetic rehearsal](docs/audits/client-gallery-lifecycle-rehearsal-2026-10-24.md)
 exercised real Sanity publication, confirmation, replacement and expiry deletion
-from an isolated local production build. Hosted Studio, narrow roles, editor
-identity, hosted mail delivery and deliberate production activation remain open.
+from an isolated local production build. Hosted Studio, verified cleanup credentials,
+editor identity, hosted mail delivery and deliberate production activation remain open.
+The reference owner accepted a dedicated Editor cleanup token's broad-content risk
+in [ADR-0040](docs/adr/0040-client-gallery-cleanup-credential-options.md); actual
+provisioning/grant verification remains separate.
 A separate [mail-only module test](docs/audits/proof-notice-mail-verification-2026-10-24.md)
 verified real Resend acceptance and durable `sent` state with a local test credential;
 the owner separately confirmed mailbox receipt on 2026-10-25.

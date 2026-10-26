@@ -61,7 +61,7 @@ See [proof data flow](proof-selection-data-flow.md).
   retention. Role, editor-identity and hosted acceptance gaps
   remain; no activation. See [the evidence](audits/client-gallery-lifecycle-rehearsal-2026-10-24.md)
   and [the runbook](client-gallery-cleanup.md).
-- **AB#403 — Active:** a later mail-only module test verified Resend acceptance
+- **AB#403 — Closed (PR #621):** a later mail-only module test verified Resend acceptance
   and persistent notice state using a fresh local credential. The owner separately
   confirmed mailbox receipt on 2026-10-25; cleanup activation remains open.
   See [the mail evidence](audits/proof-notice-mail-verification-2026-10-24.md).
@@ -74,8 +74,9 @@ approval after a text edit. Existing new-delivery records require a reviewed enr
 decision. Legacy enrollment remains outside this contract. Do not
 convert an indefinite gallery to finite access or bulk-enroll the 21 legacy galleries.
 
-The new-ZIP authoring/transport decision remains [ADR-0035](adr/0035-unlisted-delivery-zip-proposal.md)
-(Proposed). A cleanup requirement grants no new file eligibility or upload permission.
+The [ADR-0035 public ZIP media contract](adr/0035-unlisted-delivery-zip-proposal.md)
+is accepted; AB#407 authoring/runtime/cleanup implementation and supported whole-upload
+transport remain separate. This is not approval of a customer batch or live upload.
 Legacy galleries have their own image records, manifests and batch constraints; a
 new-delivery planner does not establish their removal safety. AB#396
 replacement publication removes proofs permanently; they do not return if delivery later
@@ -131,9 +132,10 @@ acceptance remain required under AB#395.
 
 ## Required safeguards before an executor is enabled
 
-[ADR-0040 (Proposed)](adr/0040-client-gallery-cleanup-credential-options.md)
-presents the unresolved cleanup credential choice. The narrow-credential requirement
-and default-off state remain; a broad Editor token has not been accepted.
+[ADR-0040 option B (Accepted)](adr/0040-client-gallery-cleanup-credential-options.md)
+records the reference owner's acceptance of a dedicated Editor cleanup token and its
+broad-content compromise risk. The independent application safeguards, actual grant
+verification and default-off/hosted activation gates remain.
 
 
 The [source worker and runbook](client-gallery-cleanup.md) implement the bounded
@@ -148,8 +150,10 @@ no later sweep; provider history/backups, CDN and downloads remain outside scope
 These are implementation requirements to verify in AB#395, not evidence of a running
 service or a final provider-read contract:
 
-1. Off by default; a narrowly scoped server-only Sanity credential and authenticated
-   scheduler. No customer-triggered deletion, public write permission or new provider.
+1. Off by default; a dedicated server-only Sanity credential and authenticated
+   scheduler. The reference owner accepts Editor breadth under ADR-0040 option B;
+   other deployments need their own accepted credential policy. No customer-triggered
+   deletion, public write permission or new provider.
 2. Fresh authoritative reads of the gallery, enrollment and complete relevant
    draft/release/private records. Refuse malformed, unreadable, truncated, incomplete
    or concurrently changed evidence. A query index alone cannot prove absence.

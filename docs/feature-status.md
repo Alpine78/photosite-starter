@@ -2,15 +2,16 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
-Cleanup credential decision preparation, 2026-10-25 — AB#405 **Active**:
-[ADR-0040 (Proposed)](adr/0040-client-gallery-cleanup-credential-options.md) compares
-custom-role verification, an explicitly accepted broad Editor exception and keeping
-unattended cleanup off. Read-only project metadata showed no custom roles or listed
-advanced-role feature; this is not runtime-grant or plan verification. No option is
-accepted, the restricted-WRITE policy remains, and AB#395 / AB#392 stay **Active**.
-No provisioning, account change, CMS mutation, deployment or activation.
+Client-gallery owner decisions, 2026-10-25 — AB#405 **Active** (PR #623 pending):
+the owner accepted [ADR-0040 option B](adr/0040-client-gallery-cleanup-credential-options.md),
+a dedicated Editor cleanup token with broad project-content rights and the stated
+compromise risk. Independent application safeguards and actual token/hosted/activation
+gates remain. The [future public whole-ZIP media contract](adr/0035-unlisted-delivery-zip-proposal.md)
+is also accepted; exact customer-batch approval, supported large-upload/account
+evidence and AB#407 source implementation remain separate. AB#406 records the exact
+agent-rule exception. No provisioning, content write, deployment or activation.
 
-Proof-image deletion revisions, 2026-10-25 — AB#404 **Active** (review/merge pending):
+Proof-image deletion revisions, 2026-10-25 — AB#404 **Closed** (PR #622 merged):
 manual proof deletion and replacement publication retain the fresh image revisions
 and use the same patch-before-delete planner in their atomic operation. Changed or
 removed candidates roll back the whole unit; missing/malformed image evidence blocks
@@ -20,7 +21,7 @@ gap behind AB#401's operator-added asset assertions, without rewriting that rehe
 Hosted provider/role acceptance and activation remain open under AB#130 / AB#395.
 See [the deletion procedure](proof-selection-data-flow.md) and [Studio workflow](../studio/README.md).
 
-Synthetic photographer notice, 2026-10-24 — AB#403 **Active** (review/merge pending):
+Synthetic photographer notice, 2026-10-24 — AB#403 **Closed** (PR #621 merged):
 source `e5aff4e` ran the actual confirmation planner and notice/sender modules
 against four fresh private Sanity records and real Resend. Exactly one request
 received HTTP 200, the notice became `sent`, the immutable v1 stayed unchanged,
