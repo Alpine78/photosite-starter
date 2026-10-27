@@ -14,6 +14,16 @@ This is source verification: actual Editor/owner/robot and hosted acceptance rem
 under AB#130, with activation off. See the
 [identity contract](sanity-setup.md#proof-gallery-publication-ab130-adr-0038).
 
+Proof-image deletion revisions, 2026-10-25 — AB#404 **Closed** (PR #622 merged):
+manual proof deletion and replacement publication retain the fresh image revisions
+and use the same patch-before-delete planner in their atomic operation. Changed or
+removed candidates roll back the whole unit; missing/malformed image evidence blocks
+review. Shared/target images remain untouched. Deterministic fixtures cover both paths,
+including already-published delivery targets and full rollback. This closes the source
+gap behind AB#401's operator-added asset assertions, without rewriting that rehearsal.
+Hosted provider/role acceptance and activation remain open under AB#130 / AB#395.
+See [the deletion procedure](proof-selection-data-flow.md) and [Studio workflow](../studio/README.md).
+
 Synthetic photographer notice, 2026-10-24 — AB#403 **Closed** (PR #621 merged):
 source `e5aff4e` ran the actual confirmation planner and notice/sender modules
 against four fresh private Sanity records and real Resend. Exactly one request

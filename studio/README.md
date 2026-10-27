@@ -509,6 +509,17 @@ allows a fresh review, but a timed-out request might still finish; revision guar
 duplicate operations. A mixed/unreadable state stays unknown. Never bypass this by ordinary
 publication followed by manual deletion. Large operations are refused, never split.
 
+AB#404 retains each unused proof image's fresh revision in the reviewed plan. Manual
+proof deletion and replacement publication both patch that exact revision immediately
+before deleting the image in the same transaction. A changed or missing candidate fails
+the entire operation; shared and delivery images receive no mutation. Metadata changes
+can cause a safe conflict: reload and review again. A referenced image already missing
+at review blocks collection; resolve dangling references in both the published gallery
+and its draft through the normal Studio editing/publication workflow before reviewing
+again. All referenced assets, including retained images, must have valid fresh
+read evidence. Source fixtures cover these cases; actual hosted permissions/error shapes
+and the separate controlled-writer/reference conditions still require acceptance.
+
 Old `replacedBy` links are read-only. Any legacy link to this delivery, including a
 single link, blocks ordinary publication, even a text edit. Select the exact linked
 proof for explicit replacement (which deletes it), or delete the old proofs with their
