@@ -466,8 +466,10 @@ draft. This command makes no network request and changes no CMS or deployment.
 It neither accepts new full-resolution files/ZIPs nor completes AB#145's live
 role, keyboard, editor or publication checks. Batch preparation remains separate.
 
-No ZIP input is offered yet: new processed-file eligibility/whole-package delivery
-needs its own contract, without extending the 21 legacy galleries' file exceptions.
+No ZIP input is offered yet: AB#407 implements the accepted
+[ADR-0035 contract](../docs/adr/0035-unlisted-delivery-zip-proposal.md); verified
+whole-upload and authoring still remain separate, without extending the 21 legacy
+galleries' file exceptions.
 Unlisting/noindex is reduced discovery, not confidentiality; public CMS records can
 be enumerated. Closing/unpublishing a page does not revoke direct asset URLs or
 copies already cached or downloaded. No live customer upload or publication is

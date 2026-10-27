@@ -3,6 +3,9 @@
 **Last reviewed:** 2026-10-22, against an Azure Boards query of every `New` and
 `Active` user story, task and bug.
 
+**Targeted client-gallery update:** 2026-10-25, against current AB#29/130/392/395/396
+and the owner decisions in AB#405. Other rows retain the October 22 review above.
+
 **Authoritative source:** Azure Boards. This document is an operational map only: the
 work item supplies current scope, acceptance criteria, discussion, relations, and state.
 The running history is in [`feature-status.md`](feature-status.md); this map does not
@@ -58,7 +61,7 @@ actions, approvals or accounts; an agent can prepare evidence but cannot close t
 | --- | --- | --- |
 | AB#377 — e2e flake root causes | Active | Open: the WebKit `article-reading-position` locale case (run 1398) and the aborted `goBack` in the inactive private-gallery spec (run 1445, recorded on the item). The section-pointer race has a PR. |
 | AB#160 — Vulnerable dependencies | Active | Continuous. Vitest 4.1.12 fixes run 1430's two moderate advisories (PR open). Studio `sprintf-js` (Dependabot #66) has no patched version and is triaged under AB#278. |
-| AB#392 — Client gallery expiry cleanup | Active | AB#393 creation default and AB#394 planner are merged/Closed; AB#395 delivery expiry executor is New. Proof deletion at replacement publication is separate AB#396 (Active; guarded Studio implementation awaiting review/merge). [Retention](client-gallery-retention.md). |
+| AB#392 — Client gallery expiry cleanup | Active | AB#393/394 defaults and planner are merged; AB#395 executor is source-built/default-off with hosted acceptance open. AB#396 replacement deletion is merged/Closed. Reference cleanup Editor risk is accepted (ADR-0040 B); ZIP support is AB#407. [Retention](client-gallery-retention.md). |
 | AB#391 — Import metadata and no re-encoding | New | [Import path inventory](audits/ab391-import-path-inventory-2026-10-22.md) done; implementation waits for AB#54's test files to verify the metadata tool. |
 
 ## Post-MVP branches
@@ -69,9 +72,9 @@ resumed for this owner (AGENTS.md); AB#313 audits removing that inactive code.
 
 | Work item | State | Readiness |
 | --- | --- | --- |
-| AB#29 — Unlisted client galleries and whole-gallery ZIPs | Active | Follows ADR-0034 and the ADR-0035 ZIP proposal; owner decisions first. |
+| AB#29 — Unlisted client galleries and whole-gallery ZIPs | Active | Follows ADR-0034 and the owner-accepted ADR-0035 ZIP contract (2026-10-25); AB#407 source and transport/capacity/hosted gates remain. |
 | AB#145 — Administer unlisted galleries | Active | Same branch; authoring boundaries need their own implementation. |
-| AB#130 — Proof selection without S3 | Active | Publication, selection, notices, reminders and manual deletion are merged/default-off. The [2026-10-24 amendment](adr/0038-proof-selection-in-existing-sanity.md#replacement-deletion-amendment-2026-10-24) requires proof deletion on replacement publication; AB#396 is Active with the guarded Studio implementation awaiting review/merge. Hosted/privacy acceptance and activation remain separate. |
+| AB#130 — Proof selection without S3 | Active | Publication, selection, notices, reminders and manual deletion are merged/default-off. The [2026-10-24 replacement-deletion amendment](adr/0038-proof-selection-in-existing-sanity.md#replacement-deletion-amendment-2026-10-24) is source-built in merged/Closed AB#396. Hosted/privacy acceptance and activation remain separate. |
 | AB#60 — Enquiry about a public gallery item | Active | Curated-gallery path is built; a dynamic entry point needs the keyword branch. |
 
 **Keyword and commerce discovery:**

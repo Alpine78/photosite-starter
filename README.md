@@ -638,8 +638,11 @@ reader serves them at `/client-gallery/<handle>` without changing the legacy
 adapter. No new-gallery ZIP is offered yet. A separately authorized
 [synthetic rehearsal](docs/audits/client-gallery-lifecycle-rehearsal-2026-10-24.md)
 exercised real Sanity publication, confirmation, replacement and expiry deletion
-from an isolated local production build. Hosted Studio, narrow roles, editor
-identity acceptance, hosted mail delivery and deliberate production activation remain open.
+from an isolated local production build. Hosted Studio, verified cleanup credentials,
+editor identity acceptance, hosted mail delivery and deliberate production activation remain open.
+The reference owner accepted a dedicated Editor cleanup token's broad-content risk
+in [ADR-0040](docs/adr/0040-client-gallery-cleanup-credential-options.md); actual
+provisioning/grant verification remains separate.
 AB#402 replaces the source's nonempty-ID identity inference with a fail-closed
 [project-member check](docs/sanity-setup.md#proof-gallery-publication-ab130-adr-0038);
 the intended non-admin human Editor still needs actual hosted acceptance.

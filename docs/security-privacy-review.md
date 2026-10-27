@@ -41,6 +41,15 @@ all four test records removed. The owner separately confirmed mailbox receipt on
 2026-10-25; hosted delivery remains untested. These are scoped operational records,
 not a rerun or approval of the full launch review.
 
+The [2026-10-25 accepted credential decision (ADR-0040 option B)](adr/0040-client-gallery-cleanup-credential-options.md)
+records the reference owner's acceptance of a dedicated Editor cleanup token and
+content compromise across project datasets. Application guards do not narrow a
+stolen token; other deployment secrets may also be exposed by server compromise.
+Actual grant/provider/hosted checks and activation remain open. The owner separately
+accepted the [future public ZIP media contract](adr/0035-unlisted-delivery-zip-proposal.md);
+no new customer file or package is uploaded by these policy decisions. These are
+scoped updates, not a rerun or approval of the full launch review.
+
 ## How this review was run
 
 A plan for this review was sent to Codex (OpenAI's CLI, `codex-review-loop` skill,

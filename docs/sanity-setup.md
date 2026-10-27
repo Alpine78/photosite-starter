@@ -811,9 +811,12 @@ and hosted permissions before enabling it.
 
 The server worker additionally needs a dedicated cleanup token with verified full
 dataset READ, including dotted private records, drafts and releases. Its ordinary
-export is complete only for readable documents. Restrict WRITE to new delivery
-documents, cleanup control/cursor prefixes and image assets; asset grants cannot
-generally express current enrolled ownership. Transient exports can include private
+export is complete only for readable documents. The reference owner accepted a
+dedicated Editor cleanup token's broad content rights and compromise risk in
+[ADR-0040 option B](adr/0040-client-gallery-cleanup-credential-options.md). A clone
+choosing a restricted role should instead limit WRITE to new deliveries, control/
+cursor prefixes and image assets. Neither grant generally expresses current enrolled
+asset ownership; application checks remain independent. Transient exports can include private
 proof terms, discarded after reference normalization. Before activation, establish
 the controlled strong-reference/no-release writer boundary and verify provider
 atomicity, all-version omissions, capacity and races on synthetic records. See
@@ -821,8 +824,10 @@ atomicity, all-version omissions, capacity and races on synthetic records. See
 role, real deletion or activation is provisioned by this source.
 The separate AB#399 [owner-run read probe](client-gallery-cleanup.md#read-only-capacity-and-known-canary-probe-ab399)
 uses a private explicit target/canary manifest and the dedicated token, independently
-of ambient site settings. It is source-built, not run on the actual dataset; a pass
-measures readable evidence only and does not prove the token's full READ/WRITE role.
+of ambient site settings. AB#399 supplied the source; the separately authorized
+[AB#401 rehearsal](audits/client-gallery-lifecycle-rehearsal-2026-10-24.md) subsequently
+ran it on the actual dataset. A pass measures readable evidence only and does not
+prove the token's full READ/WRITE role.
 Legacy imported fields/actions remain read-only. Bounded web-image authoring and
 the AB#303 reader are source implementations; the reader remains off by default.
 Its [runtime configuration](deployment.md#ongoing-unlisted-client-galleries-adr-0034)

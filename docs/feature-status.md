@@ -14,6 +14,15 @@ This is source verification: actual Editor/owner/robot and hosted acceptance rem
 under AB#130, with activation off. See the
 [identity contract](sanity-setup.md#proof-gallery-publication-ab130-adr-0038).
 
+Client-gallery owner decisions, 2026-10-25 — AB#405 **Closed** (PR #623 merged):
+the owner accepted [ADR-0040 option B](adr/0040-client-gallery-cleanup-credential-options.md),
+a dedicated Editor cleanup token with broad project-content rights and the stated
+compromise risk. Independent application safeguards and actual token/hosted/activation
+gates remain. The [future public whole-ZIP media contract](adr/0035-unlisted-delivery-zip-proposal.md)
+is also accepted; exact customer-batch approval, supported large-upload/account
+evidence and AB#407 source implementation remain separate. AB#406 records the exact
+agent-rule exception. No provisioning, content write, deployment or activation.
+
 Proof-image deletion revisions, 2026-10-25 — AB#404 **Closed** (PR #622 merged):
 manual proof deletion and replacement publication retain the fresh image revisions
 and use the same patch-before-delete planner in their atomic operation. Changed or
