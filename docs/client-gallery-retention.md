@@ -74,8 +74,10 @@ approval after a text edit. Existing new-delivery records require a reviewed enr
 decision. Legacy enrollment remains outside this contract. Do not
 convert an indefinite gallery to finite access or bulk-enroll the 21 legacy galleries.
 
-The new-ZIP authoring/transport decision remains [ADR-0035](adr/0035-unlisted-delivery-zip-proposal.md)
-(Proposed). A cleanup requirement grants no new file eligibility or upload permission.
+The owner-accepted [ADR-0035 ZIP contract](adr/0035-unlisted-delivery-zip-proposal.md)
+is implemented by AB#407's [verified attachment workflow](client-gallery-zip.md),
+fresh reader/link and same-unit expiry cleanup. Actual upload transport, account
+capacity, exact customer-batch approval and activation remain separate.
 Legacy galleries have their own image records, manifests and batch constraints; a
 new-delivery planner does not establish their removal safety. AB#396
 replacement publication removes proofs permanently; they do not return if delivery later
@@ -134,11 +136,13 @@ acceptance remain required under AB#395.
 The [source worker and runbook](client-gallery-cleanup.md) implement the bounded
 protocol and list the remaining hosted evidence. A committed daily cron never
 enables it; both Studio enrollment and Production worker flags default off.
-The worker currently removes expired new delivery documents and unshared web
-images only. A full dataset READ broadens transient private-field processing;
+AB#407 extends the worker to remove expired new delivery documents, unshared web
+images and their optional one whole ZIP in the same revision-guarded transaction. A full dataset READ broadens transient private-field processing;
 WRITE cannot generally encode image ownership. The controlled strong-writer and
 no-release boundary must be established before activation. Shared images have
-no later sweep; provider history/backups, CDN and downloads remain outside scope.
+no later sweep; the same rule applies to shared ZIPs. An old replaced/detached ZIP
+needs a separate manual shared-use review, not an orphan sweep. Provider history/
+backups, CDN and downloads remain outside scope.
 
 These are implementation requirements to verify in AB#395, not evidence of a running
 service or a final provider-read contract:

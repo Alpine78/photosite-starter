@@ -1,7 +1,7 @@
 # Expiry cleanup candidate planner (AB#394)
 
 `src/lib/client-gallery-retention.ts` is a pure, server-only decision module for
-AB#392. It performs no I/O and has no production caller. It returns **candidates**,
+AB#392, consumed by the default-off cleanup worker. It performs no I/O and returns **candidates**,
 never executable mutations; every result has `readyToDelete: false` and
 `readyToWrite: false`. Automatic deletion is **not implemented by this slice**.
 AB#395 owns the executor, authenticated scheduling, enrollment storage and activation.
@@ -49,7 +49,7 @@ drafts/releases; the planner cannot prove that claim. An adapter must not set th
 a lagging query index alone. Known draft/release variants block this first slice.
 The executor must resolve the race where a variant appears after an absence check.
 
-Every owned image asset must occur exactly once in evidence with its current revision
+Every owned image asset and optional whole ZIP must occur exactly once in evidence with its current revision
 and matching asset type. Repeated gallery uses deduplicate, preserving their item keys
 in `references`. A missing or unreadable asset blocks; absence is never guessed.
 Each asset's referrer list must include the exact gallery ID and revision. All other
@@ -60,13 +60,13 @@ or a list reaching 100 entries blocks; adapters must paginate to exhaustion or r
 Up to 256 gallery images and 257 unique assets (including a whole ZIP) are admitted.
 Evidence arrays must be dense; extra fields, non-plain objects and accessors are refused.
 
-`zipReference` is isolated future-adapter input shaped as
-`{_type: "file", asset: {_type: "reference", _ref: "file-<sha1>-zip"}}`.
-It permits planning only one intact package and requires the same complete evidence.
-It adds **no `deliveryZip` field** to today's gallery schema and accepts neither
-ADR-0035 nor a new file upload. The later adapter must bind the package to the gallery
-revision; it cannot fabricate an ownership claim. The current gallery parser continues
-to refuse an invented ZIP field. Legacy ZIPs need their own manifest/batch adapter.
+AB#407 binds the optional ZIP to the gallery's actual native `deliveryZip` field,
+shaped as `{_type: "file", asset: {_type: "reference", _ref: "file-<sha1>-zip"}}`.
+The optional `zipReference` argument, if supplied, must match that field; it cannot
+nominate an additional asset. Both paths require the same complete typed file evidence.
+The worker checks fresh technical ZIP metadata independently before planning; the
+planner neither proves the private attachment audit was used nor authorizes upload.
+Legacy ZIPs still need their own manifest/batch adapter.
 
 Candidate output contains exact gallery/asset revisions, recognized item keys, one
 optional ZIP location, deterministic candidate/shared ordering and counts. It omits
@@ -108,5 +108,17 @@ edits do not silently withdraw consent. A changed policy requires Studio review.
 The executor deletes the complete expired gallery, asserts draft absence and
 guards current assets in one transaction with its private completion receipt.
 It never executes this module's output without that fresh evidence and control
-revision fence. The pure API remains provisional and grants no new ZIP field.
+revision fence. The pure API remains decision evidence, not deletion authority;
+AB#407 separately supplies the actual schema/reader ZIP field and worker binding.
 All hosted provider/role/concurrency checks and deliberate activation remain open.
+
+## Whole-ZIP integration — 2026-10-26 (AB#407)
+
+The current worker includes the actual optional ZIP in the approved asset set,
+checks its fresh file identity/revision and uses this planner in the same atomic
+gallery/image/ZIP deletion. Shared ZIPs are retained, with typed receipt evidence
+and closed `sharedZips` counts. Missing evidence blocks the entire unit; no old
+image-only approval can authorize deletion while leaving a new ZIP behind. Existing
+image-only v1 serialization remains compatible. See the [current protocol](client-gallery-cleanup.md)
+and [verified attachment procedure](client-gallery-zip.md). Source fixtures do not
+replace role/provider/race/hosted acceptance or activate cleanup.

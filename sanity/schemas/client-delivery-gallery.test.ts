@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { parseClientGalleryZipAsset, parseClientGalleryZipReference } from "../../src/lib/client-gallery-zip-contract";
 import { defineSchemaTypes } from "./index";
 import { clientDeliveryGalleryType, clientDeliveryItemType, CLIENT_DELIVERY_ERRORS as errors, validateClientDeliveryGallery } from "./client-delivery-gallery";
 import { inspectValidationRules } from "./validation-test-helper";
@@ -14,9 +15,10 @@ function gallery() {
       image: { _type: "image", asset: { _type: "reference", _ref: assetId } }, alt: alt() }] };
 }
 const asset = () => ({ _id: assetId, _type: "sanity.imageAsset", extension: "webp", mimeType: "image/webp", sha1hash: "a".repeat(40), width: 1600, height: 1000, restricted: false });
-function setup(options: { identity?: unknown; assets?: unknown; failure?: boolean } = {}) {
+function setup(options: { identity?: unknown; assets?: unknown; zip?: unknown; failure?: boolean } = {}) {
   const fetch = vi.fn(async (query: string) => {
     if (options.failure) throw new Error("SENSITIVE provider response");
+    if (query === "*[_id == $id][0]") return options.zip as never;
     return (query.includes('"conflicts"')
       ? Object.hasOwn(options, "identity") ? options.identity : { conflicts: [], published: null }
       : Object.hasOwn(options, "assets") ? options.assets : [asset()]) as never;
@@ -35,7 +37,7 @@ describe("Sanity client delivery authoring", () => {
     const { checks } = inspectValidationRules(clientDeliveryGalleryType.validation);
     const f = setup();
     expect(await checks[0](gallery(), f.context)).toBe(true);
-    expect(clientDeliveryGalleryType.fields.map((f) => f.name)).not.toContain("deliveryZip");
+    expect(clientDeliveryGalleryType.fields.find((f) => f.name === "deliveryZip")).toMatchObject({ type: "file", readOnly: true });
     expect(clientDeliveryGalleryType.fields.find((f) => f.name === "available")?.initialValue).toBe(false);
     expect(clientDeliveryGalleryType.fields.find((f) => f.name === "availabilityMode")?.initialValue).toBeUndefined();
     expect(clientDeliveryGalleryType.fields.find((f) => f.name === "handle")?.readOnly).toBe(true);
@@ -134,5 +136,48 @@ describe("Sanity client delivery authoring", () => {
     data.items = Array.from({ length: 256 }, (_, i) => ({ ...data.items[0], _key: `item${i}`,
       alt: Array.from({ length: 20 }, (_, j) => ({ _key: `text${j}`, _type: "localizedText", language: `a${String.fromCharCode(97 + j)}`, value: "漢".repeat(512) })) }));
     const f = setup(); expect(await f.run(data)).toBe(errors.size); expect(f.fetch).not.toHaveBeenCalled();
+  });
+});
+
+const zipId = `file-${"d".repeat(40)}-zip`;
+const zipReference = () => ({ _type: "file", asset: { _type: "reference", _ref: zipId } });
+const zipAsset = () => ({ _id: zipId, _type: "sanity.fileAsset", _rev: "zipRev1", sha1hash: "d".repeat(40), extension: "zip", mimeType: "application/zip", size: 1024, originalFilename: "delivery.zip" });
+describe("whole ZIP schema/runtime contract parity", () => {
+  it("validates a single strong reference using fresh public asset evidence", async () => {
+    const f = setup({ zip: zipAsset() });
+    expect(await f.run({ ...gallery(), deliveryZip: zipReference() })).toBe(true);
+    expect(f.fetch).toHaveBeenLastCalledWith("*[_id == $id][0]", { id: zipId });
+    expect(parseClientGalleryZipReference(zipReference())?.assetId).toBe(zipId);
+    expect(parseClientGalleryZipAsset(zipAsset(), zipId).bytes).toBe(1024);
+  });
+  it.each([
+    {}, [], { ...zipReference(), url: "https://invalid.test/private" },
+    { _type: "file", asset: { ...zipReference().asset, _weak: true } },
+    { _type: "file", asset: { ...zipReference().asset, _ref: zipId + "\n" } },
+    { _type: "file", asset: { ...zipReference().asset, _ref: assetId } },
+    Object.assign(zipReference(), { [Symbol("hidden")]: true }),
+  ])("rejects malformed references in both boundaries before provider IO %#", async deliveryZip => {
+    expect(() => parseClientGalleryZipReference(deliveryZip)).toThrow();
+    const f = setup({ zip: zipAsset() });
+    expect(await f.run({ ...gallery(), deliveryZip })).toBe(errors.structure);
+    expect(f.fetch).not.toHaveBeenCalled();
+  });
+  it.each([
+    null, {}, { ...zipAsset(), _id: `file-${"e".repeat(40)}-zip` },
+    { ...zipAsset(), _type: "sanity.imageAsset" }, { ...zipAsset(), sha1hash: "e".repeat(40) },
+    { ...zipAsset(), extension: "jpg" }, { ...zipAsset(), mimeType: "application/octet-stream" },
+    { ...zipAsset(), size: 0 }, { ...zipAsset(), size: 1_000_000_001 }, { ...zipAsset(), size: 1.1 },
+    { ...zipAsset(), _rev: "rev\n" }, { ...zipAsset(), originalFilename: "customer-name.zip" },
+    { ...zipAsset(), title: "private title" }, { ...zipAsset(), source: { url: "private" } },
+    { ...zipAsset(), privateOnly: true }, { ...zipAsset(), metadata: { arbitrary: "private" } },
+    Object.assign(zipAsset(), { [Symbol("hidden")]: true }),
+  ])("refuses incompatible public asset evidence in both boundaries %#", async zip => {
+    expect(() => parseClientGalleryZipAsset(zip, zipId)).toThrow();
+    expect(await setup({ zip }).run({ ...gallery(), deliveryZip: zipReference() })).toBe(errors.zip);
+  });
+  it.each([1, 1_000_000_000])("keeps the engineering byte bound inclusive: %s", async size => {
+    const zip = { ...zipAsset(), size, metadata: {} };
+    expect(parseClientGalleryZipAsset(zip, zipId).bytes).toBe(size);
+    expect(await setup({ zip }).run({ ...gallery(), deliveryZip: zipReference() })).toBe(true);
   });
 });

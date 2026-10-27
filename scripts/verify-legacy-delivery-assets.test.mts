@@ -22,7 +22,7 @@ async function fixture() {
   return { dir, input, bound, out, digest: plan.reviewDigest };
 }
 function run(f: Awaited<ReturnType<typeof fixture>>, out = f.out) {
-  return exec(process.execPath, [path.resolve("scripts/verify-legacy-delivery-assets.mts"), "--plan", f.input, "--bindings", f.bound,
+  return exec(process.execPath, ["--disable-warning=MODULE_TYPELESS_PACKAGE_JSON", path.resolve("scripts/verify-legacy-delivery-assets.mts"), "--plan", f.input, "--bindings", f.bound,
     "--approved-digest", f.digest, "--out", out], { env: { ...process.env, LANG: "C", LC_ALL: "C" }, timeout: 15_000 });
 }
 describe("legacy asset operator filesystem boundary", () => {

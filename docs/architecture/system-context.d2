@@ -71,14 +71,14 @@ private-db: "Private Postgres (deferred — ADR-0034)\nThe site owner's own data
   class: [store; planned]
 }
 
-unlisted: "Unlisted client delivery (selected — ADR-0034)\nExisting Sanity; public metadata and files.\n21 legacy pages observed live 2026-10-15;\nnew authoring + reader built, default-off.\nPage expiry does not revoke files." {
+unlisted: "Unlisted client delivery (selected — ADR-0034)\nExisting Sanity; public metadata and files.\n21 legacy pages observed live 2026-10-15;\nnew authoring + reader + verified whole-ZIP link built, default-off.\nPage expiry does not revoke files." {
   class: built
 }
 
 visitor -> unlisted: "Direct unlisted link, no customer login"
 unlisted -> sanity: "Fresh publication / deadline / manifest reads"
 vercel -> unlisted: "Daily authenticated delivery cleanup; source-built, off\nPrivate enrollment/cursor, full-readable snapshot, guarded deletion.\nHosted role/provider/writer acceptance required; no proof/legacy timer." {class: pending-flow}
-visitor -> sanity: "Public JPEG / ZIP URLs in legacy page markup;\nfile downloads / integrity verification pending.\nNew batches require their own review." {class: pending-flow}
+visitor -> sanity: "Public legacy files and optional new whole-ZIP download.\nNew ZIP: source-built, default-off; verified owner-run attachment.\nActual batch/upload/hosted acceptance pending." {class: pending-flow}
 
 visitor -> site: "Reads pages,\nbrowses galleries"
 visitor -> vercel: "Optional cookieless page-view statistics\n(ADR-0037; off by default, not yet enabled)" {class: pending-flow}

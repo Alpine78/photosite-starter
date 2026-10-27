@@ -9,6 +9,7 @@ export const CLIENT_DELIVERY_ERRORS = {
   structure: "Check the client gallery fields, image order and alternative texts.",
   identity: "The gallery link is missing, already used or different from the published link.",
   assets: "Use complete exported web images up to 2048 pixels; check their uploaded asset metadata.",
+  zip: "Use one verified whole delivery ZIP; check its current uploaded file metadata.",
   unavailable: "The gallery could not be validated. Try again before publishing.",
   size: "This gallery is too large. Use shorter texts or fewer images.",
 } as const;
@@ -44,11 +45,47 @@ export function isClientDeliveryAsset(asset: unknown): asset is ClientDeliveryAs
     PUBLIC_DELIVERY_FORMATS[parts[4]] === asset.mimeType);
 }
 
+/** Schema-local ZIP boundary. Runtime/tooling parity is enforced by shared hostile fixtures. */
+const ZIP_ID = /^file-([a-f0-9]{40})-zip$/u;
+const REVISION = /^[A-Za-z0-9_-]{1,128}$/u;
+function invalid(): never { throw new TypeError("Invalid client gallery ZIP"); }
+function object(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value) &&
+    [Object.prototype, null].includes(Object.getPrototypeOf(value));
+}
+function exact(value: unknown, fields: readonly string[]): value is Record<string, unknown> {
+  return object(value) && Reflect.ownKeys(value).length === fields.length && fields.every(name =>
+    Object.hasOwn(value, name) && Object.getOwnPropertyDescriptor(value, name)?.enumerable === true &&
+    "value" in Object.getOwnPropertyDescriptor(value, name)!);
+}
+function parseClientGalleryZipReference(value: unknown): { assetId: string; hash: string } | undefined {
+  if (value == null) return undefined;
+  if (!exact(value, ["_type", "asset"]) || value._type !== "file" ||
+    !exact(value.asset, ["_type", "_ref"]) || value.asset._type !== "reference" || typeof value.asset._ref !== "string") return invalid();
+  const match = ZIP_ID.exec(value.asset._ref);
+  if (!match || match[0] !== value.asset._ref) return invalid();
+  return { assetId: value.asset._ref, hash: match[1] };
+}
+/** Native asset documents are public too: no authored labels, source locators or arbitrary metadata. */
+function parseClientGalleryZipAsset(value: unknown, assetId: string): { assetId: string; hash: string; revision: string; bytes: number } {
+  const match = ZIP_ID.exec(assetId);
+  const fields = ["_id", "_type", "_rev", "_createdAt", "_updatedAt", "assetId", "extension", "mimeType", "sha1hash", "size", "originalFilename", "url", "path", "uploadId", "metadata"];
+  if (!match || match[0] !== assetId || !object(value) || Reflect.ownKeys(value).some(name =>
+    typeof name !== "string" || !fields.includes(name) || !("value" in Object.getOwnPropertyDescriptor(value, name)!)) ||
+    value._id !== assetId || value._type !== "sanity.fileAsset" || value.sha1hash !== match[1] || value.extension !== "zip" ||
+    typeof value.mimeType !== "string" || !["application/zip", "application/x-zip-compressed"].includes(value.mimeType) ||
+    typeof value._rev !== "string" || REVISION.exec(value._rev)?.[0] !== value._rev ||
+    typeof value.size !== "number" || !Number.isSafeInteger(value.size) || value.size < 1 || value.size > 1_000_000_000 ||
+    value.originalFilename != null && (typeof value.originalFilename !== "string" || !["delivery.zip", "photographs.zip"].includes(value.originalFilename)) ||
+    value.metadata != null && (!object(value.metadata) || Reflect.ownKeys(value.metadata).length !== 0)) return invalid();
+  return { assetId, hash: match[1], revision: value._rev, bytes: value.size };
+}
+
 /** Editorial guard only. The runtime must independently validate API-written data. */
 export async function validateClientDeliveryGallery(value: unknown, context: SchemaValidationContext): Promise<true | string> {
   try {
     if (record(value) && typeof value._id === "string" && value._id.startsWith("versions.")) return "Client and proof galleries must be published with their own publication action, outside Content Releases and scheduled drafts.";
-    if (!record(value) || !closed(value, ["_id", "_type", "_rev", "_createdAt", "_updatedAt", "_system", "handle", "title", "available", "availabilityMode", "expiryInstant", "items"]) ||
+    if (!record(value) || !closed(value, ["_id", "_type", "_rev", "_createdAt", "_updatedAt", "_system", "handle", "title", "available", "availabilityMode", "expiryInstant", "items", "deliveryZip"]) ||
       value._type !== "clientDeliveryGallery" || typeof value.available !== "boolean" ||
       !localized(value.title, false, 200) || !Array.isArray(value.items) || value.items.length < 1 ||
       value.items.length > CLIENT_DELIVERY_MAX_ITEMS || Object.keys(value.items).length !== value.items.length) return CLIENT_DELIVERY_ERRORS.structure;
@@ -65,6 +102,8 @@ export async function validateClientDeliveryGallery(value: unknown, context: Sch
     // Native publication adds metadata; it must not invalidate an admitted draft.
     const authored = Object.fromEntries(Object.entries(value).filter(([name]) => !["_id", "_rev", "_createdAt", "_updatedAt", "_system"].includes(name)));
     if (new TextEncoder().encode(JSON.stringify(authored)).byteLength > CLIENT_DELIVERY_MAX_DOCUMENT_BYTES) return CLIENT_DELIVERY_ERRORS.size;
+    let zip: { assetId: string; hash: string } | undefined;
+    try { zip = parseClientGalleryZipReference(value.deliveryZip); } catch { return CLIENT_DELIVERY_ERRORS.structure; }
     const ids = [...new Set(references)];
     const client = validationClientOf(context);
     const [identity, assets] = await Promise.all([
@@ -87,6 +126,10 @@ export async function validateClientDeliveryGallery(value: unknown, context: Sch
       seen.add(asset._id);
       if (!isClientDeliveryAsset(asset)) return CLIENT_DELIVERY_ERRORS.assets;
     }
+    if (zip) {
+      const file = await client.fetch<unknown>(`*[_id == $id][0]`, { id: zip.assetId });
+      try { parseClientGalleryZipAsset(file, zip.assetId); } catch { return CLIENT_DELIVERY_ERRORS.zip; }
+    }
     return true;
   } catch {
     return CLIENT_DELIVERY_ERRORS.unavailable;
@@ -107,7 +150,7 @@ export const clientDeliveryItemType: SchemaTypeDefinition = {
 
 export const clientDeliveryGalleryType: SchemaTypeDefinition = {
   name: "clientDeliveryGallery", title: "Client gallery", type: "document",
-  description: "Unlisted public delivery in Sanity. Do not enter customer contact details. Direct image URLs remain public after the page closes.",
+  description: "Unlisted public delivery in Sanity. Do not enter customer contact details. Direct file URLs remain public after the page closes.",
   fields: [
     { name: "title", title: "Title", type: "array", of: [{ type: "localizedText" }], validation: (rule) => rule.max(20) },
     { name: "available", title: "Available to link holders", type: "boolean", initialValue: false,
@@ -116,6 +159,9 @@ export const clientDeliveryGalleryType: SchemaTypeDefinition = {
     { name: "expiryInstant", title: "Exclusive UTC deadline", type: "datetime",
       description: "New Studio galleries suggest six calendar months from creation. Review before publishing; publication does not reset it. Clear for indefinite access. Page expiry alone does not delete files." },
     { name: "items", title: "Client gallery images", type: "array", of: [{ type: "clientDeliveryItem" }], validation: (rule) => rule.required().min(1).max(CLIENT_DELIVERY_MAX_ITEMS) },
+    { name: "deliveryZip", title: "Whole delivery ZIP", type: "file", readOnly: true,
+      description: "Public whole package. Attach, replace or remove it with the owner-run verified ZIP command before publication; no upload is offered here. See docs/client-gallery-zip.md.",
+      options: { storeOriginalFilename: false, accept: "application/zip,application/x-zip-compressed" } },
     { name: "handle", title: "Permanent gallery link identifier", type: "string", readOnly: true,
       description: "Generated on creation. Copy this identifier for the customer link; keep it unchanged.", validation: (rule) => rule.required() },
   ],

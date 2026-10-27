@@ -13,7 +13,7 @@ describe("configured cleanup orchestration", () => {
   }
   it("avoids a private dataset export when the advisory due query is false", async () => {
     const log = prepare(); mocks.due.mockResolvedValue(false);
-    expect(await runConfiguredClientGalleryCleanup(config)).toMatchObject({ examined: 0, attempts: 0 });
+    expect(await runConfiguredClientGalleryCleanup(config)).toMatchObject({ examined: 0, attempts: 0, deletedZips: 0, sharedZips: 0 });
     expect(mocks.snapshot).not.toHaveBeenCalled(); expect(mocks.run).not.toHaveBeenCalled();
     expect(JSON.stringify(log.mock.calls)).not.toMatch(/synthetic-token|synthetic-secret|example123/u);
     expect((mocks.due.mock.calls[0][1] as AbortSignal).aborted).toBe(true);

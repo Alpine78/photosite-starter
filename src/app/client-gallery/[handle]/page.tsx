@@ -27,7 +27,7 @@ export default async function ClientGalleryPage({ params }: { params: Promise<{ 
         <p>{notice.publicAccessNotice}</p>
         <p>{notice.fileRetentionNotice}</p>
       </section>
-      {gallery.zipUrl && <a href={gallery.zipUrl} className="mb-8 inline-block underline focus-visible:outline-2 focus-visible:outline-focus" referrerPolicy="no-referrer">{labels.legacyGallery.download}</a>}
+      {gallery.zipUrl && <a href={gallery.zipUrl} download="photographs.zip" className="mb-8 inline-block underline focus-visible:outline-2 focus-visible:outline-focus" referrerPolicy="no-referrer">{labels.legacyGallery.download}</a>}
       <GalleryLightbox slides={gallery.images} labels={labels.lightbox}>
         <ul className="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {gallery.images.map((image, index) => <li key={image.itemId}>

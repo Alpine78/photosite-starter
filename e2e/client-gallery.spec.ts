@@ -41,6 +41,28 @@ for (const locale of [appUnderTestEnvironment.SITE_LOCALE, PREFIXED_LOCALE.prefi
     for (const internal of ["clientDeliveryGallery", "restricted\"", "SANITY_READ_TOKEN", "PRIVATE_GALLERY_S3"]) expect(html).not.toContain(internal);
     expect(externalRequests).toEqual([]);
   });
+  test(`whole delivery ZIP ${locale} downloads one complete native package`, async ({ page, externalRequests }) => {
+    const response = await page.goto(`/client-gallery/${"d".repeat(32)}?locale=${locale}`);
+    expect(response?.status()).toBe(200);
+    expect(response?.headers()["cache-control"]).toContain("no-store");
+    const link = page.getByRole("link", { name: labels.legacyGallery.download });
+    await expect(link).toHaveCount(1);
+    await expect(link).toHaveAttribute("download", "photographs.zip");
+    await expect(link).toHaveAttribute("referrerpolicy", "no-referrer");
+    const downloadPromise = page.waitForEvent("download");
+    await link.click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toBe("photographs.zip");
+    const stream = await download.createReadStream();
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+    const bytes = Buffer.concat(chunks);
+    expect(bytes.subarray(0, 4).toString("hex")).toBe("504b0304");
+    expect(bytes.subarray(-22, -18).toString("hex")).toBe("504b0506");
+    expect(bytes.readUInt16LE(bytes.length - 12)).toBe(1);
+    expect(bytes.toString("latin1")).toContain("image-0001.jpg");
+    expect(externalRequests).toEqual([]);
+  });
   test(`finite unlisted delivery ${locale} shows its exact UTC cutoff`, async ({ page, externalRequests }) => {
     await page.goto(`${finiteRoute}?locale=${locale}`);
     const time = page.locator("main time");

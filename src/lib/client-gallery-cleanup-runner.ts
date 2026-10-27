@@ -8,6 +8,7 @@ import { CLIENT_GALLERY_FORMATS, parseClientGallery, type ParsedClientGallery } 
 import { planClientGalleryCleanup, RETENTION_MAX_REFERRERS, type CleanupCandidate } from "@/lib/client-gallery-retention";
 import { cleanupDocumentId, type CleanupSnapshot } from "@/lib/client-gallery-cleanup-snapshot";
 import { CleanupTransportError, type CleanupMutationResult } from "@/lib/client-gallery-cleanup-transport";
+import { parseClientGalleryZipAsset } from "@/lib/client-gallery-zip-contract";
 
 export const CLEANUP_CURSOR_ID = "clientGalleryCleanupCursor.daily";
 export const CLEANUP_MAX_EXAMINED = 50;
@@ -18,7 +19,7 @@ const CLAIM_RESERVE_MS = 35_000;
 type Document = Record<string, unknown>;
 type Reads = Readonly<{ documents: ReadonlyMap<string, Document>; omitted: ReadonlySet<string> }>;
 type Outcome = "completed" | "skipped" | "blocked" | "conflict" | "refused" | "uncertain";
-export type CleanupRunCounts = Record<Outcome, number> & { examined: number; attempts: number; deletedAssets: number; sharedAssets: number; completedPass: boolean; cursorWritten: boolean };
+export type CleanupRunCounts = Record<Outcome, number> & { examined: number; attempts: number; deletedAssets: number; sharedAssets: number; deletedZips: number; sharedZips: number; completedPass: boolean; cursorWritten: boolean };
 export type CleanupRunDependencies = Readonly<{
   snapshot: CleanupSnapshot;
   read: (ids: readonly string[], options?: { includeAllVersions?: boolean }) => Promise<Reads>;
@@ -94,7 +95,7 @@ export function cleanupDeletionMutations(control: CleanupControl, plan: CleanupC
 
 /** No caller can replay a stored plan: pending carries only operation identity. */
 export async function runClientGalleryCleanup(dependencies: CleanupRunDependencies): Promise<CleanupRunCounts> {
-  const counts: CleanupRunCounts = { examined: 0, attempts: 0, completed: 0, skipped: 0, blocked: 0, conflict: 0, refused: 0, uncertain: 0, deletedAssets: 0, sharedAssets: 0, completedPass: false, cursorWritten: false };
+  const counts: CleanupRunCounts = { examined: 0, attempts: 0, completed: 0, skipped: 0, blocked: 0, conflict: 0, refused: 0, uncertain: 0, deletedAssets: 0, sharedAssets: 0, deletedZips: 0, sharedZips: 0, completedPass: false, cursorWritten: false };
   const started = dependencies.clock(), iso = () => new Date(dependencies.now()).toISOString();
   const expiryNow = dependencies.expiryNow ?? dependencies.now;
   const note = (outcome: Outcome) => { counts[outcome]++; };
@@ -120,6 +121,8 @@ export async function runClientGalleryCleanup(dependencies: CleanupRunDependenci
       const fresh = await readControl(control._id);
       if (fresh && samePublication(control, fresh) && fresh.state === "complete" && fresh.receipt?.operationId === operationId) {
         counts.deletedAssets += fresh.receipt.deletedCount; counts.sharedAssets += fresh.receipt.sharedCount;
+        counts.deletedZips += fresh.receipt.deletedAssets.filter((asset) => asset.type === "sanity.fileAsset").length;
+        counts.sharedZips += fresh.receipt.sharedAssets.filter((asset) => asset.type === "sanity.fileAsset").length;
         return true;
       }
     } catch { /* an unreadable response proves nothing */ }
@@ -149,13 +152,21 @@ export async function runClientGalleryCleanup(dependencies: CleanupRunDependenci
     const assetReads = await dependencies.read(policy.assetIds);
     const assets = policy.assetIds.map((id) => {
       const observed = dependencies.snapshot.documents.get(id), fresh = assetReads.documents.get(id);
-      const item = parsed.items.find((entry) => entry.assetId === id)!;
-      if (!observed || observed.type !== "sanity.imageAsset" || !assetMatches(fresh, item)) return blocked("invalid_assets");
+      let revision: string, type: CleanupAsset["type"];
+      if (id === parsed.deliveryZip?.assetId) {
+        if (!observed || observed.type !== "sanity.fileAsset") return blocked("invalid_assets");
+        try { revision = parseClientGalleryZipAsset(fresh, id).revision; } catch { return blocked("invalid_assets"); }
+        type = "sanity.fileAsset";
+      } else {
+        const item = parsed.items.find((entry) => entry.assetId === id);
+        if (!observed || observed.type !== "sanity.imageAsset" || !item || !assetMatches(fresh, item)) return blocked("invalid_assets");
+        revision = fresh._rev; type = "sanity.imageAsset";
+      }
       const refs = dependencies.snapshot.referrers(id);
       if (refs.length >= RETENTION_MAX_REFERRERS) return blocked("invalid_assets");
       if (!refs.some((entry) => entry.id === parsed.id)) return blocked("incomplete_evidence");
       const referrers = refs.map((entry) => ({ id: entry.id, revision: entry.id === parsed.id ? parsed.revision : entry.revision }));
-      return { id, revision: fresh._rev, type: "sanity.imageAsset", complete: true, referenceCount: referrers.length, referrers };
+      return { id, revision, type, complete: true, referenceCount: referrers.length, referrers };
     });
     const planned = planClientGalleryCleanup({ gallery: raw, enrollment: { galleryId: parsed.id, revision: parsed.revision }, now: expiryNow(),
       evidence: { galleryId: parsed.id, revision: parsed.revision, variants: { complete: true, ids: [parsed.id] }, assetsComplete: true, assets } });
@@ -210,6 +221,8 @@ export async function runClientGalleryCleanup(dependencies: CleanupRunDependenci
       // A lost body can conceal a successful transaction. Never resend it.
       if (outcome.kind === "committed") {
         counts.deletedAssets += plan.candidates.length; counts.sharedAssets += plan.shared.length;
+        counts.deletedZips += plan.candidates.filter((asset) => asset.type === "sanity.fileAsset").length;
+        counts.sharedZips += plan.shared.filter((asset) => asset.type === "sanity.fileAsset").length;
         return note("completed");
       }
       if (await reconcile(claimed, operationId)) return note("completed");

@@ -8,6 +8,9 @@ import { createClientGalleryCleanupTransport, type CleanupMutationResult } from 
 const at = "2026-10-24T10:00:00.000Z", now = Date.parse(at);
 const image = `image-${"a".repeat(40)}-1600x1000-webp`;
 const shared = `image-${"b".repeat(40)}-1000x1600-webp`;
+const zip = `file-${"d".repeat(40)}-zip`;
+const zipReference = { _type: "file", asset: { _type: "reference", _ref: zip } };
+const zipAsset = { _id: zip, _type: "sanity.fileAsset", sha1hash: "d".repeat(40), extension: "zip", mimeType: "application/zip", size: 1234, originalFilename: "delivery.zip" };
 const ref = (_ref: string, weak = false) => ({ _type: "reference", _ref, ...(weak ? { _weak: true } : {}) });
 function gallery(id = "delivery") {
   return { _id: id, _type: "clientDeliveryGallery", handle: "c".repeat(32), available: true, availabilityMode: "until", expiryInstant: at,
@@ -54,6 +57,10 @@ async function setup(extra: Record<string, unknown>[] = [], controls?: CleanupCo
   return { store, dependencies, settings, writes, enrolled, setClock: (value: number) => { clock = value; } };
 }
 const deletesGallery = (mutations: readonly Record<string, unknown>[]) => mutations.some((entry) => (entry.delete as { id?: string } | undefined)?.id === "delivery");
+async function setupZip(extra: Record<string, unknown>[] = []) {
+  const source = { ...gallery(), deliveryZip: zipReference }, enrolled = await control();
+  return setup([source, zipAsset, ...extra], [{ ...enrolled, policy: cleanupPolicyFromGallery(source)! }]);
+}
 
 describe("bounded delivery cleanup against an atomic Content Lake", () => {
   it("runs the actual HTTP snapshot/Doc/mutation adapters through the real parser and planner", async () => {
@@ -91,7 +98,7 @@ describe("bounded delivery cleanup against an atomic Content Lake", () => {
   it("deletes only the expired gallery and unshared image, preserving shared bytes and exact receipt", async () => {
     const run = await setup();
     const counts = await runClientGalleryCleanup(run.dependencies);
-    expect(counts).toMatchObject({ examined: 1, attempts: 1, completed: 1, deletedAssets: 1, sharedAssets: 1, cursorWritten: true });
+    expect(counts).toMatchObject({ examined: 1, attempts: 1, completed: 1, deletedAssets: 1, sharedAssets: 1, deletedZips: 0, sharedZips: 0, cursorWritten: true });
     expect(run.store.docs.has("delivery")).toBe(false); expect(run.store.docs.has(image)).toBe(false); expect(run.store.docs.has(shared)).toBe(true);
     const completed = run.store.docs.get(run.enrolled[0]._id)!;
     expect(completed).toMatchObject({ state: "complete", publicationId: "publication-delivery", sourceRevision: "reviewed-source", receipt: { operationId: "operation-1", deletedCount: 1, sharedCount: 1 } });
@@ -252,6 +259,62 @@ describe("bounded delivery cleanup against an atomic Content Lake", () => {
     const dependencies = { ...run.dependencies, remainingMs: () => 34_999 };
     expect(await runClientGalleryCleanup(dependencies)).toMatchObject({ examined: 0, attempts: 0 });
     expect(run.writes.filter(deletesGallery)).toHaveLength(0);
+  });
+  it.each([false, true])("retires one whole ZIP atomically and reports shared ZIPs (%s)", async (isShared) => {
+    const run = await setupZip(isShared ? [{ _id: "other-delivery", _type: "clientDeliveryGallery", deliveryZip: zipReference }] : []);
+    const counts = await runClientGalleryCleanup(run.dependencies);
+    expect(counts).toMatchObject({ completed: 1, deletedAssets: isShared ? 1 : 2, sharedAssets: isShared ? 2 : 1, deletedZips: isShared ? 0 : 1, sharedZips: isShared ? 1 : 0 });
+    expect(run.store.docs.has("delivery")).toBe(false); expect(run.store.docs.has(image)).toBe(false); expect(run.store.docs.has(zip)).toBe(isShared);
+    const receipt = run.store.docs.get(run.enrolled[0]._id)!.receipt as CleanupControl["receipt"];
+    expect((isShared ? receipt!.sharedAssets : receipt!.deletedAssets).find((entry) => entry.id === zip)).toMatchObject({ type: "sanity.fileAsset", revision: expect.any(String) });
+    expect(run.writes.filter(deletesGallery)).toHaveLength(1);
+    expect(run.writes.find(deletesGallery)?.some((mutation) => (mutation.delete as { id?: string } | undefined)?.id === zip)).toBe(!isShared);
+  });
+  it.each(["missing", "hash", "mime", "bytes", "filename", "type", "unknown"])("blocks the entire unit before claim for %s ZIP metadata", async (failure) => {
+    const run = await setupZip();
+    const changed = { ...run.store.docs.get(zip)! };
+    if (failure === "missing") run.store.docs.delete(zip);
+    else {
+      if (failure === "hash") changed.sha1hash = "a".repeat(40);
+      if (failure === "mime") changed.mimeType = "application/octet-stream";
+      if (failure === "bytes") changed.size = 1_000_000_001;
+      if (failure === "filename") changed.originalFilename = "sensitive-customer-title.zip";
+      if (failure === "type") changed._type = "sanity.imageAsset";
+      if (failure === "unknown") changed.description = "sensitive-canary";
+      run.store.put(changed);
+    }
+    expect(await runClientGalleryCleanup(run.dependencies)).toMatchObject({ blocked: 1, attempts: 0, deletedAssets: 0, deletedZips: 0 });
+    expect(run.store.docs.get(run.enrolled[0]._id)?.lastResult).toMatchObject({ reason: "invalid_assets" });
+    expect(run.store.docs.has("delivery")).toBe(true); expect(run.store.docs.has(image)).toBe(true);
+    expect(run.writes.filter(deletesGallery)).toHaveLength(0);
+  });
+  it.each(["added", "removed", "replaced"])("refuses stale approval when the actual ZIP was %s", async (change) => {
+    const run = change === "added" ? await setup() : await setupZip();
+    const source: Record<string, unknown> = { ...run.store.docs.get("delivery")! };
+    if (change === "removed") delete source.deliveryZip;
+    else source.deliveryZip = change === "added" ? zipReference : { _type: "file", asset: ref(`file-${"e".repeat(40)}-zip`) };
+    run.store.put(source);
+    expect(await runClientGalleryCleanup(run.dependencies)).toMatchObject({ blocked: 1, attempts: 0 });
+    expect(run.store.docs.get(run.enrolled[0]._id)?.lastResult).toMatchObject({ reason: "policy_changed" });
+    expect(run.store.docs.has("delivery")).toBe(true); expect(run.store.docs.has(image)).toBe(true);
+  });
+  it.each(["revision", "strong-reference"])("rolls back gallery, images, ZIP and receipt on a late ZIP %s change", async (race) => {
+    const run = await setupZip();
+    run.settings.beforeMutation = (mutations) => {
+      if (!deletesGallery(mutations)) return;
+      if (race === "revision") run.store.put({ ...run.store.docs.get(zip)! });
+      else run.store.put({ _id: "late-zip-use", _type: "article", file: { asset: ref(zip) } });
+    };
+    expect(await runClientGalleryCleanup(run.dependencies)).toMatchObject({ completed: 0, conflict: 1, deletedAssets: 0, deletedZips: 0 });
+    for (const id of ["delivery", image, zip]) expect(run.store.docs.has(id)).toBe(true);
+    expect(run.store.docs.get(run.enrolled[0]._id)?.receipt).toBeUndefined();
+  });
+  it.each([false, true])("reconciles ZIP completion from a typed receipt without replay, including shared bytes (%s)", async (isShared) => {
+    const run = await setupZip(isShared ? [{ _id: "other-use", _type: "article", file: zipReference }] : []);
+    run.settings.mutation = async (mutations) => { run.store.commit(mutations); return deletesGallery(mutations) ? { kind: "uncertain" } : { kind: "committed", transactionId: "tx" }; };
+    expect(await runClientGalleryCleanup(run.dependencies)).toMatchObject({ completed: 1, uncertain: 0, deletedAssets: isShared ? 1 : 2, deletedZips: isShared ? 0 : 1, sharedZips: isShared ? 1 : 0 });
+    expect(run.writes.filter(deletesGallery)).toHaveLength(1);
+    expect(await runClientGalleryCleanup(run.dependencies)).toMatchObject({ attempts: 0, completed: 0, deletedZips: 0, sharedZips: 0 });
   });
   it("does not cross the exclusive expiry boundary early or enroll proof/legacy/ZIP content", async () => {
     const initial = await control();

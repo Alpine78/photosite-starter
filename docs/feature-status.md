@@ -2,6 +2,19 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Verified whole delivery ZIP, 2026-10-26 — AB#407 **Active** (review/merge pending):
+one optional strong `deliveryZip` file reference now travels through the closed
+schema, fresh customer reader and cleanup policy. The read-only Studio field is
+managed by an [owner-run audited attachment command](client-gallery-zip.md): exact
+local processed-JPEG/set/metadata review plus full remote SHA1/SHA256/bytes before
+a digest-bound draft CAS; explicit replacement/detachment, no upload/publication.
+FI/EN native download exposes one canonical public package URL; missing or incompatible
+declared ZIP evidence refuses the whole delivery. Enrollment addition/change/removal
+requires renewed consent; unshared ZIP removal is atomic with gallery/images and its receipt write,
+shared ZIPs stay with separate closed counts. Image-only v1 controls remain compatible.
+No private approval certificate, orphan sweep, new service, real customer operation
+or activation. Transport/account and hosted acceptance remain under AB#29/395.
+
 Proof-image deletion revisions, 2026-10-25 — AB#404 **Active** (review/merge pending):
 manual proof deletion and replacement publication retain the fresh image revisions
 and use the same patch-before-delete planner in their atomic operation. Changed or

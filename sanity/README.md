@@ -332,7 +332,9 @@ It permits at most 256 items and 256 KiB of UTF-8 authored document JSON (exclud
 identity, revision, timestamps and system metadata). Measured asset
 identity, format, dimensions (at most 2048 px), neutral crop, strong references
 and private-only media exclusions are checked before the custom Studio delivery publication (AB#396).
-No ZIP, category, shared-media, customer/contact/job or archive fields are added.
+AB#407 adds only one optional strong `deliveryZip` file reference, shown read-only
+in Studio and managed by the [verified owner-run attachment workflow](../docs/client-gallery-zip.md).
+No category, shared-media, customer/contact/job or archive fields are added.
 Studio validation is an editorial check: the default-off AB#303 reader validates
 fresh published data independently, with bounded strict JSON transports and a
 revision-matched indexed snapshot for measured assets. The legacy batch/allowlist/manifest and

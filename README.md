@@ -635,7 +635,10 @@ CMS metadata and direct file URLs remain discoverable without a shared link;
 page expiry does not revoke those files. A separate native Studio list now
 supports new web-image deliveries; the default-off `CLIENT_GALLERY_ADAPTER=sanity`
 reader serves them at `/client-gallery/<handle>` without changing the legacy
-adapter. No new-gallery ZIP is offered yet. A separately authorized
+adapter. New deliveries may also offer one verified public whole processed-JPEG ZIP
+through the [owner-run attachment workflow](docs/client-gallery-zip.md); previews
+remain bounded web images. Source support stays default-off pending operational
+acceptance. A separately authorized
 [synthetic rehearsal](docs/audits/client-gallery-lifecycle-rehearsal-2026-10-24.md)
 exercised real Sanity publication, confirmation, replacement and expiry deletion
 from an isolated local production build. Hosted Studio, narrow roles, editor

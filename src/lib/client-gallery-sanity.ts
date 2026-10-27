@@ -1,4 +1,5 @@
 import "server-only";
+import { clientGalleryZipUrl, parseClientGalleryZipAsset } from "./client-gallery-zip-contract";
 import { createHash } from "node:crypto";
 import { createSanityClient, createSanityDocumentReader, SanityQueryError, type SanityClient, type SanityDocumentReader } from "@/lib/sanity-client";
 import { getSanityConfig, type SanityConfig } from "@/lib/sanity-config";
@@ -19,6 +20,7 @@ export const CLIENT_GALLERY_MISS_CAPACITY = 128;
 export const CLIENT_GALLERY_QUERY = `*[_type in ["clientDeliveryGallery", "legacyDeliveryGallery"] && handle == $handle][0...2]{
   _id, _type,
   "document": {_id, _type, _rev, handle, available, availabilityMode, expiryInstant,
+    deliveryZip,
     "title": title[0...21]{_key, _type, language, value},
     "items": items[0...257]{_key, _type, mediaType,
       image{_type, asset{_type, _ref}, crop, hotspot},
@@ -115,9 +117,18 @@ export function createClientGalleryReader(settings: {
           validateAssets(row.assets, current);
           checkBudget();
           if (!clientGalleryAvailable(current, now())) return undefined;
+          let zipUrl: string | undefined;
+          if (current.deliveryZip) {
+            const file = await settings.documents.read(current.deliveryZip.assetId, signal);
+            try { parseClientGalleryZipAsset(file, current.deliveryZip.assetId); } catch { return invalidClientGallery(); }
+            zipUrl = clientGalleryZipUrl(config.projectId, config.dataset, current.deliveryZip.assetId);
+            checkBudget();
+            if (!clientGalleryAvailable(current, now())) return undefined;
+          }
           const title = clientGalleryText(current.title, language);
           return {
             kind: "web",
+            ...(zipUrl === undefined ? {} : { zipUrl }),
             ...(current.expiryInstant === undefined ? {} : { availableUntil: current.expiryInstant }),
             ...(title === undefined ? {} : { title }),
             images: current.items.map((item) => ({

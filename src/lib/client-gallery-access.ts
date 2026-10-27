@@ -11,6 +11,9 @@ import type { ClientGalleryView } from "@/lib/client-gallery-types";
 export const CLIENT_GALLERY_FIXTURE_HANDLE = "6".repeat(32);
 export const CLIENT_GALLERY_DEADLINE_FIXTURE_HANDLE = "b".repeat(32);
 export const CLIENT_GALLERY_DEADLINE_FIXTURE_INSTANT = "2100-01-02T03:04:05.123Z";
+export const CLIENT_GALLERY_ZIP_FIXTURE_HANDLE = "d".repeat(32);
+/** Tiny synthetic JPEG ZIP, fixture adapter only: exercises native download with no external request. */
+const ZIP_FIXTURE_URL = "data:application/zip;base64,UEsDBBQAAAAAAAAAISgr+3mwCwEAAAsBAAAOAAAAaW1hZ2UtMDAwMS5qcGf/2P/bAEMABgQFBgUEBgYFBgcHBggKEAoKCQkKFA4PDBAXFBgYFxQWFhodJR8aGyMcFhYgLCAjJicpKikZHy0wLSgwJSgpKP/bAEMBBwcHCggKEwoKEygaFhooKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKP/AABEIAAEAAQMBIgACEQEDEQH/xAAVAAEBAAAAAAAAAAAAAAAAAAAABv/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AmgAf/9lQSwECFAMUAAAAAAAAACEoK/t5sAsBAAALAQAADgAAAAAAAAAAAAAAgAEAAAAAaW1hZ2UtMDAwMS5qcGdQSwUGAAAAAAEAAQA8AAAANwEAAAAA";
 export const CLIENT_GALLERY_CAPACITY_FIXTURE_HANDLE = "c".repeat(32);
 /** The synthetic document behind CLIENT_GALLERY_FIXTURE_HANDLE, for proof replacement fixtures. */
 export const CLIENT_GALLERY_FIXTURE_ID = "client-fixture";
@@ -28,9 +31,9 @@ export async function getClientGallery(handle: string, language: string): Promis
   if (adapter === "off") return undefined;
   if (adapter === "fixture") {
     if (handle === "9".repeat(32)) throw new Error("Synthetic client gallery failure");
-    if (![CLIENT_GALLERY_FIXTURE_HANDLE, CLIENT_GALLERY_DEADLINE_FIXTURE_HANDLE, CLIENT_GALLERY_CAPACITY_FIXTURE_HANDLE].includes(handle)) return undefined;
+    if (![CLIENT_GALLERY_FIXTURE_HANDLE, CLIENT_GALLERY_DEADLINE_FIXTURE_HANDLE, CLIENT_GALLERY_CAPACITY_FIXTURE_HANDLE, CLIENT_GALLERY_ZIP_FIXTURE_HANDLE].includes(handle)) return undefined;
     const finnish = language.toLowerCase().split("-")[0] === "fi";
-    const gallery: ClientGalleryView = { kind: "web", ...(handle === CLIENT_GALLERY_DEADLINE_FIXTURE_HANDLE ? { availableUntil: CLIENT_GALLERY_DEADLINE_FIXTURE_INSTANT } : {}), title: finnish ? "Piilotettu toimitus" : "Unlisted delivery", images: [
+    const gallery: ClientGalleryView = { kind: "web", ...(handle === CLIENT_GALLERY_ZIP_FIXTURE_HANDLE ? { zipUrl: ZIP_FIXTURE_URL } : {}), ...(handle === CLIENT_GALLERY_DEADLINE_FIXTURE_HANDLE ? { availableUntil: CLIENT_GALLERY_DEADLINE_FIXTURE_INSTANT } : {}), title: finnish ? "Piilotettu toimitus" : "Unlisted delivery", images: [
       { itemId: "client-coast", mediaId: "client-coast", src: "/gallery/coastal-landscape.1683eecb7e65.webp", width: 1536, height: 1024, alt: finnish ? "Rantakallio ja tyyni meri" : "Rocky shoreline beside calm water", enquiryAllowed: false },
       { itemId: "client-portrait", mediaId: "client-portrait", src: "/gallery/layout-portrait.682a067b563a.webp", width: 256, height: 2048, alt: finnish ? "Geometrinen muotokuva" : "Geometric portrait", enquiryAllowed: false },
     ] };

@@ -18,9 +18,9 @@ describe("cleanup cron boundary", () => {
     mocks.config.mockReturnValue({ state: "enabled", cronSecret: "synthetic-secret-123456" });
     for (const auth of [undefined, "synthetic-secret-123456", "Bearer wrong", "bearer synthetic-secret-123456", "Bearer synthetic-secret-123457"]) expect((await GET(request(auth))).status).toBe(401);
     expect(mocks.run).not.toHaveBeenCalled();
-    mocks.run.mockResolvedValue({ examined: 1, completed: 1, blocked: 0 });
+    mocks.run.mockResolvedValue({ examined: 1, completed: 1, blocked: 0, deletedZips: 1, sharedZips: 0 });
     const response = await GET(request("Bearer synthetic-secret-123456"));
-    expect(response.status).toBe(200); expect(await response.json()).toEqual({ status: "ok", examined: 1, completed: 1, blocked: 0 });
+    expect(response.status).toBe(200); expect(await response.json()).toEqual({ status: "ok", examined: 1, completed: 1, blocked: 0, deletedZips: 1, sharedZips: 0 });
     expect(mocks.run).toHaveBeenCalledOnce();
   });
   it("returns failure without leaking provider exceptions", async () => {

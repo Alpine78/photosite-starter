@@ -1,13 +1,20 @@
 import { describe, expect, it, vi } from "vitest";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { evaluate, parse } from "groq-js/1";
 import { lake } from "./test-support/proof-lake";
 import { cleanupControlId, cleanupControlMutation, parseCleanupControl, type CleanupControl } from "../src/lib/client-gallery-cleanup-contract";
 import { reviewDeliveryPublication, publishDelivery, reconcileDeliveryPublication, deliveryCleanupDefault, DELIVERY_LINKS_QUERY, type DeliveryPublishReader, type DeliveryPublishPlan } from "./client-gallery-publish";
 import { allowAction, allowTemplate } from "./editorial-policy";
 import { loadStudioSettings } from "./settings";
+import { DeliveryPublishDialog, type DeliveryPublishDialogProps } from "./client-gallery-publish-dialog";
+import { deliveryCleanupCopy } from "./client-gallery-publish-copy";
 
 const NOW = "2026-10-24T12:00:00.000Z", DEADLINE = "2027-04-24T12:00:00.000Z";
 const ASSET = `image-${"a".repeat(40)}-1600x1000-webp`;
+const ZIP = `file-${"b".repeat(40)}-zip`;
+const zipReference = { _type: "file", asset: { _type: "reference", _ref: ZIP } };
+const zipAsset = { _id: ZIP, _type: "sanity.fileAsset", sha1hash: "b".repeat(40), extension: "zip", mimeType: "application/zip", size: 1234 };
 const source = { _id: "drafts.delivery", _type: "clientDeliveryGallery", handle: "1".repeat(32), available: true,
   availabilityMode: "until", expiryInstant: DEADLINE, items: [{ _key: "one", _type: "clientDeliveryItem", mediaType: "image",
     image: { _type: "image", asset: { _type: "reference", _ref: ASSET } }, alt: [{ _key: "en", _type: "localizedText", language: "en", value: "Coast" }] }] };
@@ -123,6 +130,37 @@ describe("publication-bound cleanup enrollment", () => {
     store.put({ ...source, expiryInstant: "2027-04-25T12:00:00.000Z" });
     const changed = await store.ready(true, "policy-edit"); expect(changed.cleanup?.policyChanged).toBe(true);
     await store.run(changed); expect((await stored(store)).policy.expiryInstant).toBe("2027-04-25T12:00:00.000Z");
+  });
+  it("renews exact cleanup consent when a whole ZIP is added, replaced or removed", async () => {
+    const store = setup([zipAsset]); await store.run(await store.ready());
+    store.put({ ...source, deliveryZip: zipReference });
+    const added = await store.ready(true, "add-zip"); expect(added.cleanup?.policyChanged).toBe(true);
+    expect(added.cleanup?.policy?.assetIds).toEqual([ZIP, ASSET].sort());
+    await store.run(added); expect((await stored(store)).policy.assetIds).toContain(ZIP);
+    const nextId = `file-${"c".repeat(40)}-zip`;
+    store.put({ ...zipAsset, _id: nextId, sha1hash: "c".repeat(40) });
+    store.put({ ...source, deliveryZip: { _type: "file", asset: { _type: "reference", _ref: nextId } } });
+    const replaced = await store.ready(true, "replace-zip"); expect(replaced.cleanup?.policyChanged).toBe(true);
+    await store.run(replaced); expect((await stored(store)).policy.assetIds).toEqual([nextId, ASSET].sort());
+    expect(store.docs.has(ZIP)).toBe(true); // Removed packages require separate reviewed removal, never a sweep.
+    store.put(source);
+    const removed = await store.ready(true, "remove-zip"); expect(removed.cleanup?.policyChanged).toBe(true);
+    await store.run(removed); expect((await stored(store)).policy.assetIds).toEqual([ASSET]);
+    expect(store.docs.has(nextId)).toBe(true);
+  });
+  it.each(["fi-FI", "en-US"])("distinguishes image and ZIP approvals and shared ZIP completion in %s", async (locale) => {
+    const store = setup([zipAsset]); store.put({ ...source, deliveryZip: zipReference });
+    const plan = await store.ready(), copy = deliveryCleanupCopy(locale), handlers = { onMode: vi.fn(), onProofId: vi.fn(), onTyped: vi.fn(), onReview: vi.fn(), onSubmit: vi.fn(), onCheck: vi.fn(), onReset: vi.fn(), onClose: vi.fn() };
+    const props: DeliveryPublishDialogProps = { locale, prefix: "cleanup", proofId: "", typed: "", pending: false, ready: true, proofsEnabled: false, review: { ready: plan }, ...handlers };
+    const html = renderToStaticMarkup(createElement(DeliveryPublishDialog, props));
+    expect(html).toContain(`${copy.images}: 1`); expect(html).toContain(`${copy.zips}: 1`);
+    const current = plan.cleanup!.next!;
+    const receipt: CleanupControl = { ...current, state: "complete", receipt: { operationId: "cleanup", at: NOW,
+      deletedAssets: [{ id: ASSET, type: "sanity.imageAsset", revision: "image-r1" }], sharedAssets: [{ id: ZIP, type: "sanity.fileAsset", revision: "zip-r1" }], deletedCount: 1, sharedCount: 1 } };
+    const completed = renderToStaticMarkup(createElement(DeliveryPublishDialog, { ...props, review: undefined,
+      cleanup: { enroll: false, eligible: true, control: receipt, unreadable: false, loading: false } }));
+    expect(completed).toContain(`${copy.deletedZips}: 0`); expect(completed).toContain(`${copy.sharedZips}: 1`);
+    for (const handler of Object.values(handlers)) expect(handler).not.toHaveBeenCalled();
   });
   it("flag-off publication neither reads nor updates existing enrollment", async () => {
     const store = setup(); await store.run(await store.ready()); const before = await stored(store); store.put({ ...source, expiryInstant: "2027-05-24T12:00:00.000Z" });

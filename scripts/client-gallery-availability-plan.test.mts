@@ -20,6 +20,21 @@ describe("offline Sanity availability planning", () => {
     expect(result.notices.join(" ")).toContain("refuse an existing draft");
     expect(verify(bytes(result), bytes(source), result.planSha256, at)).toMatchObject({ readyToWrite: false, offlineOnly: true, patch: result.patch });
   });
+  it("pauses and re-enables ZIP galleries without changing the package, while binding its complete snapshot", () => {
+    const zip = `file-${"c".repeat(40)}-zip`;
+    const deliveryZip = { _type: "file", asset: { _type: "reference", _ref: zip } };
+    for (const available of [false, true]) {
+      const source = { ...snapshot(), available: !available, deliveryZip };
+      const result = plan(bytes(source), bytes({ ...enable, available }), at);
+      expect(result.patch).toEqual({ id: source._id, ifRevisionID: source._rev, set: { ...enable, available }, unset: ["expiryInstant"] });
+      expect(verify(bytes(result), bytes(source), result.planSha256, at).patch).toEqual(result.patch);
+      expect({ ...source, ...result.patch.set }.deliveryZip).toEqual(deliveryZip);
+      expect(JSON.stringify(result)).not.toContain(zip);
+      const changed = { ...source, deliveryZip: { ...deliveryZip, asset: { ...deliveryZip.asset, _ref: `file-${"d".repeat(40)}-zip` } } };
+      expect(() => verify(bytes(result), bytes(changed), result.planSha256, at)).toThrow("PLAN_OR_SOURCE_CHANGED");
+      expect(() => verify(bytes(result), bytes({ ...source, deliveryZip: null }), result.planSha256, at)).toThrow("PLAN_OR_SOURCE_CHANGED");
+    }
+  });
   it("uses an exclusive deadline and allows pausing an already expired published page", () => {
     const until = { available: true, availabilityMode: "until", expiryInstant: "2026-10-17T00:00:01Z" };
     const result = plan(bytes(snapshot()), bytes(until), at);

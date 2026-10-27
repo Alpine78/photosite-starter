@@ -398,6 +398,13 @@ contract](deployment.md#ongoing-unlisted-client-galleries-adr-0034) records thos
 limits. AB#117 remains **Active**; all other findings and criteria are unchanged.
 Older dated checkpoints below describe their original scope and evidence.
 
+**2026-10-26 ZIP source update (AB#407):** the October 17 “no ZIP” statement above
+describes its historical source state. The owner accepted the future public ZIP
+contract on October 25; the new [verified attachment/reader/cleanup source](client-gallery-zip.md)
+now implements one optional whole processed-JPEG package, with full-resolution
+JPEGs inside it only. It supplies no actual customer-batch, provider transport,
+role/hosted or launch acceptance. The separate 21-gallery legacy exception remains.
+
 **2026-10-10 scoped owner decision:**
 [ADR-0028](adr/0028-legacy-unlisted-gallery-continuity.md) accepts unlisted public
 Sanity delivery for the 21 retained legacy galleries, separately from protected
@@ -1272,3 +1279,23 @@ does not change when another document adds a reference. This is source verificat
 not a rerun of AB#401 or the launch review. Hosted permission/error-shape acceptance,
 controlled writers and unsupported weak references remain open. See the
 [deletion procedure](proof-selection-data-flow.md).
+
+### Verified optional delivery ZIP source — 2026-10-26 (AB#407)
+
+The owner-accepted public whole-ZIP contract now has source attachment, reader and
+expiry-cleanup support. [The operator procedure](client-gallery-zip.md) binds exact
+local export/set/opaque-metadata and whole remote byte evidence to one approved
+draft CAS, with fsynced intent and independent uncertain-result readback. No
+approval manifest or certificate is public or stored in Sanity. Human processed-
+export/metadata judgment remains an explicit owner assertion. A direct writer can
+bypass this editorial workflow; it is not an ACL.
+
+The fresh reader exposes only its constructed canonical public whole-package URL;
+provider URL/path fields and private audit inputs never reach the browser. Declared
+missing/incompatible ZIP evidence refuses the gallery. Enrollment policy includes
+the optional ZIP, so addition/removal/replacement needs renewed consent. One guarded
+transaction deletes the gallery and unshared images/ZIP while recording its receipt;
+a shared ZIP stays
+with closed aggregate counts, and missing/stale evidence blocks the entire unit.
+No source test establishes real upload transport, actual grant/provider/hosted
+acceptance, customer-batch approval or activation. The existing flags stay off.

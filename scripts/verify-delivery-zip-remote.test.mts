@@ -43,7 +43,7 @@ describe("remote ZIP CLI", () => {
         if (url !== ${JSON.stringify(`https://cdn.sanity.io/files/synthetic-project/production/${sha1}.zip?dl=photographs.zip`)} || options.method !== 'GET' || options.redirect !== 'manual' || options.credentials !== 'omit' || Object.keys(options.headers).join() !== 'accept-encoding') throw new Error('PRIVATE_FETCH');
         return new Response(Buffer.from(${JSON.stringify(data.toString("base64"))}, 'base64'), {headers:{'content-type':'application/zip','content-disposition':'attachment; filename="photographs.zip"','content-length':${JSON.stringify(String(data.length))}}});
       };`, { mode: 0o600 });
-      const result = spawnSync(process.execPath, ["--import", loader, cli, ...args], {
+      const result = spawnSync(process.execPath, ["--disable-warning=MODULE_TYPELESS_PACKAGE_JSON", "--import", loader, cli, ...args], {
         cwd: temp, encoding: "utf8", timeout: 10_000, maxBuffer: 4096,
         env: { ...process.env, NODE_OPTIONS: "", PRIVATE_GALLERY_ADAPTER: "enabled", SITE_CONTENT_SOURCE: "sanity", SANITY_DATASET_VISIBILITY: "private" },
       });
@@ -53,7 +53,7 @@ describe("remote ZIP CLI", () => {
       expect(result.stdout).not.toMatch(/PRIVATE|synthetic-project|https:\/\//u);
       // Nothing beside the test preload is created by the real CLI.
       expect(readdirSync(temp)).toEqual(["synthetic-fetch.mjs"]);
-      const refusal = spawnSync(process.execPath, ["--import", loader, cli, "--url", "/PRIVATE/customer"], { cwd: temp, encoding: "utf8", timeout: 10_000, maxBuffer: 4096 });
+      const refusal = spawnSync(process.execPath, ["--disable-warning=MODULE_TYPELESS_PACKAGE_JSON", "--import", loader, cli, "--url", "/PRIVATE/customer"], { cwd: temp, encoding: "utf8", timeout: 10_000, maxBuffer: 4096 });
       expect(refusal.status).toBe(2); expect(refusal.stdout).toBe(""); expect(refusal.stderr).toBe("[remote-zip] INVALID_INPUT\n");
       expect(readdirSync(temp)).toEqual(["synthetic-fetch.mjs"]);
     } finally { rmSync(temp, { recursive: true, force: true }); }
