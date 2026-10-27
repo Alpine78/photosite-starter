@@ -42,6 +42,7 @@ there is no other documentation to hunt for.
 | `docs/backlog-agent-readiness.md` | agents and the owner planning work | the decision/agent-readiness map is reviewed; Azure Boards stays authoritative |
 | `docs/cache-revalidation.md` | whoever operates or changes the published-content cache (AB#83) | the cache boundary, tags, revalidation endpoint or its authentication change |
 | `docs/client-web-image-batches.md` | the owner preparing client-gallery web images (AB#325) | the local batch preparation command, its inputs or guarantees change |
+| `docs/client-gallery-zip.md` | owner attaching a verified whole ZIP to a delivery draft (AB#407) | the private attachment operator, approval/evidence contract, runtime ZIP or cleanup guarantees change |
 | `docs/cms-recovery-rehearsal.md` | the owner and recovery operator (AB#267) | the local CMS and original-asset recovery rehearsal command or its evidence change |
 | `docs/dependency-security.md` | the maintainer triaging dependency advisories (AB#160) | the scheduled audit, Dependabot settings, triage process or an accepted exception changes |
 | `docs/client-gallery-retention-planner.md` | maintainer implementing expiry cleanup (AB#394) | pure planner evidence, outcomes, limits or executor integration requirements change |

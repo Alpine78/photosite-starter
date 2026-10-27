@@ -2,7 +2,20 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
-Proof publication identity, 2026-10-25 — AB#402 **Active** (review/merge pending):
+Verified whole delivery ZIP, 2026-10-26 — AB#407 **Active** (review/merge pending):
+one optional strong `deliveryZip` file reference now travels through the closed
+schema, fresh customer reader and cleanup policy. The read-only Studio field is
+managed by an [owner-run audited attachment command](client-gallery-zip.md): exact
+local processed-JPEG/set/metadata review plus full remote SHA1/SHA256/bytes before
+a digest-bound draft CAS; explicit replacement/detachment, no upload/publication.
+FI/EN native download exposes one canonical public package URL; missing or incompatible
+declared ZIP evidence refuses the whole delivery. Enrollment addition/change/removal
+requires renewed consent; unshared ZIP removal is atomic with gallery/images and its receipt write,
+shared ZIPs stay with separate closed counts. Image-only v1 controls remain compatible.
+No private approval certificate, orphan sweep, new service, real customer operation
+or activation. Transport/account and hosted acceptance remain under AB#29/395.
+
+Proof publication identity, 2026-10-25 — AB#402 **Closed** (PR #624 merged):
 `verifyEditorSession` replaces `/users/me`'s nonempty-ID inference with one
 same-project-host metadata read at the installed Studio project store's
 `v2021-12-15` API version. Exactly one current member must explicitly be a person;
@@ -20,8 +33,8 @@ a dedicated Editor cleanup token with broad project-content rights and the state
 compromise risk. Independent application safeguards and actual token/hosted/activation
 gates remain. The [future public whole-ZIP media contract](adr/0035-unlisted-delivery-zip-proposal.md)
 is also accepted; exact customer-batch approval, supported large-upload/account
-evidence and AB#407 source implementation remain separate. AB#406 records the exact
-agent-rule exception. No provisioning, content write, deployment or activation.
+evidence remain separate; AB#407 source implementation is ready for review.
+AB#406 records the exact agent-rule exception. No provisioning, content write, deployment or activation.
 
 Proof-image deletion revisions, 2026-10-25 — AB#404 **Closed** (PR #622 merged):
 manual proof deletion and replacement publication retain the fresh image revisions

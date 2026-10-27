@@ -690,11 +690,26 @@ The retained legacy workflow still uses its approved source plan, review digest
 and bindings with `verify:legacy-delivery-assets --live`; this standalone check
 cannot replace those gates. Its shared HTTP core keeps that compiler and the
 existing **3 GB** legacy declaration limit unchanged. No S3, PostgreSQL, new
-service, CMS write or runtime-gallery setting is read or introduced. Current
-new-gallery runtime remains web-preview-only pending AB#407 implementation and
-whole-upload feasibility; the ADR-0035 media contract is accepted.
+service, CMS write or runtime-gallery setting is read or introduced. AB#407 adds
+the optional verified whole-ZIP runtime described below; supported
+whole-upload transport remains separate from the accepted ADR-0035 media contract.
 
 ### Ongoing unlisted client galleries (ADR-0034)
+
+AB#407 adds one optional verified whole processed-JPEG ZIP. Use the separately
+authorized [private attachment operator](client-gallery-zip.md); Studio shows only
+a read-only file field, with no native upload/unchecked attachment action. The
+existing adapter flags remain unchanged. Real customer reading freshly validates
+the declared file asset and builds its own canonical public CDN download URL; bad
+or missing ZIP evidence refuses the whole gallery, and expiry is rechecked after
+the file read. No per-view whole-ZIP transfer is performed by the application.
+
+The private approval workflow is not a dataset ACL or runtime certificate. Direct
+writers can bypass it. Full remote byte verification happens in the owner-run
+operator, not on every customer request. The shared source profile caps archives
+at 1 GB as an engineering bound; it does not prove or impose a provider/product
+upload limit. Supported large uploads, exact batch approval and activation remain
+separate.
 
 The selected implementation reuses existing Sanity and the native Studio login;
 no S3, PostgreSQL, custom `/admin` login or new dependency is required. New
@@ -723,7 +738,8 @@ writers, capacity and synthetic
 race/deletion outcomes. See [the cleanup runbook](client-gallery-cleanup.md) for
 caps, cursor progress, failure/status handling and the explicit activation
 evidence. Server and Studio enrollment flags are independent; both stay off in
-the supplied examples. Legacy/proof galleries and new ZIP delivery are excluded.
+the supplied examples. Legacy/proof galleries remain excluded. AB#407 includes a
+new delivery's verified optional ZIP in its enrolled deletion unit.
 AB#399 adds an explicitly invoked local [read-readiness probe](client-gallery-cleanup.md#read-only-capacity-and-known-canary-probe-ab399),
 excluded from CI. AB#401's separately authorized 2026-10-24 rehearsal ran this probe
 and real synthetic gallery writes through an isolated loopback production build.
@@ -784,8 +800,10 @@ may appear in provider logs. Application malformed-content diagnostics contain
 only a fixed label. Do not put customer/contact/job information in fields or
 filenames; review embedded metadata before upload. Asset bytes are public even
 while the owning document is a draft, and page expiry/unpublication cannot revoke
-URLs or cached/downloaded copies. There is no new-gallery ZIP or individual
-full-resolution delivery: the legacy-only original-file exception is unchanged.
+URLs or cached/downloaded copies. AB#407 offers one optional verified public
+whole processed-JPEG ZIP under the owner-accepted ADR-0035 contract; full-resolution
+JPEGs stay inside it. Individual full-resolution image assets remain excluded, and
+the separate legacy exception is unchanged.
 See the [Studio workflow](../studio/README.md#ongoing-client-galleries-ab302--ab145).
 
 The selected gallery adapter supports public datasets only, matching its visitor
@@ -969,6 +987,9 @@ duration. A requested available page must have a deadline strictly after the
 explicit planning instant; pausing can retain an expired deadline. No-op requests
 are refused. This is an availability check, **not** full content/image eligibility
 validation: the native schema and fresh customer reader retain that responsibility.
+Snapshots may include `deliveryZip`: the complete current value is bound into the
+source digest, but this availability-only plan neither validates the package nor
+copies or changes its reference in the patch.
 
 ```bash
 npm run plan:client-gallery-availability -- plan \

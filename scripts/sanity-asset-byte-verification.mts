@@ -1,5 +1,6 @@
 /** Anonymous, canonical Sanity asset reads shared by approved legacy and whole-ZIP checks. */
 import { createHash } from "node:crypto";
+import { clientGalleryZipUrl } from "../src/lib/client-gallery-zip-contract.ts";
 
 export type SanityByteTarget = Readonly<{ projectId: string; dataset: string }>;
 export type SanityByteAsset = Readonly<{
@@ -37,6 +38,7 @@ export type AssetVerification = Readonly<{
 
 function assetUrl(target: SanityByteTarget, asset: SanityByteAsset): string {
   // Both callers compile closed identities; never use a provider response URL.
+  if (asset.mimeType !== "image/jpeg") return clientGalleryZipUrl(target.projectId, target.dataset, asset.assetId);
   const image = asset.assetId.startsWith("image-");
   const filename = image
     ? asset.assetId.slice(6).replace(/-(jpg|jpeg)$/u, ".$1")

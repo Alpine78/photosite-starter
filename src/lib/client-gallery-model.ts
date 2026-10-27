@@ -1,4 +1,5 @@
 import "server-only";
+import { parseClientGalleryZipReference, type ClientGalleryZipReference } from "./client-gallery-zip-contract";
 import { MAX_PUBLIC_DELIVERY_DIMENSION } from "@/lib/image-delivery";
 
 export const CLIENT_GALLERY_MAX_ITEMS = 256;
@@ -83,12 +84,12 @@ function imageItem(value: unknown): ClientGalleryItem {
 }
 export type ParsedClientGallery = Readonly<{
   id: string; revision: string; handle: string; title: readonly ClientText[]; available: boolean;
-  availabilityMode: "until" | "indefinite"; expiryInstant?: string; deadline?: number; items: readonly ClientGalleryItem[];
+  availabilityMode: "until" | "indefinite"; expiryInstant?: string; deadline?: number; items: readonly ClientGalleryItem[]; deliveryZip?: ClientGalleryZipReference;
 }>;
 export function parseClientGallery(value: unknown, id: string, handle: string, projected = false): ParsedClientGallery {
   try {
     const row = clientRecord(value);
-    closed(row, ["_id", "_type", "_rev", "_createdAt", "_updatedAt", "_system", "handle", "title", "available", "availabilityMode", "expiryInstant", "items"]);
+    closed(row, ["_id", "_type", "_rev", "_createdAt", "_updatedAt", "_system", "handle", "title", "available", "availabilityMode", "expiryInstant", "items", "deliveryZip"]);
     if (row._id !== id || !isClientDocumentId(id) || row._type !== "clientDeliveryGallery" || !isClientGalleryHandle(handle) || row.handle !== handle || typeof row.available !== "boolean") return invalidClientGallery();
     const revision = text(row._rev, 128), title = localized(row.title, false, 200);
     if (!/^[A-Za-z0-9_-]+$/u.test(revision)) return invalidClientGallery();
@@ -113,7 +114,8 @@ export function parseClientGallery(value: unknown, id: string, handle: string, p
       const authored = Object.fromEntries(Object.entries(row).filter(([name]) => !["_id", "_rev", "_createdAt", "_updatedAt", "_system"].includes(name)));
       if (new TextEncoder().encode(JSON.stringify(authored)).byteLength > CLIENT_GALLERY_MAX_DOCUMENT_BYTES) return invalidClientGallery();
     }
-    return { id, revision, handle, title, available: row.available, availabilityMode: row.availabilityMode, ...(expiryInstant === undefined ? {} : { expiryInstant, deadline }), items };
+    const deliveryZip = parseClientGalleryZipReference(row.deliveryZip);
+    return { ...(deliveryZip === undefined ? {} : { deliveryZip }), id, revision, handle, title, available: row.available, availabilityMode: row.availabilityMode, ...(expiryInstant === undefined ? {} : { expiryInstant, deadline }), items };
   } catch { return invalidClientGallery(); }
 }
 export function clientGalleryAvailable(gallery: ParsedClientGallery, now: number): boolean {

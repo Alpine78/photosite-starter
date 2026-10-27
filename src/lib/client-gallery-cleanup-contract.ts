@@ -1,9 +1,11 @@
 /** Private operational metadata shared by authenticated Studio and the cleanup worker.
  * Pure browser/server contract: no CMS SDK, credentials or public gallery projection.
  */
+import { parseClientGalleryZipReference } from "./client-gallery-zip-contract";
+
 export const CLEANUP_CONTROL_TYPE = "clientGalleryCleanup" as const;
 export const CLEANUP_CONTROL_PREFIX = "clientGalleryCleanup.";
-export const CLEANUP_MAX_ASSETS = 256;
+export const CLEANUP_MAX_ASSETS = 257; // Up to 256 web images and one whole ZIP.
 export const CLEANUP_REASONS = [
   "policy_changed", "gallery_variants", "control_variants", "cursor_variants", "incomplete_evidence",
   "invalid_gallery", "invalid_assets", "missing_gallery", "incoming_reference", "conflict", "refused",
@@ -11,7 +13,7 @@ export const CLEANUP_REASONS = [
 ] as const;
 export type CleanupReason = typeof CLEANUP_REASONS[number];
 export type CleanupPolicy = Readonly<{ handle: string; expiryInstant: string; assetIds: readonly string[] }>;
-export type CleanupAsset = Readonly<{ id: string; revision: string; type: "sanity.imageAsset" }>;
+export type CleanupAsset = Readonly<{ id: string; revision: string; type: "sanity.imageAsset" | "sanity.fileAsset" }>;
 export type CleanupReceipt = Readonly<{
   operationId: string; at: string; deletedAssets: readonly CleanupAsset[]; sharedAssets: readonly CleanupAsset[];
   deletedCount: number; sharedCount: number;
@@ -27,7 +29,8 @@ export type CleanupControl = Readonly<{
 const ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/u;
 const REV = /^[A-Za-z0-9_-]{1,128}$/u;
 const OPERATION = /^[A-Za-z0-9_-]{1,128}$/u;
-const ASSET = /^image-[a-f0-9]{40}-[1-9][0-9]{0,5}x[1-9][0-9]{0,5}-(?:jpg|jpeg|png|webp|avif)$/u;
+const IMAGE = /^image-[a-f0-9]{40}-[1-9][0-9]{0,5}x[1-9][0-9]{0,5}-(?:jpg|jpeg|png|webp|avif)$/u;
+const ZIP = /^file-[a-f0-9]{40}-zip$/u;
 const CONTROL = /^clientGalleryCleanup\.[a-f0-9]{64}$/u;
 function object(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype &&
@@ -50,17 +53,18 @@ function sorted<T>(value: unknown, parse: (entry: unknown) => T, key: (entry: T)
   return rows;
 }
 function assetId(value: unknown): string {
-  if (!text(value, ASSET)) throw new Error("Invalid cleanup asset");
+  if (!text(value, IMAGE) && !text(value, ZIP)) throw new Error("Invalid cleanup asset");
   return value;
 }
 function parsePolicy(value: unknown): CleanupPolicy {
   if (!closed(value, ["handle", "expiryInstant", "assetIds"]) || !text(value.handle, /^[a-f0-9]{32}$/u) || !cleanupInstant(value.expiryInstant)) throw new Error("Invalid cleanup policy");
   const assetIds = sorted(value.assetIds, assetId, (id) => id);
-  if (!assetIds.length) throw new Error("Empty cleanup policy");
+  if (!assetIds.length || assetIds.filter((id) => text(id, IMAGE)).length > 256 || assetIds.filter((id) => text(id, ZIP)).length > 1) throw new Error("Invalid cleanup policy assets");
   return { handle: value.handle, expiryInstant: value.expiryInstant, assetIds };
 }
 function parseAsset(value: unknown): CleanupAsset {
-  if (!closed(value, ["id", "revision", "type"]) || !text(value.id, ASSET) || !text(value.revision, REV) || value.type !== "sanity.imageAsset") throw new Error("Invalid cleanup asset evidence");
+  if (!closed(value, ["id", "revision", "type"]) || !text(value.revision, REV) ||
+    !(value.type === "sanity.imageAsset" && text(value.id, IMAGE) || value.type === "sanity.fileAsset" && text(value.id, ZIP))) throw new Error("Invalid cleanup asset evidence");
   return { id: value.id, revision: value.revision, type: value.type };
 }
 /** Reject prefixes rather than silently normalize a hostile draft/version identity. */
@@ -99,8 +103,11 @@ export function cleanupPolicyFromGallery(gallery: Readonly<Record<string, unknow
   try {
     const ids = gallery.items.map((item) => {
       if (!object(item) || !object(item.image) || !object(item.image.asset) || item.image.asset._weak === true) throw new Error();
-      return assetId(item.image.asset._ref);
+      if (!text(item.image.asset._ref, IMAGE)) throw new Error();
+      return item.image.asset._ref;
     });
+    const zip = parseClientGalleryZipReference(gallery.deliveryZip);
+    if (zip) ids.push(zip.assetId);
     return parsePolicy({ handle: gallery.handle, expiryInstant: gallery.expiryInstant, assetIds: [...new Set(ids)].sort() });
   } catch { return undefined; }
 }

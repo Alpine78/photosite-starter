@@ -5,12 +5,12 @@
  */
 import "server-only";
 import { CLIENT_GALLERY_MAX_ITEMS, isClientDocumentId, isClientGalleryHandle, parseClientGallery, type ParsedClientGallery } from "@/lib/client-gallery-model";
+import { parseClientGalleryZipReference } from "@/lib/client-gallery-zip-contract";
 
 export const RETENTION_MAX_REFERRERS = 100;
 export const RETENTION_MAX_ASSETS = CLIENT_GALLERY_MAX_ITEMS + 1; // Web images and one whole ZIP.
 const REVISION = /^[A-Za-z0-9_-]{1,128}$/u;
 const DOCUMENT_ID = /^[A-Za-z0-9_][A-Za-z0-9_.-]{0,255}$/u;
-const ZIP_ID = /^file-[a-f0-9]{40}-zip$/u;
 
 export type RetentionReason = "invalid-gallery" | "unsupported-type" | "invalid-clock" | "not-enrolled" |
   "enrollment-changed" | "indefinite" | "not-expired" | "incomplete-evidence" | "gallery-variants" |
@@ -71,14 +71,14 @@ export function classifyClientGalleryExpiry(gallery: unknown, enrollment: unknow
 }
 
 /**
- * Provisional evidence contract, not a Sanity schema or HTTP response contract:
+ * Caller-supplied evidence contract, not a Sanity schema or HTTP response contract:
  * { galleryId, revision, variants: {complete, ids}, assetsComplete, assets }.
  * Each asset supplies {id, revision, type, complete, referenceCount, referrers};
  * referrers are exact full {id, revision} identities, including drafts/releases.
  * A list reaching its cap is treated as truncated. No "absence" is inferred.
  *
- * `zipReference`, if supplied, is an isolated future-adapter input (a native file
- * object), NOT a field added to clientDeliveryGallery or approval of ADR-0035.
+ * `zipReference`, if supplied, must match the gallery's actual native file field.
+ * It cannot nominate an additional asset for deletion.
  */
 export function planClientGalleryCleanup(input: Readonly<{
   gallery: unknown; enrollment: unknown; now: number; evidence: unknown; zipReference?: unknown;
@@ -95,10 +95,13 @@ export function planClientGalleryCleanup(input: Readonly<{
   const references: CleanupCandidate["references"][number][] = gallery.items.map(item => ({ kind: "image", itemKey: item.key, assetId: item.assetId }));
   const owned = new Map<string, Asset["type"]>(gallery.items.map(item => [item.assetId, "sanity.imageAsset"]));
   if (input.zipReference !== undefined) {
-    const zip = row(input.zipReference), ref = row(zip?.asset);
-    if (!exact(zip, ["_type", "asset"]) || zip._type !== "file" || !exact(ref, ["_type", "_ref"]) ||
-      ref._type !== "reference" || typeof ref._ref !== "string" || !ZIP_ID.test(ref._ref) || ref._ref.endsWith("\n")) return refuse("blocked", "invalid-zip");
-    references.push({ kind: "zip", assetId: ref._ref }); owned.set(ref._ref, "sanity.fileAsset");
+    try {
+      const zip = parseClientGalleryZipReference(input.zipReference);
+      if (!zip || zip.assetId !== gallery.deliveryZip?.assetId) return refuse("blocked", "invalid-zip");
+    } catch { return refuse("blocked", "invalid-zip"); }
+  }
+  if (gallery.deliveryZip) {
+    references.push({ kind: "zip", assetId: gallery.deliveryZip.assetId }); owned.set(gallery.deliveryZip.assetId, "sanity.fileAsset");
   }
   if (!list(evidence.assets, RETENTION_MAX_ASSETS) || evidence.assets.length !== owned.size) return refuse("blocked", "invalid-assets");
   const seen = new Set<string>(), candidates: Asset[] = [], shared: Asset[] = [];
@@ -128,6 +131,6 @@ export function planClientGalleryCleanup(input: Readonly<{
   return {
     state: "candidate", readyToDelete: false, readyToWrite: false,
     gallery: { id: gallery.id, revision: gallery.revision }, deadline: gallery.expiryInstant!, references, candidates, shared,
-    counts: { images: gallery.items.length, zip: input.zipReference === undefined ? 0 : 1, assets: owned.size, candidates: candidates.length, shared: shared.length },
+    counts: { images: gallery.items.length, zip: gallery.deliveryZip ? 1 : 0, assets: owned.size, candidates: candidates.length, shared: shared.length },
   };
 }

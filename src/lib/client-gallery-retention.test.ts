@@ -82,15 +82,16 @@ describe("candidate evidence, not deletion authority", () => {
     const input = setup(); input.gallery.items.push({ ...input.gallery.items[0], _key: "two" });
     expect(planClientGalleryCleanup(input)).toMatchObject({ state: "candidate", references: [{ itemKey: "one" }, { itemKey: "two" }], counts: { images: 2, assets: 1, candidates: 1 } });
   });
-  it("plans one optional whole ZIP via an isolated provisional adapter input; a shared ZIP stays", () => {
+  it("plans the gallery's actual whole ZIP and preserves a shared ZIP", () => {
     const input = setup(); input.evidence.assets.push(asset(zip, [{ id, revision }, { id: "another-gallery", revision: "r2" }]));
     const zipReference = { _type: "file", asset: ref(zip) };
-    expect(planClientGalleryCleanup({ ...input, zipReference })).toMatchObject({ state: "candidate", counts: { zip: 1, assets: 2, shared: 1 }, shared: [{ id: zip }],
+    const withZip = { ...input, gallery: { ...input.gallery, deliveryZip: zipReference } };
+    expect(planClientGalleryCleanup(withZip)).toMatchObject({ state: "candidate", counts: { zip: 1, assets: 2, shared: 1 }, shared: [{ id: zip }],
       references: [{ kind: "image" }, { kind: "zip", assetId: zip }] });
     input.evidence.assets[1] = asset(zip);
-    expect(planClientGalleryCleanup({ ...input, zipReference })).toMatchObject({ counts: { candidates: 2 } });
-    // Not a new CMS field: today's reader still refuses it.
-    expect(planClientGalleryCleanup({ ...input, gallery: { ...input.gallery, deliveryZip: zipReference }, zipReference })).toMatchObject({ reason: "invalid-gallery" });
+    expect(planClientGalleryCleanup({ ...withZip, zipReference })).toMatchObject({ counts: { candidates: 2 } });
+    expect(planClientGalleryCleanup({ ...input, zipReference })).toMatchObject({ reason: "invalid-zip" });
+    expect(planClientGalleryCleanup({ ...withZip, zipReference: { _type: "file", asset: ref(`file-${"d".repeat(40)}-zip`) } })).toMatchObject({ reason: "invalid-zip" });
   });
   it.each([null, [], { _type: "file", asset: ref(image) }, { _type: "file", asset: ref(zip + "\n") },
     { _type: "file", asset: { ...ref(zip), _weak: true } }, { _type: "file", asset: { ...ref(zip), _dataset: "other" } },
@@ -138,7 +139,7 @@ describe("candidate evidence, not deletion authority", () => {
       ...template, _key: `item-${index}`, image: { _type: "image", asset: ref(`image-${index.toString(16).padStart(40, "0")}-1600x1000-webp`) },
     }));
     input.evidence.assets = [...input.gallery.items.map(item => asset(item.image.asset._ref)), asset(zip)];
-    expect(planClientGalleryCleanup({ ...input, zipReference: { _type: "file", asset: ref(zip) } })).toMatchObject({
+    expect(planClientGalleryCleanup({ ...input, gallery: { ...input.gallery, deliveryZip: { _type: "file", asset: ref(zip) } } })).toMatchObject({
       state: "candidate", readyToDelete: false, counts: { images: 256, zip: 1, assets: 257, candidates: 257, shared: 0 },
     });
   });

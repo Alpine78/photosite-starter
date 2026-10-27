@@ -167,3 +167,36 @@ or operational acceptance follows from an offline inspection succeeding.
   eligibility, a complete-package link, FI/EN journeys and strong-hash readback.
 - Update authoritative architecture diagrams when those boundaries actually
   change; keep removal/shared-reference and provider-cache verification open.
+
+## Source implementation note — 2026-10-26 (AB#407)
+
+The optional strong native `deliveryZip` reference now has a strict shared technical
+contract: one canonical `file-<SHA1>-zip`, ZIP MIME/extension, positive measured size
+within the current 1 GB engineering profile and neutral asset filename. Full-frame
+web previews remain at most 2048 px. The [owner-run attachment command](../client-gallery-zip.md)
+uses exact private processed-export/set/metadata review evidence and complete remote
+SHA1/SHA256/byte agreement, then applies one explicit digest/revision-bound draft
+patch. Replacement and detachment require the exact expected old reference. It
+uploads no file, creates no draft, publishes nothing and retains no public approval
+manifest or Sanity certificate. Actual human classification/metadata judgment is an
+owner assertion, not a property proved by JPEG decoding or opaque-envelope inventory.
+
+Studio shows the field read-only. Publication and the customer reader independently
+check fresh technical file evidence; the runtime constructs its own canonical CDN
+URL and never uses provider URL/path/filename as browser input. An incompatible
+declared package refuses the whole delivery instead of dropping its download.
+The customer receives one native public whole-package link in FI/EN. A direct
+dataset writer can bypass the private procedure; read-only UI is not an ACL.
+
+ZIP addition, change and removal renew cleanup consent. The worker includes one
+optional typed file asset with up to 256 images (257 assets), then atomically
+removes the expired gallery and unshared images/ZIP while recording a matching
+completion receipt.
+Shared ZIPs remain with explicit closed counts and typed receipt evidence. Missing
+or changed package evidence blocks the complete unit. Existing image-only v1
+controls remain compatible; no orphan sweep or legacy/proof timer is introduced.
+
+This is default-off source support verified with synthetic fixtures. Actual customer
+attachment, supported hundreds-of-megabytes upload/account capacity, provider role/
+race semantics and hosted acceptance remain separate. Neither this implementation
+nor the accepted media contract authorizes a live upload, publication or activation.

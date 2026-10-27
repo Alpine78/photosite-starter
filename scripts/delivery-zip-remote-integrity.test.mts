@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { clientGalleryZipUrl } from "../src/lib/client-gallery-zip-contract.ts";
 import { execFileSync } from "node:child_process";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseRemoteZipDeclaration, REMOTE_ZIP_MAX_BYTES, verifyRemoteDeliveryZip } from "./delivery-zip-remote-integrity.mts";
@@ -21,6 +22,7 @@ describe("whole Sanity ZIP byte agreement", () => {
     const report = await verify(fetcher);
     expect(report.status).toBe("matched");
     expect(fetcher).toHaveBeenCalledOnce();
+    expect(fetcher.mock.calls[0][0]).toBe(clientGalleryZipUrl("synthetic-project", "production", `file-${sha1}-zip`));
     expect(fetcher.mock.calls[0][0]).toBe(`https://cdn.sanity.io/files/synthetic-project/production/${sha1}.zip?dl=photographs.zip`);
     expect(fetcher.mock.calls[0][1]).toMatchObject({ method: "GET", redirect: "manual", credentials: "omit", headers: { "accept-encoding": "identity" } });
     expect(Object.keys(fetcher.mock.calls[0][1]!.headers!)).toEqual(["accept-encoding"]);

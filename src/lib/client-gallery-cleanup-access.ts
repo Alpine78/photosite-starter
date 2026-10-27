@@ -15,7 +15,7 @@ export async function runConfiguredClientGalleryCleanup(config: Enabled): Promis
     } });
     // An eventually consistent query can defer work; it can never authorize it.
     if (!await transport.due(new Date().toISOString(), controller.signal)) {
-      const counts: CleanupRunCounts = { examined: 0, attempts: 0, completed: 0, skipped: 0, blocked: 0, conflict: 0, refused: 0, uncertain: 0, deletedAssets: 0, sharedAssets: 0, completedPass: false, cursorWritten: false };
+      const counts: CleanupRunCounts = { examined: 0, attempts: 0, completed: 0, skipped: 0, blocked: 0, conflict: 0, refused: 0, uncertain: 0, deletedAssets: 0, sharedAssets: 0, deletedZips: 0, sharedZips: 0, completedPass: false, cursorWritten: false };
       console.info(JSON.stringify({ event: "client_gallery_cleanup", correlationId, status: "idle", ...counts }));
       return counts;
     }

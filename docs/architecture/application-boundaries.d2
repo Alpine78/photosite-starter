@@ -52,7 +52,7 @@ routes: "src/app — App Router" {
     class: planned
   }
 
-  unlisted: "Unlisted client delivery (selected — ADR-0034)\n/client-gallery/<handle>; no customer login.\n21 legacy pages observed live 2026-10-15.\nPublic Sanity metadata/files. Page: noindex, no-store.\nNew authoring + customer reader built, default-off.\nNative Studio roles; no new-gallery ZIP.\nProof selection + reviewed replacement deletion built, default-off.\nDelivery cleanup GET: cron bearer, counts only; source-built, off." {
+  unlisted: "Unlisted client delivery (selected — ADR-0034)\n/client-gallery/<handle>; no customer login.\n21 legacy pages observed live 2026-10-15.\nPublic Sanity metadata/files. Page: noindex, no-store.\nNew authoring + customer reader built, default-off.\nNative Studio roles; optional verified public whole ZIP.\nProof selection + reviewed replacement deletion built, default-off.\nDelivery cleanup GET: cron bearer, counts only; source-built, off." {
     class: built
   }
 }
@@ -127,7 +127,7 @@ restricted: "Server-only modules" {
     class: built
   }
 
-  delivery-cleanup: "Delivery cleanup facade -> worker -> dedicated Sanity transport (AB#397–398)\nSOURCE BUILT, DEFAULT OFF; hosted role/deletion acceptance pending.\nOne full-readable snapshot + strict Doc reads; retain reference metadata only.\nPrivate control/cursor fence, fresh policy/revision guards, atomic source + asset deletion.\nShared/weak uses kept; arbitrary late weak/release writers remain an activation boundary.\nPublic projection and proof/legacy timers unchanged." {
+  delivery-cleanup: "Delivery cleanup facade -> worker -> dedicated Sanity transport (AB#397–398)\nSOURCE BUILT, DEFAULT OFF; hosted role/deletion acceptance pending.\nOne full-readable snapshot + strict Doc reads; retain reference metadata only.\nPrivate control/cursor fence, fresh policy/revision guards; atomic gallery + images + optional ZIP.\nShared images/ZIPs kept; closed ZIP counts. Late weak/release writers remain an activation boundary.\nPublic projection and proof/legacy timers unchanged." {
     class: built
   }
 

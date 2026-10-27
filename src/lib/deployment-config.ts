@@ -768,10 +768,10 @@ const englishLabels = {
     packages: "Packages",
   },
   clientGallery: {
-    noticeTitle: "Sharing this gallery and its web images",
+    noticeTitle: "Sharing this gallery and its files",
     deadline: "Page deadline: {date} (UTC).",
-    publicAccessNotice: "This gallery and its web images are publicly accessible without signing in. The link can be shared. Gallery information and image references can also be read from the public dataset; exclusion from listings and search engines does not restrict access.",
-    fileRetentionNotice: "This gallery shows exported web images. Closing or expiring the page does not revoke direct image links or remove downloaded or cached copies. Contact the website owner to request removal; immediate removal from every cache or recipient’s copies cannot be promised.",
+    publicAccessNotice: "This gallery, its web images and any whole delivery ZIP are publicly accessible without signing in. The link can be shared. Gallery information and file references can also be read from the public dataset; exclusion from listings and search engines does not restrict access.",
+    fileRetentionNotice: "This gallery shows exported web images. Any delivery ZIP is one complete package of full-resolution processed JPEGs with their embedded metadata. Closing or expiring the page does not revoke direct file links or remove downloaded or cached copies. Contact the website owner to request removal; immediate removal from every cache or recipient’s copies cannot be promised.",
   },
   proofReminderStop: {
     title: "Stop proof reminders", working: "Stopping…", confirm: "Stop reminders",
@@ -1261,10 +1261,10 @@ const finnishLabels = {
     packages: "Paketit",
   },
   clientGallery: {
-    noticeTitle: "Gallerian ja verkkokuvien jakaminen",
+    noticeTitle: "Gallerian ja tiedostojen jakaminen",
     deadline: "Sivun määräaika: {date} (UTC).",
-    publicAccessNotice: "Tämä galleria ja sen verkkokuvat ovat julkisesti saatavilla ilman kirjautumista. Linkin voi välittää toiselle. Gallerian tiedot ja kuvaviittaukset ovat luettavissa myös julkisesta aineistosta; piilottaminen listauksista ja hakukoneilta ei rajoita pääsyä.",
-    fileRetentionNotice: "Galleriassa näytetään vietyjä verkkokuvia. Sivun sulkeminen tai vanheneminen ei estä suorien kuvalinkkien käyttöä eikä poista ladattuja tai välimuistiin tallennettuja kopioita. Voit pyytää poistamista sivuston omistajalta; välitöntä poistumista kaikista välimuisteista tai vastaanottajien kopioista ei voida luvata.",
+    publicAccessNotice: "Tämä galleria, sen verkkokuvat ja mahdollinen kokonainen toimitus-ZIP ovat julkisesti saatavilla ilman kirjautumista. Linkin voi välittää toiselle. Gallerian tiedot ja tiedostoviittaukset ovat luettavissa myös julkisesta aineistosta; piilottaminen listauksista ja hakukoneilta ei rajoita pääsyä.",
+    fileRetentionNotice: "Galleriassa näytetään vietyjä verkkokuvia. Mahdollinen toimitus-ZIP on yksi kokonainen paketti täysikokoisia käsiteltyjä JPEG-kuvia metatietoineen. Sivun sulkeminen tai vanheneminen ei estä suorien tiedostolinkkien käyttöä eikä poista ladattuja tai välimuistiin tallennettuja kopioita. Voit pyytää poistamista sivuston omistajalta; välitöntä poistumista kaikista välimuisteista tai vastaanottajien kopioista ei voida luvata.",
   },
   proofReminderStop: {
     title: "Vedosmuistutusten peruminen", working: "Perutaan…", confirm: "Peru muistutukset",

@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { cleanupControlId, cleanupControlMutation, cleanupControlPayload, cleanupPolicyFromGallery, parseCleanupControl, type CleanupControl } from "./client-gallery-cleanup-contract";
 
 const ASSET = `image-${"a".repeat(40)}-1600x1000-webp`;
+const ZIP = `file-${"b".repeat(40)}-zip`;
+const zipReference = { _type: "file", asset: { _type: "reference", _ref: ZIP } };
 async function control(): Promise<CleanupControl> {
   return { _id: await cleanupControlId("delivery"), _type: "clientGalleryCleanup", version: 1, galleryId: "delivery",
     policy: { handle: "1".repeat(32), expiryInstant: "2027-04-24T12:00:00Z", assetIds: [ASSET] },
@@ -48,5 +50,33 @@ describe("private cleanup contract", () => {
     expect(cleanupControlPayload(current)).toEqual(value);
     expect(cleanupControlMutation(current, { ...value, state: "disabled" })).toMatchObject({ patch: { id: value._id, ifRevisionID: "r2", set: { state: "disabled" }, unset: ["attempt", "receipt", "lastResult"] } });
     expect(() => cleanupControlMutation(value, value)).toThrow();
+  });
+  it("includes the actual strong ZIP and never treats a file reference as an image", async () => {
+    const value = await control(), source = { _type: "clientDeliveryGallery", ...value.policy, availabilityMode: "until",
+      items: [{ image: { asset: { _ref: ASSET } } }], deliveryZip: zipReference };
+    expect(cleanupPolicyFromGallery(source)?.assetIds).toEqual([ZIP, ASSET].sort());
+    for (const change of [{ deliveryZip: { ...zipReference, asset: { ...zipReference.asset, _weak: true } } },
+      { deliveryZip: { ...zipReference, url: "https://example.invalid/private" } }, { items: [{ image: { asset: { _ref: ZIP } } }] }])
+      expect(cleanupPolicyFromGallery({ ...source, ...change })).toBeUndefined();
+  });
+  it("bounds policies to 256 distinct images and one ZIP and binds receipt identities to their types", async () => {
+    const value = await control(), images = Array.from({ length: 257 }, (_, index) => `image-${index.toString(16).padStart(40, "0")}-1600x1000-webp`);
+    const policy = { ...value.policy, assetIds: [ZIP, ...images.slice(0, 256)].sort() };
+    expect(parseCleanupControl({ ...value, policy }, value._id).policy).toEqual(policy);
+    for (const assetIds of [images, [ZIP, `file-${"c".repeat(40)}-zip`, ASSET].sort()])
+      expect(() => parseCleanupControl({ ...value, policy: { ...policy, assetIds } }, value._id)).toThrow();
+    const image = { id: ASSET, type: "sanity.imageAsset", revision: "image-r1" }, zip = { id: ZIP, type: "sanity.fileAsset", revision: "zip-r1" };
+    const receipt = { operationId: "op", at: value.enrolledAt, deletedAssets: [image], sharedAssets: [zip], deletedCount: 1, sharedCount: 1 };
+    const completed = { ...value, policy: { ...value.policy, assetIds: [ZIP, ASSET].sort() }, state: "complete", receipt };
+    expect(parseCleanupControl(completed, value._id).receipt).toEqual(receipt);
+    for (const change of [{ sharedAssets: [], sharedCount: 0 }, { sharedAssets: [{ ...zip, type: "sanity.imageAsset" }] },
+      { deletedAssets: [{ ...image, type: "sanity.fileAsset" }] }])
+      expect(() => parseCleanupControl({ ...completed, receipt: { ...receipt, ...change } }, value._id)).toThrow();
+  });
+  it("preserves byte-identical version-one image-only controls and terminal receipts", async () => {
+    const value = await control(), receipt = { operationId: "op", at: value.enrolledAt,
+      deletedAssets: [{ id: ASSET, revision: "image-r1", type: "sanity.imageAsset" }], sharedAssets: [], deletedCount: 1, sharedCount: 0 };
+    for (const original of [value, { ...value, state: "complete", receipt }])
+      expect(JSON.stringify(parseCleanupControl(original, value._id))).toBe(JSON.stringify(original));
   });
 });

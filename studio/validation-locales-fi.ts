@@ -18,6 +18,7 @@ export const validationFinnish = {
   "Choose a published client gallery as the replacement, or clear the field.": "Valitse korvaavaksi julkaistu asiakasgalleria tai tyhjennä kenttä.",
   "Check the client gallery fields, image order and alternative texts.": "Tarkista asiakasgallerian kentät, kuvajärjestys ja vaihtoehtoiset tekstit.",
   "The gallery link is missing, already used or different from the published link.": "Gallerian linkki puuttuu, on jo käytössä tai eroaa julkaistusta linkistä.",
+  "Use one verified whole delivery ZIP; check its current uploaded file metadata.": "Käytä yhtä tarkistettua koko toimituksen ZIP-pakettia ja tarkista ladatun tiedoston nykyiset metatiedot.",
   "Use complete exported web images up to 2048 pixels; check their uploaded asset metadata.": "Käytä kokonaisia, enintään 2048 pikselin verkkokuvia ja tarkista ladattujen kuvatiedostojen metatiedot.",
   "The gallery could not be validated. Try again before publishing.": "Galleriaa ei voitu tarkistaa. Yritä uudelleen ennen julkaisua.",
   "A category shortcut needs its stable category ID": "Kategorian pikalinkki tarvitsee kategorian pysyvän tunnisteen",

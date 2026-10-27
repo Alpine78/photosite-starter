@@ -18,16 +18,19 @@ verified local provider acceptance; it adds no cleanup activation evidence.
 Only explicitly enrolled, finite new `clientDeliveryGallery` records qualify.
 Legacy deliveries and proof galleries cannot enroll. Proof deletion happens in
 the reviewed delivery-publication workflow (AB#396), without a six-month timer.
-The current new-delivery schema has no ZIP: this worker deletes no ZIP and grants
-no new ZIP/file exception. ADR-0035 remains separate.
+AB#407 includes the optional verified `deliveryZip` file in the same enrolled unit
+as its gallery and web images. The [attachment operator](client-gallery-zip.md)
+implements the owner-accepted ADR-0035 media contract; it uploads nothing and does
+not establish supported large-file transport or approve a customer batch.
 
 ## Approval and ordering
 
 One private dotted `clientGalleryCleanup.<sha256(published-gallery-id)>` record
-stores approved handle, expiry and sorted unique image identities, the exact
+stores approved handle, expiry and sorted unique image/optional ZIP identities, the exact
 reviewed source identity, and a unique publication identity. Studio commits it
 atomically with publication. Text/alt/order edits can retain consent; changes to
-the deadline, handle or image set need a new reviewed policy. Indefinite mode
+the deadline, handle, image set or ZIP reference need a new reviewed policy. ZIP
+addition, replacement and removal all require renewed consent. Indefinite mode
 cannot enroll. Every unenrolled delivery requires deliberate opt-in: an absent
 published record cannot prove that a gallery has never been published before.
 
@@ -45,14 +48,21 @@ the outcome. A network timeout alone establishes neither success nor failure.
 
 Each deletion is one atomic transaction: update the exact pending control to its
 completion receipt, assert the current gallery revision and delete the gallery,
-assert absence of its draft by create/delete, assert each candidate asset's
+assert absence of its draft by create/delete, assert each candidate image/file asset's
 existence/revision, then delete those assets. There is no split batch or query
 delete. Any guard or strong-reference failure rolls back the transaction.
 Provider failure responses are classified conservatively; uncertain writes are
 read back and never blindly replayed. A completion receipt contains actual
-deleted/kept image identities and counts, with no customer text or address.
+deleted/kept image/file identities and counts, with no customer text or address.
 
-Shared assets remain online, including an observed weak reference, draft,
+The policy admits at most 256 image identities plus one whole ZIP (257 assets).
+ZIP evidence must be a fresh matching `sanity.fileAsset` with the canonical ZIP
+identity/hash, allowed MIME, neutral filename and measured byte bound. Missing,
+malformed or changed ZIP evidence blocks the complete deletion, including its
+images and gallery. An image-only approval cannot strand a newly attached ZIP.
+Image-only v1 policy/control/receipt serialization remains compatible.
+
+Shared assets remain online, including a shared ZIP, observed weak reference, draft,
 release, public use or private media use. They have **no later sweep** in this
 slice, even if the other use ends. Content-addressed deduplication can make an
 upload shared. An incoming reference to the gallery itself blocks removal;
@@ -101,9 +111,9 @@ verified separately. On 2026-10-25 the reference owner accepted a dedicated Edit
 cleanup token's broad content rights across project datasets; a leaked token bypasses
 application guards. This exception does not apply to other writers or clones. A
 clone choosing a restricted role should limit WRITE to cleanup control/cursor
-prefixes, new delivery documents and image assets. An asset grant cannot in
+prefixes, new delivery documents and image/file assets. An asset grant cannot in
 general express “only images currently owned by an enrolled delivery”; it may
-allow deletion of other unreferenced image assets. The worker's independent
+allow deletion of other unreferenced image/file assets. The worker's independent
 policy/inventory checks and Content Lake's strong-reference rejection supply
 that narrower operational boundary. A dataset writer can forge a control; it is
 not a cryptographic consent receipt or a defense against a malicious writer.
@@ -116,7 +126,9 @@ safe through revision arbitration. Constant-time `Bearer <CRON_SECRET>`
 authentication precedes provider traffic. HEAD and other methods return 405.
 All responses are `no-store`; disabled is 404, invalid configuration or a failed
 primary read/export is 503, missing authentication is 401. Responses and logs
-contain closed counts/error codes and a random correlation ID only.
+contain closed counts/error codes and a random correlation ID only. AB#407 adds
+`deletedZips` and `sharedZips` alongside total asset counts, so shared ZIP retention
+remains visible even after the gallery is gone; no IDs or filenames enter these logs.
 The existing application maintenance gate preempts this route too: while active,
 the cron receives the generic 503 before configuration, authentication or store IO.
 

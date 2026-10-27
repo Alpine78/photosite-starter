@@ -20,6 +20,12 @@ export function DeliveryPublishDialog({ locale, prefix, headingRef, mode, proofI
 }: DeliveryPublishDialogProps) {
   const copy = deliveryPublishCopy(locale), deletionCopy = proofDeleteCopy(locale), cleanupCopy = deliveryCleanupCopy(locale);
   const status = outcome === "not-observed" ? copy.notObserved : outcome ? copy[outcome] : !ready ? copy.unavailable : "";
+  function receipt(control: CleanupControl | undefined) {
+    return control?.receipt ? <>
+      <p>{cleanupCopy.deletedZips}: {control.receipt.deletedAssets.filter((asset) => asset.type === "sanity.fileAsset").length}</p>
+      <p>{cleanupCopy.sharedZips}: {control.receipt.sharedAssets.filter((asset) => asset.type === "sanity.fileAsset").length}</p>
+    </> : null;
+  }
   function content() {
     if (outcome) return <>
       {outcome === "uncertain" ? <button type="button" disabled={pending} onClick={() => onCheck()}>{pending ? copy.working : copy.check}</button> : null}{" "}
@@ -35,7 +41,9 @@ export function DeliveryPublishDialog({ locale, prefix, headingRef, mode, proofI
         {plan.cleanup ? <section aria-label={cleanupCopy.title}>
           <p>{cleanupCopy.status}: {cleanupCopy.states[plan.cleanup.next?.state ?? "none"]}</p>
           {plan.cleanup.previous?.lastResult ? <p>{cleanupCopy.blocked}: {cleanupCopy.reasons[plan.cleanup.previous.lastResult.reason]}</p> : null}
-          <p>{cleanupCopy.images}: {plan.cleanup.enroll ? plan.cleanup.policy?.assetIds.length : 0}</p>
+          <p>{cleanupCopy.images}: {plan.cleanup.enroll ? plan.cleanup.policy?.assetIds.filter((id) => id.startsWith("image-")).length : 0}</p>
+          <p>{cleanupCopy.zips}: {plan.cleanup.enroll ? plan.cleanup.policy?.assetIds.filter((id) => id.startsWith("file-")).length : 0}</p>
+          {receipt(plan.cleanup.previous)}
           {plan.cleanup.policyChanged ? <p>{cleanupCopy.changed}</p> : null}
           {plan.cleanup.enroll && plan.cleanup.expired ? <p role="alert">{cleanupCopy.expired}</p> : null}
           {!plan.cleanup.enroll && plan.cleanup.previous && ["enrolled", "pending"].includes(plan.cleanup.previous.state) ? <p>{cleanupCopy.withdrawal}</p> : null}
@@ -69,6 +77,7 @@ export function DeliveryPublishDialog({ locale, prefix, headingRef, mode, proofI
         <legend>{cleanupCopy.title}</legend>
         <p role="status" aria-live="polite" aria-atomic="true">{cleanup.loading ? cleanupCopy.loading : cleanup.unreadable ? "" : `${cleanupCopy.status}: ${cleanupCopy.states[cleanup.control?.state ?? "none"]}`}</p>
         {cleanup.control?.lastResult ? <p>{cleanupCopy.blocked}: {cleanupCopy.reasons[cleanup.control.lastResult.reason]}</p> : null}
+        {receipt(cleanup.control)}
         {cleanup.unreadable ? <p role="alert">{cleanupCopy.unreadable}</p> : null}
         <p><label><input type="checkbox" checked={cleanup.enroll} disabled={!cleanup.eligible} onChange={(event) => onCleanup?.(event.target.checked)} /> {cleanupCopy.choice}</label></p>
         {!cleanup.eligible ? <p>{cleanupCopy.ineligible}</p> : null}

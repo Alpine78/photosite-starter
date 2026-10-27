@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { clientGalleryZipUrl } from "./client-gallery-zip-contract";
 import { createClientGalleryReader, CLIENT_GALLERY_MISS_CAPACITY, CLIENT_GALLERY_MISS_TTL_MS, CLIENT_GALLERY_QUERY } from "@/lib/client-gallery-sanity";
 import { ClientGalleryBudgetError, ClientGalleryChangedError, ClientGalleryDataError, parseClientGallery } from "@/lib/client-gallery-model";
 import { validateClientDeliveryGallery, CLIENT_DELIVERY_MAX_DOCUMENT_BYTES, CLIENT_DELIVERY_MAX_ITEMS } from "../../sanity/schemas/client-delivery-gallery";
@@ -23,7 +24,7 @@ function row(doc = document()) {
 function setup(options: { doc?: unknown; rows?: unknown; wall?: () => number; tick?: () => number; missing?: Map<string, number>; visibility?: "public" | "private" } = {}) {
   const controller = new AbortController();
   const query = vi.fn(async () => Object.hasOwn(options, "rows") ? options.rows : [row()]);
-  const read = vi.fn(async () => Object.hasOwn(options, "doc") ? options.doc : document());
+  const read = vi.fn<(id: string) => Promise<unknown>>(async () => Object.hasOwn(options, "doc") ? options.doc : document());
   const reader = createClientGalleryReader({ config: { ...config, datasetVisibility: options.visibility ?? "public" }, query: { query }, documents: { read },
     now: options.wall ?? (() => now), missClock: options.tick ?? (() => 0), missing: options.missing, signal: () => controller.signal });
   return { query, read, reader, controller, run: (value = handle, language = "en-GB", fallback = "en") => reader.read(value, language, fallback) };
@@ -197,5 +198,57 @@ describe("authoring/runtime structural corpus", () => {
     expect(await setup().reader.read(handle, "en-GB", "en", id)).toMatchObject({ kind: "web" });
     const f = setup(); expect(await f.reader.read(handle, "en-GB", "en", "another-document")).toBeUndefined();
     expect(f.read).not.toHaveBeenCalled();
+  });
+});
+
+describe("fresh whole ZIP delivery", () => {
+  const zipId = `file-${"d".repeat(40)}-zip`;
+  const zip = () => ({ _id: zipId, _type: "sanity.fileAsset", _rev: "zipRev1", sha1hash: "d".repeat(40), extension: "zip", mimeType: "application/zip", size: 1024, originalFilename: "photographs.zip" });
+  const doc = () => ({ ...document(), deliveryZip: { _type: "file", asset: { _type: "reference", _ref: zipId } } });
+  function fixture(file: unknown = zip(), wall = () => now) {
+    const gallery = doc(), f = setup({ doc: gallery, rows: [row(gallery)], wall });
+    f.read.mockImplementation(async id => id === zipId ? file : gallery);
+    return f;
+  }
+  it("projects only the canonical whole-file URL from fresh measured evidence", async () => {
+    const f = fixture(), view = await f.run();
+    expect(f.read).toHaveBeenLastCalledWith(zipId, f.controller.signal);
+    expect(view?.zipUrl).toBe(clientGalleryZipUrl(config.projectId, config.dataset, zipId));
+    expect(view?.zipUrl).toBe(`https://cdn.sanity.io/files/abcdefgh/fixture/${"d".repeat(40)}.zip?dl=photographs.zip`);
+    for (const internal of [zipId, "zipRev1", "originalFilename", "sha1hash", "deliveryZip", "1024"]) expect(JSON.stringify(view)).not.toContain(internal);
+  });
+  it("ignores native provider URLs and never returns their values to the browser", async () => {
+    const f = fixture({ ...zip(), url: "https://foreign.test/PRIVATE_URL", path: "PRIVATE_PATH", uploadId: "PRIVATE_UPLOAD" });
+    const view = await f.run();
+    expect(view?.zipUrl).toBe(clientGalleryZipUrl(config.projectId, config.dataset, zipId));
+    expect(JSON.stringify(view)).not.toMatch(/PRIVATE_|foreign\.test/u);
+  });
+  it.each([null, {}, { ...zip(), size: 0 }, { ...zip(), sha1hash: "e".repeat(40) }, { ...zip(), originalFilename: "private.zip" }, { ...zip(), title: "private" }])("refuses the whole gallery when declared ZIP evidence is missing/incompatible %#", async file => {
+    await expect(fixture(file).run()).rejects.toBeInstanceOf(ClientGalleryDataError);
+  });
+  it("does not turn a transient fresh ZIP read failure into a missing gallery", async () => {
+    const f = fixture(); f.read.mockImplementation(async id => { if (id === zipId) throw new Error("PRIVATE provider details"); return doc(); });
+    await expect(f.run()).rejects.toThrow("Client gallery provider unavailable");
+  });
+  it("does not expose a link if expiry passes during the fresh file read", async () => {
+    const gallery = { ...doc(), availabilityMode: "until", expiryInstant: "2026-10-17T00:00:01Z" };
+    let clock = now;
+    const f = setup({ doc: gallery, rows: [row(gallery)], wall: () => clock });
+    f.read.mockImplementation(async id => { if (id === zipId) { clock += 1000; return zip(); } return gallery; });
+    expect(await f.run()).toBeUndefined();
+    expect(f.read).toHaveBeenLastCalledWith(zipId, f.controller.signal);
+    const expired = setup({ doc: { ...gallery, expiryInstant: "2026-10-17T00:00:00Z" }, rows: [row(gallery)] });
+    expect(await expired.run()).toBeUndefined(); expect(expired.read).toHaveBeenCalledTimes(1);
+  });
+  it("refuses stale indexed ZIP assignment and preserves raw weak-reference rejection", async () => {
+    const f = fixture(); f.query.mockResolvedValue([row()]);
+    await expect(f.run()).rejects.toBeInstanceOf(ClientGalleryChangedError);
+    expect(f.read).toHaveBeenCalledTimes(2);
+    const weak = { ...doc(), deliveryZip: { _type: "file", asset: { _type: "reference", _ref: zipId, _weak: true } } };
+    await expect(setup({ doc: weak, rows: [row(weak)] }).run()).rejects.toBeInstanceOf(ClientGalleryDataError);
+  });
+  it("rechecks the shared budget after fresh file IO", async () => {
+    const f = fixture(); f.read.mockImplementation(async id => { if (id === zipId) { f.controller.abort(); return zip(); } return doc(); });
+    await expect(f.run()).rejects.toBeInstanceOf(ClientGalleryBudgetError);
   });
 });

@@ -53,7 +53,7 @@ function intentOf(value: unknown) {
 }
 function snapshotOf(value: unknown) {
   const data = row(value);
-  closed(data, ["_id", "_type", "_rev", "_createdAt", "_updatedAt", "_system", "handle", "title", "available", "availabilityMode", "expiryInstant", "items"]);
+  closed(data, ["_id", "_type", "_rev", "_createdAt", "_updatedAt", "_system", "handle", "title", "available", "availabilityMode", "expiryInstant", "items", "deliveryZip"]);
   if (data._type !== "clientDeliveryGallery" || typeof data._id !== "string" || data._id.length > 128 ||
     !/^[A-Za-z0-9][A-Za-z0-9_-]*$/u.test(data._id) || data._id.trim() !== data._id ||
     typeof data._rev !== "string" || data._rev.length > 128 || !/^[A-Za-z0-9_-]+$/u.test(data._rev) ||
