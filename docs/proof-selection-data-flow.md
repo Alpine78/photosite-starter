@@ -158,7 +158,11 @@ received Resend HTTP 200 with a fresh local credential and recorded `sent`;
 re-entering that notice sent nothing further. All four private test records were
 removed. The owner separately confirmed mailbox receipt on 2026-10-25. The local
 module test and that owner confirmation do not establish hosted delivery.
-The current editor check also accepted a robot (follow-up AB#402). See the
+The earlier editor check also accepted a robot. AB#402 replaces the nonempty-ID
+inference with documented project-member identity flags. That metadata is processed
+transiently by the server without storing, returning or logging member data;
+[actual Editor/owner/robot acceptance](sanity-setup.md#proof-gallery-publication-ab130-adr-0038)
+remains pending. See the
 [results and hosted limitations](audits/client-gallery-lifecycle-rehearsal-2026-10-24.md)
 and [probe runbook](client-gallery-cleanup.md#read-only-capacity-and-known-canary-probe-ab399).
 

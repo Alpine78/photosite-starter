@@ -2,7 +2,19 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
-Client-gallery owner decisions, 2026-10-25 — AB#405 **Active** (PR #623 pending):
+Proof publication identity, 2026-10-25 — AB#402 **Active** (review/merge pending):
+`verifyEditorSession` replaces `/users/me`'s nonempty-ID inference with one
+same-project-host metadata read at the installed Studio project store's
+`v2021-12-15` API version. Exactly one current member must explicitly be a person;
+missing, malformed, robot or ambiguous evidence fails closed. There is no admin
+role requirement or global-token fallback, and every content read/write still
+uses that same editor token. Deterministic tests cover the intended non-admin
+human Editor, old inference/robot refusals, permission denial and limiter ordering.
+This is source verification: actual Editor/owner/robot and hosted acceptance remain
+under AB#130, with activation off. See the
+[identity contract](sanity-setup.md#proof-gallery-publication-ab130-adr-0038).
+
+Client-gallery owner decisions, 2026-10-25 — AB#405 **Closed** (PR #623 merged):
 the owner accepted [ADR-0040 option B](adr/0040-client-gallery-cleanup-credential-options.md),
 a dedicated Editor cleanup token with broad project-content rights and the stated
 compromise risk. Independent application safeguards and actual token/hosted/activation
@@ -231,8 +243,9 @@ terms authoring, the Studio action (with `loginMethod: 'token'`) and an owner-ru
 check come first.
 
 AB#401 correction, 2026-10-24: the actual Editor robot passed that `/users/me`
-check. A human user session is not established by the current check; resolving
-the identity contract remains an activation prerequisite. See the dated evidence above.
+check. That earlier check did not establish a human user session. AB#402's
+source correction is recorded above; actual intended-role/hosted acceptance
+remains an activation prerequisite. See the dated evidence above.
 
 
 

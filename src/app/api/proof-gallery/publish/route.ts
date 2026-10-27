@@ -17,7 +17,7 @@ import { getDeploymentConfig } from "@/lib/deployment-config";
  * the editor's own Sanity token; off unless `PROOF_PUBLICATION=enabled`.
  *
  * Order matters: the cheapest checks run first, the per-client limit runs
- * before the `/users/me` call, and the per-gallery limit only after the
+ * before the project-member identity check, and the per-gallery limit only after the
  * caller is a proven user (inside `runProofPublication`), so strangers cannot
  * exhaust a gallery's allowance.
  * A selection key leaves this route only after its transaction committed.
