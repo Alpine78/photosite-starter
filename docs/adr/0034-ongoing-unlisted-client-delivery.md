@@ -176,3 +176,21 @@ WRITE grants can be broader than enrolled ownership. Late arbitrary weak/release
 writers remain outside the protocol. AB#395 retains the controlled-writer, role,
 capacity, provider-semantics and synthetic-race rehearsal before deliberate activation.
 See [the cleanup runbook](../client-gallery-cleanup.md) for limits and operational evidence.
+
+### Cleanup credential amendment — 2026-10-25 (AB#405)
+
+The owner selected [ADR-0040 option B](0040-client-gallery-cleanup-credential-options.md):
+a dedicated server-only Editor robot may perform reference-deployment delivery
+cleanup despite its broad content rights across project datasets. A leaked token
+bypasses application checks; the owner explicitly accepted that risk. This replaces
+the earlier narrow-credential prerequisite for this cleanup deployment only, not for
+other clones or writers. Independent enrollment, full inventory, revision guards,
+atomic deletion, shared-use retention, controlled writers and uncertain-outcome
+reconciliation remain mandatory. Full READ and the actual configured grants still
+need verification.
+
+The worker remains disabled. This policy acceptance provisions no token and changes
+no Production environment, role, deployment or activation. The separately accepted
+[ADR-0035 media contract](0035-unlisted-delivery-zip-proposal.md#accepted-scope--2026-10-25)
+permits a reviewed future whole processed-JPEG ZIP; AB#407 implementation and supported
+large-file transport/account/publication evidence remain pending.

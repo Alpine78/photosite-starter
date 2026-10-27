@@ -8,8 +8,9 @@ Both source slices merged in PR #614/#615. AB#399 adds the separately invoked
 read-only readiness probe below. The separately authorized **AB#401 rehearsal on
 2026-10-24** measured the real dataset and exercised synthetic publication,
 replacement and expiry deletion through an isolated local production build.
-Narrow write grants, editor identity and hosted checks
-remain open; **activation is still blocked**. See the
+Dedicated-token, editor-identity and hosted acceptance checks remain open;
+**activation is still blocked**. The reference cleanup credential choice is now
+accepted under [ADR-0040 option B](adr/0040-client-gallery-cleanup-credential-options.md). See the
 [dated results and limitations](audits/client-gallery-lifecycle-rehearsal-2026-10-24.md).
 The later [AB#403 mail-only test](audits/proof-notice-mail-verification-2026-10-24.md)
 verified local provider acceptance; it adds no cleanup activation evidence.
@@ -96,7 +97,10 @@ If those conditions cannot be established, activation remains blocked.
 
 The export lists only documents the token can read; it cannot prove that nothing
 was hidden. Full dataset READ, including private IDs and all versions, must be
-verified separately. WRITE should be restricted to the cleanup control/cursor
+verified separately. On 2026-10-25 the reference owner accepted a dedicated Editor
+cleanup token's broad content rights across project datasets; a leaked token bypasses
+application guards. This exception does not apply to other writers or clones. A
+clone choosing a restricted role should limit WRITE to cleanup control/cursor
 prefixes, new delivery documents and image assets. An asset grant cannot in
 general express “only images currently owned by an enrolled delivery”; it may
 allow deletion of other unreferenced image assets. The worker's independent
@@ -262,12 +266,21 @@ Even `read-checks-passed` always reports `readyToDelete: false`,
 `readyToActivate: false`, `fullReadGrantProven: false` and
 `writeGrantsVerified: false`. A broad administrator token could also pass this
 probe: independently record the token's intended role/identity, full READ grant
-policy, restricted WRITE, atomic deletion/races, writer controls, actual function
+policy and its accepted WRITE breadth, atomic deletion/races, writer controls, actual function
 allowance and hosted Studio/privacy acceptance. Named reads cannot prove that no
 other document is hidden; local capacity is not Vercel capacity. The fingerprints
 bind the report to inputs, not to a grant, source commit or approval. Keep a private
 run record with the source commit and operator-reviewed limits. This source task
 uses only mocked provider responses; all actual hosted evidence remains pending.
+
+### Cleanup credential decision (AB#405)
+
+[Accepted ADR-0040](adr/0040-client-gallery-cleanup-credential-options.md) records
+the 2026-10-25 choice of a dedicated Editor cleanup token and its broad-content
+compromise risk for the reference deployment. The policy is accepted; provisioning,
+actual grant verification and hosted acceptance remain unperformed. Both flags stay
+off. The read-only probe proves neither full grants nor activation readiness; its
+write-grant check must be interpreted against the accepted deployment policy.
 
 ### Remaining hosted rehearsal
 
@@ -276,8 +289,11 @@ customer deletion and no credentials/raw exports in CI or public artifacts:
 
 1. Confirm owner approval, actual function allowance and Production-only scope;
    keep Preview off. Confirm server dedicated-token and Studio editor grants.
-2. Verify full READ with known public, private dotted, draft and release canaries,
-   and restricted WRITE by attempting forbidden proof/legacy/unrelated non-image writes.
+2. Verify full READ with known public, private dotted, draft and release canaries.
+   Record the actual WRITE matrix: the reference deployment accepts Editor breadth,
+   including other content; do not claim forbidden proof/legacy writes are rejected.
+   A clone selecting a narrow role must instead verify its forbidden-write refusals.
+   Use only reviewed synthetic/dry-run targets for these probes.
    Explicitly verify both create and revision-guarded update on the cleanup cursor
    prefix, and confirm `cursorWritten: true` after a handled synthetic batch.
    Record the residual image-asset grant breadth explicitly.

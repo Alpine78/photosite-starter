@@ -75,8 +75,9 @@ leave residue. Local path check/unlink operations are not transactional: keep
 the private workspace free of concurrent writers.
 
 No legacy deadline/link, source file, existing ZIP, schema or runtime changes.
-ADR-0035 remains Proposed. Whole-file transport, account capacity, a new public
-file exception and actual publication remain separate owner decisions/checks.
+ADR-0035's general public ZIP media contract is accepted. Exact batch export/metadata
+approval, whole-file transport, account capacity and actual publication remain
+separate owner decisions/checks.
 
 ## Inventory metadata envelopes without reading their values (AB#344)
 
@@ -142,5 +143,5 @@ format as the decoder and whole-ZIP builder; it is not independent approval.
 
 No metadata is stripped, transformed, copied to a CMS or approved for exposure.
 No ZIP is created, modified or split. This inventory does not satisfy AB#29's
-metadata-exposure acceptance criterion; explicit owner review and ADR-0035's
-separate public-file/upload gates remain open.
+metadata-exposure acceptance criterion; exact batch export/metadata approval and
+upload authorization remain required under the accepted ADR-0035 media contract.

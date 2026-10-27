@@ -64,4 +64,5 @@ Every receipt explicitly says no upload, publication, source eligibility or
 metadata-suitability approval. Selecting and classifying a file does not prove
 its provenance or authorize public distribution. Review the exact output set,
 public-file policy, account capacity and publication workflow separately.
-ADR-0035 remains Proposed; this command grants no ZIP or public-file exception.
+ADR-0035's ZIP media contract is accepted; this command approves neither a customer
+batch nor its upload/publication.
