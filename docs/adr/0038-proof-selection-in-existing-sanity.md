@@ -356,9 +356,10 @@ editor's token unless the Studio uses `loginMethod: 'token'` (token in `localSto
 The implementation originally assumed `/users/me` accepts only user sessions,
 not robot tokens. **AB#401's actual-provider test on 2026-10-24 disproved that
 assumption for the current project-host call:** an Editor robot passed the check.
-Resolving the identity contract remains required before activation; the
-[dated evidence](../audits/client-gallery-lifecycle-rehearsal-2026-10-24.md)
-does not accept robot publication as a replacement design. Documents on a dotted ID path
+The [dated evidence](../audits/client-gallery-lifecycle-rehearsal-2026-10-24.md)
+does not accept robot publication as a replacement design. The dated AB#402 source
+correction below replaces that check; intended-role/hosted acceptance is still
+required before activation. Documents on a dotted ID path
 need authentication with read permission, and writes need a member with write access.
 Mutation transactions are atomic; `ifRevisionID` and `create` fail with a conflict when the
 document changed or already exists.
@@ -371,10 +372,10 @@ document changed or already exists.
 2. CORS only for an exact configured Studio origin, without credentials; any other origin
    is refused before work. Then: JSON content type, a per-client limit, a bounded bearer
    token and an exact `{galleryId, operation}` body (`publish` or `rotate-key`).
-3. The route checks the token with `/users/me` (the human-session assumption above
-   remains unresolved), spends the per-gallery
-   allowance only then, and makes every read and the transaction **with the editor's own
-   token**. Sanity therefore enforces membership and publish permission; the route holds no
+3. The route originally checked the token with `/users/me`; AB#402 replaces that
+   inference with the documented project-member check below. It spends the
+   per-gallery allowance only after the identity check, and makes every read and
+   the transaction **with the editor's own token**. Sanity therefore enforces membership and publish permission; the route holds no
    write credential. The token goes only to this project's API host and is never logged.
 4. The server validates the draft independently (closed shape, handle immutability and
    uniqueness, asset metadata, `privateOnly`, a published proof keeping its image) and
@@ -399,12 +400,33 @@ document changed or already exists.
   Studio's own bundle and renders no user HTML. This is accepted as the price of option 1.
 - Activation stays off until the private terms can be authored and snapshotted in the same
   first-publication transaction (ADR-0038 decision 3), the Studio action exists, and an
-  owner-run check on the hosted Studio confirms `/users/me` and the cross-origin call.
+  owner-run check on the hosted Studio confirms the project-member identity check
+  and the cross-origin call with the intended human Editor.
 - No reveal-by-decryption is added: decryption stays reserved for the reminder (decision 9).
 
 **Sections affected:** Decision 3 (the private record now also carries `firstPublishedAt`
 and is created by this route), Decision 4 (key creation and rotation run here), Action
 Items 1 and 4.
+
+## Source correction — 2026-10-25: publication identity (AB#402)
+
+The human editor-session decision is unchanged. The route now requests project
+metadata through the editor's existing project-host token and requires exactly
+one current member explicitly marked `isRobot: false`. It pins the identity read
+to `v2021-12-15`, matching installed Studio 6.18's project store; data operations
+retain the configured API version. Current official
+[Projects API documentation](https://www.sanity.io/docs/http-reference/projects-api)
+describes the member flags, and the installed client/Studio source confirms this
+project-client request path. No global-session migration, administrator-only
+identity rule, new credential or ID-prefix inference is introduced.
+
+Deterministic regression tests reject the former nonempty-ID-only response,
+robot and ambiguous/malformed member evidence, and retain a non-admin human Editor
+path plus same-token provider permission denial. This is source verification, not
+a new live or hosted test. Real response/permission evidence for the intended
+Editor, owner and robot remains an activation requirement under AB#130. The
+[operational contract and acceptance steps](../sanity-setup.md#proof-gallery-publication-ab130-adr-0038)
+include the transient member-data handling and fail-closed limits.
 
 ## Amendment — 2026-10-22: Studio publish action
 

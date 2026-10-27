@@ -1,8 +1,9 @@
 /**
  * Sanity calls of the proof publication route, all made with the **editor's
- * own token** (ADR-0038 amendment 2026-10-22, AB#130): `/users/me` proves a user
- * session, and Sanity enforces read, write and publish permission on every
- * read and transaction. This module holds no credential of its own.
+ * own token** (ADR-0038 amendment 2026-10-22, AB#130; AB#402): the project
+ * member marked current must explicitly be a person, and Sanity enforces
+ * read, write and publish permission on every read and transaction.
+ * This module holds no credential of its own.
  *
  * Every URL is fixed to this deployment's project host. The token is sent only
  * there, never logged, and never part of an error message.
@@ -13,6 +14,8 @@ import { proofDraftId, proofTermsId, proofVersionsPath, type PublicationRead, ty
 
 const TIMEOUT_MS = 10_000;
 const MAX_RESPONSE_BYTES = 1024 * 1024;
+// The same project-metadata API version used by Sanity Studio 6.18's project store.
+const IDENTITY_API_VERSION = "v2021-12-15";
 
 export type SanityCallOptions = Readonly<{ config: SanityConfig; token: string; fetchImplementation?: typeof fetch }>;
 
@@ -51,7 +54,12 @@ async function call(options: SanityCallOptions, path: string, init: { method: "G
   if (!response.ok) throw new ProofPublicationStoreError("unavailable");
   const declared = Number(response.headers.get("content-length"));
   if (Number.isFinite(declared) && declared > MAX_RESPONSE_BYTES) throw new ProofPublicationStoreError("unavailable");
-  const text = await response.text();
+  let text: string;
+  try {
+    text = await response.text();
+  } catch {
+    throw new ProofPublicationStoreError("unavailable");
+  }
   if (text.length > MAX_RESPONSE_BYTES) throw new ProofPublicationStoreError("unavailable");
   try {
     return JSON.parse(text);
@@ -60,11 +68,28 @@ async function call(options: SanityCallOptions, path: string, init: { method: "G
   }
 }
 
-/** A user session, not a robot token: `/users/me` accepts only user sessions. */
+/**
+ * `/users/me` also accepts project robots. Project metadata supplies documented
+ * current-member and robot flags instead; never infer a person from an ID or role.
+ * A non-admin human Editor is eligible here, subject to every later provider grant.
+ */
 export async function verifyEditorSession(options: SanityCallOptions): Promise<void> {
-  const user = await call(options, "/users/me", { method: "GET" });
-  if (typeof user !== "object" || user === null || typeof (user as { id?: unknown }).id !== "string" ||
-    (user as { id: string }).id.length === 0) throw new ProofPublicationStoreError("unauthenticated");
+  const identityOptions = { ...options, config: { ...options.config, apiVersion: IDENTITY_API_VERSION } };
+  const query = new URLSearchParams({ includeMembers: "true", includeFeatures: "false", includeOrganization: "false" });
+  const project = await call(identityOptions, `/projects/${encodeURIComponent(options.config.projectId)}?${query}`, { method: "GET" });
+  if (typeof project !== "object" || project === null || Array.isArray(project)) throw new ProofPublicationStoreError("unauthenticated");
+  const { id, members } = project as Record<string, unknown>;
+  if (id !== options.config.projectId || !Array.isArray(members)) throw new ProofPublicationStoreError("unauthenticated");
+  const current: Record<string, unknown>[] = [];
+  for (const member of members) {
+    if (typeof member !== "object" || member === null || Array.isArray(member)) throw new ProofPublicationStoreError("unauthenticated");
+    const row = member as Record<string, unknown>;
+    if (row.isCurrentUser !== undefined && typeof row.isCurrentUser !== "boolean") throw new ProofPublicationStoreError("unauthenticated");
+    if (row.isCurrentUser === true) current.push(row);
+  }
+  const member = current[0];
+  if (current.length !== 1 || typeof member.id !== "string" || member.id.trim().length === 0 || member.isRobot !== false ||
+    members.filter((row) => row.id === member.id).length !== 1) throw new ProofPublicationStoreError("unauthenticated");
 }
 
 async function query(options: SanityCallOptions, groq: string, params: Record<string, unknown>): Promise<unknown> {

@@ -690,9 +690,9 @@ The retained legacy workflow still uses its approved source plan, review digest
 and bindings with `verify:legacy-delivery-assets --live`; this standalone check
 cannot replace those gates. Its shared HTTP core keeps that compiler and the
 existing **3 GB** legacy declaration limit unchanged. No S3, PostgreSQL, new
-service, CMS write or runtime-gallery setting is read or introduced. Current
-new-gallery runtime remains web-preview-only while ADR-0035 is Proposed and
-whole-upload feasibility is unresolved.
+service, CMS write or runtime-gallery setting is read or introduced. AB#407 adds
+the optional verified whole-ZIP runtime described below; supported
+whole-upload transport remains separate from the accepted ADR-0035 media contract.
 
 ### Ongoing unlisted client galleries (ADR-0034)
 
@@ -732,8 +732,9 @@ deployment's real Sanity delivery adapter, Production stage/platform, a dedicate
 are authorized by merging its PR. HEAD and non-GET methods return 405.
 
 Before activation, verify the actual 200-second function allowance, full dataset
-READ (including private/draft/release records), restricted WRITE and its residual
-image-asset breadth, controlled strong-reference writers, capacity and synthetic
+READ (including private/draft/release records), the actual grants under the accepted
+reference Editor cleanup policy (ADR-0040 option B), controlled strong-reference
+writers, capacity and synthetic
 race/deletion outcomes. See [the cleanup runbook](client-gallery-cleanup.md) for
 caps, cursor progress, failure/status handling and the explicit activation
 evidence. Server and Studio enrollment flags are independent; both stay off in
@@ -743,13 +744,20 @@ AB#399 adds an explicitly invoked local [read-readiness probe](client-gallery-cl
 excluded from CI. AB#401's separately authorized 2026-10-24 rehearsal ran this probe
 and real synthetic gallery writes through an isolated loopback production build.
 Its measured reads/deletion do not establish hosted function capacity, full-role
-grants or activation. Role breadth and robot acceptance remain explicit findings;
+grants or activation. Actual cleanup-grant and editor/robot acceptance remain open;
+AB#402 replaces the source identity check with the documented
+[project-member check](sanity-setup.md#proof-gallery-publication-ab130-adr-0038),
+without supplying actual hosted acceptance;
 the original local mail credential was unusable. The separate
 [AB#403 mail-only test](audits/proof-notice-mail-verification-2026-10-24.md)
 subsequently verified Resend acceptance with a fresh local credential; it does not
 test the Production secret or hosted delivery. See the
 [dated results](audits/client-gallery-lifecycle-rehearsal-2026-10-24.md).
 Its operator-only opt-in/manifest path do not belong in Vercel runtime settings.
+[ADR-0040 option B (Accepted)](adr/0040-client-gallery-cleanup-credential-options.md)
+records the reference cleanup owner's acceptance of a dedicated Editor writer and its
+broad project-content rights. No plan change, credential provisioning or activation
+is performed; keep flags off until actual token/grant and hosted checks pass.
 
 After accepted source merges, deploy the Studio and verify actual author/editor
 permissions, FI/EN keyboard workflow and a synthetic published gallery before
@@ -957,8 +965,8 @@ SIGKILL or power loss can leave incomplete files without a valid receipt; inspec
 and remove such private artifacts deliberately before retrying in a new output
 directory. Recheck the package independently before any separately authorized
 upload. The existing 100 MB audit covers small packages only; larger ones need a
-separately available whole-package verifier. ADR-0035 remains Proposed and actual
-whole-file provider transport remains unresolved.
+separately available whole-package verifier. ADR-0035's media contract is accepted;
+actual whole-file provider transport remains unresolved.
 
 ### Optional offline availability plans (AB#304)
 

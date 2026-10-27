@@ -149,16 +149,35 @@ credential is already on its way to every visitor.
 `/api/proof-gallery/publish` publishes a proof gallery (numbering its proofs and, on first
 publication, creating the selection key) and rotates a gallery's key. It is **off** unless
 `PROOF_PUBLICATION=enabled`, and it adds **no Sanity credential**: the Studio publish action
-sends the editor's own Sanity token, the route checks `/users/me`, and every read
-and the one atomic transaction use that same token, so Sanity
-enforces membership and publish permission. The token is sent only to this project's API
-host and is never logged or stored.
+sends the editor's own Sanity token. Every read and the one atomic transaction
+use that same token, so Sanity enforces membership and publish permission. The token
+is sent only to this project's API host and is never logged or stored.
 
 **AB#401 actual-provider finding, 2026-10-24:** the project-host `/users/me` check
-accepted a temporary Editor robot. It does **not** currently prove a human user
-session. Reconcile that identity contract and regression coverage before activation;
-do not rely on the earlier source comment's stronger claim. See the
-[synthetic rehearsal](audits/client-gallery-lifecycle-rehearsal-2026-10-24.md).
+accepted a temporary Editor robot. A nonempty user ID alone does not prove a person.
+The [synthetic rehearsal](audits/client-gallery-lifecycle-rehearsal-2026-10-24.md)
+remains evidence of that earlier failure.
+
+**AB#402 source correction, 2026-10-25:** the route instead reads
+`/v2021-12-15/projects/<configured-project>?includeMembers=true&includeFeatures=false&includeOrganization=false`
+on that same project API host, using the same token. This is the project-metadata
+version used by installed Sanity Studio 6.18's project store. The
+[Projects API](https://www.sanity.io/docs/http-reference/projects-api) documents
+the member flags: the returned project ID must match, exactly one member must have
+`isCurrentUser: true`, and that member must have a nonempty ID and `isRobot: false`.
+Malformed rows, ambiguous current markers and duplicate current-principal IDs are
+refused. IDs, authentication-provider names and role names are not identity tests.
+A non-admin human Editor is eligible; actual data reads and writes still need that
+member's provider permissions. There is no administrator credential or global-host
+fallback. The official [client project method](https://github.com/sanity-io/client/blob/main/src/projects/ProjectsClient.ts)
+and installed Studio both use the configured project client for this read.
+
+Project metadata can include other members. It is processed transiently on the
+server, then discarded; no member list, name, email, role or raw response is returned,
+stored or logged. The existing ten-second request deadline and bounded response
+handling remain. Missing or filtered member evidence fails closed, including if a legitimate
+Editor or organization-derived owner membership cannot be identified. Source tests
+use documented synthetic shapes; they do not establish actual hosted role behavior.
 
 - `PROOF_PUBLICATION_STUDIO_ORIGINS`: the exact https origin(s) of the Studio; no other
   origin receives CORS headers or reaches any Sanity call.
@@ -170,9 +189,16 @@ do not rely on the earlier source comment's stronger claim. See the
   token (ADR-0038 amendments of 2026-10-22 record the trade-off); see
   [the Studio guide](../studio/README.md#proof-galleries-ab130).
 
-Do not enable either side before the customer page and selection route exist, and before
-an owner-run check on the hosted Studio that `/users/me` and the cross-origin call behave
-as the unit tests assume.
+Before activation under AB#130, separately verify the hosted Studio, exact-origin
+call and actual project response with the intended **non-admin human Editor**, the
+owner's personal session (including organization-derived access, if applicable),
+and a project Editor robot. Both humans must pass identity and their intended
+publication permissions; the robot must be refused before content reads or writes.
+A human Viewer may pass identity but must be denied unauthorized writes by Sanity.
+Keep only redacted field-presence/type and outcome evidence, not member IDs, names,
+addresses, tokens or response bodies. A 403, filtered member list or missing flags
+for the intended Editor is a blocker, not permission to substitute an admin token.
+These real-provider/hosted checks remain pending; merging AB#402 enables nothing.
 
 ### Proof selection (AB#130, ADR-0038 decision 5)
 
@@ -785,9 +811,12 @@ and hosted permissions before enabling it.
 
 The server worker additionally needs a dedicated cleanup token with verified full
 dataset READ, including dotted private records, drafts and releases. Its ordinary
-export is complete only for readable documents. Restrict WRITE to new delivery
-documents, cleanup control/cursor prefixes and image assets; asset grants cannot
-generally express current enrolled ownership. Transient exports can include private
+export is complete only for readable documents. The reference owner accepted a
+dedicated Editor cleanup token's broad content rights and compromise risk in
+[ADR-0040 option B](adr/0040-client-gallery-cleanup-credential-options.md). A clone
+choosing a restricted role should instead limit WRITE to new deliveries, control/
+cursor prefixes and image assets. Neither grant generally expresses current enrolled
+asset ownership; application checks remain independent. Transient exports can include private
 proof terms, discarded after reference normalization. Before activation, establish
 the controlled strong-reference/no-release writer boundary and verify provider
 atomicity, all-version omissions, capacity and races on synthetic records. See
@@ -795,8 +824,10 @@ atomicity, all-version omissions, capacity and races on synthetic records. See
 role, real deletion or activation is provisioned by this source.
 The separate AB#399 [owner-run read probe](client-gallery-cleanup.md#read-only-capacity-and-known-canary-probe-ab399)
 uses a private explicit target/canary manifest and the dedicated token, independently
-of ambient site settings. It is source-built, not run on the actual dataset; a pass
-measures readable evidence only and does not prove the token's full READ/WRITE role.
+of ambient site settings. AB#399 supplied the source; the separately authorized
+[AB#401 rehearsal](audits/client-gallery-lifecycle-rehearsal-2026-10-24.md) subsequently
+ran it on the actual dataset. A pass measures readable evidence only and does not
+prove the token's full READ/WRITE role.
 Legacy imported fields/actions remain read-only. Bounded web-image authoring and
 the AB#303 reader are source implementations; the reader remains off by default.
 Its [runtime configuration](deployment.md#ongoing-unlisted-client-galleries-adr-0034)

@@ -168,5 +168,5 @@ lib -> restricted: "The only crossing there is.\nESLint refuses these imports fr
   style.bold: true
 }
 
-restricted -> external: "Published/unlisted Sanity reads; default-off delivery cleanup\nuses full dataset READ + restricted WRITE (hosted acceptance pending).\nPrivate-gallery S3 + Postgres deferred (ADR-0034);\natomic public poll writes through the separate voting token" {class: pending-flow}
+restricted -> external: "Published/unlisted Sanity reads; default-off delivery cleanup\nuses full dataset READ; reference Editor WRITE risk accepted (ADR-0040),\nhosted verification pending; off by default.\nPrivate-gallery S3 + Postgres deferred (ADR-0034);\natomic public poll writes through the separate voting token" {class: pending-flow}
 lib -> external: "Delivers one enquiry.\nNo form content is stored anywhere."

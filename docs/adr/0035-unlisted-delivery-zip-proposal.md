@@ -1,9 +1,43 @@
 # ADR-0035: Whole-gallery ZIP delivery using the existing Sanity dataset
 
-**Status:** Proposed
+**Status:** Accepted — future public ZIP media contract (2026-10-25); transport and activation pending
 **Date:** 2026-10-17
-**Deciders:** Project owner (acceptance pending)
+**Deciders:** Project owner
 **Work item:** AB#309; parent AB#29
+
+## Accepted scope — 2026-10-25
+
+The owner explicitly accepted the future-delivery file contract, answering “Hyväksyn
+tämän ZIP-sopimuksen”. One whole public Sanity ZIP may contain the exact
+owner-approved full-resolution **processed JPEG exports and embedded metadata**.
+Full-resolution JPEGs stay inside the package, with separate complete-frame web
+previews at most 2048 pixels on the longest edge. Do not upload the full-resolution
+JPEGs as individual Sanity image assets. Camera masters, RAW, archive locators,
+private-only media and AB#95 sales assets remain excluded.
+
+Package and entry names must be neutral; approve the exact export set and metadata,
+retain local integrity evidence privately and verify the complete remote package
+against its expected strong hash before attachment/publication. No approval manifest
+or local path belongs in public content. The files and their metadata are public and
+forwardable. Page expiry cannot revoke a known URL, a cache or a downloaded copy.
+
+This is the new-file exception formerly left pending below. The separate, narrowly
+labelled AB#406 instruction PR records it in `AGENTS.md`; the owner's explicit
+acceptance is already effective. The 21-gallery ADR-0028 exception stays distinct.
+AB#407 implements verified attachment, fresh reader/link and same-unit ZIP cleanup;
+none of those runtime changes is supplied by this decision record.
+
+**Large-file transport and account capacity remain unverified.** The owner requires
+one intact package, including hundreds-of-megabytes packages; the historical 100 MB
+candidate is not a product ceiling. No splitting, photograph omission or silent
+download removal is an alternative. The existing observed legacy upload exception
+does not extend to future packages merely because this media contract is accepted.
+Contract acceptance is not approval of a particular customer batch, upload,
+publication, plan purchase or Production activation.
+
+The original October 17 proposal and follow-up below are preserved as history.
+Their statements that the media exception is Proposed/pending are superseded only
+by this dated acceptance. Their transport, integrity and operational gates remain.
 
 ## Context
 

@@ -15,7 +15,28 @@ shared ZIPs stay with separate closed counts. Image-only v1 controls remain comp
 No private approval certificate, orphan sweep, new service, real customer operation
 or activation. Transport/account and hosted acceptance remain under AB#29/395.
 
-Proof-image deletion revisions, 2026-10-25 — AB#404 **Active** (review/merge pending):
+Proof publication identity, 2026-10-25 — AB#402 **Closed** (PR #624 merged):
+`verifyEditorSession` replaces `/users/me`'s nonempty-ID inference with one
+same-project-host metadata read at the installed Studio project store's
+`v2021-12-15` API version. Exactly one current member must explicitly be a person;
+missing, malformed, robot or ambiguous evidence fails closed. There is no admin
+role requirement or global-token fallback, and every content read/write still
+uses that same editor token. Deterministic tests cover the intended non-admin
+human Editor, old inference/robot refusals, permission denial and limiter ordering.
+This is source verification: actual Editor/owner/robot and hosted acceptance remain
+under AB#130, with activation off. See the
+[identity contract](sanity-setup.md#proof-gallery-publication-ab130-adr-0038).
+
+Client-gallery owner decisions, 2026-10-25 — AB#405 **Closed** (PR #623 merged):
+the owner accepted [ADR-0040 option B](adr/0040-client-gallery-cleanup-credential-options.md),
+a dedicated Editor cleanup token with broad project-content rights and the stated
+compromise risk. Independent application safeguards and actual token/hosted/activation
+gates remain. The [future public whole-ZIP media contract](adr/0035-unlisted-delivery-zip-proposal.md)
+is also accepted; exact customer-batch approval, supported large-upload/account
+evidence remain separate; AB#407 source implementation is ready for review.
+AB#406 records the exact agent-rule exception. No provisioning, content write, deployment or activation.
+
+Proof-image deletion revisions, 2026-10-25 — AB#404 **Closed** (PR #622 merged):
 manual proof deletion and replacement publication retain the fresh image revisions
 and use the same patch-before-delete planner in their atomic operation. Changed or
 removed candidates roll back the whole unit; missing/malformed image evidence blocks
@@ -25,7 +46,7 @@ gap behind AB#401's operator-added asset assertions, without rewriting that rehe
 Hosted provider/role acceptance and activation remain open under AB#130 / AB#395.
 See [the deletion procedure](proof-selection-data-flow.md) and [Studio workflow](../studio/README.md).
 
-Synthetic photographer notice, 2026-10-24 — AB#403 **Active** (review/merge pending):
+Synthetic photographer notice, 2026-10-24 — AB#403 **Closed** (PR #621 merged):
 source `e5aff4e` ran the actual confirmation planner and notice/sender modules
 against four fresh private Sanity records and real Resend. Exactly one request
 received HTTP 200, the notice became `sent`, the immutable v1 stayed unchanged,
@@ -235,8 +256,9 @@ terms authoring, the Studio action (with `loginMethod: 'token'`) and an owner-ru
 check come first.
 
 AB#401 correction, 2026-10-24: the actual Editor robot passed that `/users/me`
-check. A human user session is not established by the current check; resolving
-the identity contract remains an activation prerequisite. See the dated evidence above.
+check. That earlier check did not establish a human user session. AB#402's
+source correction is recorded above; actual intended-role/hosted acceptance
+remains an activation prerequisite. See the dated evidence above.
 
 
 
