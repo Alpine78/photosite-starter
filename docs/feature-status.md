@@ -2,7 +2,19 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
-Cleanup fault rehearsal tool, 2026-10-28 — AB#409 **Active** (implementation PR pending):
+Real Sanity cleanup fault rehearsal, 2026-10-28 — AB#410 **Active** (evidence PR pending):
+unchanged merged source `82b1b2fb` passed nine preview-only provider scenarios:
+source/image/ZIP revisions, late strong referrer/draft, hidden committed claim/delete
+results, a held old deletion losing its fence and same-revision duplicate runners.
+The 18 generated uploads totalled 78,661 bytes; 242 requests and 77 fsynced write
+intents stayed within the frozen scope. Separate GET-only postflight matched all
+12 baseline revisions and 55 explicit all-version existence omissions. No new token,
+deployment or activation; original owner credential preserved, local copy removed.
+This is provider-only evidence, with deliberate fault injections. HTTPS Studio,
+publication/withdrawal orderings and other activation gates remain; see the
+[dated result and limits](audits/client-gallery-cleanup-fault-rehearsal-2026-10-28.md).
+
+Cleanup fault rehearsal tool, 2026-10-28 — AB#409 **Closed** (PR #628 merged):
 an explicitly invoked, default-suite-excluded operator prepares generated full-frame
 test cards and small whole ZIPs, freezes the exact empty-content provider baseline,
 and requires digest-bound approval before nine real-transport/runner scenarios.

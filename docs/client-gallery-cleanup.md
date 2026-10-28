@@ -308,7 +308,10 @@ write-grant check must be interpreted against the accepted deployment policy.
 
 AB#409 adds a separately invoked [synthetic provider fault tool](client-gallery-cleanup-rehearsal.md)
 for nine revision/reference/duplicate/uncertain-response scenarios. Its source and
-offline tests do not establish new live or hosted acceptance. Preparation is read-only;
+offline tests alone establish no live or hosted acceptance. The separate
+[AB#410 run](audits/client-gallery-cleanup-fault-rehearsal-2026-10-28.md) passed all
+nine against real Content Lake and independently verified baseline/target absence;
+hosted/Studio publication-withdrawal orderings remain separate. Preparation is read-only;
 the write run requires a separately reviewed target, private digest-bound approval and
 operational authorization. Unexpected outcomes stop without destructive automatic recovery.
 

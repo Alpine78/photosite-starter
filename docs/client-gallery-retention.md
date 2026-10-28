@@ -66,11 +66,16 @@ See [proof data flow](proof-selection-data-flow.md).
   confirmed mailbox receipt on 2026-10-25; cleanup activation remains open.
   See [the mail evidence](audits/proof-notice-mail-verification-2026-10-24.md).
 
-- **AB#408 — Active (evidence PR pending):** [isolated hosted evidence](audits/client-gallery-hosted-rehearsal-2026-10-28.md)
+- **AB#408 — Closed (PR #627):** [isolated hosted evidence](audits/client-gallery-hosted-rehearsal-2026-10-28.md)
   now covers whole-ZIP transport/attachment/native download, proof replacement,
   shared image/ZIP retention and native scheduled unshared deletion. Temporary
   resources were removed; actual human Editor/Studio, remaining race/transport
   contract and original Production activation gates are still open.
+- **AB#409 — Closed (PR #628):** separately invoked bounded synthetic fault tool.
+- **AB#410 — Active (evidence PR pending):** [actual provider fault evidence](audits/client-gallery-cleanup-fault-rehearsal-2026-10-28.md)
+  covers nine revision/reference/duplicate/injected-response cases. Independent
+  preview postflight matched the 12 baseline revisions and 55 owned-ID omissions.
+  Hosted Studio/publication orderings and deliberate activation remain separate.
 
 **No automatic cleanup is deployed or configured by AB#393.** No gallery is enrolled
 by receiving a creation default. AB#397 implements enrollment in the separately enabled

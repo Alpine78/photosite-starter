@@ -66,13 +66,25 @@ AB#409's [separate fault-rehearsal tool](client-gallery-cleanup-rehearsal.md) is
 operator-only source addition, not a new provider run or launch approval. A clean
 source pin, private short-lived manifest approval, exact synthetic ownership and
 request/reference guards precede writes; private fsynced intents, no retries and
-independent receipt/Doc reads bound reconciliation. Default tests/CI exclude the live
-entry point; preparation admits one export GET only. Unexpected foreign data or
+independent receipt/Doc reads bound reconciliation. Default discovery excludes the live
+entry point, with a child test verifying no-opt-in/CI refusal; preparation admits
+one export GET only. Unexpected foreign data or
 ambiguous writes stop automatic destructive recovery. The source tests use an offline
 atomic fixture; actual provider/hosted/Studio acceptance remains separate. Broad
 Editor credential risk remains as accepted in ADR-0040; no token is provisioned,
 deployed or revoked by this implementation. A controlled writer environment remains
 an operational prerequisite, not a property an export can prove.
+
+The separately authorized [AB#410 provider run](audits/client-gallery-cleanup-fault-rehearsal-2026-10-28.md)
+then passed the nine actual Content Lake scenarios with unchanged source. An existing
+local Editor robot made 77 exact preview write requests; all upload bodies matched
+the reviewed generated assets. Independent GET-only postflight verified the original
+12 baseline revisions and 55 existence omissions. The original credential stayed
+local/unchanged/unrevoked; its agent-created copy was removed. No new token, deployment,
+Production dataset request or activation occurred. Intentional local response masking
+and a held pre-wire request are distinguished from Internet outages. This adds local
+provider evidence, not signed-in Studio/human-role, hosted function or full launch
+acceptance; controlled-writer/privacy/transport gates remain.
 
 ## How this review was run
 
