@@ -306,6 +306,12 @@ write-grant check must be interpreted against the accepted deployment policy.
 
 ### Remaining hosted rehearsal
 
+AB#409 adds a separately invoked [synthetic provider fault tool](client-gallery-cleanup-rehearsal.md)
+for nine revision/reference/duplicate/uncertain-response scenarios. Its source and
+offline tests do not establish new live or hosted acceptance. Preparation is read-only;
+the write run requires a separately reviewed target, private digest-bound approval and
+operational authorization. Unexpected outcomes stop without destructive automatic recovery.
+
 Use the [AB#408 result matrix](audits/client-gallery-hosted-rehearsal-2026-10-28.md)
 for the observed subset; do not repeat a passed check without a changed target or
 reason. Before activation, complete the remaining synthetic hosted checks, with no real

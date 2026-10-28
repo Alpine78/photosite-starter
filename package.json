@@ -58,6 +58,7 @@
     "verify:sanity-live": "vitest run --config vitest.live.config.mts",
     "verify:sanity-adapters": "vitest run --config vitest.live-adapters.config.mts",
     "verify:client-gallery-cleanup-readiness": "vitest run --config vitest.cleanup-readiness.config.mts",
+    "verify:client-gallery-cleanup-rehearsal": "vitest run --config vitest.cleanup-rehearsal.config.mts",
     "benchmark:keywords": "node scripts/keyword-benchmark.mts",
     "summarize:audit": "node scripts/summarize-npm-audit.mts",
     "write:categories": "node scripts/write-sanity-categories.mts",

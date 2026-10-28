@@ -9,6 +9,7 @@ never writes CMS). Read the command's own documentation before running or changi
 npm run verify:preview -- <url> <dpl_id> # assert ownership, protection, and noindex
 npm run client-gallery:zip -- --input <private.json> --output <new-private-dir> [--apply --approved-digest <sha256>] # owner-run: verify existing whole ZIP against actual private JPEG/metadata/set audits and complete anonymous remote hashes; dry-run default, one guarded draft-only attach/replace/detach, no uploads/publication/deletes; docs/client-gallery-zip.md
 npm run verify:client-gallery-cleanup-readiness # owner-run: explicit opt-in + private target/canary manifest; bounded GET-only export/Doc reads, never writes or enables deletion; docs/client-gallery-cleanup.md
+npm run verify:client-gallery-cleanup-rehearsal # owner-run: explicit prepare/run mode + private inputs; prepare is one export GET + generated local fixtures; separately authorized digest-bound run writes/deletes only exact synthetic preview targets, never activates Production; docs/client-gallery-cleanup-rehearsal.md
 npm run verify:legacy-redirects -- report [--csv] # AB#19: mapping report or pending review CSV; check <origin> [<canonical-origin>] probes a production build
 npm run benchmark:keywords -- plan # AB#65 spike: fixture + query-strategy benchmark (owner-run for the live matrix)
 npm run convert:joomla -- --source <articles.ndjson> --out <dir> # owner-run: convert legacy content, report only, never writes

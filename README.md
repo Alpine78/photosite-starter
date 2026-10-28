@@ -802,6 +802,8 @@ verified a 209 MB package, FI/EN browser selection/download, replacement deletio
 shared-file retention and native scheduled deletion. Actual non-admin human Editor,
 remaining Studio/race and supported-upload gates stay open under AB#130/395;
 gallery features remain disabled on original Production ([cleanup runbook](docs/client-gallery-cleanup.md)).
+AB#409 prepares a separate [synthetic provider fault rehearsal](docs/client-gallery-cleanup-rehearsal.md);
+its offline tests and implementation add no new live acceptance or activation.
 Keyword-driven dynamic galleries remain post-MVP. See the MVP checklist above and
 [detailed implementation history](docs/feature-status.md).
 
