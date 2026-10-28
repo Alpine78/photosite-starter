@@ -131,9 +131,13 @@ Independent identity and proof-image revision corrections are AB#402/404;
 their source fixtures do not establish hosted human Editor or deletion acceptance.
 Proof replacement AB#396 retains its separate permissions/concurrency acceptance.
 The owner separately accepted the [ADR-0035 ZIP media contract](0035-unlisted-delivery-zip-proposal.md)
-on the same date. AB#407 supplies its still-pending source slice; supported whole-file
-upload/account capacity and actual publication remain separate. This credential
-record supplies no ZIP implementation.
+on the same date. AB#407 subsequently merged in PR #626. The separate
+[AB#408 hosted evidence](../audits/client-gallery-hosted-rehearsal-2026-10-28.md)
+records temporary built-in Editor grant/expiry/revocation and actual scoped
+retention/deletion, including native cron. Its four robots were retired; it supplies
+no persistent Production credential or original-site activation. Non-admin human
+Editor/Studio, remaining race/privacy and supported future transport gates stay
+open. This credential record supplies no ZIP implementation or narrower provider grant.
 
 ## Action Items
 

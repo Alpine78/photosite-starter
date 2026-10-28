@@ -2,7 +2,19 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
-Verified whole delivery ZIP, 2026-10-26 — AB#407 **Active** (review/merge pending):
+Hosted synthetic client-gallery rehearsal, 2026-10-28 — AB#408 **Active** (evidence PR pending):
+source `4dfa19a9` passed actual 209 MB whole-ZIP upload/integrity/attachment and native
+FI/EN browser download, robot refusal/owner-human publication, keyboard proof selection,
+replacement deletion, shared image/ZIP retention and native Vercel scheduled removal
+of the unshared ZIP plus 24 previews. Four temporary robots and the isolated project
+were retired; every owned CMS target is absent. Production content revisions stayed
+unchanged; 11 provider access-group revisions/timestamps changed with otherwise equal
+payloads. The intended non-admin human Editor, signed-in Studio/fault-injection gates,
+supported future transport and original Production activation remain open. These
+instrumented observations have explicit limits; see the
+[dated evidence](audits/client-gallery-hosted-rehearsal-2026-10-28.md).
+
+Verified whole delivery ZIP, 2026-10-26 — AB#407 **Closed** (PR #626 merged):
 one optional strong `deliveryZip` file reference now travels through the closed
 schema, fresh customer reader and cleanup policy. The read-only Studio field is
 managed by an [owner-run audited attachment command](client-gallery-zip.md): exact
@@ -23,8 +35,9 @@ missing, malformed, robot or ambiguous evidence fails closed. There is no admin
 role requirement or global-token fallback, and every content read/write still
 uses that same editor token. Deterministic tests cover the intended non-admin
 human Editor, old inference/robot refusals, permission denial and limiter ordering.
-This is source verification: actual Editor/owner/robot and hosted acceptance remain
-under AB#130, with activation off. See the
+This source correction now has AB#408 hosted robot-refusal and owner-Administrator
+evidence; actual non-admin human Editor and signed-in Studio acceptance remain
+under AB#130, with original Production activation off. See the
 [identity contract](sanity-setup.md#proof-gallery-publication-ab130-adr-0038).
 
 Client-gallery owner decisions, 2026-10-25 — AB#405 **Closed** (PR #623 merged):

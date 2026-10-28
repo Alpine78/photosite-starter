@@ -1,6 +1,6 @@
 # Scheduled delivery cleanup (AB#397–399)
 
-Source implementation, **default off; hosted acceptance and activation pending**.
+Source implementation, **default off; scoped hosted evidence recorded, full acceptance and activation pending**.
 This implements the accepted delivery-expiry direction in ADR-0034/AB#392 using
 existing Sanity and Vercel. Merge and the committed cron schedule do not enable it.
 The Studio enrollment slice is AB#397; the executor is AB#398 under AB#395.
@@ -8,8 +8,8 @@ Both source slices merged in PR #614/#615. AB#399 adds the separately invoked
 read-only readiness probe below. The separately authorized **AB#401 rehearsal on
 2026-10-24** measured the real dataset and exercised synthetic publication,
 replacement and expiry deletion through an isolated local production build.
-Dedicated-token, editor-identity and hosted acceptance checks remain open;
-**activation is still blocked**. The reference cleanup credential choice is now
+That run left dedicated-token, editor-identity and hosted acceptance gaps;
+the AB#408 checkpoint below adds a scoped observed subset. **Activation is still blocked**. The reference cleanup credential choice is now
 accepted under [ADR-0040 option B](adr/0040-client-gallery-cleanup-credential-options.md). See the
 [dated results and limitations](audits/client-gallery-lifecycle-rehearsal-2026-10-24.md).
 The later [AB#403 mail-only test](audits/proof-notice-mail-verification-2026-10-24.md)
@@ -22,6 +22,16 @@ AB#407 includes the optional verified `deliveryZip` file in the same enrolled un
 as its gallery and web images. The [attachment operator](client-gallery-zip.md)
 implements the owner-accepted ADR-0035 media contract; it uploads nothing and does
 not establish supported large-file transport or approve a customer batch.
+
+## Hosted checkpoint — AB#408, 2026-10-28
+
+The [isolated hosted run](audits/client-gallery-hosted-rehearsal-2026-10-28.md)
+verified a dedicated temporary Editor worker, actual paired proof replacement,
+shared image/ZIP retention, independent completion receipts/cursor, and native
+Vercel removal of an unshared whole ZIP plus 24 delivery previews. All test data,
+four robots and the test project were retired. Original Production gallery flags stayed absent.
+The artifacts were instrumented; non-admin human Editor/Studio/privacy and hosted
+race/fault cases remain open. The checklist below is not closed wholesale by this run.
 
 ## Approval and ordering
 
@@ -296,7 +306,9 @@ write-grant check must be interpreted against the accepted deployment policy.
 
 ### Remaining hosted rehearsal
 
-Before enabling either flag, record a synthetic hosted rehearsal, with no real
+Use the [AB#408 result matrix](audits/client-gallery-hosted-rehearsal-2026-10-28.md)
+for the observed subset; do not repeat a passed check without a changed target or
+reason. Before activation, complete the remaining synthetic hosted checks, with no real
 customer deletion and no credentials/raw exports in CI or public artifacts:
 
 1. Confirm owner approval, actual function allowance and Production-only scope;

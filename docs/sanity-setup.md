@@ -198,7 +198,11 @@ A human Viewer may pass identity but must be denied unauthorized writes by Sanit
 Keep only redacted field-presence/type and outcome evidence, not member IDs, names,
 addresses, tokens or response bodies. A 403, filtered member list or missing flags
 for the intended Editor is a blocker, not permission to substitute an admin token.
-These real-provider/hosted checks remain pending; merging AB#402 enables nothing.
+[AB#408's isolated hosted run](audits/client-gallery-hosted-rehearsal-2026-10-28.md)
+observed robot HTTP 401 and owner-human Administrator HTTP 200 with the exact source
+route. Actual non-admin human Editor, human Viewer denial and signed-in Studio UI
+checks remain pending; owner/robot results cannot substitute for them. The four
+temporary robots were revoked, and original Production gallery flags remain absent.
 
 ### Proof selection (AB#130, ADR-0038 decision 5)
 

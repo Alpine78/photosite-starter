@@ -18,6 +18,16 @@ provider caches or downloaded copies. The policy decision does not approve a
 customer batch or prove supported hundreds-of-megabytes upload transport or
 account capacity. Do not split a package to bypass those outstanding gates.
 
+## Hosted synthetic evidence
+
+[AB#408, 2026-10-28](audits/client-gallery-hosted-rehearsal-2026-10-28.md) exercised
+this actual command for 1,038,353- and 209,004,421-byte whole packages: complete
+remote hashes on both dry-run/apply, draft CAS, FI/EN browser delivery/download,
+shared ZIP retention and native scheduled unshared deletion. Test assets and
+credentials were retired. Observed large transfer and reported account headroom
+do not resolve documented provider transport support, approve customer files or
+activate the original site.
+
 ## Prepare the exact private inputs
 
 Use pinned Node 24 on Linux or macOS. All input/evidence files must be untracked
