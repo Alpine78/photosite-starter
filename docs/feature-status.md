@@ -2,7 +2,18 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
-Hosted synthetic client-gallery rehearsal, 2026-10-28 — AB#408 **Active** (evidence PR pending):
+Cleanup fault rehearsal tool, 2026-10-28 — AB#409 **Active** (implementation PR pending):
+an explicitly invoked, default-suite-excluded operator prepares generated full-frame
+test cards and small whole ZIPs, freezes the exact empty-content provider baseline,
+and requires digest-bound approval before nine real-transport/runner scenarios.
+Exact targets/references, revision guards, journal-before-write, bounded IO and
+independent receipts/absence checks constrain the run; unexpected outcomes stop for
+manual reconciliation. Offline orchestration tests are not provider evidence.
+No new live run, credential creation, deployment or activation. The owner confirms
+a human Editor is available; signed-in Studio acceptance still needs its isolated
+HTTPS target. See the [operator procedure](client-gallery-cleanup-rehearsal.md).
+
+Hosted synthetic client-gallery rehearsal, 2026-10-28 — AB#408 **Closed** (PR #627 merged):
 source `4dfa19a9` passed actual 209 MB whole-ZIP upload/integrity/attachment and native
 FI/EN browser download, robot refusal/owner-human publication, keyboard proof selection,
 replacement deletion, shared image/ZIP retention and native Vercel scheduled removal

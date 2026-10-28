@@ -36,6 +36,7 @@ export default defineConfig({
       "src/lib/sanity-live-verification.test.ts",
       "src/lib/sanity-adapter-smoke-verification.test.ts",
       "src/lib/client-gallery-cleanup-readiness-live.test.ts",
+      "scripts/client-gallery-cleanup-rehearsal.live.test.mts",
     ],
   },
 });

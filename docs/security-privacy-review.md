@@ -62,6 +62,18 @@ signed-in Studio, remaining fault/privacy/transport and original activation gate
 remain open. This supersedes blanket “all hosted checks pending” statements above
 only for the observed subset; it does not rerun or approve AB#117.
 
+AB#409's [separate fault-rehearsal tool](client-gallery-cleanup-rehearsal.md) is an
+operator-only source addition, not a new provider run or launch approval. A clean
+source pin, private short-lived manifest approval, exact synthetic ownership and
+request/reference guards precede writes; private fsynced intents, no retries and
+independent receipt/Doc reads bound reconciliation. Default tests/CI exclude the live
+entry point; preparation admits one export GET only. Unexpected foreign data or
+ambiguous writes stop automatic destructive recovery. The source tests use an offline
+atomic fixture; actual provider/hosted/Studio acceptance remains separate. Broad
+Editor credential risk remains as accepted in ADR-0040; no token is provisioned,
+deployed or revoked by this implementation. A controlled writer environment remains
+an operational prerequisite, not a property an export can prove.
+
 ## How this review was run
 
 A plan for this review was sent to Codex (OpenAI's CLI, `codex-review-loop` skill,
