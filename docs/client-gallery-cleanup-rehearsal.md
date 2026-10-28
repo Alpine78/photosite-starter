@@ -1,10 +1,14 @@
 # Synthetic cleanup fault rehearsal (AB#409)
 
-This is a separately invoked **operator tool**, prepared without running a new live
-experiment. It calls the actual cleanup transport and runner against an isolated
+This separately invoked **operator tool** calls the actual cleanup transport and
+runner against an isolated
 Sanity `preview` dataset. Default discovery excludes its live entry point; an
 isolated child regression verifies refusal before IO when started without opt-in.
 Neither this tool, its merge nor a passing offline test activates customer galleries.
+The later authorized [AB#410 execution](audits/client-gallery-cleanup-fault-rehearsal-2026-10-28.md)
+passed all nine scenarios against real Content Lake: 18 uploads / 78,661 bytes,
+242 requests / 77 writes, followed by independent baseline/55-ID absence checks.
+That is provider-only evidence; future runs still require their own authorization.
 The [AB#408 hosted evidence](audits/client-gallery-hosted-rehearsal-2026-10-28.md)
 remains a distinct, completed run; no passed large-file transfer is repeated here.
 

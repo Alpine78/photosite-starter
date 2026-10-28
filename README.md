@@ -800,10 +800,12 @@ automatic cleanup worker and authenticated daily schedule are source-built, defa
 [AB#408's isolated hosted rehearsal](docs/audits/client-gallery-hosted-rehearsal-2026-10-28.md)
 verified a 209 MB package, FI/EN browser selection/download, replacement deletion,
 shared-file retention and native scheduled deletion. Actual non-admin human Editor,
-remaining Studio/race and supported-upload gates stay open under AB#130/395;
+remaining Studio, hosted fault/publication-ordering and supported-upload gates stay open under AB#130/395;
 gallery features remain disabled on original Production ([cleanup runbook](docs/client-gallery-cleanup.md)).
-AB#409 prepares a separate [synthetic provider fault rehearsal](docs/client-gallery-cleanup-rehearsal.md);
-its offline tests and implementation add no new live acceptance or activation.
+AB#409's separate [synthetic provider fault tool](docs/client-gallery-cleanup-rehearsal.md)
+now has [AB#410 real-provider evidence](docs/audits/client-gallery-cleanup-fault-rehearsal-2026-10-28.md)
+for all nine revision/reference/duplicate/injected-response scenarios, with independent
+test-target absence. This is local-operator evidence, not hosted Studio or activation.
 Keyword-driven dynamic galleries remain post-MVP. See the MVP checklist above and
 [detailed implementation history](docs/feature-status.md).
 
