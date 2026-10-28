@@ -796,11 +796,12 @@ by ADR-0034's ongoing unlisted Sanity direction. New Studio delivery galleries s
 an editable six-month deadline from creation (AB#393). AB#397 adds default-off reviewed
 Studio enrollment for finite deliveries, stored atomically with publication. The separate
 automatic cleanup worker and authenticated daily schedule are source-built, default-off
-(AB#398). Hosted role/race checks and activation remain AB#395; no new ZIP eligibility
-is granted. The separate owner-run capacity/canary read probe (AB#399) and bounded
-synthetic lifecycle were exercised against real Sanity under AB#401; activation
-remains blocked ([results](docs/audits/client-gallery-lifecycle-rehearsal-2026-10-24.md),
-[cleanup runbook](docs/client-gallery-cleanup.md)).
+(AB#398). The audited whole-ZIP workflow (AB#407, PR #626) is source-complete.
+[AB#408's isolated hosted rehearsal](docs/audits/client-gallery-hosted-rehearsal-2026-10-28.md)
+verified a 209 MB package, FI/EN browser selection/download, replacement deletion,
+shared-file retention and native scheduled deletion. Actual non-admin human Editor,
+remaining Studio/race and supported-upload gates stay open under AB#130/395;
+gallery features remain disabled on original Production ([cleanup runbook](docs/client-gallery-cleanup.md)).
 Keyword-driven dynamic galleries remain post-MVP. See the MVP checklist above and
 [detailed implementation history](docs/feature-status.md).
 

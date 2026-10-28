@@ -546,8 +546,8 @@ against the supplied byte set, **not** JPEG decoding, image/master classificatio
 embedded metadata suitability, owner approval, provider capacity/transport or
 remote readback. Do those checks separately before a separately authorized
 operation. This offline tool grants no new full-resolution public-media exception,
-changes no legacy contract and adds no ZIP field/download to the current web-only
-new-gallery path. No S3/PostgreSQL service is involved.
+changes no legacy contract and itself adds no runtime ZIP field or download.
+The later AB#407 source slice supplies the new-gallery ZIP workflow. No S3/PostgreSQL service is involved.
 
 For whole packages in the hundreds of megabytes, use the separate streaming audit:
 
@@ -609,6 +609,18 @@ classification nor metadata suitability, manifest approval, supported whole-file
 upload transport or remote integrity. The owner's largest packages have been
 hundreds of megabytes and must remain whole. Provider upload feasibility remains
 open in [ADR-0035](adr/0035-unlisted-delivery-zip-proposal.md).
+
+### Hosted client-gallery checkpoint (AB#408)
+
+[The 2026-10-28 synthetic run](audits/client-gallery-hosted-rehearsal-2026-10-28.md)
+used one separately protected temporary project's Production target and the existing
+Sanity preview dataset; it preserved Production-only cleanup and kept ordinary
+Preview off. A Viewer-only build and every compiled function's forbidden-dataset
+negative control preceded arming the separate proof/cleanup secrets. Actual customer
+flow, 209 MB native whole-ZIP download and native scheduled deletion passed within
+that instrumented scope. The project, credentials and owned data were removed.
+No original serving deployment, domain or activation setting changed. Full
+human-Editor/Studio, fault/privacy and supported-upload gates remain open.
 
 ### Retained legacy customer galleries (ADR-0028)
 

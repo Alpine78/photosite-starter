@@ -161,8 +161,12 @@ module test and that owner confirmation do not establish hosted delivery.
 The earlier editor check also accepted a robot. AB#402 replaces the nonempty-ID
 inference with documented project-member identity flags. That metadata is processed
 transiently by the server without storing, returning or logging member data;
-[actual Editor/owner/robot acceptance](sanity-setup.md#proof-gallery-publication-ab130-adr-0038)
-remains pending. See the
+[actual non-admin Editor/Studio acceptance](sanity-setup.md#proof-gallery-publication-ab130-adr-0038)
+remains pending. The later [AB#408 hosted run](audits/client-gallery-hosted-rehearsal-2026-10-28.md)
+observed robot refusal, owner-human publication, EN keyboard selection/confirmation,
+FI readback and atomic replacement deletion. Mail was deliberately unconfigured;
+the notice stayed pending until the test proof unit was deleted. All test resources
+were retired; this enables no original Production processing. See the
 [results and hosted limitations](audits/client-gallery-lifecycle-rehearsal-2026-10-24.md)
 and [probe runbook](client-gallery-cleanup.md#read-only-capacity-and-known-canary-probe-ab399).
 

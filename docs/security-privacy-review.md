@@ -50,6 +50,18 @@ accepted the [future public ZIP media contract](adr/0035-unlisted-delivery-zip-p
 no new customer file or package is uploaded by these policy decisions. These are
 scoped updates, not a rerun or approval of the full launch review.
 
+The [2026-10-28 hosted gallery checkpoint (AB#408)](audits/client-gallery-hosted-rehearsal-2026-10-28.md)
+adds actual robot refusal/owner-human publication, whole-ZIP integrity and customer
+browser flow, dedicated Editor retention/deletion and native cron evidence on an
+isolated Production-target test project. All four temporary robots, the project and
+owned CMS records/assets were retired. Production content revisions and serving
+configuration were unchanged; 11 reserved access-group revisions/timestamps changed
+with otherwise identical payloads. The instrumented artifact had public-route fence
+denials and is not a pristine full-site release test. Non-admin human Editor,
+signed-in Studio, remaining fault/privacy/transport and original activation gates
+remain open. This supersedes blanket “all hosted checks pending” statements above
+only for the observed subset; it does not rerun or approve AB#117.
+
 ## How this review was run
 
 A plan for this review was sent to Codex (OpenAI's CLI, `codex-review-loop` skill,
