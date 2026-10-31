@@ -2,6 +2,20 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Studio proof publication and gallery link controls, 2026-10-31 — AB#413 **Active**
+(source fix, review/merge pending): the proof publication/key rotation dialog and the
+client gallery link dialog use the existing Sanity UI controls for terms fields,
+currency/language selects, the reminder checkbox, readonly link fields and buttons.
+Under the installed Sanity 6.18 ui5 reset the reminder checkbox had rendered 0×0 px
+and the other raw controls had lost their chrome. A hydrated local browser fixture
+with that reset and the Studio UI theme/styles checks visible marks, keyboard focus,
+label activation, validation, the one-request pending/unknown boundary, readonly link
+focus/selection and copy/manual-selection fallback in Finnish/English and light/dark,
+with a fake fetcher and clipboard and all network requests blocked. Publication logic,
+the reminder default and copy are unchanged. Other Studio actions (proof reopen/delete,
+reminder settings, existing web images, locale navbar) still use raw controls. These
+fixtures do not replace signed-in hosted Editor acceptance (AB#411).
+
 Real Sanity cleanup fault rehearsal, 2026-10-28 — AB#410 **Active** (evidence PR pending):
 unchanged merged source `82b1b2fb` passed nine preview-only provider scenarios:
 source/image/ZIP revisions, late strong referrer/draft, hidden committed claim/delete

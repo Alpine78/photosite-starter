@@ -1,3 +1,4 @@
+import { Button, Checkbox, Flex, Select, Stack, TextInput } from "@sanity/ui";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import type { ClientGallerySite } from "./client-gallery-share";
 import { copyClientGalleryUrl } from "./client-gallery-share";
@@ -30,17 +31,17 @@ function SelectionLink({ site, handle, selectionKey, copy, initialLanguage = "" 
   const shown = outcome?.url === url ? outcome.result : undefined;
   return <>
     <p><strong>{copy.once}</strong></p>
-    <p><label htmlFor={`${id}-language`}>{copy.language}</label>{" "}
-      <select id={`${id}-language`} value={language} onChange={(event) => setLanguage(event.target.value)}>
+    <Stack gap={2}><label htmlFor={`${id}-language`}>{copy.language}</label>{" "}
+      <Select id={`${id}-language`} value={language} onChange={(event) => setLanguage(event.currentTarget.value)}>
         <option value="">{copy.defaultLanguage}</option>
         {site.locales.filter((tag) => tag.length <= 128).map((tag) => <option key={tag} value={tag}>{copy.languages[new Intl.Locale(tag).language] ?? tag} ({tag})</option>)}
-      </select>
-    </p>
-    <p><label htmlFor={`${id}-url`}>{copy.url}</label>{" "}
-      <input id={`${id}-url`} ref={input} readOnly value={url} autoComplete="off" spellCheck={false} style={{ width: "100%" }} />
-    </p>
+      </Select>
+    </Stack>
+    <Stack gap={2}><label htmlFor={`${id}-url`}>{copy.url}</label>{" "}
+      <TextInput id={`${id}-url`} ref={input} readOnly value={url} autoComplete="off" spellCheck={false} />
+    </Stack>
     <p role="status">{shown === "copied" ? copy.copied : shown === "manual" ? copy.manual : ""}</p>
-    <button type="button" disabled={!url} onClick={() => void runCopy()}>{copy.copy}</button>{" "}
+    <Button type="button" disabled={!url} onClick={() => void runCopy()} text={copy.copy} />{" "}
   </>;
 }
 
@@ -48,29 +49,29 @@ function TermsFields({ form, invalid, onChange, copy, disabled, locales }: {
   form: ProofTermsForm; invalid: readonly ProofTermsField[]; onChange(next: ProofTermsForm): void; copy: Copy; disabled: boolean; locales: readonly string[];
 }) {
   const id = useId();
-  const field = (name: ProofTermsField, control: ReactNode) => <p>
+  const field = (name: ProofTermsField, control: ReactNode) => <Stack gap={2}>
     <label htmlFor={`${id}-${name}`}>{copy.fields[name]}</label>{" "}{control}
     {invalid.includes(name) ? <> <span id={`${id}-${name}-error`}>{copy.fieldError}</span></> : null}
-  </p>;
+  </Stack>;
   const describe = (name: ProofTermsField) => invalid.includes(name)
     ? { "aria-invalid": true, "aria-describedby": `${id}-${name}-error` } : {};
   const text = (name: "includedCount" | "extraUnitPrice" | "jobReference" | "reminderDays" | "customerEmail", inputMode?: "numeric" | "decimal" | "email") =>
-    field(name, <input id={`${id}-${name}`} value={form[name]} disabled={disabled} inputMode={inputMode} autoComplete="off"
-      onChange={(event) => onChange({ ...form, [name]: event.target.value })} {...describe(name)} />);
+    field(name, <TextInput id={`${id}-${name}`} value={form[name]} disabled={disabled} inputMode={inputMode} autoComplete="off"
+      onChange={(event) => onChange({ ...form, [name]: event.currentTarget.value })} {...describe(name)} />);
   return <>
     {text("includedCount", "numeric")}
-    {field("currency", <select id={`${id}-currency`} value={form.currency} disabled={disabled}
-      onChange={(event) => onChange({ ...form, currency: event.target.value })} {...describe("currency")}>
+    {field("currency", <Select id={`${id}-currency`} value={form.currency} disabled={disabled}
+      onChange={(event) => onChange({ ...form, currency: event.currentTarget.value })} {...describe("currency")}>
       {Object.keys(PROOF_CURRENCIES).map((code) => <option key={code} value={code}>{code}</option>)}
-    </select>)}
+    </Select>)}
     {text("extraUnitPrice", "decimal")}
     {text("jobReference")}
-    {field("reminderLocale", <select id={`${id}-reminderLocale`} value={form.reminderLocale} disabled={disabled}
-      onChange={(event) => onChange({ ...form, reminderLocale: event.target.value })} {...describe("reminderLocale")}>
+    {field("reminderLocale", <Select id={`${id}-reminderLocale`} value={form.reminderLocale} disabled={disabled}
+      onChange={(event) => onChange({ ...form, reminderLocale: event.currentTarget.value })} {...describe("reminderLocale")}>
       {locales.map((tag) => <option key={tag} value={tag}>{copy.languages[new Intl.Locale(tag).language] ?? tag} ({tag})</option>)}
-    </select>)}
-    <p><label><input type="checkbox" checked={form.reminder} disabled={disabled}
-      onChange={(event) => onChange({ ...form, reminder: event.target.checked })} />{" "}{copy.fields.reminder}</label></p>
+    </Select>)}
+    <Flex align="flex-start" gap={2}><Checkbox id={`${id}-reminder`} checked={form.reminder} disabled={disabled}
+      onChange={(event) => onChange({ ...form, reminder: event.currentTarget.checked })} /><label htmlFor={`${id}-reminder`}>{copy.fields.reminder}</label></Flex>
     {form.reminder ? <>{text("reminderDays", "numeric")}{text("customerEmail", "email")}</> : null}
     <p>{copy.reminderNote}</p>
   </>;
@@ -122,22 +123,21 @@ export function ProofPublishDialog({ request, site, locale, readToken, fetcher, 
 
   if (result) {
     const unknown = request.operation === "rotate-key" ? copy.unknown.rotate : first ? copy.unknown.first : copy.unknown.later;
-    return <div>
+    return <Stack gap={3}>
       {result.kind === "unknown" ? <p role="alert">{unknown}</p> : null}
       {result.kind === "published" ? <p role="status">{copy.published}</p> : null}
       {(result.kind === "published" || result.kind === "key-rotated") && result.selectionKey
         ? <SelectionLink site={site} handle={request.handle} selectionKey={result.selectionKey} copy={copy} initialLanguage={first ? form.reminderLocale : ""} /> : null}
-      <button type="button" onClick={onClose}>{copy.close}</button>
-    </div>;
+      <Button type="button" onClick={onClose} text={copy.close} />
+    </Stack>;
   }
   const rotate = request.operation === "rotate-key";
-  return <div>
+  return <Stack gap={3}>
     <p>{rotate ? copy.rotateWarning : first ? copy.first : copy.later}</p>
     {first ? <TermsFields form={form} invalid={invalid} onChange={setForm} copy={copy} disabled={pending} locales={site.locales} /> : null}
     <p role="alert">{problem ?? ""}</p>
-    <button type="button" disabled={pending} onClick={() => void submit()}>
-      {pending ? (rotate ? copy.rotating : copy.sending) : rotate ? copy.rotateConfirm : copy.send}
-    </button>{" "}
-    <button type="button" disabled={pending} onClick={onClose}>{copy.cancel}</button>
-  </div>;
+    <Button type="button" disabled={pending} onClick={() => void submit()}
+      text={pending ? (rotate ? copy.rotating : copy.sending) : rotate ? copy.rotateConfirm : copy.send} />{" "}
+    <Button type="button" disabled={pending} onClick={onClose} text={copy.cancel} />
+  </Stack>;
 }
