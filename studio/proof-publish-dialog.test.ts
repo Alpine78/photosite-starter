@@ -1,4 +1,5 @@
 import { createElement } from "react";
+import { ThemeProvider, studioTheme } from "@sanity/ui";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { ProofPublishDialog, type ProofDialogRequest } from "./proof-publish-dialog";
@@ -7,9 +8,9 @@ const site = { origin: "https://photos.example", locales: ["fi"] };
 const handle = "a".repeat(32);
 function render(request: ProofDialogRequest, locale = "fi-FI") {
   const fetcher = vi.fn(), readToken = vi.fn(() => "editor-token");
-  const html = renderToStaticMarkup(createElement(ProofPublishDialog, {
+  const html = renderToStaticMarkup(createElement(ThemeProvider, { theme: studioTheme }, createElement(ProofPublishDialog, {
     request, site, locale, readToken, fetcher: fetcher as unknown as typeof fetch, onBusy: vi.fn(), onClose: vi.fn(),
-  }));
+  })));
   return { html, fetcher, readToken };
 }
 
