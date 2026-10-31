@@ -2,6 +2,16 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Studio delivery publication controls, 2026-10-31 — AB#412 **Active** (source fix,
+review/merge pending): the delivery dialog uses the existing Sanity UI controls
+for publication choices, cleanup enrollment, proof ID, typed destructive confirmation
+and buttons. Sanity 6.18.0 imports the ui5 reset, which removes raw controls' native
+appearance and borders. Local browser fixtures include that installed reset and the
+Studio UI theme/styles, checking visible indicators, label activation, keyboard focus
+and disabled states in Finnish/English and light/dark themes. Publication, cleanup
+consent defaults and revision guards are unchanged. These fixtures do not replace
+signed-in hosted Editor acceptance; the frozen AB#411 deployment is unchanged.
+
 Real Sanity cleanup fault rehearsal, 2026-10-28 — AB#410 **Active** (evidence PR pending):
 unchanged merged source `82b1b2fb` passed nine preview-only provider scenarios:
 source/image/ZIP revisions, late strong referrer/draft, hidden committed claim/delete

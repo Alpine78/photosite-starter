@@ -1,13 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderDeliveryDialog } from "./test-support/render-delivery-dialog";
 import { evaluate, parse } from "groq-js/1";
 import { lake } from "./test-support/proof-lake";
 import { cleanupControlId, cleanupControlMutation, parseCleanupControl, type CleanupControl } from "../src/lib/client-gallery-cleanup-contract";
 import { reviewDeliveryPublication, publishDelivery, reconcileDeliveryPublication, deliveryCleanupDefault, DELIVERY_LINKS_QUERY, type DeliveryPublishReader, type DeliveryPublishPlan } from "./client-gallery-publish";
 import { allowAction, allowTemplate } from "./editorial-policy";
 import { loadStudioSettings } from "./settings";
-import { DeliveryPublishDialog, type DeliveryPublishDialogProps } from "./client-gallery-publish-dialog";
+import { type DeliveryPublishDialogProps } from "./client-gallery-publish-dialog";
 import { deliveryCleanupCopy } from "./client-gallery-publish-copy";
 
 const NOW = "2026-10-24T12:00:00.000Z", DEADLINE = "2027-04-24T12:00:00.000Z";
@@ -152,13 +151,13 @@ describe("publication-bound cleanup enrollment", () => {
     const store = setup([zipAsset]); store.put({ ...source, deliveryZip: zipReference });
     const plan = await store.ready(), copy = deliveryCleanupCopy(locale), handlers = { onMode: vi.fn(), onProofId: vi.fn(), onTyped: vi.fn(), onReview: vi.fn(), onSubmit: vi.fn(), onCheck: vi.fn(), onReset: vi.fn(), onClose: vi.fn() };
     const props: DeliveryPublishDialogProps = { locale, prefix: "cleanup", proofId: "", typed: "", pending: false, ready: true, proofsEnabled: false, review: { ready: plan }, ...handlers };
-    const html = renderToStaticMarkup(createElement(DeliveryPublishDialog, props));
+    const html = renderDeliveryDialog(props);
     expect(html).toContain(`${copy.images}: 1`); expect(html).toContain(`${copy.zips}: 1`);
     const current = plan.cleanup!.next!;
     const receipt: CleanupControl = { ...current, state: "complete", receipt: { operationId: "cleanup", at: NOW,
       deletedAssets: [{ id: ASSET, type: "sanity.imageAsset", revision: "image-r1" }], sharedAssets: [{ id: ZIP, type: "sanity.fileAsset", revision: "zip-r1" }], deletedCount: 1, sharedCount: 1 } };
-    const completed = renderToStaticMarkup(createElement(DeliveryPublishDialog, { ...props, review: undefined,
-      cleanup: { enroll: false, eligible: true, control: receipt, unreadable: false, loading: false } }));
+    const completed = renderDeliveryDialog({ ...props, review: undefined,
+      cleanup: { enroll: false, eligible: true, control: receipt, unreadable: false, loading: false } });
     expect(completed).toContain(`${copy.deletedZips}: 0`); expect(completed).toContain(`${copy.sharedZips}: 1`);
     for (const handler of Object.values(handlers)) expect(handler).not.toHaveBeenCalled();
   });
