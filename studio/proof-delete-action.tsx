@@ -3,9 +3,10 @@ import { useClient, useCurrentLocale, type DocumentActionComponent, type Mutatio
 import { STUDIO_VALIDATION_API_VERSION } from "../sanity/schemas/validation";
 import { studioSettings } from "./environment";
 import {
-  collectProofDeletion, createProofDeletionGuard, planProofDeletion, proofDeleteCopy, proofDeletionCounts, PROOF_DELETE_SWEEP_QUERY,
+  collectProofDeletion, createProofDeletionGuard, planProofDeletion, proofDeleteCopy, PROOF_DELETE_SWEEP_QUERY,
   type ProofDeletionOutcome, type ProofDeletionReader, type ProofDeletionReadiness,
 } from "./proof-delete";
+import { ProofDeleteDialog } from "./proof-delete-dialog";
 
 const GALLERY_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,95}$/u;
 
@@ -52,37 +53,13 @@ export const DeleteProofGalleryAction: DocumentActionComponent = (props) => {
     setOpen(false);
     if (outcome === "deleted") props.onComplete();
   };
-  const buttons = (reload: boolean) => <p>
-    {reload ? <><button type="button" onClick={() => void load()}>{copy.reload}</button>{" "}</> : null}
-    <button type="button" onClick={close}>{copy.close}</button>
-  </p>;
-
-  function content() {
-    if (readiness === "loading") return <p>{copy.loading}</p>;
-    if (outcome) return <><p role="status">{copy[outcome]}</p>{buttons(outcome !== "deleted")}</>;
-    if (!("ready" in readiness)) {
-      return <><p role="alert">{copy[readiness.reason].replace("{ids}", (readiness.ids ?? []).join(", "))}</p>{buttons(true)}</>;
-    }
-    const counts = proofDeletionCounts(readiness.ready);
-    return <div>
-      <p>{copy.explain}</p>
-      <ul>{(Object.keys(counts) as (keyof typeof counts)[]).map((key) => <li key={key}>{copy.counts[key]}: {counts[key]}</li>)}</ul>
-      <ul>{copy.limits.map((line) => <li key={line}>{line}</li>)}</ul>
-      <p>
-        <label htmlFor={inputId}>{copy.typeId.replace("{id}", props.id)}</label>{" "}
-        <input id={inputId} value={typed} disabled={pending} autoComplete="off" spellCheck={false} onChange={(event) => setTyped(event.target.value)} />
-      </p>
-      <button type="button" disabled={pending || typed.trim() !== props.id} onClick={() => void remove(readiness)}>{pending ? copy.working : copy.confirm}</button>{" "}
-      <button type="button" disabled={pending} onClick={close}>{copy.cancel}</button>
-    </div>;
-  }
-
   return {
     label: copy.action,
     tone: "critical",
     disabled: !open && !available,
     title: available ? undefined : studioSettings.proofGalleries ? copy.unavailable : copy.off,
     onHandle: () => { if (available) { setOpen(true); void load(); } },
-    dialog: open ? { type: "dialog", header: copy.action, onClose: close, content: content() } : undefined,
+    dialog: open ? { type: "dialog", header: copy.action, onClose: close, content: <ProofDeleteDialog locale={locale} galleryId={props.id} inputId={inputId} readiness={readiness} typed={typed} outcome={outcome} pending={pending}
+      onTyped={setTyped} onRemove={() => { if (readiness !== "loading") void remove(readiness); }} onReload={() => void load()} onClose={close} /> } : undefined,
   };
 };

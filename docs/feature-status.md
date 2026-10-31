@@ -2,6 +2,19 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Remaining client-gallery Studio tool controls, 2026-10-31 — AB#414 **Active** (source
+fix, review/merge pending): proof selection reopen, proof reminder settings, proof
+gallery deletion and the existing client web images chooser use the existing Sanity
+UI controls. The three action dialogs moved into presentational components
+(`proof-*-dialog.tsx`); reads, revision guards, the single deletion transaction and
+the typed-ID gate stay in the actions. The chooser keeps its `aria-disabled` focus
+anchors, uncontrolled UTC cutoff and selection order. Browser fixtures with the
+installed ui5 reset and Studio UI theme/styles check visible checkbox marks, input,
+select and button chrome, focus rings, Tab order, label activation and
+pending/disabled/outcome states in Finnish/English and light/dark; a raw checkbox in
+each test confirms the reset is in effect. The Studio-wide locale navbar select is
+not a client-gallery control and still uses a raw select. Not hosted Editor acceptance.
+
 Studio proof publication and gallery link controls, 2026-10-31 — AB#413 **Closed**
 (PR #631 merged): the proof publication/key rotation dialog and the
 client gallery link dialog use the existing Sanity UI controls for terms fields,
@@ -12,9 +25,8 @@ with that reset and the Studio UI theme/styles checks visible marks, keyboard fo
 label activation, validation, the one-request pending/unknown boundary, readonly link
 focus/selection and copy/manual-selection fallback in Finnish/English and light/dark,
 with a fake fetcher and clipboard and all network requests blocked. Publication logic,
-the reminder default and copy are unchanged. Other Studio actions (proof reopen/delete,
-reminder settings, existing web images, locale navbar) still use raw controls. These
-fixtures do not replace signed-in hosted Editor acceptance (AB#411).
+the reminder default and copy are unchanged. The remaining client-gallery tools followed
+in AB#414. These fixtures do not replace signed-in hosted Editor acceptance (AB#411).
 
 Studio delivery publication controls, 2026-10-31 — AB#412 **Closed** (PR #630
 merged): the delivery dialog uses the existing Sanity UI controls

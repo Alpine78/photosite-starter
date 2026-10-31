@@ -3,6 +3,7 @@ import { useClient, useCurrentLocale, type DocumentActionComponent } from "sanit
 import { STUDIO_VALIDATION_API_VERSION } from "../sanity/schemas/validation";
 import { studioSettings } from "./environment";
 import { createReopenGuard, proofReopenCopy, reopenReadiness, type ReopenOutcome, type ReopenRequest } from "./proof-reopen";
+import { ProofReopenDialog } from "./proof-reopen-dialog";
 
 /**
  * Reopens a confirmed proof selection with the editor's own session (ADR-0038
@@ -32,14 +33,7 @@ export const ReopenProofSelectionAction: DocumentActionComponent = (props) => {
     onHandle: () => { if ("ready" in readiness) { setOutcome(undefined); setRequest(readiness.ready); } },
     dialog: request ? {
       type: "dialog", header: copy.action, onClose: close,
-      content: <div>
-        {outcome ? <p role="status">{copy[outcome]}</p>
-          : <p>{copy.explain.replace("{next}", String(request.latestVersion + 1)).replace("{current}", String(request.latestVersion))}</p>}
-        {outcome ? <button type="button" onClick={close}>{copy.close}</button> : <>
-          <button type="button" disabled={pending} onClick={() => void confirm(request)}>{pending ? copy.working : copy.confirm}</button>{" "}
-          <button type="button" disabled={pending} onClick={close}>{copy.cancel}</button>
-        </>}
-      </div>,
+      content: <ProofReopenDialog locale={locale} request={request} outcome={outcome} pending={pending} onConfirm={() => void confirm(request)} onClose={close} />,
     } : undefined,
   };
 };

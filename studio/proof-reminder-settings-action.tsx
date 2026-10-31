@@ -1,4 +1,4 @@
-import { useId, useRef, useState, type ReactNode } from "react";
+import { useId, useRef, useState } from "react";
 import { useClient, useCurrentLocale, type DocumentActionComponent } from "sanity";
 import { STUDIO_VALIDATION_API_VERSION } from "../sanity/schemas/validation";
 import { studioSettings } from "./environment";
@@ -6,6 +6,7 @@ import {
   parseReminderSettings, proofReminderSettingsCopy, proofTermsRecordId, readReminderSettingsForm, reminderSettingsForm, saveReminderSettings,
   type LoadedReminderSettings, type ReminderSaveOutcome, type ReminderSettingsField, type ReminderSettingsForm,
 } from "./proof-reminder-settings";
+import { ProofReminderSettingsDialog } from "./proof-reminder-settings-dialog";
 
 const GALLERY_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,95}$/u;
 
@@ -49,11 +50,6 @@ export const ProofReminderSettingsAction: DocumentActionComponent = (props) => {
     inFlight.current = false; setPending(false); setOutcome(result);
   }
   const close = () => { if (!inFlight.current) { setOpen(false); setOutcome(undefined); } };
-  const field = (name: ReminderSettingsField, control: ReactNode) => <p>
-    <label htmlFor={`${formId}-${name}`}>{copy[name]}</label>{" "}{control}
-    {invalid.includes(name) ? <> <span id={`${formId}-${name}-error`}>{copy.fieldError}</span></> : null}
-  </p>;
-  const describe = (name: ReminderSettingsField) => invalid.includes(name) ? { "aria-invalid": true, "aria-describedby": `${formId}-${name}-error` } : {};
 
   return {
     label: copy.action,
@@ -62,24 +58,9 @@ export const ProofReminderSettingsAction: DocumentActionComponent = (props) => {
     onHandle: () => { if (ready) { setOpen(true); void load(); } },
     dialog: open ? {
       type: "dialog", header: copy.action, onClose: close,
-      content: loaded === "loading" ? <p>{copy.loading}</p> : loaded === "unreadable" || !form ? <><p role="alert">{copy.unreadable}</p><button type="button" onClick={close}>{copy.close}</button></>
-        : outcome ? <><p role="status">{copy[outcome]}</p><button type="button" onClick={close}>{copy.close}</button></>
-        : <div>
-          <p>{copy.explain}</p>
-          <p><label><input type="checkbox" checked={form.on} disabled={pending} onChange={(event) => setForm({ ...form, on: event.target.checked })} />{" "}{copy.on}</label></p>
-          {form.on ? <>
-            {field("delayDays", <input id={`${formId}-delayDays`} value={form.delayDays} inputMode="numeric" disabled={pending} autoComplete="off"
-              onChange={(event) => setForm({ ...form, delayDays: event.target.value })} {...describe("delayDays")} />)}
-            {field("customerEmail", <input id={`${formId}-customerEmail`} value={form.customerEmail} inputMode="email" disabled={pending} autoComplete="off"
-              onChange={(event) => setForm({ ...form, customerEmail: event.target.value })} {...describe("customerEmail")} />)}
-            {field("locale", <select id={`${formId}-locale`} value={form.locale} disabled={pending} onChange={(event) => setForm({ ...form, locale: event.target.value })} {...describe("locale")}>
-              {form.locale === "" ? <option value="">—</option> : null}
-              {locales.map((tag) => <option key={tag} value={tag}>{copy.languages[new Intl.Locale(tag).language] ?? tag} ({tag})</option>)}
-            </select>)}
-          </> : null}
-          <button type="button" disabled={pending} onClick={() => void save(loaded, form)}>{pending ? copy.saving : copy.save}</button>{" "}
-          <button type="button" disabled={pending} onClick={close}>{copy.cancel}</button>
-        </div>,
+      content: <ProofReminderSettingsDialog locale={locale} formId={formId} state={loaded === "loading" || loaded === "unreadable" ? loaded : "ready"} form={form}
+        invalid={invalid} outcome={outcome} pending={pending} locales={locales} onForm={setForm}
+        onSave={() => { if (loaded !== "loading" && loaded !== "unreadable" && form) void save(loaded, form); }} onClose={close} />,
     } : undefined,
   };
 };
