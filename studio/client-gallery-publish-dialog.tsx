@@ -1,3 +1,4 @@
+import { Button, Checkbox, Flex, Radio, Stack, TextInput } from "@sanity/ui";
 import type { Ref } from "react";
 import { proofDeleteCopy, proofDeletionCounts } from "./proof-delete";
 import { deliveryCleanupCopy, deliveryPublishCopy } from "./client-gallery-publish-copy";
@@ -14,7 +15,7 @@ export type DeliveryPublishDialogProps = {
   onReview(): void; onSubmit(): void; onCheck(): void; onReset(): void; onClose(): void;
 };
 
-/** Native labelled controls; all IO and operation state live in the action. */
+/** Studio-themed native labelled controls; all IO and operation state live in the action. */
 export function DeliveryPublishDialog({ locale, prefix, headingRef, mode, proofId, typed, review, outcome, pending, ready, proofsEnabled, cleanup,
   onMode, onProofId, onTyped, onReview, onSubmit, onCheck, onReset, onClose, onCleanup,
 }: DeliveryPublishDialogProps) {
@@ -28,9 +29,9 @@ export function DeliveryPublishDialog({ locale, prefix, headingRef, mode, proofI
   }
   function content() {
     if (outcome) return <>
-      {outcome === "uncertain" ? <button type="button" disabled={pending} onClick={() => onCheck()}>{pending ? copy.working : copy.check}</button> : null}{" "}
-      {outcome !== "published" && outcome !== "uncertain" ? <button type="button" disabled={pending} onClick={onReset}>{copy.again}</button> : null}{" "}
-      <button type="button" disabled={pending} onClick={onClose}>{copy.close}</button>
+      {outcome === "uncertain" ? <Button type="button" disabled={pending} onClick={() => onCheck()} text={pending ? copy.working : copy.check} /> : null}{" "}
+      {outcome !== "published" && outcome !== "uncertain" ? <Button type="button" disabled={pending} onClick={onReset} text={copy.again} /> : null}{" "}
+      <Button type="button" disabled={pending} onClick={onClose} text={copy.close} />
     </>;
     if (review && "ready" in review) {
       const plan = review.ready, counts = plan.proof ? proofDeletionCounts(plan.proof) : undefined;
@@ -54,23 +55,23 @@ export function DeliveryPublishDialog({ locale, prefix, headingRef, mode, proofI
           <p>{copy.selection}: {copy.states[plan.selectionState ?? "unknown"] ?? copy.states.unknown}</p>
           <ul>{(Object.keys(counts) as (keyof typeof counts)[]).map((key) => <li key={key}>{deletionCopy.counts[key]}: {counts[key]}</li>)}</ul>
           <ul>{deletionCopy.limits.map((line) => <li key={line}>{line}</li>)}</ul>
-          <p><label htmlFor={`${prefix}-confirm`}>{copy.confirm.replace("{id}", plan.proof!.galleryId)}</label>{" "}
-            <input id={`${prefix}-confirm`} value={typed} disabled={pending} autoComplete="off" spellCheck={false} onChange={(event) => onTyped(event.target.value)} /></p>
+          <Stack gap={2}><label htmlFor={`${prefix}-confirm`}>{copy.confirm.replace("{id}", plan.proof!.galleryId)}</label>{" "}
+            <TextInput id={`${prefix}-confirm`} value={typed} disabled={pending} autoComplete="off" spellCheck={false} onChange={(event) => onTyped(event.currentTarget.value)} /></Stack>
         </> : null}
-        <button type="button" disabled={pending || !!plan.proof && typed.trim() !== plan.proof.galleryId} onClick={() => onSubmit()}>{pending ? copy.working : plan.proof ? copy.replacing : copy.publish}</button>{" "}
-        <button type="button" disabled={pending} onClick={onReset}>{copy.again}</button>{" "}
-        <button type="button" disabled={pending} onClick={onClose}>{copy.cancel}</button>
+        <Button type="button" tone={plan.proof ? "critical" : "primary"} disabled={pending || !!plan.proof && typed.trim() !== plan.proof.galleryId} onClick={() => onSubmit()} text={pending ? copy.working : plan.proof ? copy.replacing : copy.publish} />{" "}
+        <Button type="button" disabled={pending} onClick={onReset} text={copy.again} />{" "}
+        <Button type="button" disabled={pending} onClick={onClose} text={copy.cancel} />
       </>;
     }
     return <>
       {review ? <p role="alert">{copy.errors[review.reason]}</p> : null}
       <fieldset disabled={pending}>
         <legend>{copy.choose}</legend>
-        <p><label><input type="radio" name={`${prefix}-mode`} checked={mode === "ordinary"} onChange={() => onMode("ordinary")} /> {copy.ordinary}</label></p>
+        <Flex align="center" gap={2} marginY={3}><Radio id={`${prefix}-ordinary`} name={`${prefix}-mode`} checked={mode === "ordinary"} onChange={() => onMode("ordinary")} /><label htmlFor={`${prefix}-ordinary`}>{copy.ordinary}</label></Flex>
         {proofsEnabled ? <>
-          <p><label><input type="radio" name={`${prefix}-mode`} checked={mode === "replacement"} onChange={() => onMode("replacement")} /> {copy.replacement}</label></p>
-          {mode === "replacement" ? <p><label htmlFor={`${prefix}-proof`}>{copy.proofId}</label>{" "}
-            <input id={`${prefix}-proof`} value={proofId} autoComplete="off" spellCheck={false} onChange={(event) => onProofId(event.target.value)} /></p> : null}
+          <Flex align="center" gap={2} marginY={3}><Radio id={`${prefix}-replacement`} name={`${prefix}-mode`} checked={mode === "replacement"} onChange={() => onMode("replacement")} /><label htmlFor={`${prefix}-replacement`}>{copy.replacement}</label></Flex>
+          {mode === "replacement" ? <Stack gap={2}><label htmlFor={`${prefix}-proof`}>{copy.proofId}</label>{" "}
+            <TextInput id={`${prefix}-proof`} value={proofId} autoComplete="off" spellCheck={false} onChange={(event) => onProofId(event.currentTarget.value)} /></Stack> : null}
         </> : null}
       </fieldset>
       {cleanup ? <fieldset disabled={pending || cleanup.unreadable || cleanup.loading}>
@@ -79,18 +80,18 @@ export function DeliveryPublishDialog({ locale, prefix, headingRef, mode, proofI
         {cleanup.control?.lastResult ? <p>{cleanupCopy.blocked}: {cleanupCopy.reasons[cleanup.control.lastResult.reason]}</p> : null}
         {receipt(cleanup.control)}
         {cleanup.unreadable ? <p role="alert">{cleanupCopy.unreadable}</p> : null}
-        <p><label><input type="checkbox" checked={cleanup.enroll} disabled={!cleanup.eligible} onChange={(event) => onCleanup?.(event.target.checked)} /> {cleanupCopy.choice}</label></p>
+        <Flex align="flex-start" gap={2} marginY={3}><Checkbox id={`${prefix}-cleanup`} checked={cleanup.enroll} disabled={!cleanup.eligible} onChange={(event) => onCleanup?.(event.currentTarget.checked)} /><label htmlFor={`${prefix}-cleanup`}>{cleanupCopy.choice}</label></Flex>
         {!cleanup.eligible ? <p>{cleanupCopy.ineligible}</p> : null}
         <p>{cleanupCopy.note}</p><p>{cleanupCopy.limits}</p>
       </fieldset> : null}
-      <button type="button" disabled={pending || !ready || cleanup?.unreadable || cleanup?.loading || !mode || mode === "replacement" && !proofId.trim()} onClick={() => onReview()}>{pending ? copy.reviewing : copy.review}</button>{" "}
-      <button type="button" disabled={pending} onClick={onClose}>{copy.cancel}</button>
+      <Button type="button" disabled={pending || !ready || cleanup?.unreadable || cleanup?.loading || !mode || mode === "replacement" && !proofId.trim()} onClick={() => onReview()} text={pending ? copy.reviewing : copy.review} />{" "}
+      <Button type="button" disabled={pending} onClick={onClose} text={copy.cancel} />
     </>;
   }
-  return <section>
+  return <Stack as="section" gap={3}>
     <h2 ref={headingRef} tabIndex={-1}>{review && "ready" in review ? copy.review : copy.action}</h2>
     {/* Mounted empty before asynchronous outcomes arrive, so updates are announced. */}
     <p role="status" aria-live="polite" aria-atomic="true">{status}</p>
     {content()}
-  </section>;
+  </Stack>;
 }
