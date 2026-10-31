@@ -1,4 +1,5 @@
-import { createRef, type ReactNode, type Ref } from "react";
+import { Button, Checkbox, Flex, Stack, TextInput } from "@sanity/ui";
+import { createRef, type ComponentProps, type ReactNode } from "react";
 import { existingImageCapacity, existingImageReferences, type ExistingImageState, type ExistingClientImage, type PickerError } from "./existing-client-web-images";
 
 const copy = {
@@ -8,11 +9,12 @@ const copy = {
 export function existingImageText(locale: string) { return copy[/^fi(?:-|$)/u.test(locale) ? "fi" : "en"]; }
 export type ExistingImageViewProps = {
   id: string; locale: string; state: ExistingImageState; value: unknown; readOnly: boolean;
-  openerRef?: Ref<HTMLButtonElement>; thumbnail(row: ExistingClientImage): ReactNode;
+  /** Typed by the Studio button itself, so root and Studio React typings agree. */
+  openerRef?: ComponentProps<typeof Button>["ref"]; thumbnail(row: ExistingClientImage): ReactNode;
   onCutoffChange(value: string, badInput: boolean): void; onSearch(): void;
   onOpen(): void; onClose(): void; onRetry(): void; onMore(): void; onClear(): void; onToggle(id: string): void; onAdd(): void;
 };
-/** Native controls are kept separate so their actual markup can be verified offline. */
+/** Studio-themed native controls are kept separate so their actual markup can be verified offline. */
 export function ExistingClientWebImagesView({ openerRef, ...props }: ExistingImageViewProps) {
   const text = existingImageText(props.locale), { state, readOnly } = props, open = state.phase !== "closed";
   const busy = state.phase === "loading" || state.phase === "adding", remaining = existingImageCapacity(props.value), used = existingImageReferences(props.value);
@@ -23,29 +25,29 @@ export function ExistingClientWebImagesView({ openerRef, ...props }: ExistingIma
   const canClear = !readOnly && !busy && state.selected.length > 0;
   const canAdd = canClear && state.selected.length <= remaining;
   return <div>
-    <button type="button" ref={openerRef} disabled={readOnly} aria-expanded={open} aria-controls={props.id} onClick={open ? props.onClose : props.onOpen}>{text.opener}</button>
+    <Flex><Button type="button" ref={openerRef} disabled={readOnly} aria-expanded={open} aria-controls={props.id} onClick={open ? props.onClose : props.onOpen} text={text.opener} /></Flex>
     {open && <section id={props.id} aria-label={text.opener} style={{ marginBlock: "1rem", padding: "1rem", border: "1px solid currentColor", borderRadius: "0.25rem" }}>
       <p>{text.notice}</p>
-      <div>
+      <Stack gap={2}>
         <label htmlFor={`${props.id}-cutoff`}>{text.cutoff}</label>
-        <input ref={cutoffInput} id={`${props.id}-cutoff`} type="datetime-local" step={60}
+        <TextInput ref={cutoffInput} id={`${props.id}-cutoff`} type="datetime-local" step={60}
           min="0001-01-01T00:00" max="9999-12-31T23:59" defaultValue={state.cutoff}
           readOnly={readOnly || state.phase === "adding"}
           aria-invalid={state.error === "cutoff" || state.badInput}
           aria-describedby={`${props.id}-cutoff-help${state.error === "cutoff" ? ` ${props.id}-error` : ""}`}
           onChange={event => props.onCutoffChange(event.currentTarget.value, event.currentTarget.validity.badInput)} />
         <p id={`${props.id}-cutoff-help`}>{text.cutoffHelp}</p>
-        <button type="button" aria-disabled={readOnly || busy} onClick={() => {
+        <Flex><Button type="button" aria-disabled={readOnly || busy} onClick={() => {
           if (readOnly || busy || !cutoffInput.current) return;
           props.onCutoffChange(cutoffInput.current.value, cutoffInput.current.validity.badInput);
           props.onSearch();
-        }}>{text.search}</button>
-      </div>
+        }} text={text.search} /></Flex>
+      </Stack>
       {state.phase === "ready" && <p>{state.cutoff ? text.before(state.cutoff) : text.newest}</p>}
       <p role="status" aria-live="polite">{busy ? state.phase === "loading" ? text.loading : text.adding : state.selectionCleared ? text.cleared : text.count(state.selected.length, remaining)}</p>
       {error && <p id={`${props.id}-error`} role="alert">{error}</p>}
       {/* Keep focusable anchors mounted when their action changes the visible state. */}
-      <button type="button" aria-disabled={!canRetry} onClick={() => { if (canRetry) props.onRetry(); }}>{text.retry}</button>
+      <Flex><Button type="button" aria-disabled={!canRetry} onClick={() => { if (canRetry) props.onRetry(); }} text={text.retry} /></Flex>
       {state.phase === "ready" && state.rows.length === 0 && <p>{state.cutoff ? text.emptyBefore : text.empty}</p>}
       {state.rows.length > 0 && <ul style={{ listStyle: "none", padding: 0, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(12rem, 1fr))", gap: "1rem" }}>
         {state.rows.slice(0, state.visible).map((row, i) => {
@@ -53,7 +55,7 @@ export function ExistingClientWebImagesView({ openerRef, ...props }: ExistingIma
           return <li key={row._id}>
             <label style={{ display: "grid", gap: "0.5rem" }}>
               <span style={{ display: "block", height: "8rem" }}>{props.thumbnail(row)}</span>
-              <span><input type="checkbox" disabled={readOnly || busy} checked={selected >= 0} onChange={() => props.onToggle(row._id)} /> {text.image(i + 1, state.rows.length, row)}</span>
+              <Flex as="span" align="flex-start" gap={2}><Checkbox disabled={readOnly || busy} checked={selected >= 0} onChange={() => props.onToggle(row._id)} /><span>{text.image(i + 1, state.rows.length, row)}</span></Flex>
             </label>
             {selected >= 0 && <p>{text.order(selected + 1)}</p>}
             {used.has(row._id) && <p>{text.used}</p>}
@@ -61,12 +63,12 @@ export function ExistingClientWebImagesView({ openerRef, ...props }: ExistingIma
         })}
       </ul>}
       {state.truncated && <p>{text.limited}</p>}
-      <button type="button" aria-disabled={!canShowMore} onClick={() => { if (canShowMore) props.onMore(); }}>{text.more}</button>
-      <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-        <button type="button" aria-disabled={!canClear} onClick={() => { if (canClear) props.onClear(); }}>{text.clear}</button>
-        <button type="button" onClick={props.onClose}>{text.close}</button>
-        <button type="button" aria-disabled={!canAdd} onClick={() => { if (canAdd) props.onAdd(); }}>{text.add}</button>
-      </div>
+      <Flex><Button type="button" aria-disabled={!canShowMore} onClick={() => { if (canShowMore) props.onMore(); }} text={text.more} /></Flex>
+      <Flex gap={2} wrap="wrap" marginTop={3}>
+        <Button type="button" aria-disabled={!canClear} onClick={() => { if (canClear) props.onClear(); }} text={text.clear} />
+        <Button type="button" onClick={props.onClose} text={text.close} />
+        <Button type="button" aria-disabled={!canAdd} onClick={() => { if (canAdd) props.onAdd(); }} text={text.add} />
+      </Flex>
     </section>}
   </div>;
 }
