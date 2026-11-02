@@ -2,8 +2,8 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
-Remaining client-gallery Studio tool controls, 2026-10-31 — AB#414 **Active** (source
-fix, review/merge pending): proof selection reopen, proof reminder settings, proof
+Remaining client-gallery Studio tool controls, 2026-10-31 — AB#414 **Closed** (PR #632
+merged): proof selection reopen, proof reminder settings, proof
 gallery deletion and the existing client web images chooser use the existing Sanity
 UI controls. The three action dialogs moved into presentational components
 (`proof-*-dialog.tsx`); reads, revision guards, the single deletion transaction and
@@ -38,7 +38,7 @@ and disabled states in Finnish/English and light/dark themes. Publication, clean
 consent defaults and revision guards are unchanged. These fixtures do not replace
 signed-in hosted Editor acceptance; the frozen AB#411 deployment is unchanged.
 
-Real Sanity cleanup fault rehearsal, 2026-10-28 — AB#410 **Active** (evidence PR pending):
+Real Sanity cleanup fault rehearsal, 2026-10-28 — AB#410 **Closed** (PR #629 merged):
 unchanged merged source `82b1b2fb` passed nine preview-only provider scenarios:
 source/image/ZIP revisions, late strong referrer/draft, hidden committed claim/delete
 results, a held old deletion losing its fence and same-revision duplicate runners.
