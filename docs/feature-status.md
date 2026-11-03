@@ -2,6 +2,12 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Tooling advisories, 2026-11-03 — AB#160 **Active**: Vercel CLI 65.10.0, Next.js 16.4.4
+and same-major overrides clear most findings; the production-only audit stays 0. Two
+development-tooling advisories have no compatible fix and wait for an owner decision, so
+the scheduled audit stays red. See
+[dependency security](dependency-security.md#2026-11-03-vercel-cli-and-tooling-advisories-ab160).
+
 Root build on a root-only install, 2026-11-03 — AB#415 **Active**: main's Preview
 release candidate failed from PR #630 on (builds 1547, 1549, 1551, 1555). Journey specs
 imported types from Studio dialogs, TypeScript followed them past `exclude`, and
