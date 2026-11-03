@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { ServerStyleSheet } from "styled-components";
 import { ThemeProvider, studioTheme } from "@sanity/ui";
 import { ExistingClientWebImagesView, type ExistingImageViewProps } from "../existing-client-web-images-view";
+import { LocaleNavbarSelect, type LocaleNavbarSelectProps } from "../locale-navbar-select";
 import { ProofDeleteDialog, type ProofDeleteDialogProps } from "../proof-delete-dialog";
 import { ProofReopenDialog, type ProofReopenDialogProps } from "../proof-reopen-dialog";
 import { ProofReminderSettingsDialog, type ProofReminderSettingsDialogProps } from "../proof-reminder-settings-dialog";
@@ -18,6 +19,9 @@ export function renderStudioMarkup(element: ReactElement, scheme: "light" | "dar
 
 export function renderExistingImages(props: ExistingImageViewProps, scheme?: "light" | "dark") {
   return renderStudioMarkup(<ExistingClientWebImagesView {...props} />, scheme);
+}
+export function renderLocaleNavbarSelect(props: LocaleNavbarSelectProps, scheme?: "light" | "dark") {
+  return renderStudioMarkup(<LocaleNavbarSelect {...props} />, scheme);
 }
 export function renderProofDelete(props: ProofDeleteDialogProps, scheme?: "light" | "dark") {
   return renderStudioMarkup(<ProofDeleteDialog {...props} />, scheme);

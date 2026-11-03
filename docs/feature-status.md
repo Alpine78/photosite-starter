@@ -6,6 +6,27 @@ Studio advisories, 2026-11-03 — AB#160 **Active**: same-range `undici` and `mi
 overrides bring the Studio audit to 0. See
 [dependency security](dependency-security.md#2026-11-03-studio-undici-and-minimatch-advisories-ab160).
 
+Studio interface language select, 2026-11-03 — AB#255 **Active**: the Studio-wide
+language control, the raw select AB#414 left behind, now uses the Sanity UI select in a
+presentational `locale-navbar-select.tsx`. The SDK locale bridge is unchanged. A local browser
+fixture with the installed reset checks visible chrome, focus ring, label activation, the
+disabled and failed states in Finnish/English and light/dark. No signed-in hosted check.
+
+Tooling advisories, 2026-11-03 — AB#160 **Active**: Vercel CLI 65.10.0, Next.js 16.4.4
+and same-major overrides clear most findings; the production-only audit stays 0. Two
+development-tooling advisories have no compatible fix and wait for an owner decision, so
+the scheduled audit stays red. See
+[dependency security](dependency-security.md#2026-11-03-vercel-cli-and-tooling-advisories-ab160).
+
+Root build on a root-only install, 2026-11-03 — AB#415 **Active**: main's Preview
+release candidate failed from PR #630 on (builds 1547, 1549, 1551, 1555). Journey specs
+imported types from Studio dialogs, TypeScript followed them past `exclude`, and
+`@sanity/ui` exists only in Studio's install; Verify installs both trees and passed.
+The four `e2e/studio-*.spec.ts` specs and their fixture moved to
+`npm run typecheck:studio-journeys`, a new Verify step, and a guard test walks the root
+import graph. `next build` passes locally with Studio's dependencies hidden. The pipeline
+result after merge is still to be seen.
+
 Remaining client-gallery Studio tool controls, 2026-10-31 — AB#414 **Closed** (PR #632
 merged): proof selection reopen, proof reminder settings, proof
 gallery deletion and the existing client web images chooser use the existing Sanity

@@ -31,5 +31,11 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "temp", "studio"]
+  "exclude": [
+    "node_modules",
+    "temp",
+    "studio",
+    "e2e/studio-*.spec.ts",
+    "test-support/existing-client-web-images-fixture.ts"
+  ]
 }
