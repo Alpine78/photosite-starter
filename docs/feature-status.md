@@ -2,6 +2,10 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Studio advisories, 2026-11-03 — AB#160 **Active**: same-range `undici` and `minimatch`
+overrides bring the Studio audit to 0. See
+[dependency security](dependency-security.md#2026-11-03-studio-undici-and-minimatch-advisories-ab160).
+
 Studio interface language select, 2026-11-03 — AB#255 **Active**: the Studio-wide
 language control, the raw select AB#414 left behind, now uses the Sanity UI select in a
 presentational `locale-navbar-select.tsx`. The SDK locale bridge is unchanged. A local browser
