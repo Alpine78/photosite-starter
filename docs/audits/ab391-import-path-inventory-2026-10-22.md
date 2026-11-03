@@ -44,3 +44,8 @@ public import path and is not listed.
    for owner review before any write.
 
 Points 2 and 3 are open questions for the implementation, not decided here.
+
+**Update 2026-11-03:** point 2 is answered for reporting: the kept path records the size
+after EXIF orientation, in `scripts/image-import-metadata.mts`. The source half of point 6
+exists as `npm run plan:legacy-image-reupload`; matching its rows to published assets is
+still open. Points 1, 3, 4 and 5 remain open.
