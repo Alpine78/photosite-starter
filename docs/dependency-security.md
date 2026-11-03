@@ -172,7 +172,8 @@ handled separately.
 Provider follow-up: main run 1566 at the merge of this change passed `vercel pull`, the
 Preview deployment and the stable alias repoint on CLI 65.10.0. The owner's
 `release:production -- stage` at `ff79f90` then passed the Production pull, build and
-staged deploy, with verdict `pass`. `promote` and `rollback` have not run on this CLI.
+staged deploy, with verdict `pass`, and its `promote` moved Production to that build with
+every production alias verified. `rollback` has not run on this CLI.
 
 ### 2026-10-22 Vitest advisories (AB#160)
 
