@@ -256,7 +256,28 @@ warrant a note if the distribution model changes:
 | # | Item | Status |
 | --- | --- | --- |
 | 1 | Vendored skill provenance (AB#207). | Pinned two actual sources; reproduced installer folder hashes and separate local adaptation hashes in [skill-provenance.json](skill-provenance.json) |
-| 2 | Distribution model unratified. | Blocked on AB#42 |
+| 2 | Distribution model. | Decided: [ADR-0024](adr/0024-free-core-and-premium-boundary.md) and [ADR-0025](adr/0025-premium-source-distribution.md), accepted 2026-10-19. Reviewed below, 2026-11-03. Paid terms remain AB#49 |
+
+## Dependency licences against the accepted distribution model — 2026-11-03
+
+ADR-0024 keeps this repository a complete MIT Free Core. ADR-0025's paid artifact is a
+versioned source ZIP of separately identified proprietary files with its own licence and
+third-party notices, excluding installed dependencies and build output. **Neither route
+redistributes the npm tree**, so this audit's test, "where the code ends up", still applies
+as written: what reaches a visitor's browser is the shipped table, and the Studio's own
+notice inventory covers a deployed Studio.
+
+Counts from `package-lock.json` at `9fe7229`, every platform's optional package included,
+so they are not comparable with the installed-tree snapshot above: 845 packages, 62 of them
+outside the development tree. Those 62 are MIT 23, Apache-2.0 20, LGPL-3.0-or-later 10,
+Apache-2.0 AND LGPL-3.0-or-later 3, ISC 2, Apache-2.0 AND LGPL-3.0-or-later AND MIT 1,
+CC-BY-4.0 1, BSD-3-Clause 1 and 0BSD 1. The LGPL entries are all `sharp`'s `@img/*` binaries,
+and CC-BY-4.0 is `caniuse-lite`; both are already flagged above and neither is served to
+browsers. The lockfile records one development package with no licence field.
+
+Conclusion: no dependency licence conflicts with the accepted model. **A paid artifact that
+did bundle `node_modules` or a built `sharp` would change this**, and would need the flagged
+notices. This is an engineering review, not legal advice; AB#49 owns the professional review.
 
 ## Verifying provenance of a vendored skill
 

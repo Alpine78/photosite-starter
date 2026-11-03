@@ -2,6 +2,15 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Documentation batch, 2026-11-03: AB#25 **Active**: [ADR-0041](adr/0041-article-tag-archive-routes.md)
+(Proposed) sets out tag archive routes; no code, and it waits for the owner and ADR-0039
+decision 6. AB#370 **Active**: the scriptless 404 still reproduces on Next.js 16.4.4 and
+every upstream item is open ([ADR-0007](adr/0007-proxy-request-path-boundary.md)); the
+2026-12-19 review stands. AB#43 **Active**: dependency licences reviewed against accepted
+ADR-0024/0025 ([inventory](asset-inventory.md)). AB#313 **Active**: the A1 dossier's searches
+repeated on current main, unchanged; nothing deleted. The
+[backlog map](backlog-agent-readiness.md) is re-reviewed against the board.
+
 Remaining client-gallery Studio tool controls, 2026-10-31 — AB#414 **Closed** (PR #632
 merged): proof selection reopen, proof reminder settings, proof
 gallery deletion and the existing client web images chooser use the existing Sanity

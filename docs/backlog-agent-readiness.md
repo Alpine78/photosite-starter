@@ -1,10 +1,8 @@
 # Backlog: decision and agent-readiness map
 
-**Last reviewed:** 2026-10-22, against an Azure Boards query of every `New` and
-`Active` user story, task and bug.
-
-**Targeted client-gallery update:** 2026-10-25, against current AB#29/130/392/395/396
-and the owner decisions in AB#405. Other rows retain the October 22 review above.
+**Last reviewed:** 2026-11-03, against an Azure Boards query of all 79 open items, with
+the description, acceptance criteria and discussion of every open story and task. Rows
+naming a branch describe pull requests awaiting owner review.
 
 **Authoritative source:** Azure Boards. This document is an operational map only: the
 work item supplies current scope, acceptance criteria, discussion, relations, and state.
@@ -40,7 +38,7 @@ actions, approvals or accounts; an agent can prepare evidence but cannot close t
 | AB#131 — Two-domain email migration | Active | Owner-run DNS/mailbox work; [mail recovery evidence](mail-recovery-evidence.md). | Owner |
 | AB#158 — Availability monitoring | Active | Monitor options merged (PR #561); the owner chooses and controls the monitor account. | Owner |
 | AB#159 — Production failure triage | Active | [Runbook](production-failure-triage.md) prepared; the live controlled-failure exercise remains. | Owner with agent |
-| AB#132 / AB#370 — Scriptless 404 HTML | Active | Blocked upstream: [vercel/next.js#62228](https://github.com/vercel/next.js/issues/62228) and its fix PR #98455 were both still open on 2026-10-22, and 16.4.2 is the latest release. Risk acceptance re-review due 2026-12-19 (AB#370). | Upstream |
+| AB#132 / AB#370 — Scriptless 404 HTML | Active | Blocked upstream: [vercel/next.js#62228](https://github.com/vercel/next.js/issues/62228) and its fix PR #98455 were both still open on 2026-11-03, and the defect reproduces on 16.4.4, the latest release. Risk acceptance re-review due 2026-12-19 (AB#370). | Upstream, then owner |
 | AB#250 — Retained legacy galleries | Active | 21 galleries served from Sanity; whole-ZIP exception accepted 2026-10-14 (ADR-0028 amendment). Acceptance remains. | Owner |
 | AB#255 — FI/EN coverage | Active | Remaining gaps are authored content and owner approvals; see [bilingual page coverage](bilingual-page-coverage.md). | Owner |
 
@@ -59,10 +57,34 @@ actions, approvals or accounts; an agent can prepare evidence but cannot close t
 
 | Work item | State | Next step |
 | --- | --- | --- |
-| AB#377 — e2e flake root causes | Active | Open: the WebKit `article-reading-position` locale case (run 1398) and the aborted `goBack` in the inactive private-gallery spec (run 1445, recorded on the item). The section-pointer race has a PR. |
-| AB#160 — Vulnerable dependencies | Active | Continuous. Vitest 4.1.12 fixes run 1430's two moderate advisories (PR open). Studio `sprintf-js` (Dependabot #66) has no patched version and is triaged under AB#278. |
-| AB#392 — Client gallery expiry cleanup | Active | AB#393/394 defaults and planner are merged; AB#395 executor is source-built/default-off with hosted acceptance open. AB#396 replacement deletion is merged/Closed. Reference cleanup Editor risk is accepted (ADR-0040 B); ZIP support is AB#407. [Retention](client-gallery-retention.md). |
-| AB#391 — Import metadata and no re-encoding | New | [Import path inventory](audits/ab391-import-path-inventory-2026-10-22.md) done; implementation waits for AB#54's test files to verify the metadata tool. |
+| AB#415 — Root build on a root-only install | Active | **Main's release candidate has failed since PR #630.** Fix on `fix/415-root-build-studio-ui`; merge first, because AB#255's branch below adds a spec the fix also covers. |
+| AB#160 — Vulnerable dependencies | Active | Fixes on `chore/160-root-audit-november` and `chore/160-studio-audit-november`. Two tooling advisories (`zod` 3.22.4, `minimatch` 3.1.5) need an owner decision before the scheduled audit can go green. The `sprintf-js` acceptance expires 2026-11-19; the Studio audit no longer reports it. |
+| AB#377 — e2e flake root causes | Active | Contents-bar flake fixed on `fix/377-content-reading-layout-flake`. Open: the WebKit `article-reading-position` locale case (run 1398; needs a new trace) and the aborted `goBack` in the inactive private-gallery spec (run 1445; AB#313 removes it). |
+| AB#255 — Studio language select | Active | Fix on `fix/255-studio-locale-select`. |
+| AB#391 — Import metadata and no re-encoding | Active | Read-only report on `feature/391-jpeg-metadata-preserving-derivative`. Wiring the import paths waits for AB#54's test files, which verify the metadata tool. |
+| AB#392 — Client gallery expiry cleanup | Active | Every child slice is Closed. Hosted acceptance and activation remain; see [retention](client-gallery-retention.md). |
+
+No other open item is agent-ready today. What remains needs an owner decision, an owner
+account, live CMS approval or a dependency listed here.
+
+## Owner decisions that would unlock the most
+
+| Decision | Unlocks |
+| --- | --- |
+| Run AB#54's Lightroom exports, then accept [ADR-0039](adr/0039-keyword-taxonomy-and-ingest-boundary.md) | AB#391's wiring and the whole keyword branch: AB#56–59, 68–75, 90, then AB#60's dynamic path |
+| Accept or change [ADR-0041](adr/0041-article-tag-archive-routes.md) | AB#25 |
+| Accept or date the two tooling advisories (AB#160) | A green scheduled audit |
+| Give slice A1 its clearance (AB#313) | The first deletion, then A2 and the rest; also ends run 1445's flake |
+| Decide how AB#125 treats poll blocks: its planner refuses them, while the story's acceptance asks to preserve body structure | AB#125, then AB#126 |
+| Supply the real sales use cases (AB#95) and run AB#45's interviews | AB#48, AB#49 and the remaining commerce discovery |
+
+## Board status that looks stale
+
+These have no open child item but are still `New`, or are `Active` with an accepted record.
+They are the owner's to close or keep; nothing was changed:
+
+- Features AB#31, AB#76 and AB#97 are `New` and list no open story or task.
+- AB#42 and AB#44 are `Active`, and their ADRs (0024, 0025) were accepted on 2026-10-19.
 
 ## Post-MVP branches
 
@@ -87,7 +109,9 @@ resumed for this owner (AGENTS.md); AB#313 audits removing that inactive code.
 | AB#95 — Sales, checkout and fulfilment boundary | Active | Product discovery; no checkout, cart or payment implementation. |
 
 **Other post-MVP items** (AB#25–28, AB#42–49, AB#125–127) are Active or New for
-discovery and owner decisions; read each work item before starting.
+discovery and owner decisions; read each work item before starting. AB#126 has an accepted
+boundary (ADR-0026), but its predecessor AB#125 is open and its gateway authentication has no
+plan, so a port written now would have no caller.
 
 ## Handoff checklist for another machine or agent
 
