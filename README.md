@@ -273,6 +273,10 @@ Before running the full browser-free suite, also install the locked standalone
 Studio dependencies with `npm ci --prefix studio`. Studio SDK contract tests
 use that separate tree; the public application does not acquire those packages.
 CI installs both trees in its test job, independently of the Studio build job.
+The root type check itself must pass on a root-only install, because DeployPreview and
+Vercel build that way: journey specs that reach Studio SDK types are checked separately
+by `npm run typecheck:studio-journeys`, and `scripts/root-typecheck-boundary.test.mts`
+fails if a root-checked file reaches a Studio-only package.
 
 **[Vitest](https://vitest.dev)** is the single browser-free runner for deterministic
 domain, query, adapter, and server-validation tests. `npm test` runs
