@@ -2,6 +2,12 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Studio interface language select, 2026-11-03 — AB#255 **Active**: the Studio-wide
+language control, the raw select AB#414 left behind, now uses the Sanity UI select in a
+presentational `locale-navbar-select.tsx`. The SDK locale bridge is unchanged. A local browser
+fixture with the installed reset checks visible chrome, focus ring, label activation, the
+disabled and failed states in Finnish/English and light/dark. No signed-in hosted check.
+
 Tooling advisories, 2026-11-03 — AB#160 **Active**: Vercel CLI 65.10.0, Next.js 16.4.4
 and same-major overrides clear most findings; the production-only audit stays 0. Two
 development-tooling advisories have no compatible fix and wait for an owner decision, so
