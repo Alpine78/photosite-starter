@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false,
+    "plugins": []
+  },
+  "include": ["e2e/studio-*.spec.ts", "test-support/existing-client-web-images-fixture.ts"],
+  "exclude": ["node_modules", "temp"]
+}
