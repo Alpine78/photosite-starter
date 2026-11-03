@@ -2,6 +2,10 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Studio advisories, 2026-11-03 — AB#160 **Active**: same-range `undici` and `minimatch`
+overrides bring the Studio audit to 0. See
+[dependency security](dependency-security.md#2026-11-03-studio-undici-and-minimatch-advisories-ab160).
+
 Remaining client-gallery Studio tool controls, 2026-10-31 — AB#414 **Closed** (PR #632
 merged): proof selection reopen, proof reminder settings, proof
 gallery deletion and the existing client web images chooser use the existing Sanity

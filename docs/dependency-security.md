@@ -137,6 +137,15 @@ changed during this check. This procedure is defined but has not been verified
 as completed. Until receipt is evidenced, AC1's delivery requirement, AC2's
 maintainer-visibility requirement and AC4's notification step remain open.
 
+### 2026-11-03 Studio undici and minimatch advisories (AB#160)
+
+The Studio's scheduled audit reported `undici` 7.29.1 and 7.30.0 (one high-severity path
+through `get-it`, jsdom and `@module-federation/dts-plugin`) and `minimatch` 10.2.6
+through `@oclif/core`. Same-range overrides pin `undici` 7.30.1 and `minimatch` 11.0.4,
+and the Studio audit is now 0. `sanity` stays 6.18.0: `studio/locale-navbar.tsx` is
+pinned to it, and a Studio upgrade needs its own check. The Studio typecheck, schema
+validation and production build pass, as do the root suite's Studio and audit tests.
+
 ### 2026-10-22 Vitest advisories (AB#160)
 
 Scheduled audit run 1430 (main) failed on two moderate advisories in the
