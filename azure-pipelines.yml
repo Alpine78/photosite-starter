@@ -102,6 +102,13 @@ stages:
               npm run diagrams:check
             displayName: "Check architecture diagrams"
 
+          # Root `next build` runs on a root-only install in DeployPreview and on
+          # Vercel, so these specs stay out of the root type check (AB#415). This job
+          # has both installs, so it is where they are checked.
+          - script: |
+              npm run typecheck:studio-journeys
+            displayName: "Type-check Studio journey specs"
+
           - script: |
               npm run build
             displayName: "Build"

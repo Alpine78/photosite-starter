@@ -137,6 +137,39 @@ changed during this check. This procedure is defined but has not been verified
 as completed. Until receipt is evidenced, AC1's delivery requirement, AC2's
 maintainer-visibility requirement and AC4's notification step remain open.
 
+### 2026-11-03 Studio undici and minimatch advisories (AB#160)
+
+The Studio's scheduled audit reported `undici` 7.29.1 and 7.30.0 (one high-severity path
+through `get-it`, jsdom and `@module-federation/dts-plugin`) and `minimatch` 10.2.6
+through `@oclif/core`. Same-range overrides pin `undici` 7.30.1 and `minimatch` 11.0.4,
+and the Studio audit is now 0. `sanity` stays 6.18.0: `studio/locale-navbar.tsx` is
+pinned to it, and a Studio upgrade needs its own check. The Studio typecheck, schema
+validation and production build pass, as do the root suite's Studio and audit tests.
+
+### 2026-11-03 Vercel CLI and tooling advisories (AB#160)
+
+Every scheduled audit from run 1525 (2026-10-26) on has failed. The production-only root
+audit stays 0: every finding is in development or deployment tooling. Vercel CLI moves from
+61.0.0 to 65.10.0, `next` and `eslint-config-next` to 16.4.4, and same-major overrides
+pin `undici` 6.29.1, `glob` 14.0.3, `minimatch` 11.0.4 and `zod` 4.6.7. That clears
+every `undici` and `glob` advisory and most `zod` and `minimatch` paths.
+
+Two advisories remain, and **the scheduled audit stays red until the owner decides**.
+A new major of either package would break its only consumer, so no compatible fix
+exists today:
+
+| Advisory | Package and path | Where it runs | Exposure |
+| --- | --- | --- | --- |
+| [GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5) (high) | `zod` 3.22.4, pinned exactly by `@vercel/backends`, `@vercel/express`, `@vercel/hono` and `@vercel/python-analysis` | Vercel CLI on the operator's machine and the release job | Memory exhaustion needs an attacker-supplied large array reaching an unbounded array schema. The CLI validates its own and the provider's data; no public request reaches it. |
+| [GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249) (moderate) | `minimatch` 3.1.5 through ESLint 9 and its plugins | Lint on the developer's machine and in CI | Denial of service needs an attacker-controlled glob pattern. Patterns come from this repository's own ESLint configuration. |
+
+Verified locally: lint, all unit suites, the CSP journeys on desktop Chromium and mobile
+WebKit, the help output for the deploy flags the pipeline uses, and `vercel build --target=preview`
+with CLI 65.10.0 against a throwaway unlinked project and mock content. Not verified:
+`vercel pull`, `deploy`, `promote` and `rollback` against the provider. The first
+DeployPreview after merge and the next manual release exercise them. The Studio audit is
+handled separately.
+
 ### 2026-10-22 Vitest advisories (AB#160)
 
 Scheduled audit run 1430 (main) failed on two moderate advisories in the

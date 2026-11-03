@@ -34,6 +34,18 @@ async function rootSize(page: Page, baseURL: string | undefined, size: number) {
   });
 }
 
+/**
+ * Two rectangles from one frame. The in-page language fallback leaves about 300 ms after
+ * load and moves the page up by 54 px (AB#389), so two separate reads can land on either
+ * side of that shift and compare positions that never existed together (AB#377).
+ */
+async function boxesInOneFrame(first: Locator, second: Locator) {
+  return first.evaluate((node, other) => [node, other as Element].map((element) => {
+    const { x, y, width, height } = element.getBoundingClientRect();
+    return { x, y, width, height };
+  }), await second.elementHandle());
+}
+
 async function box(locator: Locator) {
   const result = await locator.boundingBox();
   if (!result) throw new Error("[e2e] The real reading region needs visible geometry.");
@@ -100,7 +112,7 @@ for (const width of [390, 768, 1000]) {
     const bar = readingBar(page);
     await expect(bar).toBeVisible();
     await expect(contents(page)).toHaveCount(0);
-    const strip = await box(bar), body = await box(page.locator("[data-content-body]"));
+    const [strip, body] = await boxesInOneFrame(bar, page.locator("[data-content-body]"));
     expect(strip.y + strip.height).toBeLessThanOrEqual(body.y);
     expect(strip.x).toBeGreaterThanOrEqual(0);
     expect(strip.x + strip.width).toBeLessThanOrEqual(width);
@@ -141,7 +153,7 @@ test("a narrow gallery keeps its one inline list before the body", async ({ page
   await expect(readingBar(page)).toHaveCount(0);
   await expect(contents(page)).toHaveCount(1);
   await expect(contents(page)).toHaveCSS("position", "static");
-  const nav = await box(contents(page)), body = await box(page.locator("[data-content-body]"));
+  const [nav, body] = await boxesInOneFrame(contents(page), page.locator("[data-content-body]"));
   expect(nav.y + nav.height).toBeLessThan(body.y);
 });
 
@@ -151,12 +163,11 @@ for (const width of [320, 390, 1280]) {
     await rootSize(page, baseURL, 32);
     await page.goto(article, { waitUntil: "load" });
     await expect(page.locator("html")).toHaveCSS("font-size", "32px");
-    const body = await box(page.locator("[data-content-body]"));
     // The bar follows the viewport width (64rem at the initial 16px); the list
     // itself wraps inline wherever an enlarged text no longer fits beside the body.
     const first = width < 1024 ? readingBar(page) : contents(page);
     if (width >= 1024) await expect(contents(page)).toHaveCSS("position", "static");
-    const nav = await box(first);
+    const [nav, body] = await boxesInOneFrame(first, page.locator("[data-content-body]"));
     expect(nav.y + nav.height).toBeLessThanOrEqual(body.y);
     expect(nav.x).toBeGreaterThanOrEqual(0);
     expect(nav.x + nav.width).toBeLessThanOrEqual(width);

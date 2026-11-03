@@ -55,6 +55,13 @@ family or changed license in the reviewed lockfile. The existing Next.js client
 runtime remains inventoried above; Vercel tooling remains outside the browser
 bundle. See [dependency evidence](audits/ab186-dependency-review.md).
 
+**Amended 2026-11-03 (AB#160):** Vercel CLI 65.10.0 and Next.js 16.4.4 add 25
+development-only package families through the CLI and none in the production tree: 21
+MIT, 3 Apache-2.0 and one BlueOak-1.0.0 (`@isaacs/nonrecursive-glob-match`, permissive).
+`koffi` (MIT) declares an install script; npm's default policy did not run it here and
+`vercel build` passed. None reaches the browser bundle or a clone's shipped output. See
+[dependency security](dependency-security.md#2026-11-03-vercel-cli-and-tooling-advisories-ab160).
+
 ## Distribution model assumed by this audit
 
 The project is distributed **as source**: a photographer clones the repository and runs
