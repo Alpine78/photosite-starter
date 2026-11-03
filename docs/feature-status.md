@@ -8,6 +8,15 @@ development-tooling advisories have no compatible fix and wait for an owner deci
 the scheduled audit stays red. See
 [dependency security](dependency-security.md#2026-11-03-vercel-cli-and-tooling-advisories-ab160).
 
+Root build on a root-only install, 2026-11-03 — AB#415 **Active**: main's Preview
+release candidate failed from PR #630 on (builds 1547, 1549, 1551, 1555). Journey specs
+imported types from Studio dialogs, TypeScript followed them past `exclude`, and
+`@sanity/ui` exists only in Studio's install; Verify installs both trees and passed.
+The four `e2e/studio-*.spec.ts` specs and their fixture moved to
+`npm run typecheck:studio-journeys`, a new Verify step, and a guard test walks the root
+import graph. `next build` passes locally with Studio's dependencies hidden. The pipeline
+result after merge is still to be seen.
+
 Remaining client-gallery Studio tool controls, 2026-10-31 — AB#414 **Closed** (PR #632
 merged): proof selection reopen, proof reminder settings, proof
 gallery deletion and the existing client web images chooser use the existing Sanity
