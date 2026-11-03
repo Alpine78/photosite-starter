@@ -2,6 +2,14 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Contents bar layout flake, 2026-11-03 — AB#377 **Active**: CI 1533's mobile WebKit failure
+of the 1000 px contents-bar journey reported a bar bottom of 1081.66 against a body top
+of 1067.66. A per-frame probe shows those are the positions before and after the 54 px
+shift when the in-page language fallback leaves, about 300 ms after load (AB#389, kept
+by design): the two separate reads straddled it. The journey now reads both rectangles
+in one frame; the assertion is unchanged. Still open: run 1398's `article-reading-position`
+case and run 1445's aborted `goBack` in the inactive private-gallery spec.
+
 Studio advisories, 2026-11-03 — AB#160 **Active**: same-range `undici` and `minimatch`
 overrides bring the Studio audit to 0. See
 [dependency security](dependency-security.md#2026-11-03-studio-undici-and-minimatch-advisories-ab160).
