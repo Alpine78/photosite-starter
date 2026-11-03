@@ -1,11 +1,11 @@
 import { useEffect, useId, useState } from "react";
 import { type NavbarProps, type ToolMenuProps, useCurrentLocale, useLocale } from "sanity";
+import { LocaleNavbarSelect } from "./locale-navbar-select";
 
 /** Sanity 6.18.0 disables its built-in locale menu. Keep this bridge version-pinned. */
 export function LocaleNavbar(props: NavbarProps) {
   // Exported by the pinned SDK, but marked internal upstream. Recheck on SDK upgrades.
   const { currentLocale, locales, changeLocale } = useLocale();
-  const finnish = currentLocale.id === "fi-FI";
   const selectId = useId();
   const [changing, setChanging] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -33,19 +33,8 @@ export function LocaleNavbar(props: NavbarProps) {
     <div>
       {props.renderDefault(props)}
       {locales.length > 1 && (
-        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-end", alignItems: "center", gap: "0.5rem", padding: "0.5rem 1rem" }}>
-          <label htmlFor={selectId}>{finnish ? "Käyttöliittymän kieli" : "Interface language"}</label>
-          <select id={selectId} value={currentLocale.id} disabled={changing}
-            onChange={(event) => { void selectLocale(event.currentTarget.value); }}
-            style={{ font: "inherit", padding: "0.25rem" }}>
-            {locales.map((locale) => (
-              <option key={locale.id} value={locale.id}>
-                {locale.id === "fi-FI" ? "Suomi" : locale.id === "en-US" ? "English" : locale.title}
-              </option>
-            ))}
-          </select>
-          {failed && <span role="alert">{finnish ? "Kielen vaihtaminen epäonnistui. Yritä uudelleen." : "Unable to change the language. Try again."}</span>}
-        </div>
+        <LocaleNavbarSelect selectId={selectId} currentLocale={currentLocale.id} locales={locales} changing={changing} failed={failed}
+          onSelect={(locale) => { void selectLocale(locale); }} />
       )}
     </div>
   );

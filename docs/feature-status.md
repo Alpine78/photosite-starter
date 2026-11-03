@@ -2,6 +2,12 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Studio interface language select, 2026-11-03 — AB#255 **Active**: the Studio-wide
+language control, the raw select AB#414 left behind, now uses the Sanity UI select in a
+presentational `locale-navbar-select.tsx`. The SDK locale bridge is unchanged. A local browser
+fixture with the installed reset checks visible chrome, focus ring, label activation, the
+disabled and failed states in Finnish/English and light/dark. No signed-in hosted check.
+
 Remaining client-gallery Studio tool controls, 2026-10-31 — AB#414 **Closed** (PR #632
 merged): proof selection reopen, proof reminder settings, proof
 gallery deletion and the existing client web images chooser use the existing Sanity
