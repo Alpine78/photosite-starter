@@ -279,6 +279,16 @@ owner, operator and clone-owner confirmation of non-use, and the actual patch's
 architecture/security and Claude review. A review of this documentation does not satisfy
 the patch review.
 
+### A1 dossier freshness — 2026-11-03
+
+The dossier's tracked-string and import searches were repeated at `origin/main`
+`9fe7229ac903ba5be325d93221e83ebba9e2c6da`, after the client-gallery work. The result is
+unchanged: the ten script files reference only each other, and outside them only
+`package.json`, `README.md` and `docs/deployment.md` mention the commands. The pipeline,
+`vercel.json`, `AGENTS.md` and `docs/owner-run-commands.md` do not. The `docs/deployment.md`
+subsection has moved to lines 1478-1546; use the heading, not the old line numbers. No
+clearance row is answered and nothing is deleted.
+
 ## Operational evidence for the clearance table — 2026-10-20
 
 Collected by an agent with the owner's own CLI logins at `origin/main`

@@ -81,6 +81,7 @@ Two conventions on top of the template:
 | [0038](0038-proof-selection-in-existing-sanity.md) | AB#130 | Proof selection in the existing Sanity project: public watermarked proofs with permanent references, private ID-path terms/selections/versions, a separate selection key, one narrow write path with transactional confirmation, notification separate from the record; 2026-10-22 owner answers (indefinite default, no resend path at first activation, replaced by a linked delivery gallery; automatic reminder with selection link, then monthly) ; 2026-10-22 publication path: Studio action → server route with the editor's own token; 2026-10-24 amendment requires proof deletion on replacement delivery publication (AB#396), implemented in source with hosted acceptance pending | Accepted |
 | [0039](0039-keyword-taxonomy-and-ingest-boundary.md) | AB#55 | Image keyword taxonomy and ingest boundary: governed keyword documents, Lightroom as audit input with re-import overrides, ancestor closure on the medium, separate article tags, public/internal privacy boundary | Proposed |
 | [0040](0040-client-gallery-cleanup-credential-options.md) | AB#405 / AB#395 | Reference deployment accepts a dedicated broad Editor cleanup token (option B); application safeguards and operational/activation gates remain | Accepted |
+| [0041](0041-article-tag-archive-routes.md) | AB#25 | Article tag archives under a deployment-owned namespace with derived slugs, 404 for anything empty and a two-article sitemap threshold | Proposed |
 
 Expected further entries:
 

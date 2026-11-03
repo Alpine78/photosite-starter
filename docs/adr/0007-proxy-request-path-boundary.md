@@ -553,6 +553,26 @@ show it. No supported remedy within the retained Proxy contract has appeared, so
 changed in code, Proxy or test markers. The 2026-10-19 acceptance and its 2026-12-19
 review (AB#370) stand; AB#132 stays Active.
 
+## Local and upstream recheck on Next.js 16.4.4 — 2026-11-03 (AB#370)
+
+A production harness build of main `9fe7229` with Next.js and `eslint-config-next` moved to
+16.4.4 (the npm `latest` tag, published 2026-11-02; the update is unmerged on AB#160's
+branch). Eight rendered-DOM observations, in Chromium and WebKit, with and without
+JavaScript, of an unknown address and of an existing story page with a refused cursor:
+
+- **JavaScript disabled:** all four answer HTTP 404 with zero `h1`, `main` and link
+  elements, no `lang` and the `__next_error__` document.
+- **JavaScript enabled:** all four render one `h1` and `main`. The refused cursor shows one
+  more link than the unknown address (44 and 43), consistent with its return link; the
+  link itself was not separately identified in this run.
+
+Upstream on 2026-11-03: issues #62228, #99287 and #99793 and candidate fixes #98455 and
+#98583 are all open and unmerged. The release notes for 16.4.3 and 16.4.4 list no 404
+change. **The defect still reproduces and no supported remedy has appeared.** No code
+changed. This is the check AB#370 asks for, not its outcome: the 2026-10-19 acceptance
+runs to 2026-12-19, and before then the owner renews it or a fix lands. A hosted recheck
+was not made, and the check should be repeated near the date.
+
 ## 2026-10-18 maintenance matcher amendment (AB#341)
 
 This scoped amendment implements [ADR-0031's accepted maintenance policy](0031-identity-migration-operational-plan.md#4-rehearsal-and-production-sequence).
