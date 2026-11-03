@@ -2,6 +2,16 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Legacy image re-upload report, 2026-11-03 — AB#391 **Active**: a first read-only slice.
+`scripts/image-import-metadata.mts` decides keep-or-re-encode at the 2048 px bound, proves
+unchanged compressed image data with a hash that ignores APPn and COM segments, reports the
+shown size after EXIF orientation, and detects GPS (EXIF or XMP), keywords (XMP or IPTC)
+and the creator's postal address. Owner-run `npm run plan:legacy-image-reupload` reports on
+local source files and lists every located or unreadable one for review. **No import path
+calls this yet and no image changes:** field-level metadata removal, wiring the four
+paths and the stale docs wait for the metadata tool, which AB#54's Lightroom files verify.
+Non-JPEG sources are listed with no rule, as decision 8 speaks about JPEGs.
+
 Contents bar layout flake, 2026-11-03 — AB#377 **Active**: CI 1533's mobile WebKit failure
 of the 1000 px contents-bar journey reported a bar bottom of 1081.66 against a body top
 of 1067.66. A per-frame probe shows those are the positions before and after the 54 px
