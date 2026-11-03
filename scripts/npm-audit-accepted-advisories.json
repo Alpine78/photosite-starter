@@ -38,6 +38,160 @@
           "node_modules/sprintf-js"
         ]
       }
+    },
+    {
+      "target": "root",
+      "advisorySource": 1243066,
+      "ghsa": "GHSA-mrhx-c7xc-m3w5",
+      "workItem": "AB#160",
+      "expiresOn": "2026-11-19",
+      "maxSeverity": "high",
+      "reason": "zod 3.22.4 is pinned exactly by four @vercel packages inside Vercel CLI 65.10.0, and a new zod major would break them. Reached only by the CLI on the operator's machine and in the release job, on the CLI's own and the provider's data; no public request reaches it. Owner accepted 2026-11-03 until the 2026-11-19 review (docs/security-privacy-review.md, AB#160).",
+      "affected": {
+        "@vercel/backends": [
+          "node_modules/@vercel/backends"
+        ],
+        "@vercel/cervel": [
+          "node_modules/@vercel/cervel"
+        ],
+        "@vercel/cli-support": [
+          "node_modules/@vercel/cli-support"
+        ],
+        "@vercel/express": [
+          "node_modules/@vercel/express"
+        ],
+        "@vercel/hono": [
+          "node_modules/@vercel/hono"
+        ],
+        "@vercel/python": [
+          "node_modules/@vercel/python"
+        ],
+        "@vercel/python-analysis": [
+          "node_modules/@vercel/python-analysis"
+        ],
+        "vercel": [
+          "node_modules/vercel"
+        ],
+        "zod": [
+          "node_modules/@vercel/backends/node_modules/zod",
+          "node_modules/@vercel/express/node_modules/zod",
+          "node_modules/@vercel/hono/node_modules/zod",
+          "node_modules/@vercel/python-analysis/node_modules/zod"
+        ]
+      }
+    },
+    {
+      "target": "root",
+      "advisorySource": 1244012,
+      "ghsa": "GHSA-g3hv-75wg-m249",
+      "workItem": "AB#160",
+      "expiresOn": "2026-11-19",
+      "maxSeverity": "moderate",
+      "reason": "minimatch 3.1.5 is used by ESLint 9 and its plugins and by the ts-morph chain inside Vercel CLI 65.10.0; a new major would break those consumers. Denial of service needs an attacker-controlled pattern, and both tools run only on this repository's own configuration and source. Owner accepted 2026-11-03 until the 2026-11-19 review (docs/security-privacy-review.md, AB#160).",
+      "affected": {
+        "@eslint-community/eslint-utils": [
+          "node_modules/@eslint-community/eslint-utils"
+        ],
+        "@eslint/config-array": [
+          "node_modules/@eslint/config-array"
+        ],
+        "@eslint/eslintrc": [
+          "node_modules/@eslint/eslintrc"
+        ],
+        "@next/eslint-plugin-next": [
+          "node_modules/@next/eslint-plugin-next"
+        ],
+        "@ts-morph/common": [
+          "node_modules/@ts-morph/common"
+        ],
+        "@typescript-eslint/eslint-plugin": [
+          "node_modules/@typescript-eslint/eslint-plugin"
+        ],
+        "@typescript-eslint/parser": [
+          "node_modules/@typescript-eslint/parser"
+        ],
+        "@typescript-eslint/type-utils": [
+          "node_modules/@typescript-eslint/type-utils"
+        ],
+        "@typescript-eslint/utils": [
+          "node_modules/@typescript-eslint/utils"
+        ],
+        "@vercel/backends": [
+          "node_modules/@vercel/backends"
+        ],
+        "@vercel/cervel": [
+          "node_modules/@vercel/cervel"
+        ],
+        "@vercel/cli-support": [
+          "node_modules/@vercel/cli-support"
+        ],
+        "@vercel/elysia": [
+          "node_modules/@vercel/elysia"
+        ],
+        "@vercel/express": [
+          "node_modules/@vercel/express"
+        ],
+        "@vercel/fastify": [
+          "node_modules/@vercel/fastify"
+        ],
+        "@vercel/h3": [
+          "node_modules/@vercel/h3"
+        ],
+        "@vercel/hono": [
+          "node_modules/@vercel/hono"
+        ],
+        "@vercel/hydrogen": [
+          "node_modules/@vercel/hydrogen"
+        ],
+        "@vercel/koa": [
+          "node_modules/@vercel/koa"
+        ],
+        "@vercel/nestjs": [
+          "node_modules/@vercel/nestjs"
+        ],
+        "@vercel/node": [
+          "node_modules/@vercel/node"
+        ],
+        "@vercel/redwood": [
+          "node_modules/@vercel/redwood"
+        ],
+        "@vercel/remix-builder": [
+          "node_modules/@vercel/remix-builder"
+        ],
+        "@vercel/static-build": [
+          "node_modules/@vercel/static-build"
+        ],
+        "@vercel/static-config": [
+          "node_modules/@vercel/static-config"
+        ],
+        "eslint": [
+          "node_modules/eslint"
+        ],
+        "eslint-config-next": [
+          "node_modules/eslint-config-next"
+        ],
+        "eslint-plugin-import": [
+          "node_modules/eslint-plugin-import"
+        ],
+        "eslint-plugin-jsx-a11y": [
+          "node_modules/eslint-plugin-jsx-a11y"
+        ],
+        "eslint-plugin-react": [
+          "node_modules/eslint-plugin-react"
+        ],
+        "minimatch": [
+          "node_modules/minimatch"
+        ],
+        "ts-morph": [
+          "node_modules/ts-morph"
+        ],
+        "typescript-eslint": [
+          "node_modules/typescript-eslint"
+        ],
+        "vercel": [
+          "node_modules/vercel"
+        ]
+      }
     }
   ]
 }

@@ -154,21 +154,25 @@ audit stays 0: every finding is in development or deployment tooling. Vercel CLI
 pin `undici` 6.29.1, `glob` 14.0.3, `minimatch` 11.0.4 and `zod` 4.6.7. That clears
 every `undici` and `glob` advisory and most `zod` and `minimatch` paths.
 
-Two advisories remain, and **the scheduled audit stays red until the owner decides**.
-A new major of either package would break its only consumer, so no compatible fix
-exists today:
+Two advisories remain. **The owner accepted both on 2026-11-03 until the 2026-11-19
+review**, recorded in [the security review](security-privacy-review.md#2026-11-03-owner-accepted-root-tooling-advisories-ab160)
+and enforced as dated exceptions. A new major of either package would break its
+consumers, so no compatible fix exists today:
 
 | Advisory | Package and path | Where it runs | Exposure |
 | --- | --- | --- | --- |
 | [GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5) (high) | `zod` 3.22.4, pinned exactly by `@vercel/backends`, `@vercel/express`, `@vercel/hono` and `@vercel/python-analysis` | Vercel CLI on the operator's machine and the release job | Memory exhaustion needs an attacker-supplied large array reaching an unbounded array schema. The CLI validates its own and the provider's data; no public request reaches it. |
-| [GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249) (moderate) | `minimatch` 3.1.5 through ESLint 9 and its plugins | Lint on the developer's machine and in CI | Denial of service needs an attacker-controlled glob pattern. Patterns come from this repository's own ESLint configuration. |
+| [GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249) (moderate) | `minimatch` 3.1.5 through ESLint 9 and its plugins, and through `@ts-morph/common` inside Vercel CLI | Lint and the CLI on the developer's or operator's machine and in CI | Denial of service needs an attacker-controlled glob pattern. Both tools run only on this repository's own configuration and source. |
 
 Verified locally: lint, all unit suites, the CSP journeys on desktop Chromium and mobile
 WebKit, the help output for the deploy flags the pipeline uses, and `vercel build --target=preview`
-with CLI 65.10.0 against a throwaway unlinked project and mock content. Not verified:
-`vercel pull`, `deploy`, `promote` and `rollback` against the provider. The first
-DeployPreview after merge and the next manual release exercise them. The Studio audit is
+with CLI 65.10.0 against a throwaway unlinked project and mock content. The Studio audit is
 handled separately.
+
+Provider follow-up: main run 1566 at the merge of this change passed `vercel pull`, the
+Preview deployment and the stable alias repoint on CLI 65.10.0. The owner's
+`release:production -- stage` at `ff79f90` then passed the Production pull, build and
+staged deploy, with verdict `pass`. `promote` and `rollback` have not run on this CLI.
 
 ### 2026-10-22 Vitest advisories (AB#160)
 

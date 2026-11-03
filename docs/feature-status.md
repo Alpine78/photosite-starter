@@ -2,6 +2,11 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Root tooling advisories accepted, 2026-11-03 — AB#160 **Active**: the owner accepted `zod`
+3.22.4 and `minimatch` 3.1.5 until the 2026-11-19 review, as dated exceptions over their 37
+reviewed packages. They are still installed. The next scheduled audit is expected to pass
+as `accepted`; not yet observed. See [the security review](security-privacy-review.md#2026-11-03-owner-accepted-root-tooling-advisories-ab160).
+
 Documentation batch, 2026-11-03: AB#25 **Active**: [ADR-0041](adr/0041-article-tag-archive-routes.md)
 (Proposed) sets out tag archive routes; no code, and it waits for the owner and ADR-0039
 decision 6. AB#370 **Active**: the scriptless 404 still reproduces on Next.js 16.4.4 and
@@ -41,18 +46,18 @@ disabled and failed states in Finnish/English and light/dark. No signed-in hoste
 
 Tooling advisories, 2026-11-03 — AB#160 **Active**: Vercel CLI 65.10.0, Next.js 16.4.4
 and same-major overrides clear most findings; the production-only audit stays 0. Two
-development-tooling advisories have no compatible fix and wait for an owner decision, so
-the scheduled audit stays red. See
+development-tooling advisories have no compatible fix, and the owner accepted them until
+the 2026-11-19 review. See
 [dependency security](dependency-security.md#2026-11-03-vercel-cli-and-tooling-advisories-ab160).
 
-Root build on a root-only install, 2026-11-03 — AB#415 **Active**: main's Preview
+Root build on a root-only install, 2026-11-03 — AB#415 **Closed** (PR #634 merged): main's Preview
 release candidate failed from PR #630 on (builds 1547, 1549, 1551, 1555). Journey specs
 imported types from Studio dialogs, TypeScript followed them past `exclude`, and
 `@sanity/ui` exists only in Studio's install; Verify installs both trees and passed.
 The four `e2e/studio-*.spec.ts` specs and their fixture moved to
 `npm run typecheck:studio-journeys`, a new Verify step, and a guard test walks the root
-import graph. `next build` passes locally with Studio's dependencies hidden. The pipeline
-result after merge is still to be seen.
+import graph. `next build` passes locally with Studio's dependencies hidden, and main run
+1564 at the merge passed the Preview release candidate.
 
 Remaining client-gallery Studio tool controls, 2026-10-31 — AB#414 **Closed** (PR #632
 merged): proof selection reopen, proof reminder settings, proof

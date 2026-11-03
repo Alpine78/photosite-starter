@@ -1252,6 +1252,22 @@ notification setting, a mail filter or another cause is unknown and is not infer
 here. AB#160's notification-delivery acceptance therefore remains open and nothing
 here claims it met.
 
+### 2026-11-03 owner-accepted root tooling advisories (AB#160)
+
+The owner accepted two root advisories on 2026-11-03 until the 2026-11-19 review, with no
+compatible fix available: [GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5)
+(high, `zod` 3.22.4, pinned exactly inside Vercel CLI 65.10.0) and
+[GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249) (moderate,
+`minimatch` 3.1.5, through ESLint 9 and through `@ts-morph/common` inside the CLI).
+*Assessment, not verified by an exploit attempt:* the production-only root audit is 0, so
+neither reaches the public site, and both need attacker-supplied input to tooling that runs
+on this repository's own configuration, source and provider data. The impact is denial of
+service of that tooling. Both are dated exceptions in
+`scripts/npm-audit-accepted-advisories.json`, bound to advisory sources 1243066 and
+1244012 and to the 37 reviewed packages and install paths of the two chains. The packages
+stay installed. *Review:* 2026-11-19 together with `sprintf-js`, or sooner when a compatible
+fix is published; the audit fails from 00:00 UTC that day.
+
 ## Optional site analytics — 2026-10-19 (AB#371 / AB#117)
 
 **2026-10-20 (AB#376):** `@vercel/speed-insights` 2.0.0 (Apache-2.0) adds a second,
