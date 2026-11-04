@@ -78,7 +78,7 @@ export function AdminSignInForm({
     // disabled until hydration. Even a forced native submit uses POST to the
     // JSON-only endpoint, which refuses the form content type.
     <form method="post" action={action} onSubmit={submit} className="flex flex-col gap-4">
-      <h2 className="text-lg font-medium text-strong">{headingText}</h2>
+      <h2 className="text-lg font-medium text-foreground">{headingText}</h2>
 
       <noscript>
         <p className="text-danger">{javascriptRequiredText}</p>
@@ -96,7 +96,7 @@ export function AdminSignInForm({
           required
           value={secret}
           onChange={(event) => setSecret(event.target.value)}
-          className="rounded-md border border-border-strong bg-surface px-3 py-2 text-strong"
+          className="rounded-md border border-border-strong bg-surface px-3 py-2 text-foreground"
           {...(state === "refused" ? { "aria-describedby": `${secretId}-error` } : {})}
         />
       </div>
@@ -110,7 +110,7 @@ export function AdminSignInForm({
       <button
         type="submit"
         disabled={!hydrated || state === "sending"}
-        className="rounded-md border border-border-strong px-4 py-2 text-strong"
+        className="rounded-md border border-border-strong px-4 py-2 text-foreground"
       >
         {submitLabel}
       </button>
@@ -159,7 +159,7 @@ export function AdminSignOutButton({
       type="button"
       onClick={signOut}
       disabled={!hydrated || sending}
-      className="rounded-md border border-border-strong px-4 py-2 text-strong"
+      className="rounded-md border border-border-strong px-4 py-2 text-foreground"
     >
       {label}
     </button>

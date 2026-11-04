@@ -317,6 +317,8 @@ and the footer brand block.
 - **No dynamic Tailwind class names** (AB#36 AC6). Every utility is a static
   literal. A variant is chosen by swapping whole class strings in a ternary,
   never by interpolating a token name into a class.
+- **Class names.** `src/lib/theme-class-usage.test.ts` requires every colour utility in `src/` to name a registered token or be on its
+  short closed list, because Tailwind silently generates nothing for an unknown class.
 - **Contrast** (AC5). `text-body`, `text-muted`, `text-subtle`, and `text-danger`
   clear WCAG 2.1 AA (≥ 4.5:1 for normal text) over `--background` in both
   palettes; the focus ring clears ≥ 3:1. Enforced by both test suites above.
