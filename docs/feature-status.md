@@ -2,6 +2,9 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Keyword sync, 2026-11-05 — AB#69 **Active**: `npm run sync:keywords` writes media keywords, closures and the private record, dry-run by default, under
+revision guards and the taxonomy state's guard, and resumes by re-planning. See [keyword-sync.md](keyword-sync.md). It has not run on a real dataset, and Studio has no `keywordRecord` schema until AB#70.
+
 Keyword import mapping, 2026-11-04 — AB#57 **Active**: `scripts/keyword-import-mapping.mts` maps one
 medium's Lightroom fields to the controlled vocabulary and returns a proposal: mapped keywords, review
 items, canonicalized overrides, the effective public and internal sets and the closure. It is pure and

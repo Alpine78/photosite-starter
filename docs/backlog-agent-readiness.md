@@ -64,6 +64,7 @@ actions, approvals or accounts; an agent can prepare evidence but cannot close t
 | AB#391 — Import metadata and no re-encoding | Active | Read-only report on `feature/391-jpeg-metadata-preserving-derivative`. [AB#54's report](audits/ab54-lightroom-keyword-spike-2026-11-04.md) verifies the metadata tool. ADR-0039 is accepted, so the detector's update for the 2026-11-04 field changes and the wiring can start. The owner decided on 2026-11-04 to do the legacy re-upload; its plan needs approval before any CMS write. |
 | AB#56 — Keyword vocabulary schema | Active | Schema, governance rules and guarded publication are on `feature/56-keyword-vocabulary-schema`. Anonymous and authenticated reads of a private-path document are verified in `preview`; the owner's look at it in Studio (ADR-0039 open question 6) is open. AB#57 follows it. |
 | AB#57 — Keyword import mapping | Active | Pure mapping on `feature/57-keyword-import-mapping`. AB#69 and AB#70 follow it. |
+| AB#69 — Keyword sync | Active | `npm run sync:keywords` on `feature/69-keyword-resync`, stacked on AB#57. The first run on `preview` is owner-run. |
 | AB#392 — Client gallery expiry cleanup | Active | Every child slice is Closed. Hosted acceptance and activation remain; see [retention](client-gallery-retention.md). |
 
 No other open item is agent-ready today. What remains needs an owner decision, an owner

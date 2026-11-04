@@ -33,6 +33,7 @@
     "write:joomla": "node scripts/write-joomla-content.mts",
     "plan:rally": "node scripts/plan-rally-import.mts",
     "plan:client-gallery-availability": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/plan-client-gallery-availability.mts",
+    "sync:keywords": "node scripts/keyword-sync.mts",
     "plan:legacy-delivery": "node scripts/plan-legacy-delivery-import.mts",
     "plan:legacy-image-reupload": "node scripts/plan-legacy-image-reupload.mts",
     "plan:private-gallery-upload": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/plan-private-gallery-upload.mts",

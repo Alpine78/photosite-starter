@@ -1,0 +1,55 @@
+# Keyword sync
+
+**Audience:** the owner running `npm run sync:keywords`. **Work item:** AB#69. **Decisions:**
+[ADR-0039](adr/0039-keyword-taxonomy-and-ingest-boundary.md) decisions 2 and 3.
+
+The command re-derives each medium's `keywords` and `expandedKeywordIds`, and its private `keywordRecord.<mediaId>`, from current data. It
+uploads nothing and changes no asset URL. A medium is identified by its `mediaId`, never by a filename or CDN URL.
+
+## Two uses
+
+| Use | Input | What it does |
+| --- | --- | --- |
+| **Import** | `--imports <fields.json>`, an object of `mediaId` → ExifTool `-G1` fields | Maps the new terms and keeps the editor's additions and removals. |
+| **Re-sync** | none | Re-maps every medium from its stored import, after a parent move, merge or retirement. Acknowledges the taxonomy version only if nothing failed. |
+
+`--set-discoverable` also opts the imported media in to keyword galleries (ADR-0012 §2). It is off by default, and it never applies to a client
+delivery. Building the fields file from local exports belongs to the import path, once AB#391's metadata tool has landed.
+
+## Running it
+
+```bash
+npm run sync:keywords -- --out temp/keyword-sync/run-1                                  # reads and reports only
+npm run sync:keywords -- --out temp/keyword-sync/run-2 --approved-digest <hash> --yes   # writes exactly that plan
+```
+
+The token is `SANITY_MIGRATION_TOKEN`, from the environment, with `SANITY_PROJECT_ID`, `SANITY_DATASET` and `SANITY_API_VERSION`. The report is private,
+because a review item can hold anything a photographer typed. The console prints counts only. Try it on the `preview` dataset first.
+
+## What protects a run
+
+- **The digest** covers every mutation and its revision guard, so an approval names exactly one state of the data. Anything changing since then fails it.
+- **Every document is revision-guarded.** A draft is patched with its published document, because publishing a stale draft would undo the sync.
+- **Every batch of 50 media is one transaction that also advances `keywordTaxonomyState`,** the guard Studio's keyword publication takes, so the two conflict rather than interleave.
+- **A conflict stops the run with exit code 3.** Run the dry run again: what was written is found unchanged and skipped, so resuming repeats nothing.
+- **A taxonomy change during the run stops it,** because the plan describes the older hierarchy.
+
+## What it refuses, per medium
+
+The report lists these as `failed`, and the others continue. A full re-sync with any failure does not acknowledge the taxonomy version.
+
+| Code | Meaning |
+| --- | --- |
+| `RELEASE_VERSION_EXISTS` | A Content Release holds a version, which would undo the sync when released. |
+| `KEYWORDS_WITHOUT_RECORD` | Keywords with no record have no known source, and deriving from nothing would remove them. |
+| `RECORD_MALFORMED` | The stored import is not in the expected shape. |
+| `MEDIA_ID_REPEATED` | Two documents claim one `mediaId`. |
+| `VOCABULARY_REFERENCE_UNKNOWN` | An override names a keyword that does not exist. |
+
+A broken vocabulary stops the whole plan. An import naming no medium is listed under `unmatchedImports`, never guessed. Terms that do not resolve go to `reviewItems` on
+the private record, for AB#70.
+
+## Budget
+
+The budget for a 400-medium batch is 60 seconds. Planning it takes well under a second, and it writes eight transactions. AB#65's benchmark re-synced 3541 documents in about 15 s
+on a real project. **This command itself has not run against a real dataset**, so the first run on `preview` should record the actual time here.
