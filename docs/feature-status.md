@@ -2,6 +2,12 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Keyword import mapping, 2026-11-04 — AB#57 **Active**: `scripts/keyword-import-mapping.mts` maps one
+medium's Lightroom fields to the controlled vocabulary and returns a proposal: mapped keywords, review
+items, canonicalized overrides, the effective public and internal sets and the closure. It is pure and
+writes nothing. Nothing calls it yet; the writer is AB#69 and the review workflow AB#70. The rules are in
+[ADR-0039's AB#57 amendment](adr/0039-keyword-taxonomy-and-ingest-boundary.md).
+
 Keyword vocabulary schema, 2026-11-04 — AB#56 **Active**: `keyword`, `keywordCategory` and
 `keywordTaxonomyState` schemas with the governance rules of
 [ADR-0039](adr/0039-keyword-taxonomy-and-ingest-boundary.md) in a pure module. Studio publishes a
