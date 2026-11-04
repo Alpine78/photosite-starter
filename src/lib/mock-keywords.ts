@@ -22,6 +22,7 @@ const KEYWORDS = [
   { keywordId: "coast", title: { en: "Coast", fi: "Rannikko" }, categorySlug: "place", parentKeywordId: null },
   { keywordId: "forest", title: { en: "Forest", fi: "Metsä" }, categorySlug: "place", parentKeywordId: null },
   { keywordId: "autumn", title: { en: "Autumn", fi: "Syksy" }, categorySlug: "season", parentKeywordId: null },
+  { keywordId: "archive", title: { en: "Archive", fi: "Arkisto" }, categorySlug: "subject", parentKeywordId: null },
 ] as const;
 
 /** Never rendered: it shows that a keyword assignment needs no image rendition. */
@@ -34,7 +35,11 @@ export const MOCK_VIDEO_MEDIA: VideoMedia = {
   height: 1080,
 };
 
+/** Enough media for more than one page of results; they reuse one fixture photograph. */
+export const MOCK_ARCHIVE_MEDIA_IDS: readonly string[] = Array.from({ length: 30 }, (_, index) => `archive-${String(index + 1).padStart(2, "0")}`);
+
 const ASSIGNMENTS: Readonly<Record<string, readonly string[]>> = {
+  ...Object.fromEntries(MOCK_ARCHIVE_MEDIA_IDS.map((mediaId) => [mediaId, ["archive"]])),
   "coastal-landscape": ["coast", "water"],
   "forest-stream": ["forest", "water"],
   "lakeside-reeds": ["water"],

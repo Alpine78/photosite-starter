@@ -14,6 +14,7 @@
 
 import {
   resolvePrefixedRoute,
+  resolveSearchRoute,
   type LocaleRouteConfig,
 } from "@/lib/locale-routes";
 
@@ -182,6 +183,24 @@ function matchesRouteSegment(value: string | undefined, expected: string): boole
  * keeps Next.js's ordinary slash normalization. This does not resolve content
  * and cannot say whether the path actually exists.
  */
+/**
+ * A search-route request naming a keyword selection (ADR-0012 §8). Next's slash redirect runs
+ * before a route can validate one, and an invalid selection or cursor is never redirected.
+ */
+export function isKeywordSelectionRequest(
+  config: LocaleRouteConfig,
+  pathname: string,
+  searchParams: URLSearchParams,
+): boolean {
+  if (!isCarryableRequestPath(pathname)) return false;
+  if ((searchParams.get("keywords") ?? "").split(",").every((token) => token.trim() === "")) return false;
+  const [prefix, ...rest] = pathname.split("/").filter((segment) => segment !== "");
+  if (prefix === undefined) return false;
+  const defaultRoute = config.byLocale.get(config.defaultLocale);
+  if (resolveSearchRoute(config, prefix, rest) !== undefined) return true;
+  return defaultRoute !== undefined && resolvePrefixedRoute(config, prefix, rest).kind === "redundant-default-prefix" && matchesRouteSegment(rest[0], defaultRoute.searchNamespace) && rest.length === 1;
+}
+
 export function isPotentialStoryRequestPath(
   config: LocaleRouteConfig,
   pathname: string,

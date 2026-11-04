@@ -677,7 +677,7 @@ forever, only as an honest starting position.
        field mapping, and the default order.
 4. [x] (AB#68 keeps keywords on the server; AB#58 adds the field.) AB#68 exposes `dynamicallyDiscoverable` (and confirms `publiclyRenderable`) through
        the shared public media domain model, per ADR-0002 §4 and this ADR's §2.
-5. [ ] AB#71 builds the `/en/search` / `/haku` route itself, the `?keywords=`/`?cursor=`
+5. [x] (On AB#71's pull request; the raw ceiling is 15 tokens.) AB#71 builds the `/en/search` / `/haku` route itself, the `?keywords=`/`?cursor=`
        parameter contract including the raw-input ceiling and canonical parameter order
        in §8, the canonicalize → validate → redirect order there (including the
        alias-redirect permanence conditional on AB#55's alias-immutability decision), and

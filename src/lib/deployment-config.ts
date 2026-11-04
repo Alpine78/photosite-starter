@@ -102,6 +102,12 @@ export type BuiltInLabels = {
   readonly search: {
     /** Page heading and the dialog's accessible name. */
     readonly title: string;
+    /** Keyword gallery heading; `{names}` is the selected keywords as a list. */
+    readonly keywordTitle: string;
+    /** Says what the selection means, so several keywords read as "all of these". */
+    readonly keywordSummary: string;
+    readonly keywordNoResults: string;
+    readonly keywordBackToStart: string;
     /** The header control's visible name. */
     readonly open: string;
     readonly close: string;
@@ -744,6 +750,10 @@ const englishLabels = {
     label: "Language",
   },
   search: {
+    keywordTitle: "Photographs: {names}",
+    keywordSummary: "Showing photographs that have all of these keywords.",
+    keywordNoResults: "No photographs have all of these keywords.",
+    keywordBackToStart: "Back to the first photographs",
     title: "Search",
     open: "Search",
     close: "Close",
@@ -1237,6 +1247,10 @@ const finnishLabels = {
     label: "Kieli",
   },
   search: {
+    keywordTitle: "Kuvat: {names}",
+    keywordSummary: "Näytetään kuvat, joissa on kaikki nämä avainsanat.",
+    keywordNoResults: "Millään kuvalla ei ole kaikkia näitä avainsanoja.",
+    keywordBackToStart: "Takaisin ensimmäisiin kuviin",
     title: "Haku",
     open: "Hae",
     close: "Sulje",
