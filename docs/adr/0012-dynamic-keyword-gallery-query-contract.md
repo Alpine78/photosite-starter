@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-08-27
-**Amended:** 2026-10-15 — see Scoped amendment
+**Amended:** 2026-10-15 and 2026-11-04 — see Scoped amendments
 **Deciders:** Project owner (Ilkka Rytkönen)
 **Work item:** AB#66 (remainder, after ADR-0009 split off the ordering-rule clauses)
 
@@ -746,8 +746,8 @@ keyword feature and changes none of §3–§7 or §9.
 
 ## Scoped amendment — 2026-10-22: ID-only public tokens (AB#55)
 
-**Status:** Proposed together with [ADR-0039](0039-keyword-taxonomy-and-ingest-boundary.md);
-takes effect only when ADR-0039 is accepted.
+**Status:** Accepted on 2026-11-04 together with
+[ADR-0039](0039-keyword-taxonomy-and-ingest-boundary.md), and in effect from then.
 
 **Previous rule:** §3 resolves aliases in public selections; §8 redirects them with
 permanence conditional on AB#55's alias-immutability decision.
