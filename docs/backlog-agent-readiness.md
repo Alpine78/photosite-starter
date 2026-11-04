@@ -61,7 +61,8 @@ actions, approvals or accounts; an agent can prepare evidence but cannot close t
 | AB#160 — Vulnerable dependencies | Active | Fixes on `chore/160-root-audit-november` and `chore/160-studio-audit-november`. Two tooling advisories (`zod` 3.22.4, `minimatch` 3.1.5) need an owner decision before the scheduled audit can go green. The `sprintf-js` acceptance expires 2026-11-19; the Studio audit no longer reports it. |
 | AB#377 — e2e flake root causes | Active | Contents-bar flake fixed on `fix/377-content-reading-layout-flake`. Open: the WebKit `article-reading-position` locale case (run 1398; needs a new trace) and the aborted `goBack` in the inactive private-gallery spec (run 1445; AB#313 removes it). |
 | AB#255 — Studio language select | Active | Fix on `fix/255-studio-locale-select`. |
-| AB#391 — Import metadata and no re-encoding | Active | Read-only report on `feature/391-jpeg-metadata-preserving-derivative`. Wiring the import paths waits for AB#54's test files, which verify the metadata tool. |
+| AB#391 — Import metadata and no re-encoding | Active | Read-only report on `feature/391-jpeg-metadata-preserving-derivative`. [AB#54's report](audits/ab54-lightroom-keyword-spike-2026-11-04.md) verifies the metadata tool. ADR-0039 is accepted, so the detector's update for the 2026-11-04 field changes and the wiring can start. The owner decided on 2026-11-04 to do the legacy re-upload; its plan needs approval before any CMS write. |
+| AB#56 — Keyword vocabulary schema | New | Its predecessors AB#39 and AB#55 are settled once AB#55's pull request merges. Implements ADR-0039 decisions 1, 4 and 5 and checks Studio visibility of private-path documents before any is written. AB#57 follows it. |
 | AB#392 — Client gallery expiry cleanup | Active | Every child slice is Closed. Hosted acceptance and activation remain; see [retention](client-gallery-retention.md). |
 
 No other open item is agent-ready today. What remains needs an owner decision, an owner
@@ -71,7 +72,6 @@ account, live CMS approval or a dependency listed here.
 
 | Decision | Unlocks |
 | --- | --- |
-| Run AB#54's Lightroom exports, then accept [ADR-0039](adr/0039-keyword-taxonomy-and-ingest-boundary.md) | AB#391's wiring and the whole keyword branch: AB#56–59, 68–75, 90, then AB#60's dynamic path |
 | Accept or change [ADR-0041](adr/0041-article-tag-archive-routes.md) | AB#25 |
 | Accept or date the two tooling advisories (AB#160) | A green scheduled audit |
 | Give slice A1 its clearance (AB#313) | The first deletion, then A2 and the rest; also ends run 1445's flake |
@@ -103,9 +103,9 @@ resumed for this owner (AGENTS.md); AB#313 audits removing that inactive code.
 
 | Work item | State | Readiness |
 | --- | --- | --- |
-| AB#54 — Keyword extraction spike | Active | Owner-run evidence: Lightroom control exports through the real non-production upload path. |
-| AB#55 — Keyword taxonomy ADR | Active | [ADR-0039](adr/0039-keyword-taxonomy-and-ingest-boundary.md) Proposed, owner answers recorded; acceptance after AB#54's test files settle its open import questions. |
-| AB#56–59, 68–75, 90 — Keyword features | New | Blocked on AB#55. |
+| AB#54 — Keyword extraction spike | Active | [Evidence recorded](audits/ab54-lightroom-keyword-spike-2026-11-04.md), export settings included; closes when its pull request merges. |
+| AB#55 — Keyword taxonomy ADR | Active | [ADR-0039](adr/0039-keyword-taxonomy-and-ingest-boundary.md) accepted 2026-11-04; closes when its pull request merges. |
+| AB#57–59, 68–75, 90 — Keyword features | New | Follow AB#56; each item's own predecessors apply. |
 | AB#95 — Sales, checkout and fulfilment boundary | Active | Product discovery; no checkout, cart or payment implementation. |
 
 **Other post-MVP items** (AB#25–28, AB#42–49, AB#125–127) are Active or New for

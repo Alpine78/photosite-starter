@@ -1,8 +1,9 @@
 # ADR-0039: Image keyword taxonomy and ingest boundary
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-21
-**Deciders:** Project owner (pending)
+**Accepted:** 2026-11-04
+**Deciders:** Project owner
 **Work item:** AB#55
 
 ## Context
@@ -36,11 +37,9 @@ Evidence and constraints already in place:
   [ADR-0033](0033-unified-site-search.md) leaves "tags and photo keywords share a
   vocabulary?" to this record.
 - **[ADR-0008](0008-localized-authored-text.md):** authored display text is localized.
-- **AB#54 (extraction spike) is not done.** Whether `dc:subject` and
-  `lr:hierarchicalSubject` survive the real upload path, in what form, where extraction
-  runs and which dependency reads them are still unknown. Decisions that depend on that
-  evidence are written as conditional and listed under open questions; they are not
-  assumed.
+- **AB#54 (extraction spike)** recorded its evidence on 2026-11-04 in
+  [the spike report](../audits/ab54-lightroom-keyword-spike-2026-11-04.md). Open questions
+  1 and 2 below carry the results.
 
 ## Decision
 
@@ -172,9 +171,11 @@ administrator-initiated events, while reads happen on every visitor request.
   `ä→a`, `ö→o`, `å→a`, other letters through Unicode decomposition, then lowercasing and
   hyphenating. A proposed id that collides is a validation error the editor resolves by
   choosing another id; no automatic numeric suffix is added.
-- Import mapping order: the hierarchical path when the import provides one (only if
-  AB#54 shows it survives), otherwise the flat term's match key against titles and
-  aliases. One match maps; zero or several go to review.
+- Import mapping order: the hierarchical path when the import provides one (AB#54: only
+  when the Lightroom export ticks Write Keywords as Lightroom Hierarchy), otherwise the
+  flat term's match key against titles and aliases. One match maps; zero or several go
+  to review. How a flat term that repeats a mapped path's parent or synonym is treated
+  is settled by AB#57, so that it does not reach review as a separate term.
 
 ### 6. Article tags stay separate from photo keywords
 
@@ -230,13 +231,15 @@ then without merging the vocabularies.
   that redirect to it are handled the same way, and identifying terms in public
   documents are redacted. Retirement stays for ordinary vocabulary maintenance. This
   record is not legal advice; the owner's privacy notice must describe the practice.
-- **Embedded image metadata is public too.** An uploaded file is downloadable from
-  Sanity's public asset URL with whatever IPTC/XMP it carries, so storing extracted
-  terms privately protects nothing if the bytes still contain them. Ingest reads the
-  keywords from the local Lightroom export **before** upload and removes keyword
-  metadata from the uploaded file (decision 8).
+- **Embedded image metadata must not outlive the private record.** AB#54 measured image
+  assets: the ordinary image CDN served no IPTC, XMP or GPS on the requests tested, and
+  the unchanged original with all of it needs an authenticated `dlRaw` request. A `file`
+  asset is served directly and publicly. Storing extracted terms privately therefore
+  protects little if the stored bytes still contain them, so ingest reads the keywords
+  from the local Lightroom export **before** upload and removes keyword metadata from the
+  uploaded file (decision 8).
 
-### 8. Embedded metadata and no re-encoding on import (owner decisions 2026-10-22)
+### 8. Embedded metadata and no re-encoding on import (owner decisions 2026-10-22, kept fields revised 2026-11-04)
 
 These rules apply to every image import path, including the Joomla migration
 derivative tool; implementation and the legacy re-upload are AB#391.
@@ -248,13 +251,17 @@ derivative tool; implementation and the legacy re-upload are AB#391.
 - **Larger sources are the one exception.** A source above 2048 px is downscaled and
   re-encoded to the public bound (never cropped or upscaled), and the kept metadata
   below is carried over to the new file.
-- **Removed:** keyword metadata (XMP `dc:subject`, `lr:hierarchicalSubject`, IPTC
-  Keywords) and the creator's postal-address fields, which can go out of date.
-- **Kept:** copyright status and notice, creator name, phone, email and website, EXIF
-  exposure, camera and lens data, and GPS location. Location stays so later features
+- **Removed:** keyword metadata (XMP `dc:subject`, `lr:hierarchicalSubject`,
+  `lr:weightedFlatSubject`, IPTC Keywords) and the creator's street address, region and
+  postal code, which can go out of date.
+- **Kept:** copyright status and notice, creator name, city, country, phone, email and
+  website, EXIF exposure, camera and lens data including serial numbers, and GPS
+  location. Location stays so later features
   can show where a photograph was taken (a map, a lightbox button); the owner leaves
-  a sensitive location out in the Lightroom export. All kept fields are public in the
-  downloadable file.
+  a sensitive location out in the Lightroom export. Treat all kept fields as public:
+  a `file` asset exposes them directly. AB#54 found that the ordinary image CDN does not
+  serve them or the original compressed bytes, so visitors of an image asset see neither.
+  Knowing this, the owner decided on 2026-11-04 to do AB#391's legacy re-upload.
 - **Precise edits, not whole segments.** Because copyright and creator data share the
   XMP and IPTC segments with keywords, removal edits individual fields. Recommended
   tool: `exiftool-vendored` (MIT wrapper, actively maintained), run only in the
@@ -297,35 +304,35 @@ overwritten by the next export.
 
 ## Open questions and owner answers (2026-10-22)
 
-1. **Open (AB#54).** Whether `dc:subject` (flat keywords) and `lr:hierarchicalSubject`
-   (Lightroom's `Parent|Child` paths) are present in the owner's exported JPEGs, and in
-   what form. Decision 5's path-first mapping applies only if the hierarchical field is.
-   The owner exports JPEGs from Lightroom, so AB#54's control files are three such
-   exports (no keywords, flat keywords, hierarchical keywords).
-2. **Partly answered by documentation; dependency open (AB#54).** Verified: Sanity's
-   upload metadata extraction covers dimensions, placeholders (`lqip`, `blurhash`,
-   `thumbhash`), `palette`, `image`, `exif` and `location`; it lists no IPTC or XMP
-   keyword extraction. Extraction therefore reads the local JPEG export's own metadata
-   before upload, not Sanity asset metadata, and the uploaded public file has its
-   keyword metadata removed field by field without re-encoding (decision 8).
-   Which reader parses the keywords (licence, maintenance, shipped cost) is AB#54's
-   remaining decision; recommended: `exiftool-vendored`, which both reads and edits
-   individual fields (decision 8).
+1. **Answered by AB#54.** `dc:subject` is present whenever keywords exist.
+   `lr:hierarchicalSubject` is present only when the export ticks Write Keywords as
+   Lightroom Hierarchy; it then holds root-first `Parent|Child` paths, and a keyword
+   without parents is a single term. The owner's export preset must tick this option for
+   decision 5's path-first mapping to apply.
+2. **Answered by AB#54.** Sanity's documented upload metadata extraction lists no IPTC or
+   XMP keyword extraction, and the default upload's asset document held none. Extraction
+   therefore reads the local JPEG export's own metadata before upload, not Sanity asset
+   metadata, and the uploaded file has its keyword metadata removed field by field without
+   re-encoding (decision 8). Recommended reader and editor: `exiftool-vendored`, as a
+   `devDependency` for owner-run import scripts; licence, maintenance and cost are in
+   [the spike report](../audits/ab54-lightroom-keyword-spike-2026-11-04.md).
 3. **Answered: yes, from the exported JPEGs.** The vocabulary is seeded from the
    keywords embedded in the JPEGs the owner exports from Lightroom; no separate
    keyword-list export is required. Unmatched terms enter review as in decision 2.
-4. **Owner has no preset categories.** Proposed default: when hierarchical paths exist,
-   their top-level terms become the initial categories for the editor to confirm;
-   otherwise one general category. Person keywords start `internal` (decision 7) and
-   become public only when an editor chooses.
+4. **Answered 2026-11-04: only a path of at least two levels proposes a category.** The owner
+   has no preset categories. The top-level term of such a path becomes an initial category
+   for the editor to confirm. Every other keyword, including a parentless one such as a make
+   or a name, goes to one general category. Person keywords start `internal` (decision 7) and
+   become public only when an editor chooses. The fields AB#54 read carry no marker for a
+   person, so the editor's review (decision 2) identifies them.
 5. **Answered: 6 levels is enough.**
 6. **Answered: check during implementation.** Studio visibility of private-path
    documents is verified as part of AB#56 before any private document is written.
 
 ## Action Items
 
-1. [ ] Owner reviews and accepts, amends or rejects this record (AB#55).
-2. [ ] AB#54 evidence resolves open questions 1 and 2; amend decision 5 accordingly.
+1. [x] Owner reviews and accepts, amends or rejects this record (AB#55). Accepted 2026-11-04.
+2. [x] AB#54 evidence resolves open questions 1 and 2; amend decision 5 accordingly.
 3. [ ] AB#56 implements decisions 1, 4 and 5 (schema, validation, fixtures).
 4. [ ] AB#57 implements decision 2's mapping and review routing; AB#70 the review queue.
 5. [ ] AB#69 implements decision 3's resumable re-sync before any production move.

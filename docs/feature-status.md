@@ -2,6 +2,18 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Lightroom keyword spike and taxonomy decision, 2026-11-04 — AB#54 and AB#55: evidence is in
+[the spike report](audits/ab54-lightroom-keyword-spike-2026-11-04.md), export settings included.
+Keywords read locally before upload, and root-first hierarchy paths exist only with Lightroom's
+hierarchy export option ticked. The image CDN served no embedded metadata on the requests tested;
+only an authenticated `dlRaw` returned the original. The owner accepted
+[ADR-0039](adr/0039-keyword-taxonomy-and-ingest-boundary.md), and with it ADR-0012's ID-only token
+amendment. It keeps creator city, country and serial numbers and removes `lr:weightedFlatSubject`;
+only a keyword path of at least two levels proposes a category. No keyword schema or ingest exists
+yet, and AB#391's detector does not match the two field changes. The
+owner decided to do AB#391's legacy re-upload; its plan needs approval before any CMS write.
+Three test assets were uploaded to the `preview` dataset and deleted; no production code changed.
+
 Root tooling advisories accepted, 2026-11-03 — AB#160 **Active**: the owner accepted `zod`
 3.22.4 and `minimatch` 3.1.5 until the 2026-11-19 review, as dated exceptions over their 37
 reviewed packages. They are still installed. The next scheduled audit is expected to pass

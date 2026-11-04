@@ -18,9 +18,8 @@ The existing decisions shape this:
   schema's field help goes further and says tags "own no public route". An archive does
   not create a category, but it does create a route, so that help text changes.
 - [ADR-0039](0039-keyword-taxonomy-and-ingest-boundary.md) decision 6 keeps tags separate
-  from photo keywords, as free per-article strings. **ADR-0039 is itself still Proposed.**
-  This record depends on that one decision and does not re-open it. If the owner rejects
-  it, this record has to change.
+  from photo keywords, as free per-article strings. The owner accepted ADR-0039 on
+  2026-11-04. This record depends on that one decision and does not re-open it.
 - [ADR-0013](0013-category-listing-continuation-cursor.md) already defines bounded listing
   continuation, and [ADR-0033](0033-unified-site-search.md) (Proposed) defines a
   deployment-owned `searchNamespace` beside the story and service namespaces.
