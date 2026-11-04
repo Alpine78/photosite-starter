@@ -18,7 +18,7 @@ const before = new Date("2026-11-18T23:59:59.999Z");
 describe("parseAcceptedAdvisories (AB#380)", () => {
   it("reads the committed exceptions file", () => {
     const committed = parseAcceptedAdvisories(JSON.parse(readFileSync(new URL("./npm-audit-accepted-advisories.json", import.meta.url), "utf8")));
-    expect(committed).toHaveLength(1);
+    expect(committed).toHaveLength(3);
     expect(committed[0]).toMatchObject({ target: "studio", advisorySource: 1241202, expiresOn: "2026-11-19" });
   });
 
@@ -29,6 +29,22 @@ describe("parseAcceptedAdvisories (AB#380)", () => {
     const at = new Date("2026-10-20T06:00:00Z");
     expect(evaluateAcceptance("studio", chain, committed, at)).toMatchObject({ allAccepted: true, uncovered: [] });
     expect(evaluateAcceptance("studio", chain.filter((item) => item.name !== "@sanity/locale-fi-fi"), committed, at).allAccepted).toBe(true);
+  });
+
+  it("covers the reviewed root tooling chains until the review date, and nothing wider", () => {
+    const committed = parseAcceptedAdvisories(JSON.parse(readFileSync(new URL("./npm-audit-accepted-advisories.json", import.meta.url), "utf8")));
+    const zodPaths = ["backends", "express", "hono", "python-analysis"].map((name) => `node_modules/@vercel/${name}/node_modules/zod`);
+    const zod = (paths: string[]): TriagedEntry => ({ name: "zod", severity: "high",
+      directAdvisories: [{ source: 1243066, ghsa: "GHSA-mrhx-c7xc-m3w5" }], nodes: paths.map((path) => ({ path })) });
+    const minimatch = (severity: string) => entry("minimatch", "node_modules/minimatch", [1244012], severity, "GHSA-g3hv-75wg-m249");
+    const chain = [zod(zodPaths), minimatch("moderate"), entry("vercel", "node_modules/vercel", [], "high"),
+      entry("eslint", "node_modules/eslint"), entry("ts-morph", "node_modules/ts-morph")];
+    const at = new Date("2026-11-03T20:00:00Z");
+    expect(evaluateAcceptance("root", chain, committed, at)).toMatchObject({ allAccepted: true, uncovered: [] });
+    expect(evaluateAcceptance("root", chain, committed, new Date("2026-11-19T00:00:00Z")).allAccepted).toBe(false);
+    expect(evaluateAcceptance("studio", chain, committed, at).allAccepted).toBe(false);
+    expect(evaluateAcceptance("root", [zod([...zodPaths, "node_modules/zod"])], committed, at).uncovered).toEqual(["zod"]);
+    expect(evaluateAcceptance("root", [minimatch("high")], committed, at).uncovered).toEqual(["minimatch"]);
   });
 
   it.each([
