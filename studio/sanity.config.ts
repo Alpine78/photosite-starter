@@ -7,6 +7,8 @@ import { ProofReminderSettingsAction } from "./proof-reminder-settings-action";
 import { DeleteProofGalleryAction } from "./proof-delete-action";
 import { neverPublishedOnly, PublishKeywordAction } from "./keyword-publish-action";
 import { defineConfig, type SchemaTypeDefinition } from "sanity";
+import { TagIcon } from "@sanity/icons";
+import { KeywordReviewTool } from "./keyword-review-tool";
 import { coreLocaleAdditions } from "./core-locale-additions";
 import { LocaleNavbar, LocaleToolMenu } from "./locale-navbar";
 import { fiFILocale } from "@sanity/locale-fi-fi";
@@ -52,6 +54,7 @@ export default defineConfig({
   ...(studioSettings.proofGalleries ? { auth: { loginMethod: "token" as const } } : {}),
   i18n: { bundles: [...editorialLocaleBundles, ...coreLocaleAdditions] },
   plugins: [structureTool({ structure: editorialStructureFor(studioSettings) }), fiFILocale(), localizedPresentation()],
+  tools: (previous) => [...previous, { name: "keyword-review", title: "Keyword review", icon: TagIcon, component: KeywordReviewTool }],
   form: { components: { field: LocalizedField, input: LocalizedInput } },
   schema: {
     types: schemaTypes,

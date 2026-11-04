@@ -47,7 +47,7 @@ The report lists these as `failed`, and the others continue. A full re-sync with
 | `VOCABULARY_REFERENCE_UNKNOWN` | An override names a keyword that does not exist. |
 
 A broken vocabulary stops the whole plan. An import naming no medium is listed under `unmatchedImports`, never guessed. Terms that do not resolve go to `reviewItems` on
-the private record, for AB#70.
+the private record, and Studio's **Keyword review** tool shows them (AB#70). A decision there reaches the photographs on the next sync.
 
 ## Budget
 

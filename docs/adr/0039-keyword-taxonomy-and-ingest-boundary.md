@@ -185,8 +185,8 @@ administrator-initiated events, while reads happen on every visitor request.
 - **A path of at least two levels must match.** The keyword's own parents, or those of its merge
   target, must equal the upper terms from the root by title or alias. Anything else goes to
   review as a path mismatch, so a leaf with the right name under another parent is not guessed.
-  A term whose keyword the site has moved away from its Lightroom path therefore reaches review
-  on each import until AB#70 records the editor's decision.
+  A term whose keyword the site has moved away from its Lightroom path reaches review once: an
+  editor records the decision by adding the whole path as an alias (AB#70).
 - **A path of one level resolves like a flat term,** because having no parents in Lightroom says
   nothing about the site's hierarchy.
 - **A path with an empty component is not repaired.** It goes to review as malformed.

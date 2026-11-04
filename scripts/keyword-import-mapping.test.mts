@@ -205,6 +205,21 @@ describe("paths", () => {
     expect(mapImportedKeywords(paths(["Beta|Leaf"]), rows, none).mapped).toEqual(["leaf"]);
   });
 
+  it("follows an editor's decision recorded as a whole-path alias, whatever the hierarchy says", () => {
+    const rows = [keywordRow({ id: "moved", title: "Moved", category: subject, aliases: ["old root|moved"] })];
+    expect(mapImportedKeywords(paths(["Old Root | Moved"]), rows, none)).toMatchObject({ mapped: ["moved"], review: [] });
+    expect(mapImportedKeywords(paths(["Other Root|Moved"]), rows, none).review).toMatchObject([{ reason: "path-mismatch" }]);
+  });
+
+  it("lets a whole-path alias settle an ambiguous path, but not a flat name two categories share", () => {
+    const rows = [
+      keywordRow({ id: "one", title: "Shared", category: subject, aliases: ["root|shared"] }),
+      keywordRow({ id: "two", title: "Shared", category: "category-other" }),
+    ];
+    expect(mapImportedKeywords(paths(["Root|Shared"]), rows, none)).toMatchObject({ mapped: ["one"], review: [] });
+    expect(mapImportedKeywords(flat("Shared"), rows, none).review).toMatchObject([{ reason: "ambiguous", key: "shared" }]);
+  });
+
   it("requires the path to start at a root", () => {
     expect(mapImportedKeywords(paths(["Cycling|Road cycling"]), published, none).review).toMatchObject([{ reason: "path-mismatch" }]);
   });

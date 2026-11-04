@@ -213,6 +213,9 @@ function resolvePath(vocabulary: Vocabulary, path: PathComponents): { ends: read
     const { ends } = resolveFlat(vocabulary, path.keys[0]);
     return { ends, leafEnds: ends };
   }
+  // An editor's decision about this exact path (AB#70): a whole path can be an alias.
+  const decided = resolveFlat(vocabulary, path.keys.join("|"));
+  if (decided.ends.length > 0) return { ends: decided.ends, leafEnds: decided.ends };
   const leaf = path.keys[path.keys.length - 1], upper = path.keys.slice(0, -1);
   const matches = new Map<string, Row>(), leafEnds = new Map<string, Row>();
   for (const row of vocabulary.claimants(leaf)) {
