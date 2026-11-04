@@ -298,7 +298,9 @@ keywords through the API without the same guard. Until the re-sync (AB#69) exist
 parent move, merge or retirement only records that one is needed; do not make such changes to a
 keyword that photographs already use in Production. Nothing on the public site reads keywords yet.
 When it does (AB#58), a malformed keyword row raises rather than hiding photographs, and a keyword needs
-a title in the default language.
+a title in the default language. A photograph appears in a keyword gallery only with **Appears in keyword
+galleries** on. It is off by default, so leave it off for client deliveries: their pages expire, and a keyword
+gallery would keep showing the photograph.
 
 **Settings and home links name intent, not generated paths.** A link stores either an
 application-owned root-relative static route, the generated story root, or the featured

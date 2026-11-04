@@ -666,7 +666,7 @@ forever, only as an honest starting position.
        contract is what the matching mechanism must satisfy, and §3's comma-free/bounded
        assumption is what the id syntax must satisfy.
 2. [ ] AB#56/57 implement the controlled-vocabulary schema and import/sync AB#55 decides.
-3. [ ] AB#58, coordinating with AB#129 (ADR-0009's own pending action item on the same
+3. [x] (Query and adapter on AB#58's pull request; see the 2026-11-04 amendment below.) AB#58, coordinating with AB#129 (ADR-0009's own pending action item on the same
        type), generalizes `gallery-pagination.ts`'s boundary-key payload to the shared
        `{tier?, key, itemId}` shape and per-rule comparator selection per §7 — landed once,
        by whichever story reaches it first, in the shape both need. AB#58 also implements
@@ -675,7 +675,7 @@ forever, only as an honest starting position.
        keyset-paginated dynamic query against §2–§5 and §9's contract: the eligibility
        predicate, selection canonicalization, matching semantics, the `GalleryCursorScope`
        field mapping, and the default order.
-4. [ ] AB#68 exposes `dynamicallyDiscoverable` (and confirms `publiclyRenderable`) through
+4. [x] (AB#68 keeps keywords on the server; AB#58 adds the field.) AB#68 exposes `dynamicallyDiscoverable` (and confirms `publiclyRenderable`) through
        the shared public media domain model, per ADR-0002 §4 and this ADR's §2.
 5. [ ] AB#71 builds the `/en/search` / `/haku` route itself, the `?keywords=`/`?cursor=`
        parameter contract including the raw-input ceiling and canonical parameter order
@@ -763,3 +763,36 @@ URL token cannot resolve them unambiguously.
 **Affected sections:** Context; §3's resolution and sorting; §5's alias-retargeting
 example; §8's alias redirects; Consequences and its alias migration trigger;
 Action Items 1 and 5; and the alias-retargeting item in “What this ADR did not establish”.
+
+## Scoped amendment — 2026-11-04: what AB#58 implemented (AB#58)
+
+**Previous rule:** §7 names one boundary-key shape, `{tier?, key, itemId}`, for
+`gallery-pagination.ts` to generalize to, shared with AB#129.
+
+**Replacement:** AB#129 has since widened that type to its own tiered pair, and the shared wire
+format has not changed. The dynamic query therefore uses `keyset-cursor.ts`'s generic codec
+directly, with its own thin wrapper in `keyword-gallery.ts`, and leaves the curated code untouched.
+Failures surface as the same `GalleryCursorError`. Scope values are as §5 describes, except that
+`sourceId` is the literal plus the full route locale, as a curated gallery's is, so a cursor cannot
+continue in another language.
+
+- **The cursor carries no capture time.** §7's `key` would have put `capturedAt` in the token, which is
+  signed but readable by anyone holding the link. The token names only the boundary's `mediaId`, and the
+  server reads its order key. A boundary that left the query is `stale`; one that moved has changed the
+  newest `_updatedAt`, so its cursor is `wrong-scope`.
+- **`visibilityVersion` carries a policy prefix,** so a change to the eligibility predicate retires
+  outstanding cursors. Its other half is §6's coarse newest `_updatedAt` among the query's eligible
+  media, with the limits §6 discloses. The per-boundary check still catches a boundary that left.
+- **The vocabulary is read in one query,** so the taxonomy version in a cursor describes the hierarchy
+  the selection was collapsed with.
+- **§9's comparator agreement is verified.** On the `preview` dataset on 2026-11-04, GROQ's
+  `order(@ desc)` matched the code-unit comparator across sub-second precision, offsets and the empty
+  string. The order is lexical, so instants stored with mixed precision stay consistent across pages but
+  are not always chronological.
+- **A medium has no expiry.** Expiry belongs to an unlisted gallery, whose media stays out because
+  `dynamicallyDiscoverable` is off unless someone opts it in. Nothing prevents opting in such a medium.
+
+**Reason:** §7 expected one type to generalize. Generalizing a type that curated galleries now depend on
+would change their cursors for no gain to either side.
+
+**Affected sections:** §5, §6, §7, §9 and Action Items 3 and 4.

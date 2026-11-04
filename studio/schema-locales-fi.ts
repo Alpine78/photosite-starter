@@ -277,6 +277,8 @@ export const schemaFinnish = {
   "Manual position. Equal values are deterministically tie-broken by placement ID.": "Käsin määritetty sijainti. Samat arvot ratkaistaan deterministisesti sijoituksen tunnisteen mukaan.",
   "Masonry": "Muurattu asettelu",
   "May be shown publicly": "Saa näyttää julkisesti",
+  "Appears in keyword galleries": "Näkyy avainsanagallerioissa",
+  "Allow this photograph in dynamic keyword galleries and keyword counts. Off until someone opts it in, so a photograph from a client delivery stays out.": "Salli tämä kuva dynaamisissa avainsanagallerioissa ja avainsanojen lukumäärissä. Pois päältä, kunnes joku ottaa sen käyttöön, joten asiakastoimituksen kuva pysyy poissa.",
   "May receive enquiries": "Voi vastaanottaa tiedusteluja",
   "Media": "Media",
   "Media ID": "Median tunniste",
