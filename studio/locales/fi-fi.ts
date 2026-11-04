@@ -19,6 +19,8 @@ const resources = {
   "structure.categories.title": "Kategoriat",
   "structure.article-end-galleries.title": "Artikkelien loppugalleriat",
   "structure.polls.title": "Kyselyt",
+  "structure.keywords.title": "Avainsanat",
+  "structure.keyword-categories.title": "Avainsanakategoriat",
 } satisfies Record<keyof typeof english, string>;
 
 export default resources;

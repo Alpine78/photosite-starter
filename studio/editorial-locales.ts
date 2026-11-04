@@ -34,6 +34,8 @@ const titleKeys = {
   category: "structure.categories.title",
   articleEndGalleryPlacement: "structure.article-end-galleries.title",
   poll: "structure.polls.title",
+  keyword: "structure.keywords.title",
+  keywordCategory: "structure.keyword-categories.title",
 } as const;
 
 export function editorialTitle(type: keyof typeof titleKeys) {

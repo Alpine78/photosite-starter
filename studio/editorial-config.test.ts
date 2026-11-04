@@ -45,6 +45,14 @@ describe("actual Studio configuration composition", () => {
     const { ReopenProofSelectionAction } = await import("./proof-reopen-action");
     expect(resolve(native, { schemaType: "clientProofSelection" })).toEqual([ReopenProofSelectionAction]);
     expect(resolve(native, { schemaType: "clientProofNotice" })).toEqual([]);
+    const { neverPublishedOnly, PublishKeywordAction } = await import("./keyword-publish-action");
+    const keyword = resolve(native, { schemaType: "keyword" }) as { action?: string }[];
+    expect(keyword[0]).toBe(PublishKeywordAction);
+    expect(keyword.map(({ action }) => action)).toEqual([undefined, "discardChanges", "delete"]);
+    const deletion = Object.assign(() => ({ label: "Delete" }), { action: "delete" as const });
+    const guarded = neverPublishedOnly(deletion as never) as unknown as (props: { published: unknown }) => unknown;
+    expect(guarded({ published: null })).toEqual({ label: "Delete" });
+    expect(guarded({ published: { _id: "x" } })).toBeNull();
     const templates = config.schema!.templates as (templates: { schemaType: string }[]) => { schemaType: string }[];
     expect(templates([{ schemaType: "clientProofGallery" }, { schemaType: "article" }]).map(({ schemaType }) => schemaType))
       .toEqual(enabled ? ["clientProofGallery", "article"] : ["article"]);

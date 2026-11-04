@@ -13,7 +13,7 @@ describe("Studio configuration", () => {
   it("derives all locale roots with the default in any position", () => {
     expect(loadStudioSettings(environment)).toEqual({
       projectId: "example1", dataset: "example", datasetVisibility: "public",
-      title: "Example Studio", authoringLanguages: ["fi", "en"], storyRootPaths: ["/tarinat", "/en/stories"], proofGalleries: false, clientGalleryCleanup: false,
+      title: "Example Studio", authoringLanguages: ["fi", "en"], defaultContentLanguage: "fi", storyRootPaths: ["/tarinat", "/en/stories"], proofGalleries: false, clientGalleryCleanup: false,
     });
     expect(studioStoryRoots("en-GB|en|stories,fi||tarinat")).toEqual(["/en/stories", "/tarinat"]);
   });
@@ -26,6 +26,8 @@ describe("Studio configuration", () => {
   it("derives configured authoring subtags without hardcoding languages or duplicating region variants", () => {
     expect(loadStudioSettings({ ...environment, SANITY_STUDIO_LOCALE_ROUTES: "sv||berattelser,en-GB|uk|stories,en-US|us|stories" }).authoringLanguages)
       .toEqual(["sv", "en"]);
+    expect(loadStudioSettings({ ...environment, SANITY_STUDIO_LOCALE_ROUTES: "en-GB|en|stories, sv-SE || berattelser" }).defaultContentLanguage)
+      .toBe("sv");
   });
 
   it.each(Object.keys(environment))("requires %s explicitly", (key) => {

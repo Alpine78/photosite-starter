@@ -329,6 +329,53 @@ overwritten by the next export.
 6. **Answered: check during implementation.** Studio visibility of private-path
    documents is verified as part of AB#56 before any private document is written.
 
+## Scoped amendment — 2026-11-04: implementation details (AB#56)
+
+**Previous rule:** decisions 3 and 4 left open where `taxonomyVersion` lives, how a merge
+record's reserved terms are scoped, and whether a merge can be undone.
+
+**Replacement:**
+
+- **Taxonomy state.** A `keywordTaxonomyState` document holds `taxonomyVersion`,
+  `resyncedVersion` and `publicationSequence`: numbers only, so it reveals no name. A
+  re-sync is outstanding while `resyncedVersion` is behind `taxonomyVersion`, and AB#69
+  acknowledges the version it processed, so a newer request is never cleared by an older
+  run.
+- **One publication at a time.** Studio publishes a keyword only through its own action.
+  One transaction writes the keyword and advances the state under the revision read with
+  the keyword graph, so concurrent publications conflict rather than together forming a
+  cycle or a name collision. Content Releases and scheduled drafts are refused. The import
+  and the re-sync must take the same guard.
+- **Term ownership.** A merge record's terms are claimed in its own category and belong to
+  the active keyword its chain ends at. Terms collide only when they resolve to different
+  keywords. A retired keyword, or a chain no longer ending at an active keyword, claims no
+  term; every `keywordId` stays reserved.
+- **A merge is one-way.** A published merge record cannot return to active, retire or be
+  retargeted, because the re-sync canonicalizes media and overrides to the target and a
+  reversal could not reconstruct them. Reactivating a retired keyword stays possible, as a
+  structural change whose terms are re-checked.
+- **Delete and unpublish.** Studio offers delete only for a never-published keyword, and no
+  unpublish. Decision 4 cannot bind a direct API write.
+
+**Reason:** Studio validation alone reads a snapshot and runs per document, so it cannot
+stop two concurrent publications, and native publish cannot write a second document.
+
+**Affected sections:** decisions 3 and 4.
+
+**Owner decision, 2026-11-04:** decision 4's rule that a title or alias may not equal any
+other keyword's `keywordId` now applies only **within the keyword's category**. As written,
+a published keyword `toyota` blocked a second keyword titled "Toyota" in another category,
+although the same decision allows that name. Public URLs resolve `keywordId`s alone, so a
+name in another category cannot capture one. An import term that matches both still goes
+to review. `keywordId` itself stays globally unique and never reused.
+
+**Private-path evidence for open question 6, 2026-11-04 (`preview` dataset, synthetic
+documents):** requests without credentials to the query API, the CDN and the document
+endpoint returned the ordinary-path control and not `keyword.<id>`; the document endpoint
+listed it as omitted for `permission`. An authenticated read returned both. The Sanity CLI's
+`documents query --anonymous` also returned the private document, so that flag is not
+evidence of anonymous access. The owner's look at the document in Studio is still open.
+
 ## Action Items
 
 1. [x] Owner reviews and accepts, amends or rejects this record (AB#55). Accepted 2026-11-04.

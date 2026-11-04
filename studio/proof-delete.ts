@@ -90,7 +90,7 @@ function canonicalInstant(value: unknown): number | undefined {
  * does not exist. Anything else — a permission omission, an unreported ID, a
  * document not requested — is unreadable, never "no record".
  */
-export async function readProofDocuments(reader: ProofDeletionReader, ids: readonly string[]): Promise<Map<string, Record<string, unknown> | undefined>> {
+export async function readProofDocuments(reader: Pick<ProofDeletionReader, "docs">, ids: readonly string[]): Promise<Map<string, Record<string, unknown> | undefined>> {
   const found = new Map<string, Record<string, unknown> | undefined>();
   for (let start = 0; start < ids.length; start += PROOF_DELETE_READ_CHUNK) {
     const chunk = ids.slice(start, start + PROOF_DELETE_READ_CHUNK);

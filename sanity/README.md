@@ -83,6 +83,9 @@ generated story root and the identity-resolved featured gallery; it never stores
 category tree. The home hero references the shared media document rather than copying an
 asset URL or dimensions.
 
+`defaultContentLanguage` is optional: the language subtag of the site's default locale. A
+keyword then needs a title in that language; without it, any language satisfies the title.
+
 Articles and services are two more document types, each with a different relationship to
 language. A category is one document describing every published language; an article is
 the opposite — one document *per* language, because ADR-0003 decision 7 lets a page's
