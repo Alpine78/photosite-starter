@@ -177,6 +177,29 @@ administrator-initiated events, while reads happen on every visitor request.
   to review. How a flat term that repeats a mapped path's parent or synonym is treated
   is settled by AB#57, so that it does not reach review as a separate term.
 
+**Scoped amendment, 2026-11-04 (AB#57): how the mapping order applies.**
+
+- **Nothing is created automatically.** A missing ancestor or an unmatched term goes to review,
+  which is the one rule for both. A review item may carry the top-level term of a path with at
+  least two levels as a proposed category (open question 4).
+- **A path of at least two levels must match.** The keyword's own parents, or those of its merge
+  target, must equal the upper terms from the root by title or alias. Anything else goes to
+  review as a path mismatch, so a leaf with the right name under another parent is not guessed.
+  A term whose keyword the site has moved away from its Lightroom path therefore reaches review
+  on each import until AB#70 records the editor's decision.
+- **A path of one level resolves like a flat term,** because having no parents in Lightroom says
+  nothing about the site's hierarchy.
+- **A path with an empty component is not repaired.** It goes to review as malformed.
+- **A flat term that repeats a path is consumed, with a record of what covers it.** That applies
+  to a component of a provided path, and to a term resolving to a mapped keyword or its ancestor.
+  A repeat of an unresolved path points at that path's review item, so one problem is one item.
+- **Any other unknown flat term goes to review, even beside paths.** AB#54 showed a Lightroom
+  synonym is flat-only, but not that every flat-only term is a synonym. The item is marked
+  `unmatched-beside-paths` so that AB#70 can group these.
+- **A retired keyword stays in the overrides as a dormant decision,** out of the effective set.
+- **An unreadable file is an error, not an empty import.** Mapping it as "no keywords" would make
+  the next write remove every imported keyword.
+
 ### 6. Article tags stay separate from photo keywords
 
 Article `tags` remain free per-article topic strings (ADR-0003 decision 4) and AB#25
