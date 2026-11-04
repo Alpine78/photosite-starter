@@ -24,6 +24,7 @@ import { galleryType } from "./gallery";
 import { galleryPlacementType } from "./gallery-placement";
 import { gallerySectionIntroTypes } from "./gallery-section-intro";
 import { homePageType } from "./home-page";
+import { defineKeywordType, keywordCategoryType, keywordTaxonomyStateType, type KeywordSchemaOptions } from "./keyword";
 import { localizedSlugType } from "./localized-slug";
 import { localizedTextType } from "./localized-text";
 import { defineMediaType, type MediaSchemaOptions } from "./media";
@@ -44,7 +45,7 @@ import type { SchemaTypeDefinition } from "./schema-types";
 import { clientProofNoticeType, clientProofReminderType, clientProofSelectionType, clientProofSelectionVersionType } from "./client-proof-records";
 
 export function defineSchemaTypes(
-  options: MediaSchemaOptions & SiteSettingsSchemaOptions,
+  options: MediaSchemaOptions & SiteSettingsSchemaOptions & KeywordSchemaOptions,
 ): readonly SchemaTypeDefinition[] {
   return [
     localizedTextType,
@@ -53,6 +54,9 @@ export function defineSchemaTypes(
     homeActionType,
     homeSectionType,
     defineMediaType(options),
+    keywordCategoryType,
+    defineKeywordType(options),
+    keywordTaxonomyStateType,
     ...categoryDescriptionTypes,
     categoryType,
     defineSiteSettingsType(options),

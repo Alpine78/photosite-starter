@@ -291,6 +291,13 @@ polls and the separately gated retained legacy-delivery types. Studio's normal
 editorial navigation excludes those importer-owned legacy types, whose creation
 and publication remain outside this application setup.
 
+**Keywords** ([ADR-0039](adr/0039-keyword-taxonomy-and-ingest-boundary.md), AB#56) add
+`keyword`, `keywordCategory` and the system document `keywordTaxonomyState`. Studio publishes a
+keyword only with its own action, which takes a revision guard on that state, so do not write
+keywords through the API without the same guard. Until the re-sync (AB#69) exists, publishing a
+parent move, merge or retirement only records that one is needed; do not make such changes to a
+keyword that photographs already use in Production. Nothing on the public site reads keywords yet.
+
 **Settings and home links name intent, not generated paths.** A link stores either an
 application-owned root-relative static route, the generated story root, or the featured
 gallery selected once by `featuredGalleryId`. The story namespace comes from deployment

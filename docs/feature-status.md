@@ -11,6 +11,18 @@ it missed because of a wrong spelling. The owner decided to do the legacy re-upl
 source report to published assets, its tool and its approved plan are still open, and no CMS write
 has been made. See [the path inventory](audits/ab391-import-path-inventory-2026-10-22.md).
 
+Keyword vocabulary schema, 2026-11-04 — AB#56 **Active**: `keyword`, `keywordCategory` and
+`keywordTaxonomyState` schemas with the governance rules of
+[ADR-0039](adr/0039-keyword-taxonomy-and-ingest-boundary.md) in a pure module. Studio publishes a
+keyword only through its own action: one guarded transaction writes it, keeps a replaced title as
+an alias and records a structural change for the re-sync. Media gained read-only `keywords` and
+`expandedKeywordIds`, and nothing writes or projects them yet. **Not done:** the re-sync (AB#69),
+import (AB#57), review (AB#70) and projection (AB#68); the owner's look at the private-path
+documents in Studio; and Studio deployment, which is owner-run. A title or alias may equal another
+keyword's ID in a different category (owner decision 2026-11-04). The only live CMS writes were two
+synthetic keywords in the `preview` dataset: anonymous reads returned the ordinary-path control and
+refused the private-path document, while an authenticated read returned both.
+
 Lightroom keyword spike and taxonomy decision, 2026-11-04 — AB#54 and AB#55: evidence is in
 [the spike report](audits/ab54-lightroom-keyword-spike-2026-11-04.md), export settings included.
 Keywords read locally before upload, and root-first hierarchy paths exist only with Lightroom's

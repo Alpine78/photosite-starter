@@ -13,7 +13,17 @@ export const EDITORIAL_LISTS = [
   { type: "category", title: "Categories" },
   { type: "articleEndGalleryPlacement", title: "Article end galleries" },
   { type: "poll", title: "Polls" },
+  { type: "keyword", title: "Keywords" },
+  { type: "keywordCategory", title: "Keyword categories" },
 ] as const;
+/** Written by keyword publication and the re-sync; no list, template or action in Studio. */
+export const SYSTEM_TYPES = ["keywordTaxonomyState"] as const;
+/**
+ * Publishing goes through the keyword action, which holds the taxonomy guard. No
+ * unpublish (a published id stays reserved), and `delete` is further limited to a
+ * never-published keyword by the action wrapper (ADR-0039 decision 4).
+ */
+const KEYWORD_NATIVE_ACTIONS = ["discardChanges", "restore", "delete"];
 export const SINGLETON_QUERY_LIMIT = 20;
 export const SINGLETON_QUERY = `*[_type == $type][0...${SINGLETON_QUERY_LIMIT}]{_id}`;
 
@@ -46,17 +56,19 @@ export const PROOF_WORKING_SELECTION_LIST = { type: "clientProofSelection", titl
 export const PROOF_NOTICES_NEEDING_ACTION_FILTER =
   '_type == "clientProofNotice" && (state == "failed" || (state == "pending" && dateTime(createdAt) < dateTime(now()) - 300))';
 const isProofRecord = (type: string) => PROOF_RECORD_TYPES.some((candidate) => candidate === type);
+const isSystemType = (type: string) => SYSTEM_TYPES.some((candidate) => candidate === type);
 export type EditorialPolicyOptions = Readonly<{ proofGalleries?: boolean }>;
 
 export function allowTemplate(schemaType: string, options: EditorialPolicyOptions = {}): boolean {
   if (schemaType === "clientGalleryCleanup") return false;
   if (schemaType === PROOF_GALLERY_LIST.type) return options.proofGalleries === true;
-  return !isSingleton(schemaType) && !isImporterType(schemaType) && !isProofRecord(schemaType);
+  return !isSingleton(schemaType) && !isImporterType(schemaType) && !isProofRecord(schemaType) && !isSystemType(schemaType);
 }
 
 export function allowAction(schemaType: string, action: string | undefined): boolean {
   if (schemaType === "clientGalleryCleanup") return false;
-  if (isImporterType(schemaType) || isProofRecord(schemaType)) return false;
+  if (isImporterType(schemaType) || isProofRecord(schemaType) || isSystemType(schemaType)) return false;
+  if (schemaType === "keyword") return action !== undefined && KEYWORD_NATIVE_ACTIONS.includes(action);
   if (schemaType === "clientDeliveryGallery") {
     return action !== undefined && ["unpublish", "discardChanges", "delete"].includes(action);
   }

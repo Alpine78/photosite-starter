@@ -62,7 +62,7 @@ actions, approvals or accounts; an agent can prepare evidence but cannot close t
 | AB#377 — e2e flake root causes | Active | Contents-bar flake fixed on `fix/377-content-reading-layout-flake`. Open: the WebKit `article-reading-position` locale case (run 1398; needs a new trace) and the aborted `goBack` in the inactive private-gallery spec (run 1445; AB#313 removes it). |
 | AB#255 — Studio language select | Active | Fix on `fix/255-studio-locale-select`. |
 | AB#391 — Import metadata and no re-encoding | Active | Metadata tool on `feature/391-import-metadata-tool`, used by the rally writers; client web images keep all metadata by owner decision. Left: match the source report to published assets, a way to remove location from images the owner marks sensitive, the re-upload tool with the Joomla writer, and the owner's plan approval before any CMS write ([inventory](audits/ab391-import-path-inventory-2026-10-22.md)). |
-| AB#56 — Keyword vocabulary schema | New | Its predecessors AB#39 and AB#55 are settled once AB#55's pull request merges. Implements ADR-0039 decisions 1, 4 and 5 and checks Studio visibility of private-path documents before any is written. AB#57 follows it. |
+| AB#56 — Keyword vocabulary schema | Active | Schema, governance rules and guarded publication are on `feature/56-keyword-vocabulary-schema`. Anonymous and authenticated reads of a private-path document are verified in `preview`; the owner's look at it in Studio (ADR-0039 open question 6) is open. AB#57 follows it. |
 | AB#392 — Client gallery expiry cleanup | Active | Every child slice is Closed. Hosted acceptance and activation remain; see [retention](client-gallery-retention.md). |
 
 No other open item is agent-ready today. What remains needs an owner decision, an owner

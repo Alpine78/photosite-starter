@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { defineSchemaTypes } from "../sanity/schemas";
 import {
-  allowAction, allowTemplate, EDITORIAL_LISTS, IMPORTER_TYPES, PROOF_GALLERY_LIST, PROOF_RECORD_TYPES, resolveSingletonDocumentId,
+  allowAction, allowTemplate, EDITORIAL_LISTS, IMPORTER_TYPES, SYSTEM_TYPES, PROOF_GALLERY_LIST, PROOF_RECORD_TYPES, resolveSingletonDocumentId,
   SINGLETON_QUERY_LIMIT, SINGLETON_TYPES, singletonDocumentId,
 } from "./editorial-policy";
 
@@ -65,9 +65,22 @@ describe("editorial guardrails", () => {
   it("accounts for every canonical document type exactly once", () => {
     const documentTypes = defineSchemaTypes({ datasetVisibility: "public", storyRootPaths: ["/stories"] })
       .filter(({ type }) => type === "document").map(({ name }) => name).sort();
-    const configuredTypes = [...SINGLETON_TYPES, ...EDITORIAL_LISTS.map(({ type }) => type), ...IMPORTER_TYPES, PROOF_GALLERY_LIST.type, ...PROOF_RECORD_TYPES];
+    const configuredTypes = [...SINGLETON_TYPES, ...EDITORIAL_LISTS.map(({ type }) => type), ...IMPORTER_TYPES, PROOF_GALLERY_LIST.type, ...PROOF_RECORD_TYPES, ...SYSTEM_TYPES];
     expect(configuredTypes.slice().sort()).toEqual(documentTypes);
     expect(new Set(configuredTypes).size).toBe(configuredTypes.length);
+  });
+});
+
+describe("keywords (ADR-0039, AB#56)", () => {
+  it("publishes only through the guarded action and never unpublishes", () => {
+    for (const action of ["publish", "unpublish", "duplicate", "schedule", undefined]) expect(allowAction("keyword", action)).toBe(false);
+    for (const action of ["discardChanges", "restore", "delete"]) expect(allowAction("keyword", action)).toBe(true);
+    expect(allowAction("keywordCategory", "publish")).toBe(true);
+  });
+  it("offers the taxonomy state no template and no action", () => {
+    expect(allowTemplate("keywordTaxonomyState")).toBe(false);
+    expect(allowAction("keywordTaxonomyState", "delete")).toBe(false);
+    expect(allowTemplate("keyword")).toBe(true);
   });
 });
 
