@@ -2,6 +2,9 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Legacy re-upload tooling, 2026-11-05 — AB#391 **Active**: `plan:legacy-image-reupload` now matches sources to published media, and `write:legacy-image-reupload` replaces
+the assets, dry-run by default, with a sensitive list and optional deletion of the old assets. See [the guide](legacy-image-reupload.md). It has not written to any dataset; the location review and the run are the owner's.
+
 Import metadata tool, 2026-11-04 — AB#391 **Active**: `exiftool-vendored` is added as a
 devDependency, and `prepareJpegForImport` applies ADR-0039 decision 8 and verifies each result.
 The two rally writers use it. Client web images keep all their metadata by owner decision. The

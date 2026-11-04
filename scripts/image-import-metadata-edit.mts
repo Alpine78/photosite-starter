@@ -53,6 +53,18 @@ const STALE_ARGUMENTS: readonly string[] = [
   "-XMP-xmp:Thumbnails=",
 ];
 
+/**
+ * Where a photograph was taken, for one the owner marks sensitive (ADR-0039 decision 8). The
+ * creator's own city and country are contact details, not this, so they stay.
+ */
+const LOCATION_TAGS = [
+  "XMP-exif:GPSLatitude", "XMP-exif:GPSLongitude", "XMP-exif:GPSAltitude", "XMP-exif:GPSAltitudeRef", "XMP-exif:GPSTimeStamp", "XMP-exif:GPSImgDirection", "XMP-exif:GPSImgDirectionRef",
+  "XMP-photoshop:City", "XMP-photoshop:State", "XMP-photoshop:Country", "XMP-iptcCore:Location", "XMP-iptcCore:CountryCode",
+  "IPTC:City", "IPTC:Sub-location", "IPTC:Province-State", "IPTC:Country-PrimaryLocationName", "IPTC:Country-PrimaryLocationCode",
+] as const;
+const LOCATION_ARGUMENTS: readonly string[] = ["-GPS:all=", ...LOCATION_TAGS.map((tag) => `-${tag}=`)];
+const isLocationField = (field: string): boolean => field.startsWith("GPS:") || (LOCATION_TAGS as readonly string[]).includes(field);
+
 export const REMOVAL_ARGUMENTS: readonly string[] = REMOVED_TAGS.map((tag) => `-${tag}=`);
 
 export class ImportMetadataError extends Error {
@@ -76,10 +88,10 @@ async function editCopy(bytes: Uint8Array, edit: (file: string, directory: strin
   }
 }
 
-function assertResult(result: Uint8Array, expectedCompressedData: string): void {
+function assertResult(result: Uint8Array, expectedCompressedData: string, removeLocation = false): void {
   if (compressedImageDataSha256(result) !== expectedCompressedData) throw new ImportMetadataError("COMPRESSED_DATA_CHANGED");
   const facts = inspectJpegImportFacts(result);
-  if (facts.keywordMetadata || facts.creatorPostalAddress) throw new ImportMetadataError("METADATA_REMAINS");
+  if (facts.keywordMetadata || facts.creatorPostalAddress || (removeLocation && facts.gps !== "absent")) throw new ImportMetadataError("METADATA_REMAINS");
 }
 
 export type ImportMetadataTool = Pick<ExifTool, "write" | "readRaw">;
@@ -101,9 +113,12 @@ async function runTool(tool: ImportMetadataTool, file: string, writeArgs: readon
   }
 }
 
-/** Facts about the file or its encoding, which a new copy rightly does not share. */
+/**
+ * Facts about the file or its encoding, which a new copy rightly does not share. The last two
+ * of the tags are a block's own housekeeping, which ExifTool drops with the block's last real field.
+ */
 const NOT_COMPARED_GROUP = /^(?:System|ExifTool|Composite|File|JFIF|ICC.*|IFD1|MPF.*|MPImage.*|APP\d*|Adobe|PNG|WEBP|RIFF|QuickTime|Track.*|Meta.*|HEIF)$/;
-const NOT_COMPARED_TAG = /^(?:Orientation|ImageWidth|ImageHeight|ExifImageWidth|ExifImageHeight|PixelXDimension|PixelYDimension|ThumbnailImage|ThumbnailFormat|ThumbnailWidth|ThumbnailHeight|PhotoshopThumbnail|PreviewImage.*|IPTCDigest|XMPToolkit)$/;
+const NOT_COMPARED_TAG = /^(?:Orientation|ImageWidth|ImageHeight|ExifImageWidth|ExifImageHeight|PixelXDimension|PixelYDimension|ThumbnailImage|ThumbnailFormat|ThumbnailWidth|ThumbnailHeight|PhotoshopThumbnail|PreviewImage.*|IPTCDigest|XMPToolkit|ApplicationRecordVersion|YCbCrPositioning)$/;
 /** Print size in Photoshop's own block, which ExifTool does not copy. It described the larger source. */
 const NOT_COMPARED_FIELD = new Set(["Photoshop:XResolution", "Photoshop:YResolution", "Photoshop:DisplayedUnitsX", "Photoshop:DisplayedUnitsY"]);
 
@@ -111,47 +126,48 @@ const NOT_COMPARED_FIELD = new Set(["Photoshop:XResolution", "Photoshop:YResolut
  * Every field of the source must arrive with its value, apart from `removed`. A check of
  * whole groups passed when ExifTool had dropped one custom XMP property next to others.
  */
-async function assertNothingLost(tool: ImportMetadataTool, source: string, result: string, removed: readonly string[]): Promise<void> {
+async function assertNothingLost(tool: ImportMetadataTool, source: string, result: string, removed: readonly string[], removeLocation: boolean): Promise<void> {
   const read = (file: string) => tool.readRaw(file, { readArgs: ["-G1", "-u"] }) as unknown as Promise<Record<string, unknown>>;
   let before: Record<string, unknown>, after: Record<string, unknown>;
   try { [before, after] = await Promise.all([read(source), read(result)]); }
   catch { throw new ImportMetadataError("TOOL_FAILED"); }
   for (const [field, value] of Object.entries(before)) {
     const [group, tag] = field.split(":");
-    if (tag === undefined || removed.includes(field) || NOT_COMPARED_FIELD.has(field) || NOT_COMPARED_TAG.test(tag) || (NOT_COMPARED_GROUP.test(group) && field !== "File:Comment")) continue;
+    if (tag === undefined || removed.includes(field) || (removeLocation && isLocationField(field)) || NOT_COMPARED_FIELD.has(field) || NOT_COMPARED_TAG.test(tag) || (NOT_COMPARED_GROUP.test(group) && field !== "File:Comment")) continue;
     if (JSON.stringify(after[field]) !== JSON.stringify(value)) throw new ImportMetadataError("METADATA_NOT_CARRIED");
   }
 }
 
 /** A new copy of `source`'s pixels, with its metadata except `removed`, checked field by field. */
-function carryOnto(derivative: Uint8Array, source: Uint8Array, extension: string, tool: ImportMetadataTool, removed: readonly string[]): Promise<Uint8Array> {
+function carryOnto(derivative: Uint8Array, source: Uint8Array, extension: string, tool: ImportMetadataTool, removed: readonly string[], removeLocation = false): Promise<Uint8Array> {
   return editCopy(derivative, async (file, directory) => {
     const original = path.join(directory, `source.${extension}`);
     await writeFile(original, source, { mode: 0o600 });
     await runTool(tool, file, ["-TagsFromFile", original, ...COPY_ARGUMENTS]);
     // A separate pass: an exclusion during the copy left the creator's address in place,
     // because ExifTool copies it inside its contact structure.
-    await runTool(tool, file, [...STALE_ARGUMENTS, ...removed.map((tag) => `-${tag}=`)]);
-    await assertNothingLost(tool, original, file, removed);
+    await runTool(tool, file, [...STALE_ARGUMENTS, ...removed.map((tag) => `-${tag}=`), ...(removeLocation ? LOCATION_ARGUMENTS : [])]);
+    await assertNothingLost(tool, original, file, removed, removeLocation);
   }, extension);
 }
 
 export type PreparedImportJpeg = Readonly<{ bytes: Uint8Array; action: ImportAction }>;
 
 /** Throws `JpegAuditError` when the source is not a strict single JPEG. */
-export async function prepareJpegForImport(source: Uint8Array, tool: ImportMetadataTool): Promise<PreparedImportJpeg> {
+export async function prepareJpegForImport(source: Uint8Array, tool: ImportMetadataTool, options: Readonly<{ removeLocation?: boolean }> = {}): Promise<PreparedImportJpeg> {
+  const removeLocation = options.removeLocation === true;
   const action = importActionFor(inspectJpegImportFacts(source));
   if (action === "keep-compressed-data") {
     // Nothing re-encodes this file, so a damaged scan would otherwise reach the upload.
     try { await sharp(source, { failOn: "error" }).stats(); }
     catch { throw new ImportMetadataError("UNDECODABLE_IMAGE"); }
-    const bytes = await editCopy(source, (file) => runTool(tool, file, REMOVAL_ARGUMENTS));
-    assertResult(bytes, compressedImageDataSha256(source));
+    const bytes = await editCopy(source, (file) => runTool(tool, file, [...REMOVAL_ARGUMENTS, ...(removeLocation ? LOCATION_ARGUMENTS : [])]));
+    assertResult(bytes, compressedImageDataSha256(source), removeLocation);
     return { bytes, action };
   }
   const derivative = (await generatePublicDerivative(source)).bytes;
-  const bytes = await carryOnto(derivative, source, "jpg", tool, REMOVED_TAGS);
-  assertResult(bytes, compressedImageDataSha256(derivative));
+  const bytes = await carryOnto(derivative, source, "jpg", tool, REMOVED_TAGS, removeLocation);
+  assertResult(bytes, compressedImageDataSha256(derivative), removeLocation);
   return { bytes, action };
 }
 

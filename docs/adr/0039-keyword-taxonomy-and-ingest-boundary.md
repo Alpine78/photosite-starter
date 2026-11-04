@@ -289,8 +289,8 @@ derivative tool; implementation and the legacy re-upload are AB#391.
   rule has been decided.
 
 `write-joomla-content.mts` still uses the metadata-free derivative: re-running it with kept
-metadata would publish GPS that nobody has reviewed. It changes together with the legacy
-re-upload, which carries the owner's list of sensitive locations.
+metadata would publish GPS that nobody has reviewed. The [legacy re-upload](../legacy-image-reupload.md),
+with the owner's list of sensitive locations, replaces what it published.
 
 ## Options Considered
 
