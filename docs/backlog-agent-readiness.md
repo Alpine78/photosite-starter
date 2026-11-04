@@ -68,6 +68,7 @@ actions, approvals or accounts; an agent can prepare evidence but cannot close t
 | AB#71 — Keyword gallery page | Active | Route, page and continuation endpoint on `feature/71-keyword-gallery-page`, stacked on AB#58. AB#74, AB#75 and AB#90 follow it. |
 | AB#59 — Public keyword index | Active | Server-side index on `feature/59-keyword-index`, stacked on AB#71. AB#74 and AB#75 follow it. |
 | AB#75 — Keyword browser | Active | On `feature/75-keyword-browser`, stacked on AB#59. |
+| AB#74 — Keyword selector | Active | On `feature/74-keyword-selector`, stacked on AB#75. AB#90 follows it. |
 | AB#392 — Client gallery expiry cleanup | Active | Every child slice is Closed. Hosted acceptance and activation remain; see [retention](client-gallery-retention.md). |
 
 No other open item is agent-ready today. What remains needs an owner decision, an owner

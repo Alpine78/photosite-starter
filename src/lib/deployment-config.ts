@@ -109,6 +109,20 @@ export type BuiltInLabels = {
     readonly keywordNoResults: string;
     readonly keywordBackToStart: string;
     readonly keywordBrowseHeading: string;
+    readonly keywordSelectorHeading: string;
+    /** `{count}` is the most keywords a selection can hold. */
+    readonly keywordSelectorHelp: string;
+    readonly keywordSelectorLabel: string;
+    readonly keywordSelectorSelected: string;
+    readonly keywordSelectorRemove: string;
+    readonly keywordSelectorShow: string;
+    readonly keywordSelectorMatches: string;
+    readonly keywordSelectorNoMatches: string;
+    readonly keywordSelectorUnavailable: string;
+    readonly keywordSelectorAdded: string;
+    readonly keywordSelectorRemoved: string;
+    readonly keywordSelectorLimit: string;
+    readonly keywordSelectorAlreadyCovered: string;
     readonly keywordCountOne: string;
     readonly keywordCountOther: string;
     /** The header control's visible name. */
@@ -758,6 +772,19 @@ const englishLabels = {
     keywordNoResults: "No photographs have all of these keywords.",
     keywordBackToStart: "Back to the first photographs",
     keywordBrowseHeading: "Browse photographs by keyword",
+    keywordSelectorHeading: "Find photographs by keyword",
+    keywordSelectorHelp: "Choose up to {count} keywords. The photographs shown have all of them.",
+    keywordSelectorLabel: "Keyword",
+    keywordSelectorSelected: "Selected keywords",
+    keywordSelectorRemove: "Remove {name}",
+    keywordSelectorShow: "Show photographs",
+    keywordSelectorMatches: "{count} keywords found. Use the arrow keys to choose one.",
+    keywordSelectorNoMatches: "No keywords found.",
+    keywordSelectorUnavailable: "Keywords cannot be searched right now. Please try again shortly.",
+    keywordSelectorAdded: "{name} added.",
+    keywordSelectorRemoved: "{name} removed.",
+    keywordSelectorLimit: "You can choose at most {count} keywords.",
+    keywordSelectorAlreadyCovered: "{name} is already covered by your selection.",
     keywordCountOne: "{count} photograph",
     keywordCountOther: "{count} photographs",
     title: "Search",
@@ -1258,6 +1285,19 @@ const finnishLabels = {
     keywordNoResults: "Millään kuvalla ei ole kaikkia näitä avainsanoja.",
     keywordBackToStart: "Takaisin ensimmäisiin kuviin",
     keywordBrowseHeading: "Selaa kuvia avainsanoittain",
+    keywordSelectorHeading: "Etsi kuvia avainsanoilla",
+    keywordSelectorHelp: "Valitse enintään {count} avainsanaa. Näytettävissä kuvissa on ne kaikki.",
+    keywordSelectorLabel: "Avainsana",
+    keywordSelectorSelected: "Valitut avainsanat",
+    keywordSelectorRemove: "Poista {name}",
+    keywordSelectorShow: "Näytä kuvat",
+    keywordSelectorMatches: "Löytyi {count} avainsanaa. Valitse nuolinäppäimillä.",
+    keywordSelectorNoMatches: "Avainsanoja ei löytynyt.",
+    keywordSelectorUnavailable: "Avainsanoja ei voi nyt hakea. Yritä hetken kuluttua uudelleen.",
+    keywordSelectorAdded: "{name} lisätty.",
+    keywordSelectorRemoved: "{name} poistettu.",
+    keywordSelectorLimit: "Voit valita enintään {count} avainsanaa.",
+    keywordSelectorAlreadyCovered: "{name} sisältyy jo valintaasi.",
     keywordCountOne: "{count} kuva",
     keywordCountOther: "{count} kuvaa",
     title: "Haku",

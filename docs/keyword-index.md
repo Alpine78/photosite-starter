@@ -48,6 +48,14 @@ and nested by hierarchy. ADR-0012 §8 reserves that state for it. Defined behavi
 - **A results page** does not show the browser.
 - **While a re-sync is outstanding,** a keyword whose parent has no entry sits under its nearest listed ancestor.
 
+## Selecting
+
+`src/components/keyword-selector.tsx` (AB#74) is an ARIA combobox above the browser. It asks `POST /api/keyword-suggest`, debounced by
+200 ms, for at most eight suggestions. A browser never receives the vocabulary, and an alias matches but is never returned. The term stays
+out of URLs and logs, as with the site search. A descendant replaces its selected ancestor and is not undone by removing the descendant. The
+address it builds passes the server's validation like any other, so it can bypass nothing. Without script it stays out of the page, and
+the plain links serve instead.
+
 ## Matching
 
 `keywordIndexMatchKey` is the import's match key: Unicode NFC, locale-independent lowercase, whitespace collapsed
