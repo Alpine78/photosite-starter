@@ -26,12 +26,13 @@ the one-hour hard bound even if no operator intervenes.
 | `sanity:articles` | article listings, placements, bodies, end-gallery windows, and neighbours |
 | `sanity:categories` | localized tree, ancestry, routes, and branch listings |
 | `sanity:galleries` | gallery metadata, sections, placements, home topic counts, order, filters, and cursor inputs |
+| `sanity:keywords` | the keyword vocabulary and the public keyword index's closures (AB#59) |
 | `sanity:media` | shared public media projections |
 | `sanity:metadata` | canonical and Open Graph inputs |
 | `sanity:sitemap` | current and future sitemap inputs (AB#85) |
 
 `siteSettings`, `homePage`, `service`, `article`, `category`, `gallery`,
-`galleryPlacement`, `articleEndGalleryPlacement`, and `media` form the closed document-type map. A known
+`galleryPlacement`, `articleEndGalleryPlacement`, `keyword`, `keywordCategory`, `keywordTaxonomyState`, and `media` form the closed document-type map. A known
 change expires only the bounded family set that can embed it. Media invalidates
 every content family that can reuse the rendition; category changes invalidate
 both content variants and route/metadata inputs; gallery and placement changes
@@ -94,7 +95,8 @@ Configure one Sanity **document webhook per deployment environment**:
 - dataset: the environment's exact `SANITY_DATASET`
 - trigger: create, update, and delete
 - filter:
-  `_type in ["siteSettings", "homePage", "service", "article", "category", "gallery", "galleryPlacement", "media"]`
+  `_type in ["siteSettings", "homePage", "service", "article", "category", "gallery", "galleryPlacement", "media", "keyword", "keywordCategory", "keywordTaxonomyState"]`
+  (the three keyword types since AB#59: deploy the change that recognizes them first, because an unknown type answers 400; see [the keyword index](keyword-index.md))
 - HTTP method: `POST`
 - API version: the deployment's pinned `SANITY_API_VERSION`
 - drafts: off

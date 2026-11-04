@@ -8,6 +8,7 @@
 import "server-only";
 
 import { compareKeywordGalleryOrder, type KeywordGallerySource, type KeywordGalleryRow } from "@/lib/keyword-gallery";
+import { buildKeywordIndex, type KeywordIndex } from "@/lib/keyword-index";
 import type { KeywordVocabularySnapshot } from "@/lib/keyword-gallery-selection";
 import { keywordsOfMedia, mediaMatchesAllKeywords } from "@/lib/media-keywords";
 import { getMockImages } from "@/lib/mock-media";
@@ -29,6 +30,31 @@ const CAPTURED_AT: Readonly<Record<string, string>> = {
 
 export function getMockKeywordVocabulary(language: string): KeywordVocabularySnapshot {
   return { taxonomyVersion: MOCK_TAXONOMY_VERSION, taxonomy: getMockKeywordTaxonomy(language), mergedInto: MOCK_MERGED_INTO };
+}
+
+const MOCK_CATEGORIES = new Map([
+  ["subject", { title: { en: "Subject", fi: "Aihe" }, order: 0 }],
+  ["place", { title: { en: "Place", fi: "Paikka" }, order: 1 }],
+  ["season", { title: { en: "Season", fi: "Vuodenaika" }, order: 2 }],
+]);
+
+export function getMockKeywordIndex(language: string): KeywordIndex {
+  const index = getMockKeywordMediaIndex(language);
+  return buildKeywordIndex({
+    language,
+    taxonomy: getMockKeywordTaxonomy(language),
+    categories: new Map([...MOCK_CATEGORIES].map(([slug, { title, order }]) => [slug, { title: language === "fi" ? title.fi : title.en, order }])),
+    aliases: new Map([["coast", ["seashore", "Shoreline"]]]),
+    closures: index.map((entry) => entry.expandedKeywordIds),
+  });
+}
+
+/** The eligible media's stored closures, the same set the gallery source matches. */
+function getMockKeywordMediaIndex(language: string) {
+  const images = getMockImages(language);
+  const index = getMockMediaKeywordIndex();
+  const ids = [...Object.values(images).map((media) => media.mediaId), ...MOCK_ARCHIVE_MEDIA_IDS];
+  return ids.filter((mediaId) => !OPTED_OUT.has(mediaId) && index.has(mediaId)).map((mediaId) => keywordsOfMedia(index, mediaId));
 }
 
 export function createMockKeywordGallerySource(language: string): KeywordGallerySource {

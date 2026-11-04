@@ -66,6 +66,7 @@ actions, approvals or accounts; an agent can prepare evidence but cannot close t
 | AB#68 — Media keyword model | Active | Model, mocks and Sanity parsers on `feature/68-media-keywords-domain-model`. AB#58 and AB#59 follow it. |
 | AB#58 — Dynamic keyword query | Active | Query and adapter on `feature/58-keyword-gallery-query`, stacked on AB#68. AB#71 follows it. |
 | AB#71 — Keyword gallery page | Active | Route, page and continuation endpoint on `feature/71-keyword-gallery-page`, stacked on AB#58. AB#74, AB#75 and AB#90 follow it. |
+| AB#59 — Public keyword index | Active | Server-side index on `feature/59-keyword-index`, stacked on AB#71. AB#74 and AB#75 follow it. |
 | AB#392 — Client gallery expiry cleanup | Active | Every child slice is Closed. Hosted acceptance and activation remain; see [retention](client-gallery-retention.md). |
 
 No other open item is agent-ready today. What remains needs an owner decision, an owner
