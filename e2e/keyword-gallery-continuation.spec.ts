@@ -27,6 +27,13 @@ const labels = getBuiltInLabels(appUnderTestEnvironment.SITE_LOCALE);
 
 const gridItems = (page: Page) => page.getByRole("main").locator("[data-item-id]");
 const itemIds = (page: Page) => gridItems(page).evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-item-id") ?? ""));
+/**
+ * Waits for the grid to show these photographs. A history navigation can replace the document
+ * while it is being read, which throws rather than failing an assertion, and only `toPass` retries that.
+ */
+const expectItems = (page: Page, expected: readonly string[]) => expect(async () => {
+  expect((await itemIds(page)).slice(0, expected.length)).toEqual(expected);
+}).toPass();
 const nextHref = async (page: Page) => (await page.locator('a[rel="next"]').getAttribute("href"))!;
 const expectedArchive = Array.from({ length: ARCHIVE_SIZE }, (_, index) => `archive-${String(index + 1).padStart(2, "0")}`);
 
@@ -93,7 +100,7 @@ test.describe("restoring a keyword gallery", () => {
     expect(await itemIds(page)).toEqual(expectedArchive.slice(PAGE_SIZE));
     await page.getByRole("link", { name: labels.search.keywordBackToStart }).click();
     await expect(page).toHaveURL(new RegExp(`${ARCHIVE.replace("?", "\\?")}$`));
-    await expect.poll(async () => (await itemIds(page)).slice(0, PAGE_SIZE)).toEqual(expectedArchive.slice(0, PAGE_SIZE));
+    await expectItems(page, expectedArchive.slice(0, PAGE_SIZE));
   });
 
   test("back and forward restore each page of a selection", async ({ page }) => {
@@ -101,18 +108,18 @@ test.describe("restoring a keyword gallery", () => {
     const href = await nextHref(page);
     await page.goto(href, { waitUntil: "load" });
     await page.goBack({ waitUntil: "load" });
-    await expect.poll(async () => (await itemIds(page)).slice(0, PAGE_SIZE)).toEqual(expectedArchive.slice(0, PAGE_SIZE));
+    await expectItems(page, expectedArchive.slice(0, PAGE_SIZE));
     await page.goForward({ waitUntil: "load" });
-    await expect.poll(() => itemIds(page)).toEqual(expectedArchive.slice(PAGE_SIZE));
+    await expectItems(page, expectedArchive.slice(PAGE_SIZE));
   });
 
   test("a client navigation to another selection does not keep the previous photographs", async ({ page }) => {
     await page.goto(SEARCH_PATH);
     await page.getByRole("region", { name: labels.search.keywordBrowseHeading }).locator('a[href$="keywords=archive"]').click();
-    await expect.poll(async () => (await itemIds(page)).slice(0, PAGE_SIZE)).toEqual(expectedArchive.slice(0, PAGE_SIZE));
+    await expectItems(page, expectedArchive.slice(0, PAGE_SIZE));
     await page.goBack();
     await page.getByRole("region", { name: labels.search.keywordBrowseHeading }).locator('a[href$="keywords=forest"]').click();
-    await expect.poll(() => itemIds(page)).toEqual(["forest-stream"]);
+    await expectItems(page, ["forest-stream"]);
   });
 });
 
