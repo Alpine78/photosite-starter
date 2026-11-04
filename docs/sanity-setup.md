@@ -297,6 +297,8 @@ keyword only with its own action, which takes a revision guard on that state, so
 keywords through the API without the same guard. Until the re-sync (AB#69) exists, publishing a
 parent move, merge or retirement only records that one is needed; do not make such changes to a
 keyword that photographs already use in Production. Nothing on the public site reads keywords yet.
+When it does (AB#58), a malformed keyword row raises rather than hiding photographs, and a keyword needs
+a title in the default language.
 
 **Settings and home links name intent, not generated paths.** A link stores either an
 application-owned root-relative static route, the generated story root, or the featured

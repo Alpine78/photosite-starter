@@ -2,6 +2,11 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Media keyword model, 2026-11-04 — AB#68 **Active**: `src/lib/media-keywords.ts` is the server-side
+model of a medium's public keywords, keyed by `mediaId`, with mock data and the Sanity queries and
+parsers in `sanity-media-keywords.ts`. `ImageMedia` and `VideoMedia` stay free of keywords, so the grid
+and lightbox payloads are unchanged. Nothing renders, routes or fetches keywords yet; AB#58 is next.
+
 Keyword vocabulary schema, 2026-11-04 — AB#56 **Active**: `keyword`, `keywordCategory` and
 `keywordTaxonomyState` schemas with the governance rules of
 [ADR-0039](adr/0039-keyword-taxonomy-and-ingest-boundary.md) in a pure module. Studio publishes a
