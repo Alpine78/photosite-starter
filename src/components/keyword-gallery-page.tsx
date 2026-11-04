@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { GalleryGrid } from "@/components/gallery-grid";
+import { GalleryItemEnquiry } from "@/components/gallery-item-enquiry";
 import { LanguageSwitch, type LanguageLink } from "@/components/language-switch";
 import { getBuiltInLabels, getDeploymentConfig } from "@/lib/deployment-config";
 import { effectiveGalleryPresentation } from "@/lib/gallery-presentation";
@@ -33,11 +34,13 @@ function languageLinks(locale: string, canonicalParam: string): readonly Languag
  * a reload, a shared link and browser history all restore it. Rendered on the server, with
  * one bounded page; the grid appends the rest and offers a real link without JavaScript.
  */
-export async function KeywordGalleryPage({ locale, route }: { readonly locale: string; readonly route: KeywordGalleryRoute }) {
+export async function KeywordGalleryPage({ locale, route, enquire }: { readonly locale: string; readonly route: KeywordGalleryRoute; readonly enquire?: string }) {
   const labels = getBuiltInLabels(locale);
   const { localeRoutes } = getDeploymentConfig();
   const galleryPath = `${buildSearchPath(localeRoutes, locale)}?${keywordGalleryQuery(route.canonicalParam)}`;
   const title = keywordGalleryTitle(locale, route.titles);
+  // Authorized on submit by `/api/enquiry`, as a curated gallery's form is.
+  if (enquire !== undefined) return <GalleryItemEnquiry locale={locale} itemId={enquire} galleryTitle={title} galleryPath={galleryPath} labels={labels} />;
   const slice = projectGallerySlice(route.page);
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6">
@@ -51,7 +54,6 @@ export async function KeywordGalleryPage({ locale, route }: { readonly locale: s
             key={`${locale}:${route.canonicalParam}:${route.cursor ?? ""}`}
             label={title}
             initialSlice={slice}
-            enquiriesEnabled={false}
             galleryPath={galleryPath}
             continuationKind="keyword-gallery"
             // No gallery owns this page, so the site-wide settings decide.

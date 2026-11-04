@@ -16,6 +16,7 @@ import type { DynamicGalleryResultItem, GalleryPage } from "@/lib/gallery-result
 import { readKeywordGalleryPage, type KeywordGalleryCursorCodec, type KeywordGallerySource } from "@/lib/keyword-gallery";
 import { canonicalizeKeywordSelection, MAX_RAW_KEYWORD_TOKENS, parseKeywordTokens, type KeywordVocabularySnapshot } from "@/lib/keyword-gallery-selection";
 import { createMockKeywordGallerySource, getMockKeywordVocabulary } from "@/lib/mock-keyword-gallery";
+import { isPublicIdentity } from "@/lib/public-identity";
 import { createSanityKeywordGallerySource, readSanityKeywordVocabulary } from "@/lib/sanity-keyword-gallery";
 
 export type KeywordGalleryStore = Readonly<{
@@ -52,6 +53,20 @@ export type KeywordGalleryRoute = Readonly<{
   cursor: string | undefined;
   page: GalleryPage<DynamicGalleryResultItem>;
 }>;
+
+/**
+ * What `?enquire=` means beside a selection (ADR-0012's 2026-11-05 amendment), the rule ADR-0003 §8
+ * gives a curated gallery: one valid identity opens a form, with a cursor it is a 404, and
+ * anything else is an ordinary unknown parameter.
+ */
+export function readKeywordEnquiry(params: Readonly<Record<string, string | readonly string[] | undefined>>):
+  | Readonly<{ kind: "none" }>
+  | Readonly<{ kind: "conflict" }>
+  | Readonly<{ kind: "enquire"; itemId: string }> {
+  const raw = params.enquire;
+  if (typeof raw !== "string" || !isPublicIdentity(raw)) return { kind: "none" };
+  return params.cursor === undefined ? { kind: "enquire", itemId: raw } : { kind: "conflict" };
+}
 
 export function keywordGalleryQuery(canonicalParam: string, cursor?: string): string {
   return `keywords=${canonicalParam}${cursor === undefined ? "" : `&cursor=${encodeURIComponent(cursor)}`}`;

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { createKeywordGalleryCursorCodec } from "@/lib/keyword-gallery";
 import {
   keywordGalleryQuery,
+  readKeywordEnquiry,
   resolveKeywordGalleryRoute,
   type KeywordGalleryStore,
 } from "@/lib/keyword-gallery-route";
@@ -15,6 +16,20 @@ const store: KeywordGalleryStore = {
   source: (locale) => createMockKeywordGallerySource(locale),
 };
 const route = (raw: string, cursor?: string | readonly string[]) => resolveKeywordGalleryRoute("en", raw, cursor, store);
+
+describe("?enquire= beside a selection", () => {
+  it.each([
+    [{ enquire: "coastal-landscape" }, { kind: "enquire", itemId: "coastal-landscape" }],
+    [{ enquire: "coastal-landscape", cursor: "x" }, { kind: "conflict" }],
+    [{ enquire: "Not Valid" }, { kind: "none" }],
+    [{ enquire: "" }, { kind: "none" }],
+    [{ enquire: ["a", "b"] }, { kind: "none" }],
+    [{}, { kind: "none" }],
+    [{ enquire: "Not Valid", cursor: "x" }, { kind: "none" }],
+  ])("%j → %j", (params, expected) => {
+    expect(readKeywordEnquiry(params)).toEqual(expected);
+  });
+});
 
 describe("resolving a keyword gallery request", () => {
   it("gives a canonical selection its names and first page, without a redirect", async () => {

@@ -9,7 +9,7 @@ const contactClasses = {
 const enquiryClasses = {
   ...contactClasses, "malformed-request": false, "unknown-item": false,
   "container-unavailable": false, "not-public": false, "not-enquirable": false,
-  "dynamic-unsupported": false, "source-unavailable": true, "source-error": true,
+  "source-unavailable": true, "source-error": true,
   "malformed-source": true, internal: true,
 } satisfies Record<EnquiryErrorClass, boolean>;
 const states = { accepted: 0, delivered: 0, rejected: 0, "delivery-failed": 0 } satisfies Record<ContactEvent["state"] | EnquiryEvent["state"], number>;

@@ -367,20 +367,38 @@ describe("resolveSanityEnquiryTarget — curated", () => {
 
 describe("resolveSanityEnquiryTarget — dynamic", () => {
   it("refuses a dynamic enquiry without querying the store", async () => {
-    const { client, requests } = fakeClient(() => {
-      throw new Error("the store must not be queried for a dynamic enquiry");
+    const row = (media: Record<string, unknown> = {}, outer: Record<string, unknown> = {}) => ({
+      mediaType: "image",
+      dynamicallyDiscoverable: true,
+      media: { mediaId: "northern-coast", publiclyRenderable: true, enquiryEligible: true, privateOnly: false, credit: "Studio", caption: [{ language: "en", value: "A coast" }], ...media },
+      ...outer,
     });
+    const resolve = (rows: unknown, config: SanityConfig = PUBLIC_CONFIG) =>
+      resolveSanityEnquiryTarget({ kind: "dynamic", locale: "en-GB", itemId: "northern-coast" }, "en", { client: fakeClient(() => rows).client, config });
 
-    const error = await rejectionOf(() =>
-      resolveSanityEnquiryTarget(
-        { kind: "dynamic", locale: "en-GB", itemId: "northern-coast" },
-        "en",
-        { client },
-      ),
-    );
+    await expect(resolve([row()])).resolves.toEqual({ kind: "dynamic", mediaId: "northern-coast", caption: "A coast", credit: "Studio" });
 
-    expect(error.rejection).toBe("dynamic-unsupported");
-    expect(requests).toHaveLength(0);
+    for (const [rows, rejection] of [
+      [[], "unknown-item"],
+      [[row({}, { dynamicallyDiscoverable: false })], "not-enquirable"],
+      [[row({}, { dynamicallyDiscoverable: null })], "not-enquirable"],
+      [[row({}, { mediaType: "video" })], "not-enquirable"],
+      [[row({ enquiryEligible: false })], "not-enquirable"],
+      [[row({ publiclyRenderable: false })], "not-public"],
+      [[row({ privateOnly: true })], "not-public"],
+      [[row(), row()], "malformed-source"],
+      [[row({ mediaId: "another-photograph" })], "malformed-source"],
+      ["not a list", "malformed-source"],
+    ] as const) {
+      expect((await rejectionOf(() => resolve(rows))).rejection).toBe(rejection);
+    }
+  });
+
+  it("surfaces a dynamic result's archive locator only on a private dataset", async () => {
+    const rows = [{ mediaType: "image", dynamicallyDiscoverable: true, media: { mediaId: "northern-coast", publiclyRenderable: true, enquiryEligible: true, archiveLocator: "Drive A / 2021" } }];
+    const resolve = (config: SanityConfig) => resolveSanityEnquiryTarget({ kind: "dynamic", locale: "en-GB", itemId: "northern-coast" }, "en", { client: fakeClient(() => rows).client, config });
+    await expect(resolve({ ...PUBLIC_CONFIG, datasetVisibility: "private" })).resolves.toMatchObject({ archiveLocator: "Drive A / 2021" });
+    expect(await resolve(PUBLIC_CONFIG)).not.toHaveProperty("archiveLocator");
   });
 });
 

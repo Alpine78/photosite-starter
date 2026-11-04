@@ -96,6 +96,11 @@ describe("the source", () => {
     await expect(createSanityKeywordGallerySource(options(() => 3)).readLatestChange(["aa"])).rejects.toThrow(/malformed/);
   });
 
+  it("reads the media's enquiry opt-in beside the row, and refuses anything but a boolean", async () => {
+    expect(keywordGalleryWindowQuery(["aa"], false)).toContain('"enquiryAllowed": enquiryEligible == true');
+    await expect(createSanityKeywordGallerySource(options(() => [{ orderKey: "", enquiryAllowed: "yes", document: {} }])).readWindow({ canonicalIds: ["aa"], after: undefined, limit: 2 })).rejects.toThrow(/malformed/);
+  });
+
   it("reads a boundary, and refuses a repeated identity", async () => {
     expect(await createSanityKeywordGallerySource(options(() => [])).readBoundary(["aa"], "m")).toBeUndefined();
     await expect(createSanityKeywordGallerySource(options(() => [{}, {}])).readBoundary(["aa"], "m")).rejects.toThrow(/more than once/);

@@ -529,7 +529,7 @@ export function GalleryGrid({
     <GalleryLightbox
       slides={slice.slides}
       labels={labels.lightbox}
-      {...(continuationKind === "curated-gallery" && enquiriesEnabled ? { enquiryBasePath: galleryPath } : {})}
+      {...(continuationKind !== "article-end-gallery" && enquiriesEnabled ? { enquiryBasePath: galleryPath } : {})}
       {...(nextCursor === null
         ? {}
         : {

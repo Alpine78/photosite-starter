@@ -45,7 +45,7 @@ export function keywordGalleryFilter(canonicalIds: readonly string[]): string {
   return `${PUBLIC_MEDIA_FILTER} && mediaType == "image" && dynamicallyDiscoverable == true && ${matchPredicate(canonicalIds)}`;
 }
 
-const KEYED_PROJECTION = `{"orderKey": coalesce(capturedAt, ""), "document": @${PUBLIC_MEDIA_PROJECTION}}`;
+const KEYED_PROJECTION = `{"orderKey": coalesce(capturedAt, ""), "enquiryAllowed": enquiryEligible == true, "document": @${PUBLIC_MEDIA_PROJECTION}}`;
 
 export function keywordGalleryLatestChangeQuery(canonicalIds: readonly string[]): string {
   return `*[${keywordGalleryFilter(canonicalIds)}] | order(_updatedAt desc) [0]._updatedAt`;
@@ -98,7 +98,8 @@ export async function readSanityKeywordVocabulary(options: ReadOptions): Promise
 
 function parseRow(row: unknown, options: Readonly<{ language: string; fallbackLanguage: string; config: SanityConfig }>) {
   if (!isRecord(row) || typeof row.orderKey !== "string" || !isRecord(row.document)) throw new TypeError("a keyword gallery row is malformed");
-  return { orderKey: row.orderKey, media: projectPublicMedia(row.document as RawPublicMediaDocument, options) };
+  if (typeof row.enquiryAllowed !== "boolean") throw new TypeError("a keyword gallery row is malformed");
+  return { orderKey: row.orderKey, enquiryAllowed: row.enquiryAllowed, media: projectPublicMedia(row.document as RawPublicMediaDocument, options) };
 }
 
 export function createSanityKeywordGallerySource(options: ReadOptions): KeywordGallerySource {
