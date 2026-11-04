@@ -21,6 +21,8 @@ const SEARCH_PATH = `/${DEFAULT_SEARCH_NAMESPACE}`;
 const ARCHIVE = `${SEARCH_PATH}?keywords=archive`;
 const PAGE_SIZE = 24;
 const ARCHIVE_SIZE = 30;
+/** docs/keyword-gallery-scale.md. */
+const ELEMENTS_PER_PHOTOGRAPH = 30;
 const labels = getBuiltInLabels(appUnderTestEnvironment.SITE_LOCALE);
 
 const gridItems = (page: Page) => page.getByRole("main").locator("[data-item-id]");
@@ -51,6 +53,16 @@ test.describe("continuing a keyword gallery", () => {
     await expect(gridItems(page)).toHaveCount(ARCHIVE_SIZE);
     expect(await itemIds(page)).toEqual(expectedArchive);
     await expect(page).toHaveURL(new RegExp(`${ARCHIVE.replace("?", "\\?")}$`));
+  });
+
+  test("a photograph adds a bounded number of elements, so a long session stays usable", async ({ page }) => {
+    await page.goto(ARCHIVE, { waitUntil: "load" });
+    await expect.poll(async () => (await gridItems(page).count()) >= PAGE_SIZE).toBe(true);
+    const elements = () => page.evaluate(() => document.getElementsByTagName("*").length);
+    const before = await elements();
+    await continueInPlace(page);
+    await expect(gridItems(page)).toHaveCount(ARCHIVE_SIZE);
+    expect(((await elements()) - before) / (ARCHIVE_SIZE - PAGE_SIZE)).toBeLessThanOrEqual(ELEMENTS_PER_PHOTOGRAPH);
   });
 
   test("an open viewer continues past the last loaded photograph", async ({ page }) => {
