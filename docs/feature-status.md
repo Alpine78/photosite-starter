@@ -2,6 +2,11 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Dynamic keyword query, 2026-11-04 — AB#58 **Active**: `src/lib/keyword-gallery-selection.ts` canonicalizes a
+selection, `keyword-gallery.ts` reads one bounded page under a signed cursor, and `sanity-keyword-gallery.ts`
+and `mock-keyword-gallery.ts` are its sources. Media gained `dynamicallyDiscoverable`, off by default. No route
+uses this yet; AB#71 is next. No medium has the field or keywords yet, so a real query would return nothing.
+
 Media keyword model, 2026-11-04 — AB#68 **Active**: `src/lib/media-keywords.ts` is the server-side
 model of a medium's public keywords, keyed by `mediaId`, with mock data and the Sanity queries and
 parsers in `sanity-media-keywords.ts`. `ImageMedia` and `VideoMedia` stay free of keywords, so the grid

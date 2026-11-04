@@ -45,9 +45,12 @@
  * no-crop rule needs the true intrinsic ratio, and a hand-entered number is a
  * ratio that can be wrong.
  *
- * **`dynamicallyDiscoverable`, `privateOnly`, and `canonicalPlacementId`.** Named
- * by ADR-0002 and added by the stories that build their features — AB#58, AB#122,
- * AB#113 — so this schema does not ship fields nothing reads. Each is media-owned
+ * **`dynamicallyDiscoverable`.** Added by AB#58: only a photograph with this on appears in
+ * a dynamic keyword gallery or a keyword count (ADR-0012 §2).
+ *
+ * **`privateOnly` and `canonicalPlacementId`.** Named by ADR-0002 and added by the
+ * stories that build their features — AB#122, AB#113 — so this schema does not ship
+ * fields nothing reads. Each is media-owned
  * when it arrives, which is what keeps a later reference from needing a second
  * media entity.
  *
@@ -412,6 +415,14 @@ export function defineMediaType(
         description:
           "Turn this off to keep a published photograph out of every public page without unpublishing the document. Off also wins over anything that places it: a gallery can hide a photograph, never reveal a hidden one.",
         initialValue: true,
+      },
+      {
+        name: "dynamicallyDiscoverable",
+        title: "Appears in keyword galleries",
+        type: "boolean",
+        description:
+          "Allow this photograph in dynamic keyword galleries and keyword counts. Off until someone opts it in, so a photograph from a client delivery stays out.",
+        initialValue: false,
       },
       {
         name: "enquiryEligible",

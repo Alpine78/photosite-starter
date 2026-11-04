@@ -541,7 +541,7 @@ function readDocuments(result: unknown): readonly RawPublicMediaDocument[] {
  * back to. Read from the deployment rather than written down twice; the
  * projection reduces it to its language subtag.
  */
-function getFallbackLocale(): string {
+export function getFallbackLocale(): string {
   return getDeploymentConfig().localeRoutes.defaultLocale;
 }
 
