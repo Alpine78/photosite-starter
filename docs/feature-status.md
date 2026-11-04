@@ -2,6 +2,11 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Keyword gallery page, 2026-11-05 — AB#71 **Active**: `?keywords=` on the search route now renders a server-side
+gallery with the shared grid, lightbox and continuation, instead of a 404. Every spelling defect redirects once after
+validation; an invalid selection or cursor answers 404 and is never redirected. `noindex`, no sitemap entry. It shows
+nothing on a real site until media has keywords (AB#69), and nothing links to it yet (AB#74, AB#75).
+
 Dynamic keyword query, 2026-11-04 — AB#58 **Active**: `src/lib/keyword-gallery-selection.ts` canonicalizes a
 selection, `keyword-gallery.ts` reads one bounded page under a signed cursor, and `sanity-keyword-gallery.ts`
 and `mock-keyword-gallery.ts` are its sources. Media gained `dynamicallyDiscoverable`, off by default. No route

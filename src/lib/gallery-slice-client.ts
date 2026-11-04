@@ -74,11 +74,13 @@ function isLightboxSlide(value: unknown): value is Record<string, unknown> {
  * section: without it, an append fetched while a named section is selected
  * would ask for the unfiltered gallery's next slice instead.
  */
+export type GallerySliceEndpoint = "/api/gallery" | "/api/article-gallery" | "/api/keyword-gallery";
+
 export function gallerySliceEndpoint(
   galleryPath: string,
   cursor: string,
   section?: string,
-  endpoint: "/api/gallery" | "/api/article-gallery" = "/api/gallery",
+  endpoint: GallerySliceEndpoint = "/api/gallery",
 ): string {
   const params = new URLSearchParams({ path: galleryPath, cursor });
   if (section !== undefined) params.set("section", section);
@@ -139,7 +141,7 @@ export async function fetchGallerySlice(
   galleryPath: string,
   cursor: string,
   section?: string,
-  endpoint: "/api/gallery" | "/api/article-gallery" = "/api/gallery",
+  endpoint: GallerySliceEndpoint = "/api/gallery",
 ): Promise<GallerySlice> {
   const response = await fetch(gallerySliceEndpoint(galleryPath, cursor, section, endpoint), {
     redirect: "manual",
