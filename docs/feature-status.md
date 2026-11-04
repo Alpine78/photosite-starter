@@ -2,6 +2,15 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Import metadata tool, 2026-11-04 — AB#391 **Active**: `exiftool-vendored` is added as a
+devDependency, and `prepareJpegForImport` applies ADR-0039 decision 8 and verifies each result.
+The two rally writers use it. Client web images keep all their metadata by owner decision. The
+Joomla writer does not use it yet, because a re-run would publish GPS nobody has reviewed. The
+detector now follows the 2026-11-04 fields, and it now finds the creator's street address, which
+it missed because of a wrong spelling. The owner decided to do the legacy re-upload; matching the
+source report to published assets, its tool and its approved plan are still open, and no CMS write
+has been made. See [the path inventory](audits/ab391-import-path-inventory-2026-10-22.md).
+
 Lightroom keyword spike and taxonomy decision, 2026-11-04 — AB#54 and AB#55: evidence is in
 [the spike report](audits/ab54-lightroom-keyword-spike-2026-11-04.md), export settings included.
 Keywords read locally before upload, and root-first hierarchy paths exist only with Lightroom's

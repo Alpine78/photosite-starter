@@ -44,19 +44,19 @@ describe("explicit web-image batch selection", () => {
   });
 });
 describe("sequential batch preparation", () => {
-  it("makes mixed real formats in selected order, strips web metadata and never enlarges", async () => {
+  it("makes mixed real formats in selected order, keeps web metadata and never enlarges", async () => {
     const inputs = [await image(40, 20), await image(30, 60, "png"), await image(12, 18, "webp"), await image(32, 16, "avif")];
     const writes: { name: string; bytes: Buffer }[] = [];
     const result = await prepareWebImageBatch(inputs.map(port), selectionBytes("a.jpg", "b.png", "c.webp", "d.avif"), { async write(name, bytes) { writes.push({ name, bytes: Buffer.from(bytes) }); }, async check() {} });
     expect(result.images.map(i => i.filename)).toEqual(["image-0001.jpg", "image-0002.png", "image-0003.webp", "image-0004.avif"]);
     expect(result.images.map(i => [i.preparation.output.width, i.preparation.output.height])).toEqual([[40, 20], [30, 60], [12, 18], [32, 16]]);
     for (const [i, written] of writes.entries()) {
-      const m = await sharp(written.bytes).metadata(); expect(m.exif).toBeUndefined(); expect(m.xmp).toBeUndefined();
+      const m = await sharp(written.bytes).metadata(); expect(m.exif?.toString("latin1")).toContain("private-metadata-canary");
       expect(result.images[i].preparation.source.sha256).toBe(imageDigest(inputs[i])); expect(result.images[i].preparation.output.sha256).toBe(imageDigest(written.bytes));
     }
     expect(result).toMatchObject({ count: 4, uploaded: false, published: false, sourceEligibilityApproved: false, metadataSuitabilityApproved: false });
     expect(JSON.stringify(result)).not.toContain("private-metadata-canary");
-  });
+  }, 60_000); // Each source with metadata starts ExifTool's Perl process.
   it("normalizes orientation and downsizes the entire portrait frame", async () => {
     const input = await sharp({ create: { width: 3000, height: 1500, channels: 3, background: "blue" } }).withMetadata({ orientation: 6 }).jpeg().toBuffer();
     const result = await prepareWebImageBatch([port(input)], selectionBytes("a.jpg"), { async write() {}, async check() {} });

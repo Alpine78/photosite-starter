@@ -541,13 +541,14 @@ describe("plan:rally then write:rally, as real Node processes", () => {
     });
   });
 
-  it("strips camera metadata from the public copy", async () => {
-    const { generatePublicDerivative } = await import("./joomla-image-derivative.mts");
+  it("keeps camera metadata and the image data in the public copy", async () => {
+    const { prepareImportImage } = await import("./image-import-metadata-edit.mts");
     const source = await readFile(path.join(folder, "Rally_Example_2024_0001_SS1_Harju_1.jpg"));
     expect((await sharp(source).metadata()).exif).toBeDefined();
-    const derivative = await generatePublicDerivative(new Uint8Array(source));
-    const metadata = await sharp(derivative.bytes).metadata();
-    expect(metadata.exif).toBeUndefined();
+    const prepared = await prepareImportImage(new Uint8Array(source));
+    const metadata = await sharp(prepared.bytes).metadata();
+    expect(metadata.exif).toBeDefined();
     expect([metadata.width, metadata.height]).toEqual([1600, 1067]);
-  });
+    expect(await sharp(prepared.bytes).raw().toBuffer()).toEqual(await sharp(source).raw().toBuffer());
+  }, 60_000); // Starts ExifTool's Perl process.
 });

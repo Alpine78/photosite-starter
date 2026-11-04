@@ -39,6 +39,8 @@ amendment). Apache-2.0, no runtime dependencies (framework peers only); its clie
 is bundled and served to visitors, so it is in the shipped table and `NOTICE`, with the
 license text in `licenses/Apache-2.0.txt`. It loads only on a production deployment that
 sets `SITE_SPEED_INSIGHTS=vercel`. Counts were not recounted.
+**Amended:** 2026-11-04 — `exiftool-vendored` added as a development dependency for AB#391's
+owner-run import tooling; see the npm dependency section.
 **Re-verified 2026-09-13 (AB#43):** a fresh audit pass against the current dependency
 tree and `public/`/`src/app/` assets. Two new production dependencies since the original
 audit — `@sanity/webhook` (MIT, AB#83's webhook signature verification) and the `vercel`
@@ -208,8 +210,23 @@ no second image library and no new runtime dependency. AB#167's offline rally im
 planner (`npm run plan:rally`, `scripts/plan-rally-import.mts`) uses the same
 devDependency only to read each exported file's header — format, dimensions, and EXIF
 orientation — and re-encodes nothing. AB#168's write step (`npm run write:rally`,
-`scripts/write-rally-import.mts`) reuses `scripts/joomla-image-derivative.mts` unchanged to
-produce each photograph's EXIF-stripped public copy before upload.
+`scripts/write-rally-import.mts`) used `scripts/joomla-image-derivative.mts` for each public
+copy until AB#391; it now keeps the metadata ADR-0039 decision 8 lists, and the Joomla writer
+alone still strips it.
+
+`exiftool-vendored` (MIT, by PhotoStructure) was added in AB#391 and is not reflected in the
+counts below. It is a development dependency for owner-run image import tooling
+(`scripts/image-import-metadata-edit.mts`): nothing under `src/` imports it, it is not in the
+production dependency tree, and its bytes never reach a browser. The stated need is ADR-0039
+decision 8: `sharp` can read metadata but cannot remove single XMP and IPTC fields while
+keeping the rest and the compressed image data, and [AB#54](audits/ab54-lightroom-keyword-spike-2026-11-04.md)
+measured this tool on real Lightroom exports. It ships ExifTool (`exiftool-vendored.pl` on
+Linux and macOS, which needs Perl; `exiftool-vendored.exe` on Windows, not installed or tested
+here). ExifTool is under "the same terms as Perl itself" (Artistic License or GPL), separately
+from the wrapper's MIT licence, and its packages are about 30 MB. It also brings `batch-cluster`,
+`he`, `luxon`, `@types/luxon` (all MIT) and `@photostructure/tz-lookup` (CC0-1.0). None is
+redistributed with the deployed site, so no `NOTICE` entry is needed; a clone that bundles this
+tooling would need to reassess that.
 
 `server-only` (MIT, published by the React team) was added in AB#39 and is not reflected
 in the counts below. It is a marker package: inside a React Server Component build it
