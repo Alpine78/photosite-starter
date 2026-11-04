@@ -5,6 +5,7 @@ import { PublishProofGalleryAction, RotateProofKeyAction } from "./proof-publish
 import { ReopenProofSelectionAction } from "./proof-reopen-action";
 import { ProofReminderSettingsAction } from "./proof-reminder-settings-action";
 import { DeleteProofGalleryAction } from "./proof-delete-action";
+import { neverPublishedOnly, PublishKeywordAction } from "./keyword-publish-action";
 import { defineConfig, type SchemaTypeDefinition } from "sanity";
 import { coreLocaleAdditions } from "./core-locale-additions";
 import { LocaleNavbar, LocaleToolMenu } from "./locale-navbar";
@@ -62,6 +63,7 @@ export default defineConfig({
       if (schemaType === "clientDeliveryGallery") return [PublishClientGalleryAction, ...allowed, ShareClientGalleryAction];
       if (schemaType === "clientProofGallery") return [PublishProofGalleryAction, ...allowed, RotateProofKeyAction, ProofReminderSettingsAction, DeleteProofGalleryAction];
       if (schemaType === "clientProofSelection") return [ReopenProofSelectionAction];
+      if (schemaType === "keyword") return [PublishKeywordAction, ...allowed.map((action) => action.action === "delete" ? neverPublishedOnly(action) : action)];
       return ["article", "gallery"].includes(schemaType) ? [...allowed, CreateLanguageVersionAction] : allowed;
     },
   },

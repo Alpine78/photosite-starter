@@ -5,6 +5,7 @@ const titles: Readonly<Record<string, Readonly<Record<string, string>>>> = {
   article: { contentId: "Content identifier", endGalleryId: "Article gallery identifier" },
   gallery: { contentId: "Content identifier" },
   category: { categoryId: "Category identifier" },
+  keyword: { keywordId: "Keyword identifier" },
   media: { mediaId: "Media identifier" },
   galleryPlacement: { placementId: "Image occurrence identifier" },
   articleEndGalleryPlacement: { placementId: "Image occurrence identifier" },

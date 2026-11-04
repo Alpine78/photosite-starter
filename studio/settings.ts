@@ -8,6 +8,8 @@ export type StudioSettings = {
   title: string;
   storyRootPaths: string[];
   authoringLanguages: string[];
+  /** The language of the unprefixed locale; a keyword needs a title in it (ADR-0039). */
+  defaultContentLanguage?: string;
   clientGallerySite?: ClientGallerySite;
   /** Proof galleries (ADR-0038) can be created and published only when explicitly enabled. */
   proofGalleries: boolean;
@@ -85,6 +87,11 @@ function siteLocales(origin: string, table: string): ClientGallerySite {
   return { origin, locales, ...(defaultRow < 0 ? {} : { defaultLocale: locales[defaultRow] }) };
 }
 
+function defaultContentLanguageOf(table: string): { defaultContentLanguage?: string } {
+  const row = table.split(",").map((entry) => entry.split("|").map((field) => field.trim())).find(([locale, prefix]) => locale && prefix === "");
+  return row ? { defaultContentLanguage: new Intl.Locale(row[0]).language } : {};
+}
+
 export function loadStudioSettings(environment: StudioEnvironment): StudioSettings {
   const projectId = required(environment, "SANITY_STUDIO_PROJECT_ID");
   const dataset = required(environment, "SANITY_STUDIO_DATASET");
@@ -106,6 +113,7 @@ export function loadStudioSettings(environment: StudioEnvironment): StudioSettin
     projectId, dataset, datasetVisibility, title,
     storyRootPaths: studioStoryRoots(required(environment, "SANITY_STUDIO_LOCALE_ROUTES")),
     authoringLanguages: [...new Set(required(environment, "SANITY_STUDIO_LOCALE_ROUTES").split(",").map((row) => row.trim()).filter(Boolean).map((row) => new Intl.Locale(row.split("|")[0].trim()).language))],
+    ...defaultContentLanguageOf(required(environment, "SANITY_STUDIO_LOCALE_ROUTES")),
     proofGalleries: proofGalleriesSetting(environment.SANITY_STUDIO_PROOF_GALLERIES),
     clientGalleryCleanup: cleanupSetting(environment.SANITY_STUDIO_CLIENT_GALLERY_CLEANUP),
     ...(siteOrigin ? { clientGallerySite: siteLocales(siteOrigin, localeTable) } : {}),

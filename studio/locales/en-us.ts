@@ -17,6 +17,8 @@ const resources = {
   "structure.categories.title": "Categories",
   "structure.article-end-galleries.title": "Article end galleries",
   "structure.polls.title": "Polls",
+  "structure.keywords.title": "Keywords",
+  "structure.keyword-categories.title": "Keyword categories",
 } as const;
 
 export default resources;

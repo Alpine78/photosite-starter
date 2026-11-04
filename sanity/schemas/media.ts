@@ -45,11 +45,16 @@
  * no-crop rule needs the true intrinsic ratio, and a hand-entered number is a
  * ratio that can be wrong.
  *
- * **`dynamicallyDiscoverable`, `privateOnly`, `canonicalPlacementId`, and
- * keywords.** Named by ADR-0002 and added by the stories that build their
- * features — AB#58, AB#122, AB#113, AB#68 — so this schema does not ship fields
- * nothing reads. Each is media-owned when it arrives, which is what keeps a
- * later reference from needing a second media entity.
+ * **`dynamicallyDiscoverable`, `privateOnly`, and `canonicalPlacementId`.** Named
+ * by ADR-0002 and added by the stories that build their features — AB#58, AB#122,
+ * AB#113 — so this schema does not ship fields nothing reads. Each is media-owned
+ * when it arrives, which is what keeps a later reference from needing a second
+ * media entity.
+ *
+ * **`keywords` and `expandedKeywordIds`.** ADR-0039 decision 2's effective public
+ * set and decision 3's derived closure. Both are read-only: the import (AB#57) and
+ * the re-sync (AB#69) write them together, because public matching reads only the
+ * closure and an edit to one alone would misreport results.
  *
  * **`indexable`.** Route-owned, not media-owned. The same photograph may appear
  * on an indexed page and an unlisted one, so it is a property of the public
@@ -57,6 +62,7 @@
  */
 
 import { captureSequenceField } from "./capture-sequence";
+import { isPrivateKeywordPath, KEYWORD_TYPE_NAME } from "./keyword-rules";
 import { LOCALIZED_TEXT_TYPE_NAME, uniqueLanguages } from "./localized-text";
 import type {
   SchemaTypeDefinition,
@@ -67,6 +73,29 @@ import type {
 import { publishedIdOf, validationClientOf } from "./validation";
 
 export const MEDIA_TYPE_NAME = "media";
+
+type KeywordReference = { readonly _ref?: unknown };
+
+/** A public document never refers to a private one: even the id could reveal a name. */
+function rejectsPrivateKeywords(value: readonly KeywordReference[] | undefined): SchemaValidationResult {
+  return (value ?? []).some((entry) => typeof entry._ref === "string" && isPrivateKeywordPath(entry._ref))
+    ? "A photograph's public keywords cannot include an internal keyword."
+    : true;
+}
+
+/** A warning only: a merge or retirement stays valid here until the re-sync re-points it. */
+async function checksKeywordsAreActive(
+  value: readonly KeywordReference[] | undefined,
+  context: SchemaValidationContext,
+): Promise<SchemaValidationResult> {
+  const refs = (value ?? []).map((entry) => entry._ref).filter((ref) => typeof ref === "string");
+  if (refs.length === 0) return true;
+  const stale = await validationClientOf(context, "published").fetch<boolean>(
+    `count(*[_id in $refs && status == "active"]) != count($refs)`,
+    { refs },
+  );
+  return stale ? "A keyword on this photograph is no longer active. The next keyword re-sync corrects it." : true;
+}
 
 /**
  * How this Studio's dataset can be read.
@@ -391,6 +420,26 @@ export function defineMediaType(
         description:
           "Allow visitors to ask about this photograph from a public gallery. On for newly created photographs; turn it off to prevent enquiries everywhere. The gallery must also allow enquiries. This does not authorize sales or delivery.",
         initialValue: true,
+      },
+      {
+        name: "keywords",
+        title: "Keywords",
+        type: "array",
+        of: [{ type: "reference", to: [{ type: KEYWORD_TYPE_NAME }] }],
+        readOnly: true,
+        description: "The public keywords of this photograph. Written by the keyword import and re-sync, not by hand.",
+        validation: (rule) => [
+          rule.custom(rejectsPrivateKeywords),
+          rule.custom(checksKeywordsAreActive).warning(),
+        ],
+      },
+      {
+        name: "expandedKeywordIds",
+        title: "Keywords with their parents",
+        type: "array",
+        of: [{ type: "string" }],
+        readOnly: true,
+        description: "Generated from the keywords and their parents. Public keyword searches read this list.",
       },
       ...(options.datasetVisibility === "private" ? [archiveLocatorField] : []),
     ],
