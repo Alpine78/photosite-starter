@@ -6,7 +6,7 @@ import { LanguageSwitch, type LanguageLink } from "@/components/language-switch"
 import { getBuiltInLabels, getDeploymentConfig } from "@/lib/deployment-config";
 import { effectiveGalleryPresentation } from "@/lib/gallery-presentation";
 import { projectGallerySlice } from "@/lib/gallery-slice-server";
-import { keywordGalleryQuery, type KeywordGalleryRoute } from "@/lib/keyword-gallery-route";
+import { keywordGalleryQuery, type KeywordGalleryRoute, type KeywordSelectionRoute } from "@/lib/keyword-gallery-route";
 import { languageName } from "@/lib/language-fallback";
 import { buildSearchPath } from "@/lib/locale-routes";
 import { getSiteSettings } from "@/lib/site-settings";
@@ -29,18 +29,22 @@ function languageLinks(locale: string, canonicalParam: string): readonly Languag
   );
 }
 
+/** Authorized on submit by `/api/enquiry`, as a curated gallery's form is. */
+export function KeywordGalleryEnquiry({ locale, selection, itemId }: { readonly locale: string; readonly selection: KeywordSelectionRoute; readonly itemId: string }) {
+  const galleryPath = `${buildSearchPath(getDeploymentConfig().localeRoutes, locale)}?${keywordGalleryQuery(selection.canonicalParam)}`;
+  return <GalleryItemEnquiry locale={locale} itemId={itemId} galleryTitle={keywordGalleryTitle(locale, selection.titles)} galleryPath={galleryPath} labels={getBuiltInLabels(locale)} />;
+}
+
 /**
  * A virtual gallery from the address alone (ADR-0012 §8): the selection lives in the URL, so
  * a reload, a shared link and browser history all restore it. Rendered on the server, with
  * one bounded page; the grid appends the rest and offers a real link without JavaScript.
  */
-export async function KeywordGalleryPage({ locale, route, enquire }: { readonly locale: string; readonly route: KeywordGalleryRoute; readonly enquire?: string }) {
+export async function KeywordGalleryPage({ locale, route }: { readonly locale: string; readonly route: KeywordGalleryRoute }) {
   const labels = getBuiltInLabels(locale);
   const { localeRoutes } = getDeploymentConfig();
   const galleryPath = `${buildSearchPath(localeRoutes, locale)}?${keywordGalleryQuery(route.canonicalParam)}`;
   const title = keywordGalleryTitle(locale, route.titles);
-  // Authorized on submit by `/api/enquiry`, as a curated gallery's form is.
-  if (enquire !== undefined) return <GalleryItemEnquiry locale={locale} itemId={enquire} galleryTitle={title} galleryPath={galleryPath} labels={labels} />;
   const slice = projectGallerySlice(route.page);
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6">

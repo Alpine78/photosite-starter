@@ -42,7 +42,7 @@ export function deploymentKeywordGalleryStore(): Promise<KeywordGalleryStore> {
   });
 }
 
-export type KeywordGalleryRoute = Readonly<{
+export type KeywordSelectionRoute = Readonly<{
   canonicalParam: string;
   /** `keywords` then `cursor`, ADR-0012 §8's stable order, with literal commas. */
   canonicalQuery: string;
@@ -50,6 +50,9 @@ export type KeywordGalleryRoute = Readonly<{
   redirect: boolean;
   /** Display names of the canonical keywords, in canonical order. */
   titles: readonly string[];
+}>;
+
+export type KeywordGalleryRoute = KeywordSelectionRoute & Readonly<{
   cursor: string | undefined;
   page: GalleryPage<DynamicGalleryResultItem>;
 }>;
@@ -70,6 +73,24 @@ export function readKeywordEnquiry(params: Readonly<Record<string, string | read
 
 export function keywordGalleryQuery(canonicalParam: string, cursor?: string): string {
   return `keywords=${canonicalParam}${cursor === undefined ? "" : `&cursor=${encodeURIComponent(cursor)}`}`;
+}
+
+/**
+ * The selection alone, for the enquiry view: it shows no photographs, so a fault in an unrelated
+ * photograph on the first page must not stop someone asking about this one. `undefined` is §8's 404.
+ */
+export async function resolveKeywordSelection(locale: string, rawKeywords: string, store?: KeywordGalleryStore): Promise<KeywordSelectionRoute | undefined> {
+  if (parseKeywordTokens(rawKeywords).length > MAX_RAW_KEYWORD_TOKENS) return undefined;
+  const { readVocabulary } = store ?? await deploymentKeywordGalleryStore();
+  const vocabulary = await readVocabulary(locale);
+  const selection = canonicalizeKeywordSelection(rawKeywords, vocabulary);
+  if (selection.state !== "selection") return undefined;
+  return {
+    canonicalParam: selection.canonicalParam,
+    canonicalQuery: keywordGalleryQuery(selection.canonicalParam),
+    redirect: selection.redirect,
+    titles: selection.canonicalIds.map((keywordId) => vocabulary.taxonomy.byId.get(keywordId)!.title),
+  };
 }
 
 /**

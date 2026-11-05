@@ -5,6 +5,7 @@ import {
   keywordGalleryQuery,
   readKeywordEnquiry,
   resolveKeywordGalleryRoute,
+  resolveKeywordSelection,
   type KeywordGalleryStore,
 } from "@/lib/keyword-gallery-route";
 import { buildGalleryHref, galleryContinuationHref } from "@/lib/gallery-slice";
@@ -16,6 +17,17 @@ const store: KeywordGalleryStore = {
   source: (locale) => createMockKeywordGallerySource(locale),
 };
 const route = (raw: string, cursor?: string | readonly string[]) => resolveKeywordGalleryRoute("en", raw, cursor, store);
+
+describe("the selection alone", () => {
+  it("resolves and canonicalizes without reading any photograph", async () => {
+    const refuse = () => { throw new Error("no photograph is read for an enquiry"); };
+    const selectionOnly: KeywordGalleryStore = { ...store, source: refuse };
+    expect(await resolveKeywordSelection("en-GB", "seaside", selectionOnly)).toMatchObject({ canonicalParam: "coast", canonicalQuery: "keywords=coast", redirect: true });
+    expect(await resolveKeywordSelection("en-GB", "coast", selectionOnly)).toMatchObject({ redirect: false, titles: [expect.any(String)] });
+    expect(await resolveKeywordSelection("en-GB", "not-a-keyword", selectionOnly)).toBeUndefined();
+    expect(await resolveKeywordSelection("en-GB", Array.from({ length: 16 }, (_, index) => `k${index}`).join(","), selectionOnly)).toBeUndefined();
+  });
+});
 
 describe("?enquire= beside a selection", () => {
   it.each([
