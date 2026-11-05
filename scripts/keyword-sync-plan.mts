@@ -21,6 +21,8 @@ import type { SeedMutation } from "./sanity-seed-http.mts";
 
 export const KEYWORD_RECORD_TYPE = "keywordRecord";
 export const KEYWORD_TAXONOMY_STATE_ID = "keywordTaxonomyState";
+/** On a private path, because a term can name anyone. `studio/keyword-review.ts` writes it; a test holds the two together. */
+export const KEYWORD_TERM_DECISIONS_ID = "keywordTermDecisions.current";
 
 export class KeywordSyncError extends Error {
   readonly code: string;
@@ -64,6 +66,8 @@ export type KeywordSyncInput = Readonly<{
   records: readonly KeywordSyncRecord[];
   /** `mediaId` → ExifTool `-G1` fields. Without an entry a medium re-maps its stored import. */
   imports?: ReadonlyMap<string, Readonly<Record<string, unknown>>>;
+  /** An editor's choices for flat terms several keywords answer to: match key → document id. */
+  termDecisions?: ReadonlyMap<string, string>;
   /** Opt the imported media in to keyword galleries. An explicit owner choice per run. */
   setDiscoverable?: boolean;
   now: string;
@@ -145,7 +149,7 @@ function planMedium(input: KeywordSyncInput, medium: KeywordSyncMedia, record: K
   const proposal = mapImportedKeywords(raw, input.vocabulary, {
     added: refIds(record?.keywordOverrides?.added),
     removed: refIds(record?.keywordOverrides?.removed),
-  }, { currentKeywords: [...refIds(medium.keywords), ...refIds(record?.internalKeywords)] });
+  }, { currentKeywords: [...refIds(medium.keywords), ...refIds(record?.internalKeywords)], ...(input.termDecisions === undefined ? {} : { termDecisions: input.termDecisions }) });
 
   // Only an explicit opt-in writes this. Otherwise each document keeps its own, because a draft may differ on purpose.
   const optIn = fields !== undefined && input.setDiscoverable === true;

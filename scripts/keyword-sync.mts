@@ -24,6 +24,7 @@ import { fileURLToPath } from "node:url";
 import {
   KEYWORD_RECORD_TYPE,
   KEYWORD_TAXONOMY_STATE_ID,
+  KEYWORD_TERM_DECISIONS_ID,
   KeywordSyncError,
   planKeywordSync,
   summarizeKeywordSync,
@@ -62,6 +63,7 @@ const VERSIONS_QUERY = `*[_id in path("versions.**")]._id`;
 const RECORD_PAGE_QUERY = `*[_type == "${KEYWORD_RECORD_TYPE}"] | order(_id asc) [$from...$to]{
   _id, _rev, importedKeywords, keywordOverrides, internalKeywords, reviewItems
 }`;
+const TERM_DECISIONS_QUERY = `*[_id == "${KEYWORD_TERM_DECISIONS_ID}"][0].decisions[]{key, "documentId": keyword._ref}`;
 const STATE_QUERY = `*[_id == "${KEYWORD_TAXONOMY_STATE_ID}"][0]{_rev, taxonomyVersion, resyncedVersion, publicationSequence}`;
 
 export type KeywordSyncState = Readonly<{ _rev: string; taxonomyVersion: number; resyncedVersion: number; publicationSequence: number }>;
@@ -118,6 +120,16 @@ async function readPages<T>(port: KeywordSyncPort, query: string): Promise<reado
   throw new KeywordSyncError("READ_TOO_LARGE");
 }
 
+/** Every decision affects every medium holding the term, so a damaged list stops the run rather than being half read. */
+export function parseTermDecisions(result: unknown): ReadonlyMap<string, string> {
+  if (result === null || result === undefined) return new Map();
+  if (!Array.isArray(result)) throw new KeywordSyncError("TERM_DECISIONS_MALFORMED");
+  return new Map(result.map((row: { key?: unknown; documentId?: unknown } | null) => {
+    if (typeof row?.key !== "string" || typeof row.documentId !== "string") throw new KeywordSyncError("TERM_DECISIONS_MALFORMED");
+    return [row.key, row.documentId] as const;
+  }));
+}
+
 async function readState(port: KeywordSyncPort): Promise<KeywordSyncState> {
   const state = await port.query(STATE_QUERY, {}) as KeywordSyncState | null;
   if (state === null || typeof state._rev !== "string") throw new KeywordSyncError("TAXONOMY_STATE_MISSING");
@@ -145,7 +157,8 @@ type RunOptions = Readonly<{
 export async function runKeywordSync(port: KeywordSyncPort, options: RunOptions): Promise<KeywordSyncResult & { readonly plan: KeywordSyncPlan }> {
   const initial = await readState(port);
   const readPlan = async () => {
-    const [vocabulary, media, records, versions] = await Promise.all([
+    const [termDecisions, vocabulary, media, records, versions] = await Promise.all([
+      port.query(TERM_DECISIONS_QUERY, {}),
       port.query(KEYWORD_SYNC_VOCABULARY_QUERY, {}),
       readPages<KeywordSyncMedia>(port, MEDIA_PAGE_QUERY),
       readPages<KeywordSyncRecord>(port, RECORD_PAGE_QUERY),
@@ -158,6 +171,7 @@ export async function runKeywordSync(port: KeywordSyncPort, options: RunOptions)
       vocabulary,
       media: media.map((medium) => ({ ...medium, hasVersion: versioned.has(medium._id) })),
       records,
+      termDecisions: parseTermDecisions(termDecisions),
       now: options.now,
       ...(options.imports === undefined ? {} : { imports: options.imports }),
       ...(options.setDiscoverable === undefined ? {} : { setDiscoverable: options.setDiscoverable }),
