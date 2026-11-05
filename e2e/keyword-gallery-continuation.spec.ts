@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 
 import { getBuiltInLabels } from "../src/lib/deployment-config";
 import { expect, test } from "./support/fixtures";
@@ -21,6 +21,8 @@ const SEARCH_PATH = `/${DEFAULT_SEARCH_NAMESPACE}`;
 const ARCHIVE = `${SEARCH_PATH}?keywords=archive`;
 const PAGE_SIZE = 24;
 const ARCHIVE_SIZE = 30;
+/** `keyword-gallery-page.tsx`. */
+const EAGER_ITEMS = 4;
 const labels = getBuiltInLabels(appUnderTestEnvironment.SITE_LOCALE);
 
 const gridItems = (page: Page) => page.getByRole("main").locator("[data-item-id]");
@@ -30,17 +32,21 @@ const itemIds = (page: Page) => gridItems(page).evaluateAll((nodes) => nodes.map
  * while it is being read, which throws rather than failing an assertion, and only `toPass` retries that.
  */
 const expectItems = (page: Page, expected: readonly string[]) => expect(async () => {
-  expect((await itemIds(page)).slice(0, expected.length)).toEqual(expected);
+  expect(await itemIds(page)).toEqual(expected);
 }).toPass();
 const nextHref = async (page: Page) => (await page.locator('a[rel="next"]').getAttribute("href"))!;
 const expectedArchive = Array.from({ length: ARCHIVE_SIZE }, (_, index) => `archive-${String(index + 1).padStart(2, "0")}`);
 
-/** The site's continuation setting decides how the next page is asked for. */
+/** Before hydration the control is a plain link that leaves the page. The header sets this once it has hydrated. */
+const hydrated = (page: Page) => expect(page.locator("html")).toHaveAttribute("data-language-menu", "");
+
 async function continueInPlace(page: Page) {
-  const control = page.getByRole("link", { name: labels.gallery.showMore });
-  if (await control.isVisible()) await control.click();
-  else await gridItems(page).last().scrollIntoViewIfNeeded();
+  await hydrated(page);
+  await page.getByRole("link", { name: labels.gallery.showMore }).click();
 }
+
+const expectViewerPosition = (dialog: Locator, position: number, total: number) =>
+  expect(dialog.getByText(`${position}${labels.lightbox.indexSeparator}${total}`, { exact: true })).toBeVisible();
 
 test.describe("continuing a keyword gallery", () => {
   test("the first page is one bounded page, and the rest of the archive is not in it", async ({ page, request }) => {
@@ -48,21 +54,35 @@ test.describe("continuing a keyword gallery", () => {
     expect(html).toContain(expectedArchive[PAGE_SIZE - 1]);
     expect(html).not.toContain(expectedArchive[PAGE_SIZE]);
     await page.goto(ARCHIVE, { waitUntil: "load" });
-    expect((await itemIds(page)).slice(0, PAGE_SIZE)).toEqual(expectedArchive.slice(0, PAGE_SIZE));
+    expect(await itemIds(page)).toEqual(expectedArchive.slice(0, PAGE_SIZE));
+  });
+
+  test("only the first screen of photographs loads eagerly, and none on a continuation page", async ({ page }) => {
+    const notLazy = (target: Page) => target.getByRole("main").locator('[data-item-id] img:not([loading="lazy"])');
+    await page.goto(ARCHIVE, { waitUntil: "load" });
+    await expect(gridItems(page)).toHaveCount(PAGE_SIZE);
+    expect(await notLazy(page).count()).toBeLessThanOrEqual(EAGER_ITEMS);
+    await page.goto(await nextHref(page), { waitUntil: "load" });
+    await expect(gridItems(page)).toHaveCount(ARCHIVE_SIZE - PAGE_SIZE);
+    await expect(notLazy(page)).toHaveCount(0);
   });
 
   test("the next page arrives in place, in order, with no repeat or gap", async ({ page }) => {
     await page.goto(ARCHIVE, { waitUntil: "load" });
-    await expect.poll(async () => (await gridItems(page).count()) >= PAGE_SIZE).toBe(true);
+    await expect(gridItems(page)).toHaveCount(PAGE_SIZE);
     await continueInPlace(page);
     await expect(gridItems(page)).toHaveCount(ARCHIVE_SIZE);
     expect(await itemIds(page)).toEqual(expectedArchive);
     await expect(page).toHaveURL(new RegExp(`${ARCHIVE.replace("?", "\\?")}$`));
+    // The address stayed on the first page, so that is what a reload restores.
+    await page.reload({ waitUntil: "load" });
+    await expectItems(page, expectedArchive.slice(0, PAGE_SIZE));
   });
 
   test("an open viewer continues past the last loaded photograph", async ({ page }) => {
     await page.goto(ARCHIVE, { waitUntil: "load" });
-    await expect.poll(async () => (await gridItems(page).count()) >= PAGE_SIZE).toBe(true);
+    await expect(gridItems(page)).toHaveCount(PAGE_SIZE);
+    await hydrated(page);
     const dialog = page.getByRole("dialog");
     const last = gridItems(page).nth(PAGE_SIZE - 1);
     await openLightbox(dialog, async () => {
@@ -70,7 +90,10 @@ test.describe("continuing a keyword gallery", () => {
       await page.keyboard.press("Enter");
     });
     await expect(gridItems(page)).toHaveCount(ARCHIVE_SIZE);
+    // The grid updates first and the viewer takes the new slides after it, so wait for its own count.
+    await expectViewerPosition(dialog, PAGE_SIZE, ARCHIVE_SIZE);
     await page.keyboard.press("ArrowRight");
+    await expectViewerPosition(dialog, PAGE_SIZE + 1, ARCHIVE_SIZE);
     await page.keyboard.press("Escape");
     await expect(dialog).toHaveCount(0);
     await expect(page.locator(`[data-item-id="${expectedArchive[PAGE_SIZE]}"]`)).toBeFocused();
@@ -80,15 +103,20 @@ test.describe("continuing a keyword gallery", () => {
 
 test.describe("restoring a keyword gallery", () => {
   test("a continuation address opens its own page directly, reloads to the same place, and offers the way back", async ({ page, request }) => {
-    const href = await nextHref(await (async () => { await page.goto(ARCHIVE); return page; })());
+    await page.goto(ARCHIVE);
+    const href = await nextHref(page);
     expect((await request.get(href)).status()).toBe(200);
     await page.goto(href, { waitUntil: "load" });
     expect(await itemIds(page)).toEqual(expectedArchive.slice(PAGE_SIZE));
     await page.reload({ waitUntil: "load" });
     expect(await itemIds(page)).toEqual(expectedArchive.slice(PAGE_SIZE));
+    await hydrated(page);
+    // Survives only a client navigation, so this shows the grid was replaced, not the document.
+    await page.evaluate(() => { (window as { sameDocument?: boolean }).sameDocument = true; });
     await page.getByRole("link", { name: labels.search.keywordBackToStart }).click();
     await expect(page).toHaveURL(new RegExp(`${ARCHIVE.replace("?", "\\?")}$`));
     await expectItems(page, expectedArchive.slice(0, PAGE_SIZE));
+    expect(await page.evaluate(() => (window as { sameDocument?: boolean }).sameDocument)).toBe(true);
   });
 
   test("back and forward restore each page of a selection", async ({ page }) => {
@@ -101,7 +129,7 @@ test.describe("restoring a keyword gallery", () => {
     await expectItems(page, expectedArchive.slice(PAGE_SIZE));
   });
 
-  test("a client navigation to another selection does not keep the previous photographs", async ({ page }) => {
+  test("the browser leads to each selection, showing only its photographs", async ({ page }) => {
     await page.goto(SEARCH_PATH);
     await page.getByRole("region", { name: labels.search.keywordBrowseHeading }).locator('a[href$="keywords=archive"]').click();
     await expectItems(page, expectedArchive.slice(0, PAGE_SIZE));
@@ -117,11 +145,14 @@ test.describe("refusals and isolation", () => {
     const href = await nextHref(page);
     const cursor = new URL(href, "http://x").searchParams.get("cursor")!;
     const tampered = `${cursor.slice(0, -2)}${cursor.endsWith("AA") ? "BB" : "AA"}`;
+    // The same selection answers in the other language without a cursor, so its refusal below is about the cursor.
+    const otherLanguage = `/${PREFIXED_LOCALE.prefix}/${PREFIXED_LOCALE.searchNamespace}?keywords=archive`;
+    expect((await request.get(otherLanguage, { maxRedirects: 0 })).status()).toBe(200);
     const refused = [
       `${ARCHIVE}&cursor=${encodeURIComponent(tampered)}`,
       `${ARCHIVE}&cursor=not-a-cursor`,
       `${SEARCH_PATH}?keywords=forest&cursor=${encodeURIComponent(cursor)}`,
-      `/${PREFIXED_LOCALE.prefix}/${PREFIXED_LOCALE.searchNamespace}?keywords=archive&cursor=${encodeURIComponent(cursor)}`,
+      `${otherLanguage}&cursor=${encodeURIComponent(cursor)}`,
     ];
     for (const path of refused) {
       const response = await request.get(path, { maxRedirects: 0 });
@@ -139,20 +170,26 @@ test.describe("refusals and isolation", () => {
     expect((await ask(ARCHIVE, cursor)).status()).toBe(200);
     expect((await ask(ARCHIVE, "not-a-cursor")).status()).toBe(404);
     expect((await ask(`${SEARCH_PATH}?keywords=forest`, cursor)).status()).toBe(404);
+    expect((await ask(ARCHIVE, `${cursor.slice(0, -2)}${cursor.endsWith("AA") ? "BB" : "AA"}`)).status()).toBe(404);
+    expect((await ask(`/${PREFIXED_LOCALE.prefix}/${PREFIXED_LOCALE.searchNamespace}?keywords=archive`, cursor)).status()).toBe(404);
   });
 
-  test("opted-out media and the keyworded video never appear, in a page or in the HTML", async ({ page, request }) => {
+  // The full eligibility rule, with video and private media, is tested in studio/keyword-gallery-archive-contract.test.ts, against the real queries.
+  test("opted-out media never appears, in a page or in the HTML", async ({ page, request }) => {
     for (const selection of ["forest", "coast", "archive"]) {
       const html = await (await request.get(`${SEARCH_PATH}?keywords=${selection}`)).text();
       expect(html, selection).not.toContain("lichen-stones");
-      expect(html, selection).not.toContain("sample-video");
     }
     await page.goto(`${SEARCH_PATH}?keywords=forest`);
     expect(await itemIds(page)).toEqual(["forest-stream"]);
   });
 
-  test("no provider or import field reaches the page", async ({ request }) => {
-    const html = await (await request.get(`${SEARCH_PATH}?keywords=coast`)).text();
-    expect(html).not.toMatch(/expandedKeywordIds|importedKeywords|keywordOverrides|internalKeywords|archiveLocator|seashore/);
+  test("no provider or import field reaches the page or the continuation endpoint", async ({ page, request }) => {
+    const forbidden = /expandedKeywordIds|importedKeywords|keywordOverrides|internalKeywords|archiveLocator|seashore/;
+    expect(await (await request.get(`${SEARCH_PATH}?keywords=coast`)).text()).not.toMatch(forbidden);
+    await page.goto(ARCHIVE);
+    const cursor = new URL(await nextHref(page), "http://x").searchParams.get("cursor")!;
+    const answer = await request.get(`/api/keyword-gallery?path=${encodeURIComponent(ARCHIVE)}&cursor=${encodeURIComponent(cursor)}`);
+    expect(await answer.text()).not.toMatch(forbidden);
   });
 });
