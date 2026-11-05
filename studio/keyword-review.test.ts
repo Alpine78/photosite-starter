@@ -4,7 +4,7 @@ import { evaluate, parse } from "groq-js/1";
 
 import { keywordDocument, keywordRow } from "../sanity/schemas/keyword-fixtures";
 import {
-  aggregateKeywordReview, KEYWORD_ALIAS_TARGET_QUERY, KEYWORD_ID_RESERVATION_QUERY, keywordAliasTargetParams, keywordReviewAction, keywordReviewCopy, keywordReviewOutcome, planAddAlias, planCreateKeywordDraft, proposedCategoryId, proposedKeywordId, proposedTitle, REPRESENTATIVE_MEDIA_LIMIT,
+  aggregateKeywordReview, KEYWORD_TERM_DECISIONS_ID, planChooseKeyword, KEYWORD_ALIAS_TARGET_QUERY, KEYWORD_ID_RESERVATION_QUERY, keywordAliasTargetParams, keywordReviewAction, keywordReviewCopy, keywordReviewOutcome, planAddAlias, planCreateKeywordDraft, proposedCategoryId, proposedKeywordId, proposedTitle, REPRESENTATIVE_MEDIA_LIMIT,
   type AliasTarget, type KeywordReviewGraph, type KeywordReviewGroup,
 } from "./keyword-review";
 
@@ -63,10 +63,25 @@ describe("what can be decided here", () => {
     ["unmatched-beside-paths", "new term", "decide"],
     ["path-mismatch", "root|leaf", "decide"],
     ["ambiguous", "root|leaf", "decide"],
-    ["ambiguous", "shared name", "fix-keywords"],
+    ["ambiguous", "shared name", "choose-candidate"],
     ["malformed-path", "root||leaf", "fix-source"],
   ])("%s %s → %s", (reason, key, action) => {
     expect(keywordReviewAction({ reason, key })).toBe(action);
+  });
+
+  it("records a choice among a flat term's keywords, replacing an earlier one for that term only", () => {
+    const shared = group({ reason: "ambiguous", key: "shared name", candidates: ["cycling", "harbour"] });
+    const existing = [{ _key: "a", key: "shared name", keyword: { _ref: "old" } }, { _key: "b", key: "another", keyword: { _ref: "kept" } }];
+    expect(planChooseKeyword(graph, shared, { documentId: "doc-harbour", keywordId: "harbour" }, existing, "u1")).toEqual({ mutations: [
+      { patch: { id: "keywordTaxonomyState", ifRevisionID: "state-1", inc: { publicationSequence: 1 } } },
+      { createOrReplace: { _id: KEYWORD_TERM_DECISIONS_ID, _type: "keywordTermDecisions", decisions: [existing[1], { _key: "u1", key: "shared name", keyword: { _type: "reference", _ref: "doc-harbour", _weak: true } }] } },
+    ] });
+  });
+
+  it("refuses a choice that is not one of the term's keywords, or a term a choice cannot settle", () => {
+    const shared = group({ reason: "ambiguous", key: "shared name", candidates: ["cycling", "harbour"] });
+    expect(planChooseKeyword(graph, shared, { documentId: "doc-other", keywordId: "other" }, [], "u")).toEqual({ refused: "This term cannot be decided here." });
+    expect(planChooseKeyword(graph, group(), { documentId: "doc-harbour", keywordId: "harbour" }, [], "u")).toEqual({ refused: "This term cannot be decided here." });
   });
 
   it("refuses both writes for a term no alias could settle, so nothing misleading is saved", () => {
@@ -134,7 +149,7 @@ describe("creating a keyword", () => {
     expect(planCreateKeywordDraft(graph, group(), input)).toEqual({
       draftId: "drafts.uuid-1",
       mutations: [{ create: {
-        _id: "drafts.uuid-1", _type: "keyword", keywordId: "new-term", title: [{ _key: "fi", language: "fi", value: "New Term" }],
+        _id: "drafts.uuid-1", _type: "keyword", keywordId: "new-term", title: [{ _key: "fi", _type: "localizedText", language: "fi", value: "New Term" }],
         category: { _type: "reference", _ref: place }, status: "active", visibility: "public",
       } }],
     });

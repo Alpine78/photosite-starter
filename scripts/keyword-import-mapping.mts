@@ -274,7 +274,11 @@ export function mapImportedKeywords(
   published: readonly unknown[],
   overrides: KeywordOverrides,
   /** What the medium holds now. A keyword the site has moved keeps its assignment while its old path goes to review. */
-  options: Readonly<{ currentKeywords?: readonly string[] }> = {},
+  options: Readonly<{
+    currentKeywords?: readonly string[];
+    /** An editor's choice for a flat term several keywords answer to (AB#70): match key → document id. */
+    termDecisions?: ReadonlyMap<string, string>;
+  }> = {},
 ): KeywordImportProposal {
   const vocabulary = new Vocabulary(published);
   const held = new Set((options.currentKeywords ?? []).flatMap((id) => {
@@ -330,7 +334,12 @@ export function mapImportedKeywords(
       consumed.push({ key, terms: sorted(new Set(terms)), coveredByKeyword: component.keyword?.keywordId ?? null, coveredByReviewPath: component.reviewPath });
       continue;
     }
-    const { ends } = resolveFlat(vocabulary, key);
+    const claimed = resolveFlat(vocabulary, key).ends;
+    // A choice only narrows what the vocabulary offers now, so a keyword changed since cannot be forced on a photograph.
+    const decision = options.termDecisions?.get(key);
+    const decidedRow = decision === undefined ? undefined : vocabulary.known(decision);
+    const decided = decidedRow === undefined ? undefined : claimed.find((end) => end.documentId === vocabulary.end(decidedRow).documentId);
+    const ends = decided === undefined ? claimed : [decided];
     const leaf = ends.length === 1 ? covering(ends[0]) : null;
     if (leaf !== null) {
       consumed.push({ key, terms: sorted(new Set(terms)), coveredByKeyword: leaf.keywordId, coveredByReviewPath: null });

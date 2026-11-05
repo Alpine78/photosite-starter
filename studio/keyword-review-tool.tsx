@@ -10,12 +10,14 @@ import {
   aggregateKeywordReview,
   KEYWORD_ALIAS_TARGET_QUERY,
   KEYWORD_ID_RESERVATION_QUERY,
+  KEYWORD_TERM_DECISIONS_QUERY,
   KEYWORD_REVIEW_RECORDS_QUERY,
   keywordAliasTargetParams,
   keywordReviewAction,
   keywordReviewCopy,
   keywordReviewOutcome,
   planAddAlias,
+  planChooseKeyword,
   planCreateKeywordDraft,
   proposedCategoryId,
   proposedKeywordId,
@@ -24,6 +26,7 @@ import {
   type KeywordReviewGraph,
   type KeywordReviewGroup,
   type KeywordReviewPlan,
+  type TermDecision,
 } from "./keyword-review";
 import { studioSettings } from "./environment";
 
@@ -89,6 +92,13 @@ function GroupCard({ group, keywords, categories, copy, locale, onSaved }: {
     return planAddAlias(graph, group, { ...target, hasDraft });
   });
 
+  const chooseKeyword = () => run(async (graph) => {
+    const chosen = keywords.find((option) => option._id === aliasTarget);
+    if (chosen?.keywordId === undefined) return { refused: copy.unavailable };
+    const existing = await raw.fetch<readonly TermDecision[] | null>(KEYWORD_TERM_DECISIONS_QUERY, {}, { tag: "keyword-review" });
+    return planChooseKeyword(graph, group, { documentId: chosen._id, keywordId: chosen.keywordId }, existing, crypto.randomUUID());
+  });
+
   const createDraft = () => run(async (graph) => planCreateKeywordDraft(graph, group, {
     title, keywordId, categoryRef, internal: visibility === "internal",
     idReserved: await raw.fetch<boolean>(KEYWORD_ID_RESERVATION_QUERY, { keywordId }, { tag: "keyword-review" }),
@@ -113,7 +123,18 @@ function GroupCard({ group, keywords, categories, copy, locale, onSaved }: {
         </Stack>
 
         {action === "fix-source" && <Text size={1}>{copy.fixSource}</Text>}
-        {action === "fix-keywords" && <Text size={1}>{copy.fixKeywords}</Text>}
+        {action === "choose-candidate" && <Stack gap={2}>
+          <Text weight="semibold" size={1}>{copy.chooseHeading}</Text>
+          <Flex gap={2}>
+            <Box flex={1}>
+              <Select aria-label={copy.aliasKeyword} value={aliasTarget} onChange={(event) => setAliasTarget(event.currentTarget.value)}>
+                <option value="">{copy.aliasChoose}</option>
+                {sorted.filter((option) => candidateIds.has(option.keywordId ?? "")).map((option) => <option key={option._id} value={option._id}>{option.name ?? option.keywordId} ({option.keywordId})</option>)}
+              </Select>
+            </Box>
+            <Button text={copy.chooseAction} tone="primary" disabled={busy || aliasTarget === ""} onClick={() => void chooseKeyword()} />
+          </Flex>
+        </Stack>}
         {action === "decide" && <Stack gap={2}>
           <Text weight="semibold" size={1}>{copy.aliasHeading}</Text>
           <Flex gap={2}>

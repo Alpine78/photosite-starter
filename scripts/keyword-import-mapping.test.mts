@@ -220,6 +220,15 @@ describe("paths", () => {
     expect(mapImportedKeywords(flat("Shared"), rows, none).review).toMatchObject([{ reason: "ambiguous", key: "shared" }]);
   });
 
+  it("follows an editor's choice for a flat name two categories share, while it stays one of the options", () => {
+    const rows = [keywordRow({ id: "one", title: "Shared", category: subject }), keywordRow({ id: "two", title: "Shared", category: "category-other" })];
+    const chosen = (documentId: string) => mapImportedKeywords(flat("Shared"), rows, none, { termDecisions: new Map([["shared", documentId]]) });
+    expect(chosen("doc-two")).toMatchObject({ mapped: ["two"], review: [] });
+    expect(chosen("doc-gone").review).toMatchObject([{ reason: "ambiguous" }]);
+    const unrelated = [...rows, keywordRow({ id: "three", title: "Other", category: subject })];
+    expect(mapImportedKeywords(flat("Shared"), unrelated, none, { termDecisions: new Map([["shared", "doc-three"]]) }).review).toMatchObject([{ reason: "ambiguous" }]);
+  });
+
   it("keeps a keyword the site moved on a medium already holding it, and still asks about the path", () => {
     const rows = [
       keywordRow({ id: "sport", title: "Sport", category: subject }),

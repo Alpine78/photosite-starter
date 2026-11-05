@@ -52,8 +52,12 @@ The report lists these as `failed`, and the others continue. A full re-sync with
 | `MEDIA_ID_REPEATED` | Two documents claim one `mediaId`. Every claimant fails, because no order makes one of them right. |
 | `VOCABULARY_REFERENCE_UNKNOWN` | An override names a keyword that does not exist. |
 
-A broken vocabulary stops the whole plan. An import naming no medium is listed under `unmatchedImports`, never guessed. Terms that do not resolve go to `reviewItems` on
+A broken vocabulary or damaged term decisions stop the whole plan. An import naming no medium is listed under `unmatchedImports`, never guessed. Terms that do not resolve go to `reviewItems` on
 the private record, and Studio's **Keyword review** tool shows them (AB#70). A decision there reaches the photographs on the next sync.
+
+## Term decisions
+
+A flat term several keywords answer to, such as one name in two categories, stays ambiguous however many aliases it gets. An editor chooses in Studio's **Keyword review** tool, and the choice goes in the private document `keywordTermDecisions.current`. The sync reads it on every run, so a choice also covers later imports. It applies only while that keyword is still one of the term's options; otherwise the term returns to review.
 
 ## Budget
 

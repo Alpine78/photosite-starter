@@ -15,8 +15,13 @@ import {
   proposeKeywordId,
   validateProspectiveKeywordGraph,
 } from "../sanity/schemas/keyword-rules";
+import { LOCALIZED_TEXT_TYPE_NAME } from "../sanity/schemas/localized-text";
 
 export const REPRESENTATIVE_MEDIA_LIMIT = 5;
+
+/** On a private path, because a term can name anyone. `npm run sync:keywords` reads it. */
+export const KEYWORD_TERM_DECISIONS_ID = "keywordTermDecisions.current";
+export const KEYWORD_TERM_DECISIONS_QUERY = `*[_id == "${KEYWORD_TERM_DECISIONS_ID}"][0].decisions`;
 
 /** Records with something to review, read with the signed-in editor's own access. */
 export const KEYWORD_REVIEW_RECORDS_QUERY = `*[_type == "keywordRecord" && count(reviewItems) > 0]{mediaId, reviewItems}`;
@@ -77,14 +82,14 @@ export function aggregateKeywordReview(records: readonly RawRecord[]): readonly 
 }
 
 /**
- * What a term's reason lets an editor decide here. A malformed path never reaches the vocabulary,
- * and a flat name shared by two categories stays ambiguous whatever is added: both are settled
- * where they live, in the source file or on the keywords themselves. An ambiguous path can
- * still be decided, because a whole-path alias takes precedence over the hierarchy.
+ * What a term's reason lets an editor decide here. A malformed path never reaches the vocabulary, so it
+ * is fixed in the source file. A flat name shared by two categories stays ambiguous whatever alias
+ * is added, so the editor chooses among its keywords. An ambiguous path can take an alias, because a
+ * whole-path alias takes precedence over the hierarchy.
  */
-export function keywordReviewAction(group: Pick<KeywordReviewGroup, "reason" | "key">): "decide" | "fix-source" | "fix-keywords" {
+export function keywordReviewAction(group: Pick<KeywordReviewGroup, "reason" | "key">): "decide" | "fix-source" | "choose-candidate" {
   if (group.reason === "malformed-path") return "fix-source";
-  return group.reason === "ambiguous" && !group.key.includes("|") ? "fix-keywords" : "decide";
+  return group.reason === "ambiguous" && !group.key.includes("|") ? "choose-candidate" : "decide";
 }
 
 /** The category the import's root term names, when one does. */
@@ -147,6 +152,33 @@ export function planAddAlias(graph: KeywordReviewGraph, group: KeywordReviewGrou
   };
 }
 
+export type TermDecision = Readonly<{ _key?: string; key?: unknown; keyword?: unknown }>;
+
+/**
+ * Records which keyword a flat term means, for every photograph holding it, now and in later imports. Serialized
+ * by the same state guard as every other keyword write, so the whole list can be replaced safely.
+ */
+export function planChooseKeyword(
+  graph: KeywordReviewGraph,
+  group: KeywordReviewGroup,
+  choice: Readonly<{ documentId: string; keywordId: string }>,
+  existing: readonly TermDecision[] | null | undefined,
+  uuid: string,
+): KeywordReviewPlan {
+  if (keywordReviewAction(group) !== "choose-candidate" || !group.candidates.includes(choice.keywordId)) return { refused: NOT_DECIDABLE };
+  const kept = (existing ?? []).filter((decision) => decision.key !== group.key);
+  return {
+    mutations: [
+      stateGuard(graph),
+      { createOrReplace: {
+        _id: KEYWORD_TERM_DECISIONS_ID,
+        _type: "keywordTermDecisions",
+        decisions: [...kept, { _key: uuid, key: group.key, keyword: { _type: "reference", _ref: choice.documentId, _weak: true } }],
+      } },
+    ],
+  };
+}
+
 export type NewKeywordInput = Readonly<{
   title: string;
   keywordId: string;
@@ -179,7 +211,7 @@ export function planCreateKeywordDraft(graph: KeywordReviewGraph, group: Keyword
     _id: documentId,
     _type: KEYWORD_TYPE_NAME,
     keywordId: input.keywordId,
-    title: [{ _key: input.language, language: input.language, value: title }],
+    title: [{ _key: input.language, _type: LOCALIZED_TEXT_TYPE_NAME, language: input.language, value: title }],
     category: { _type: "reference", _ref: input.categoryRef },
     ...(aliases.length === 0 ? {} : { aliases }),
     status: "active",
@@ -235,7 +267,8 @@ export function keywordReviewCopy(locale: string) {
     failed: "Tallennus ei onnistunut. Tarkista oikeutesi.",
     uncertain: "Tallennuksen tilaa ei saatu selville. Tarkista tilanne ennen uutta yritystä.",
     fixSource: "Korjaa polku lähdetiedostossa ja tuo kuva uudelleen.",
-    fixKeywords: "Tämä nimi kuuluu usealle avainsanalle. Muuta niitä niin, että nimi on vain yhdellä, ja aja synkronointi.",
+    chooseHeading: "Valitse, mitä avainsanaa tämä termi tarkoittaa",
+    chooseAction: "Käytä tätä",
     refused: { "This term cannot be decided here.": "Tätä termiä ei voi ratkaista täällä.", "This keyword is not active.": "Avainsana ei ole käytössä.", "This keyword has an unpublished draft. Publish or discard it first.": "Avainsanalla on julkaisematon luonnos. Julkaise tai hylkää se ensin.", "This keyword already has that alias.": "Avainsanalla on jo tämä vaihtoehtoinen nimi.", "A keyword needs a title.": "Avainsana tarvitsee nimen.", "An unpublished keyword already uses this ID.": "Julkaisematon avainsana käyttää jo tätä tunnistetta.", "Use 2–40 lowercase letters, digits and single hyphens.": "Käytä 2–40 pientä kirjainta, numeroa ja yksittäistä väliviivaa." } as Record<string, string>,
   } : {
     title: "Keyword review",
@@ -273,7 +306,8 @@ export function keywordReviewCopy(locale: string) {
     failed: "Saving failed. Check your permissions.",
     uncertain: "Whether the save succeeded could not be determined. Check before trying again.",
     fixSource: "Correct the path in the source file and import the photograph again.",
-    fixKeywords: "This name belongs to more than one keyword. Change them so that only one holds it, then run the sync.",
+    chooseHeading: "Choose which keyword this term means",
+    chooseAction: "Use this one",
     refused: {} as Record<string, string>,
   };
 }
