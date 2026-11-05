@@ -492,8 +492,8 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   webhook-invalidated story index, so keystrokes make no CMS request and a search term never
   reaches the CMS ([data flow](docs/search-data-flow.md)); results are `noindex` and thumbnails
   keep their native ratio. [ADR-0033](docs/adr/0033-unified-site-search.md) is still proposed and
-  decides how this shares its route with the keyword-gallery contract of ADR-0012. Image and
-  keyword search wait for the taxonomy chain (AB#55 and its dependants)*
+  decides how this shares its route with the keyword-gallery contract of ADR-0012. Keyword galleries,
+  browsing and suggestions are built; they need a published vocabulary and a keyword sync to show anything (AB#69)*
 - [x] Basic SEO (metadata, sitemap, robots.txt) — *settings-driven titles, descriptions,
   canonical URLs, and Open Graph output done for every current public page; `sitemap.xml`
   and `robots.txt` done (AB#85) — every published, public, indexable category, article,
@@ -810,7 +810,7 @@ AB#409's separate [synthetic provider fault tool](docs/client-gallery-cleanup-re
 now has [AB#410 real-provider evidence](docs/audits/client-gallery-cleanup-fault-rehearsal-2026-10-28.md)
 for all nine revision/reference/duplicate/injected-response scenarios, with independent
 test-target absence. This is local-operator evidence, not hosted Studio or activation.
-Keyword-driven dynamic galleries remain post-MVP. See the MVP checklist above and
+Keyword-driven dynamic galleries are built but not activated. See the MVP checklist above and
 [detailed implementation history](docs/feature-status.md).
 
 ### Gallery presentation (AB#157)

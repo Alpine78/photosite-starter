@@ -6,7 +6,7 @@
 
 import { CONTACT_REJECTION_STATUS, checkContactRequestHeaders, jsonNoStore, readBoundedBody } from "@/lib/contact-request";
 import { getDeploymentConfig } from "@/lib/deployment-config";
-import { getKeywordIndex } from "@/lib/keyword-index-access";
+import { getKeywordIndexWithinBudget } from "@/lib/keyword-index-access";
 import { suggestKeywords } from "@/lib/keyword-suggest";
 import { getLocaleRoute } from "@/lib/locale-routes";
 
@@ -40,7 +40,7 @@ export async function POST(request: Request): Promise<Response> {
   const route = getLocaleRoute(getDeploymentConfig().localeRoutes, parsed.lang);
   if (route === undefined) return rejected("invalid-locale");
   try {
-    return jsonNoStore({ status: "ok", suggestions: suggestKeywords(await getKeywordIndex(route.locale), parsed.q) }, 200);
+    return jsonNoStore({ status: "ok", suggestions: suggestKeywords(await getKeywordIndexWithinBudget(route.locale), parsed.q) }, 200);
   } catch (error) {
     console.error("[keyword-suggest] unavailable", error instanceof Error ? `${error.name}: ${error.message}` : "unknown error");
     return jsonNoStore({ status: "unavailable" }, 503);

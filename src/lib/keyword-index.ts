@@ -27,7 +27,10 @@ export type KeywordIndexEntry = Readonly<{
   aliasKeys: readonly string[];
   categorySlug: string;
   categoryTitle: string;
-  /** Parent chain from the root; excludes the keyword itself. */
+  /**
+   * Parent chain from the root; excludes the keyword itself. From the live hierarchy, so an ancestor with
+   * no eligible photograph has no entry of its own, and a reader must not assume every id here can be looked up.
+   */
   ancestorIds: readonly string[];
   /** Eligible media whose stored closure holds this keyword. */
   count: number;

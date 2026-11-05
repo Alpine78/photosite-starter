@@ -12,7 +12,8 @@ export const KEYWORD_SUGGESTION_LIMIT = 8;
 export const KEYWORD_QUERY_MIN_CHARACTERS = 2;
 export const KEYWORD_QUERY_MAX_CHARACTERS = 100;
 
-const wordStartsWith = (text: string, key: string): boolean => text.split(" ").some((word) => word.startsWith(key));
+/** From the start of any word, across spaces, so typing on past one word keeps matching. A hyphen separates words too. */
+const wordStartsWith = (text: string, key: string): boolean => ` ${text.replace(/-/gu, " ")}`.includes(` ${key.replace(/-/gu, " ")}`);
 
 /** Lower is better: the title's start, a word in the title, then an alias. `undefined` is no match. */
 function rank(entry: KeywordIndexEntry, key: string): number | undefined {

@@ -117,6 +117,8 @@ export type BuiltInLabels = {
     readonly keywordSelectorRemove: string;
     readonly keywordSelectorShow: string;
     readonly keywordSelectorMatches: string;
+    readonly keywordSelectorMatchesOne: string;
+    readonly keywordSelectorReplaced: string;
     readonly keywordSelectorNoMatches: string;
     readonly keywordSelectorUnavailable: string;
     readonly keywordSelectorAdded: string;
@@ -134,6 +136,8 @@ export type BuiltInLabels = {
     readonly submit: string;
     /** Prompt shown before a usable query: the empty and too-short states. */
     readonly prompt: string;
+    /** The dialog's way to the search page, where keywords can be browsed without typing. */
+    readonly allOptions: string;
     readonly searching: string;
     readonly storiesHeading: string;
     readonly servicesHeading: string;
@@ -779,6 +783,8 @@ const englishLabels = {
     keywordSelectorRemove: "Remove {name}",
     keywordSelectorShow: "Show photographs",
     keywordSelectorMatches: "{count} keywords found. Use the arrow keys to choose one.",
+    keywordSelectorMatchesOne: "{count} keyword found. Use the arrow keys to choose it.",
+    keywordSelectorReplaced: "{name} added. It replaces {replaced}, which it already includes.",
     keywordSelectorNoMatches: "No keywords found.",
     keywordSelectorUnavailable: "Keywords cannot be searched right now. Please try again shortly.",
     keywordSelectorAdded: "{name} added.",
@@ -794,6 +800,7 @@ const englishLabels = {
     placeholder: "Search stories and services",
     submit: "Search",
     prompt: "Type at least two letters to search.",
+    allOptions: "All search options",
     searching: "Searching…",
     storiesHeading: "Stories",
     servicesHeading: "Services",
@@ -1292,6 +1299,8 @@ const finnishLabels = {
     keywordSelectorRemove: "Poista {name}",
     keywordSelectorShow: "Näytä kuvat",
     keywordSelectorMatches: "Löytyi {count} avainsanaa. Valitse nuolinäppäimillä.",
+    keywordSelectorMatchesOne: "Löytyi {count} avainsana. Valitse nuolinäppäimillä.",
+    keywordSelectorReplaced: "{name} lisätty. Se korvaa valinnan {replaced}, jonka se jo sisältää.",
     keywordSelectorNoMatches: "Avainsanoja ei löytynyt.",
     keywordSelectorUnavailable: "Avainsanoja ei voi nyt hakea. Yritä hetken kuluttua uudelleen.",
     keywordSelectorAdded: "{name} lisätty.",
@@ -1307,6 +1316,7 @@ const finnishLabels = {
     placeholder: "Hae tarinoita ja palveluita",
     submit: "Hae",
     prompt: "Kirjoita vähintään kaksi kirjainta hakeaksesi.",
+    allOptions: "Kaikki hakutavat",
     searching: "Haetaan…",
     storiesHeading: "Tarinat",
     servicesHeading: "Palvelut",
