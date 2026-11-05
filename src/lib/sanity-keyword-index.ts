@@ -3,8 +3,12 @@
  * vocabulary, and the stored closure of every eligible medium, counted on the server because
  * one `count()` per keyword would cost about 68 ms each (`docs/keyword-query-benchmark.md`).
  * The closures are read in pages, because Next stores a response base64-encoded and will not
- * cache one past 2 MB. These are separate reads, so counts can briefly reflect another
- * generation than the names, and media changing between pages can shift a count by a little.
+ * cache one past 2 MB. They page by `mediaId` rather than by offset, so a medium published between
+ * pages cannot count another one twice. These are separate reads, so counts can briefly reflect
+ * another generation than the names.
+ *
+ * Known limit: each read walks every page, from the cache when it holds them. Caching the counts
+ * themselves would need one entry, but nothing in this project caches a computed value yet.
  */
 
 import "server-only";
@@ -12,11 +16,12 @@ import "server-only";
 import { buildKeywordIndex, type KeywordIndex, type KeywordIndexCategory } from "@/lib/keyword-index";
 import { isKeywordId } from "@/lib/media-keywords";
 import { getSanityClient, type SanityClient } from "@/lib/sanity-client";
-import { PUBLIC_MEDIA_FILTER, getFallbackLocale } from "@/lib/sanity-media";
-import { parsePublicKeywordTaxonomy } from "@/lib/sanity-media-keywords";
+import { KEYWORD_GALLERY_ELIGIBILITY } from "@/lib/sanity-keyword-gallery";
+import { getFallbackLocale } from "@/lib/sanity-media";
+import { parsePublicKeywordTaxonomy, PUBLIC_KEYWORD_FILTER } from "@/lib/sanity-media-keywords";
 import { isRecord, readString, selectLocalizedText, toLanguageSubtag } from "@/lib/sanity-values";
 
-export const KEYWORD_INDEX_VOCABULARY_QUERY = `*[_type == "keyword" && status == "active" && visibility == "public" && _id in path("*")]{
+export const KEYWORD_INDEX_VOCABULARY_QUERY = `*[${PUBLIC_KEYWORD_FILTER}]{
   keywordId,
   title[]{language, value},
   aliases,
@@ -37,7 +42,7 @@ export const KEYWORD_INDEX_CLOSURE_PAGE_SIZE = 1000;
 const MAX_CLOSURE_PAGES = 200;
 
 /** The same eligibility as a keyword gallery (ADR-0012 §2), or its counts could mislead. */
-export const KEYWORD_INDEX_CLOSURES_QUERY = `*[${PUBLIC_MEDIA_FILTER} && mediaType == "image" && dynamicallyDiscoverable == true && defined(expandedKeywordIds)] | order(mediaId asc) [$from...$to].expandedKeywordIds`;
+export const KEYWORD_INDEX_CLOSURES_QUERY = `*[${KEYWORD_GALLERY_ELIGIBILITY} && defined(expandedKeywordIds) && mediaId > $after] | order(mediaId asc) [0...$limit]{mediaId, expandedKeywordIds}`;
 
 export function parseKeywordClosures(result: unknown): readonly (readonly string[])[] {
   if (!Array.isArray(result)) throw new TypeError("the keyword closures are malformed");
@@ -60,6 +65,9 @@ export function parseKeywordIndex(vocabulary: unknown, closures: unknown, langua
     if (title === undefined) throw new TypeError(`keyword "${keywordId}" has a category with no title in the default language`);
     const order = row.categoryOrder ?? null;
     if (order !== null && typeof order !== "number") throw new TypeError(`keyword "${keywordId}" has a category with a malformed order`);
+    const known = categories.get(slug);
+    // A slug's uniqueness is a Studio check, and a query has no order, so last-wins would change between reads.
+    if (known !== undefined && (known.title !== title || known.order !== order)) throw new TypeError(`two keyword categories claim the slug "${slug}"`);
     categories.set(slug, { title, order: order as number | null });
     const rowAliases = row.aliases ?? [];
     if (!Array.isArray(rowAliases) || !rowAliases.every((alias) => typeof alias === "string")) throw new TypeError(`keyword "${keywordId}" has malformed aliases`);
@@ -72,12 +80,17 @@ export async function readSanityKeywordIndex(options: Readonly<{ language: strin
   const client = options.client ?? getSanityClient();
   const vocabulary = await client.query({ query: KEYWORD_INDEX_VOCABULARY_QUERY, params: {}, tag: "keyword-index.vocabulary" });
   const closures: unknown[] = [];
+  let after = "";
   for (let page = 0; ; page += 1) {
     if (page === MAX_CLOSURE_PAGES) throw new TypeError("the keyword closures did not end within the supported archive size");
-    const from = page * KEYWORD_INDEX_CLOSURE_PAGE_SIZE;
-    const rows = await client.query({ query: KEYWORD_INDEX_CLOSURES_QUERY, params: { from, to: from + KEYWORD_INDEX_CLOSURE_PAGE_SIZE }, tag: "keyword-index.closures" });
+    const rows = await client.query({ query: KEYWORD_INDEX_CLOSURES_QUERY, params: { after, limit: KEYWORD_INDEX_CLOSURE_PAGE_SIZE }, tag: "keyword-index.closures" });
     if (!Array.isArray(rows)) throw new TypeError("the keyword closures are malformed");
-    closures.push(...rows);
+    for (const row of rows) {
+      const mediaId = (row as { mediaId?: unknown } | null)?.mediaId;
+      if (typeof mediaId !== "string" || mediaId <= after) throw new TypeError("the keyword closures are malformed");
+      after = mediaId;
+      closures.push((row as { expandedKeywordIds: unknown }).expandedKeywordIds);
+    }
     if (rows.length < KEYWORD_INDEX_CLOSURE_PAGE_SIZE) break;
   }
   return parseKeywordIndex(vocabulary, closures, options.language, options.fallbackLanguage ?? getFallbackLocale());

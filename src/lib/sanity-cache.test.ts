@@ -56,15 +56,21 @@ describe("published Sanity query cache policy", () => {
 });
 
 describe("document invalidation map", () => {
-  it.each(["keyword", "keywordCategory", "keywordTaxonomyState", "media"])("expires the keyword index when a %s changes", (type) => {
+  it.each(["keyword", "keywordCategory", "keywordTaxonomyState"])("expires the keyword vocabulary when a %s changes", (type) => {
     expect(getSanityDocumentInvalidationTags([type])).toContain(SANITY_PUBLIC_CACHE_TAGS.keywords);
   });
 
-  it.each(["keyword-gallery.vocabulary", "keyword-index.vocabulary", "keyword-index.closures"])("caches %s under the keyword tag", (queryTag) => {
-    expect(getSanityPublicCachePolicy(queryTag)?.tags).toContain(SANITY_PUBLIC_CACHE_TAGS.keywords);
+  it("expires only the closures when a medium changes, because the vocabulary does not depend on it", () => {
+    expect(getSanityDocumentInvalidationTags(["media"])).toContain(SANITY_PUBLIC_CACHE_TAGS.keywordClosures);
+    expect(getSanityDocumentInvalidationTags(["media"])).not.toContain(SANITY_PUBLIC_CACHE_TAGS.keywords);
   });
 
-  it.each(["keyword-gallery.window", "keyword-gallery.boundary", "keyword-gallery.scope"])("leaves %s uncached, so a cursor checks the current media", (queryTag) => {
+  it("caches the index's reads under their own tags", () => {
+    expect(getSanityPublicCachePolicy("keyword-index.vocabulary")?.tags).toContain(SANITY_PUBLIC_CACHE_TAGS.keywords);
+    expect(getSanityPublicCachePolicy("keyword-index.closures")?.tags).toContain(SANITY_PUBLIC_CACHE_TAGS.keywordClosures);
+  });
+
+  it.each(["keyword-gallery.vocabulary", "keyword-gallery.window", "keyword-gallery.boundary", "keyword-gallery.scope"])("leaves %s uncached, so a cursor checks the current media", (queryTag) => {
     expect(getSanityPublicCachePolicy(queryTag)).toBeUndefined();
   });
 
@@ -74,7 +80,7 @@ describe("document invalidation map", () => {
       SANITY_PUBLIC_CACHE_TAGS.services,
       SANITY_PUBLIC_CACHE_TAGS.articles,
       SANITY_PUBLIC_CACHE_TAGS.galleries,
-      SANITY_PUBLIC_CACHE_TAGS.keywords,
+      SANITY_PUBLIC_CACHE_TAGS.keywordClosures,
       SANITY_PUBLIC_CACHE_TAGS.media,
       SANITY_PUBLIC_CACHE_TAGS.metadata,
       SANITY_PUBLIC_CACHE_TAGS.sitemap,

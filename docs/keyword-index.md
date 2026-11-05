@@ -73,7 +73,7 @@ one-hour cache lifetime.
 | --- | --- | --- |
 | A 500-keyword index, worst-case ids, titles and aliases | 250 KB of JSON | Test |
 | One page of closures: 1000 media, twenty 40-character ids each, base64-encoded as Next stores it | under 2 MB, Next's fetch cache item limit | Test |
-| Building and serializing it on a read | No fixed limit; recorded below | Measured once, because time is not deterministic |
+| Parsing, counting and building it on a read, without the reads themselves | 50 ms | Measured once, because time is not deterministic. Measured below at about 10 ms |
 
 Measured locally on 2026-11-05 with synthetic data, median of seven runs, on a development machine:
 
