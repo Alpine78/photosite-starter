@@ -83,3 +83,7 @@ country stay. Still open:
   what is published. It still has to be matched to published assets, and the owner's list of
   sensitive locations needs a way to remove location at upload. The re-upload itself needs a tool
   and an approved plan, and no CMS write has been made.
+
+**Update 2026-11-05:** point 6's plan and tool exist; see [the re-upload guide](../legacy-image-reupload.md). Of 5,272 published media,
+5,218 match a recorded source by hash, 2,481 of those have GPS for the owner's review, and all keep their image data. 48 have no recorded source and 6 are not JPEGs; these
+keep the asset they have. A local dry run prepared all 5,218 (2.51 GB) with no failures and uploaded nothing. **What remains is the owner's:** the review of locations, a decision on `--delete-replaced` against the plan's limits, and the run itself. No CMS write has been made.
