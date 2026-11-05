@@ -3,14 +3,24 @@
  * three-level hierarchy, broad parents down to narrow leaves, with popularity skewed so a root
  * matches thousands and a leaf a few dozen. Deterministic, so a failure reproduces.
  *
- * `assigned` is what an editor chose; `expandedKeywordIds` is what the sync stores. A test computes
- * its expected result from `assigned` and the hierarchy, independently of the stored closure.
+ * `assigned` is what an editor chose. The stored closure comes from the application's own
+ * `expandKeywordIds`, and a test computes its expected result separately, with `ancestorsOf`.
  *
- * The `excluded` cohort holds every keyword and the newest dates, so any leak surfaces at the
- * top of the first page rather than somewhere in the middle of the archive.
+ * The `excluded` cohort holds every keyword, the newest capture dates and the newest edits, so a
+ * leak surfaces at the top of the first page or in the cursor's scope. The `tied` cohort holds five
+ * unrelated keywords, with long runs of one capture time and undated rows, so that a multi-keyword
+ * selection has page boundaries inside a tie and among undated photographs.
  */
+import { buildPublicKeywordTaxonomy, expandKeywordIds, type PublicKeywordTaxonomy } from "../src/lib/media-keywords";
 
 export const ARCHIVE_MEDIA_COUNT = 8000;
+export const TIED_KEYWORDS = ["ties-a", "ties-b", "ties-c", "ties-d", "ties-e"] as const;
+/** Thirty at one time, twenty at another, then ten undated. */
+const TIED_COHORT: readonly (string | null)[] = [
+  ...Array.from({ length: 30 }, () => "2025-06-01T08:00:00Z"),
+  ...Array.from({ length: 20 }, () => "2025-05-01T08:00:00Z"),
+  ...Array.from({ length: 10 }, () => null),
+];
 export const ARCHIVE_PROJECT = { projectId: "zp7mbokg", dataset: "production", datasetVisibility: "public", apiVersion: "v2026-06-24" } as const;
 
 type Document = Readonly<Record<string, unknown>>;
@@ -44,6 +54,7 @@ function buildKeywords(): readonly ArchiveKeyword[] {
       }
     }
   }
+  for (const keywordId of TIED_KEYWORDS) keywords.push({ keywordId, parent: null, category: "season" });
   return keywords;
 }
 
@@ -53,9 +64,6 @@ export function ancestorsOf(keywordId: string, byId: ReadonlyMap<string, Archive
   return chain;
 }
 
-function closureOf(assigned: readonly string[], byId: ReadonlyMap<string, ArchiveKeyword>): readonly string[] {
-  return [...new Set(assigned.flatMap((keywordId) => ancestorsOf(keywordId, byId)))].sort();
-}
 
 const assetId = (index: number) => pad(index, 40);
 const DIMENSIONS = [[1600, 1067], [1067, 1600], [2048, 1152], [1200, 1200], [2048, 878]] as const;
@@ -80,7 +88,14 @@ function mediaDocument(mediaId: string, capturedAt: string | null, closure: read
     dynamicallyDiscoverable: true,
     ...(capturedAt === null ? {} : { capturedAt }),
     expandedKeywordIds: closure,
+    // Every document holds what must stay private, because a page reading the wrong field has to show it here.
+    internalKeywords: ["private-person"],
+    importedKeywords: { dcSubject: ["A private term"] },
+    keywordOverrides: { added: [] },
+    archiveLocator: "A private location",
     alt: [{ language: "en", value: `Photograph ${index}` }, { language: "fi", value: `Valokuva ${index}` }],
+    caption: [{ language: "en", value: `A caption of an ordinary length, the kind a photographer writes under photograph ${index}.` }, { language: "fi", value: `Tavallisen mittainen kuvateksti, jollaisen valokuvaaja kirjoittaa kuvan ${index} alle.` }],
+    credit: "Credit Line",
     image: { asset: { _ref: assets[index % assets.length]._id } },
     ...overrides,
   };
@@ -101,19 +116,21 @@ export function buildKeywordArchive(): KeywordArchive {
   const keywords = buildKeywords();
   const byId = new Map(keywords.map((keyword) => [keyword.keywordId, keyword]));
   const leaves = keywords.filter((keyword) => keyword.keywordId.includes("-l"));
+  const taxonomy: PublicKeywordTaxonomy = buildPublicKeywordTaxonomy(keywords.map((keyword) => ({ keywordId: keyword.keywordId, title: keyword.keywordId, categorySlug: keyword.category, parentKeywordId: keyword.parent })));
   // Squaring skews the pick, so early keywords are common and late ones rare, as in a real archive.
   const pickLeaf = () => leaves[Math.floor(random() ** 2 * leaves.length)].keywordId;
 
   const media: ArchiveMedia[] = [];
-  for (let index = 0; index < ARCHIVE_MEDIA_COUNT; index += 1) {
+  for (let index = 0; index < ARCHIVE_MEDIA_COUNT - TIED_COHORT.length; index += 1) {
     const assigned = [...new Set(Array.from({ length: 1 + Math.floor(random() * 6) }, pickLeaf))];
     // Four photographs share each second and every fiftieth is undated, so the tie-break does real work.
     const capturedAt = index % 50 === 0 ? null : new Date(Date.UTC(2026, 0, 1) - Math.floor(index / 4) * 60_000).toISOString().replace(".000Z", "Z");
     media.push({ mediaId: `archive-${pad(index, 5)}`, capturedAt, assigned });
   }
+  TIED_COHORT.forEach((capturedAt, index) => media.push({ mediaId: `tied-${pad(index, 3)}`, capturedAt, assigned: TIED_KEYWORDS }));
 
   const assets = buildAssets();
-  const everyLeaf = closureOf(leaves.map((leaf) => leaf.keywordId), byId);
+  const everyKeyword = keywords.map((keyword) => keyword.keywordId).sort();
   const newest = "2030-01-01T00:00:00Z";
   const excluded: readonly [string, Document][] = [
     ["excluded-opted-out", { dynamicallyDiscoverable: false }],
@@ -148,14 +165,17 @@ export function buildKeywordArchive(): KeywordArchive {
         category: { _ref: `category-${keyword.category}` },
         ...(keyword.parent === null ? {} : { parent: { _ref: `kw-${keyword.parent}` } }),
       })),
+      // One of each, because the path rule and the visibility rule must each hold alone.
       { _id: "keyword.private-person", _type: "keyword", keywordId: "private-person", status: "active", visibility: "internal", title: [{ language: "en", value: "A private name" }], category: { _ref: "category-subject" } },
+      { _id: "kw-private-plain-id", _type: "keyword", keywordId: "private-plain-id", status: "active", visibility: "internal", title: [{ language: "en", value: "Another private name" }], category: { _ref: "category-subject" } },
+      { _id: "keyword.public-on-private-path", _type: "keyword", keywordId: "public-on-private-path", status: "active", visibility: "public", title: [{ language: "en", value: "A wrongly placed name" }], category: { _ref: "category-subject" } },
       { _id: "kw-old-name", _type: "keyword", keywordId: "old-name", status: "merged", visibility: "public", mergedInto: { _ref: "kw-subject-r1" }, title: [{ language: "en", value: "Old name" }], category: { _ref: "category-subject" } },
       { _id: "kw-retired-name", _type: "keyword", keywordId: "retired-name", status: "retired", visibility: "public", title: [{ language: "en", value: "Retired name" }], category: { _ref: "category-subject" } },
     ],
     mediaDataset: [
       ...assets,
-      ...excluded.map(([mediaId, overrides], index) => mediaDocument(mediaId, newest, everyLeaf, assets, index, { internalKeywords: ["private-person"], importedKeywords: { dcSubject: ["A private term"] }, ...overrides })),
-      ...shuffled.map((item, index) => mediaDocument(item.mediaId, item.capturedAt, closureOf(item.assigned, byId), assets, index)),
+      ...excluded.map(([mediaId, overrides], index) => mediaDocument(mediaId, newest, everyKeyword, assets, index, { _updatedAt: newest, ...overrides })),
+      ...shuffled.map((item, index) => mediaDocument(item.mediaId, item.capturedAt, expandKeywordIds(item.assigned, taxonomy), assets, index)),
     ],
   };
 }

@@ -1,11 +1,11 @@
 import { evaluate, parse } from "groq-js/1";
 import { beforeAll, describe, expect, it } from "vitest";
 
-import { createKeywordGalleryCursorCodec, keywordGalleryScope, KEYWORD_GALLERY_PAGE_SIZE } from "../src/lib/keyword-gallery";
+import { createKeywordGalleryCursorCodec, keywordGalleryScope, KEYWORD_GALLERY_PAGE_SIZE, readKeywordGalleryPage } from "../src/lib/keyword-gallery";
 import { resolveKeywordGalleryRoute, type KeywordGalleryRoute, type KeywordGalleryStore } from "../src/lib/keyword-gallery-route";
 import { createSanityKeywordGallerySource, readSanityKeywordVocabulary } from "../src/lib/sanity-keyword-gallery";
 import type { SanityClient } from "../src/lib/sanity-client";
-import { ancestorsOf, ARCHIVE_MEDIA_COUNT, ARCHIVE_PROJECT, buildKeywordArchive, expectedMatches, type KeywordArchive } from "./keyword-archive-fixture";
+import { ancestorsOf, ARCHIVE_MEDIA_COUNT, ARCHIVE_PROJECT, buildKeywordArchive, expectedMatches, TIED_KEYWORDS, type KeywordArchive } from "./keyword-archive-fixture";
 
 /**
  * The completed keyword query at archive scale (AB#73): a raw `?keywords=` value through the real
@@ -21,7 +21,8 @@ const WALK_TIMEOUT = 180_000;
 const SIGNING_KEY = "k".repeat(32);
 const LOCALE = "en-GB";
 
-const PAGE_JSON_BUDGET = 12 * 1024;
+const PAGE_JSON_BUDGET = 16 * 1024;
+const MEDIA_FIELDS = ["type", "mediaId", "alt", "rendition", "caption", "credit"];
 const FIRST_PAGE_QUERIES = 3;
 const CONTINUATION_QUERIES = 4;
 
@@ -77,6 +78,20 @@ beforeAll(() => {
   store = storeFor(archive.vocabularyDataset, archive.mediaDataset);
 });
 
+/** The same query at another page size, so a boundary can land where the default one would not. */
+async function walkAtPageSize(canonicalIds: readonly string[], pageSize: number): Promise<readonly string[]> {
+  const ids: string[] = [];
+  let cursor: string | undefined;
+  do {
+    const page: Awaited<ReturnType<typeof readKeywordGalleryPage>> = await readKeywordGalleryPage({
+      locale: LOCALE, canonicalIds, taxonomyVersion: 4, source: store.source(LOCALE), cursorCodec: createKeywordGalleryCursorCodec(SIGNING_KEY), pageSize, ...(cursor === undefined ? {} : { cursor }),
+    });
+    ids.push(...page.items.map((item) => item.mediaId));
+    cursor = page.page.endCursor ?? undefined;
+  } while (cursor !== undefined);
+  return ids;
+}
+
 describe("the fixture", () => {
   it("represents the archive the work item names", () => {
     expect(archive.media).toHaveLength(ARCHIVE_MEDIA_COUNT);
@@ -98,7 +113,23 @@ describe("every page of a selection", () => {
     expect(await walk(selection.join(","))).toEqual(expectedMatches(archive, selection));
   }, WALK_TIMEOUT);
 
-  it("a narrow leaf, a parent over it and a root agree with the hierarchy, and a parent holds its children", async () => {
+  it.each([
+    [["place-r1-m1", "subject-r1-m1"]],
+    [["place-r1", "season-r1", "subject-r1"]],
+    [["place-r1", "season-r1", "subject-r1", "subject-r2"]],
+  ])("%j across pages, so a cursor carries a selection of several keywords", async (selection) => {
+    const expected = expectedMatches(archive, selection);
+    expect(expected.length).toBeGreaterThan(5);
+    expect(await walkAtPageSize(selection, 5)).toEqual(expected);
+  }, WALK_TIMEOUT);
+
+  it.each([[KEYWORD_GALLERY_PAGE_SIZE], [7]])("five keywords at page size %i, with boundaries inside a tie and among undated photographs", async (pageSize) => {
+    const expected = expectedMatches(archive, TIED_KEYWORDS);
+    expect(expected).toHaveLength(60);
+    expect(await walkAtPageSize([...TIED_KEYWORDS].sort(), pageSize)).toEqual(expected);
+  }, WALK_TIMEOUT);
+
+  it("a narrow leaf and a parent over it agree with the hierarchy, and a parent holds its children", async () => {
     const leaf = "season-r6-m5-l4", middle = "season-r6-m5";
     const leafIds = await walk(leaf), middleIds = await walk(middle);
     expect(leafIds).toEqual(expectedMatches(archive, [leaf]));
@@ -186,17 +217,21 @@ describe("isolation", () => {
   }, WALK_TIMEOUT);
 
   it("answers nothing for an internal or a retired keyword, and an id is the only token", async () => {
-    for (const token of ["private-person", "retired-name", "A private name", "Name of subject-r1", "nonexistent"]) expect(await route(token)).toBeUndefined();
+    for (const token of ["private-person", "private-plain-id", "public-on-private-path", "retired-name", "A private name", "Name of subject-r1", "nonexistent"]) expect(await route(token)).toBeUndefined();
   }, WALK_TIMEOUT);
 
-  it("puts nothing private in a page, and no field the public contract does not name", async () => {
-    const serialized = JSON.stringify((await route("subject-r1"))!.page);
-    expect(serialized).not.toMatch(/private|importedKeywords|internalKeywords|keywordOverrides|expandedKeywordIds|capturedAt|archiveLocator|_rev/);
+  it("puts nothing private in a page, though every photograph holds it, and only the fields the public contract names", async () => {
+    const { page } = (await route("subject-r1"))!;
+    expect(JSON.stringify(page)).not.toMatch(/private|importedKeywords|internalKeywords|keywordOverrides|expandedKeywordIds|capturedAt|archiveLocator|orderKey|_rev/i);
+    for (const item of page.items) {
+      for (const key of Object.keys(item)) expect(["itemId", "mediaId", "media", "enquiryAllowed"]).toContain(key);
+      for (const key of Object.keys(item.media)) expect(MEDIA_FIELDS).toContain(key);
+    }
   }, WALK_TIMEOUT);
 });
 
 describe("what one request costs", () => {
-  it("a first page reads a bounded window, never the whole match set", async () => {
+  it("a first page gets a bounded window back, never the whole match set", async () => {
     queries = [];
     await route("subject-r1");
     expect(queries).toHaveLength(FIRST_PAGE_QUERIES);

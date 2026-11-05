@@ -8,15 +8,17 @@ The budgets below are **proposed from local measurements** and need the owner's 
 ## What runs in CI
 
 `studio/keyword-gallery-archive-contract.test.ts` sends a raw `?keywords=` value through the real route, queries and projection, evaluated by GROQ over `studio/keyword-archive-fixture.ts`:
-8000 synthetic media and 468 keywords on three levels, with popularity skewed: the broadest root matches 4,569 photographs, and a leaf 27 to 1,363 with a median of 54. Expected results come from the assignments and the hierarchy, not from the stored closure.
+8000 synthetic media and 473 keywords on three levels, with popularity skewed: the broadest root matches 4,533 photographs, and a leaf 27 to 1,352 with a median of 54. The stored closure comes from the application's own `expandKeywordIds`, while expected results come separately from the assignments and the hierarchy.
 
 | Correctness | How it is checked |
 | --- | --- |
-| Intersections of one to five keywords, and hierarchy | Every page walked and compared with the expected list |
-| No repeat or gap | The same walk, for a parent over 12 pages |
+| Intersections of one to five keywords, and hierarchy | Every page walked and compared with the expected list, with cursors carrying selections of two to five keywords |
+| No repeat or gap | The same walk, for a parent over 12 pages, and for a cohort with page boundaries inside a tie and among undated photographs |
 | One address and cache identity | Ancestor collapse, order, repeats, spaces and a merged id all reach one canonical value and one cursor |
 | Cursor scope | A cursor fails for another selection, language, taxonomy version, changed photograph or signing key |
-| Isolation | Opted-out, private, non-renderable and video media hold every keyword and the newest date, yet never appear, even under a correctly signed cursor. Internal and retired keywords answer nothing |
+| Isolation | Opted-out, private, non-renderable and video media hold every keyword, the newest capture date and the newest edit, yet never appear and never move a cursor's scope, even under a correctly signed cursor. Every photograph holds private fields, and a page may carry only named ones. Internal and retired keywords answer nothing, and the path and visibility rules are each tested alone |
+
+**This test was checked by breaking the code.** Removing the keyset's tie-break, the visibility rule or the path rule, widening the cursor's scope past eligible media, and adding a field to a page each make it fail. Before that check, three of them passed.
 
 The fixture models query semantics, not Sanity's perspective, access control or speed. Draft exclusion therefore stays covered by the client's published perspective, not by this test.
 
@@ -30,9 +32,9 @@ The first group is checked on every run, because it does not depend on the machi
 | --- | --- | --- | --- |
 | CMS queries for a first page | 3 | 3 | Test |
 | CMS queries for a continuation, however deep | 4 | 4 | Test |
-| Rows read for a page | page size + 1 (25) | 25 | Test |
-| A page of 24 photographs from the adapter | 12 KB of JSON | 6.6 KB | Test |
-| Elements added per photograph | 30 | see the test | Playwright |
+| Rows returned for a page, which says nothing about the work the store does to find them | page size + 1 (25) | 25 | Test |
+| A page of 24 photographs from the adapter, each with a caption in two languages and a credit | 16 KB of JSON | 11.3 KB | Test |
+| Elements in the grid per photograph, without page chrome | 6 | 4 | Playwright |
 
 Time and browser figures vary by machine, so they were measured once rather than asserted. The budgets are the limit at which a change should be questioned:
 
@@ -59,7 +61,7 @@ Locally on 2026-11-05 in Chromium with that profile, against a production build 
 - The server was local, so there was no network distance to a CDN or Sanity beyond the emulation.
 - A desktop CPU under a 4× slowdown is not a phone.
 
-Server-side steps over the fixture, median of seven runs: parsing the vocabulary (106 KB) 0.2 ms, building the index with counts over 8000 closures 4 ms, one suggestion 0.2 ms and 955 bytes. Walking the broadest root once, 4,569 photographs over 191 pages, gave no repeat or gap and took 53 s of GROQ evaluation. CI walks a parent of 286 photographs over 12 pages to save that minute.
+Server-side steps over the fixture, median of seven runs: parsing the vocabulary (106 KB) 0.2 ms, building the index with counts over 8000 closures 4 ms, one suggestion 0.2 ms and 955 bytes. Walking the broadest root once, 4,533 photographs over 189 pages, gave no repeat or gap and took 49 s of GROQ evaluation. CI walks a parent of 283 photographs over 12 pages to save that minute.
 
 ## A known limit
 
@@ -69,7 +71,7 @@ The grid does not virtualize, so the DOM grows linearly: 23,405 nodes at 984 pho
 
 These need something this repository cannot provide alone:
 
-- **Live CMS latency:** a dataset holding the fixture. The `preview` dataset would need 8000 synthetic documents written with the owner's authorization, and the document limit checked first. Production's media have no keyword fields until `sync:keywords` runs.
+- **Live CMS latency:** a dataset holding the fixture. The `preview` dataset would need 8000 synthetic documents written with the owner's authorization, and the document limit checked first. Production's media have no keyword fields until `sync:keywords` runs, which AB#69 adds.
 - **Real image weight and cache behaviour:** real media through the optimizer and CDN, on a deployed Preview.
 - **Physical device and screen reader:** a phone on a real network, with VoiceOver or TalkBack, through typeahead, first page, Show more and the viewer.
 - **The owner's agreement** on the budgets and the profile above.
