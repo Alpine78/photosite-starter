@@ -2,6 +2,10 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Public keyword index, 2026-11-05 — AB#59 **Active**: a server-side, per-language value with public counts for the
+typeahead and browsable index, documented in [keyword-index.md](keyword-index.md). Nothing renders it yet. The live webhook's
+filter needs the three keyword types added after this deploys; until then the index converges within an hour.
+
 Keyword gallery page, 2026-11-05 — AB#71 **Active**: `?keywords=` on the search route now renders a server-side
 gallery with the shared grid, lightbox and continuation, instead of a 404. Every spelling defect redirects once after
 validation; an invalid selection or cursor answers 404 and is never redirected. `noindex`, no sitemap entry. It shows
