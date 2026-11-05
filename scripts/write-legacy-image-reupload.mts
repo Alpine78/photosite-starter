@@ -173,9 +173,15 @@ export async function main(argv: readonly string[]): Promise<ReuploadResult> {
   }
 }
 
+/** A run with failures is not a finished run, even though it reports what it did. */
+export function reuploadExitCode(result: Pick<ReuploadResult, "outcome" | "failed">): number {
+  if (result.outcome === "conflict") return 3;
+  return result.failed.length > 0 ? 1 : 0;
+}
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   main(process.argv.slice(2)).then(
-    (result) => { console.log(JSON.stringify({ ...result, failed: result.failed.length })); if (result.outcome === "conflict") process.exitCode = 3; },
+    (result) => { console.log(JSON.stringify({ ...result, failed: result.failed.length })); process.exitCode = reuploadExitCode(result); },
     (error: Error) => { console.error(`[write-legacy-image-reupload] ${error.message}`); process.exitCode = 2; },
   );
 }

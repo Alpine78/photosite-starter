@@ -96,9 +96,9 @@ export function buildPublishedReuploadPlan(
   };
 }
 
-/** What an owner approves: which medium, at which revision, from which bytes, which lose their location, and whether old assets go. */
+/** What an owner approves: which medium, at which revision, replacing which asset, from which bytes, which lose their location, and whether old assets go. */
 export function reuploadApprovalDigest(planned: readonly ReuploadPlanned[], sensitive: ReadonlySet<string>, deleteReplaced = false): string {
-  const rows = planned.map((row) => [row.mediaId, row._id, row._rev, row.contentHash, sensitive.has(row.mediaId)]);
+  const rows = planned.map((row) => [row.mediaId, row._id, row._rev, row.assetRef, row.contentHash, sensitive.has(row.mediaId)]);
   return createHash("sha256").update(JSON.stringify({ rows, deleteReplaced })).digest("hex");
 }
 

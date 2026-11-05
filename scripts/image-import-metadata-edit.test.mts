@@ -89,6 +89,36 @@ function expectKeptAndRemoved(tags: Record<string, unknown>) {
   expect(tags.ExposureTime).toBeDefined();
 }
 
+const EVERY_PLACE = [
+  "-XMP-exif:GPSLatitude=60.1", "-XMP-exif:GPSDestLatitude=60.2", "-XMP-exif:GPSDestLongitude=24.8",
+  "-XMP-iptcExt:LocationShownCity=A city shown", "-XMP-iptcExt:LocationCreatedCity=A city created",
+  "-XMP-photoshop:City=A city", "-XMP-iptcCore:Location=A place", "-IPTC:City=A city", "-IPTC:ContentLocationName=A content place",
+] as const;
+
+describe("removing a sensitive photograph's location", () => {
+  it.each([["keeping the image data", 400, 300], ["re-encoding a large one", 2400, 1600]])("leaves no place behind when %s, and keeps the creator's own city", async (_name, width, height) => {
+    const source = await fixture(width, height, [...EVERY_PLACE, "-XMP-iptcCore:CreatorCity=The creator's city"]);
+    const { bytes } = await prepareJpegForImport(source, tool, { removeLocation: true });
+    const directory = await mkdtemp(path.join(tmpdir(), "location-"));
+    try {
+      const file = path.join(directory, "result.jpg");
+      await writeFile(file, bytes);
+      const fields = await tool.readRaw(file, { readArgs: ["-G1", "-u"] }) as unknown as Record<string, unknown>;
+      const text = JSON.stringify(Object.fromEntries(Object.entries(fields).filter(([key]) => !key.startsWith("File:") && !key.startsWith("SourceFile"))));
+      expect(text).not.toMatch(/GPS|A city|A place|A content place/);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  it("refuses an image when a tool leaves a place behind, rather than uploading it", async () => {
+    const source = await fixture(400, 300, ["-XMP-iptcExt:LocationShownCity=A city shown"]);
+    const write = tool.write.bind(tool) as (file: string, tags: object, options: { writeArgs: string[] }) => Promise<unknown>;
+    const stubborn = { write: (file: string, tags: object, options: { writeArgs: string[] }) => write(file, tags, { writeArgs: options.writeArgs.filter((argument) => !argument.includes("iptcExt")) }), readRaw: tool.readRaw.bind(tool) } as unknown as ImportMetadataTool;
+    await expect(prepareJpegForImport(source, stubborn, { removeLocation: true })).rejects.toMatchObject({ code: "METADATA_REMAINS" });
+  }, 60_000);
+});
+
 describe("JPEG import metadata", () => {
   it("edits only metadata at the 2048 px bound, keeping the compressed image data", async () => {
     const source = await fixture(2048, 1024);

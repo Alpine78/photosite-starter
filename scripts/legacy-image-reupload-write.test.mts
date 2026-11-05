@@ -13,7 +13,7 @@ import {
   buildPublishedReuploadPlan, indexAssetRequirements, parseSensitiveList, reuploadApprovalDigest,
   type PublishedMedium, type ReuploadPlanned, type ReuploadSource,
 } from "./legacy-image-reupload-match.mts";
-import { parseArguments, resolveSource, runLegacyImageReupload, type ReuploadPort } from "./write-legacy-image-reupload.mts";
+import { parseArguments, resolveSource, reuploadExitCode, runLegacyImageReupload, type ReuploadPort } from "./write-legacy-image-reupload.mts";
 
 const tool = createImportMetadataTool();
 afterAll(() => tool.end());
@@ -24,6 +24,19 @@ const medium = (mediaId: string, overrides: Partial<PublishedMedium> = {}): Publ
 const hash = (seed: string) => createHash("sha256").update(seed).digest("hex");
 const source = (name: string, overrides: Partial<ReuploadSource> = {}): ReuploadSource => ({ path: name, sha256: hash(name), bytes: 10, action: "keep-compressed-data", gps: "absent", ...overrides });
 const requirement = (mediaId: string, file: string) => ({ mediaId, sourceLocator: file, contentHash: hash(file) });
+
+describe("the exit status", () => {
+  it.each([
+    [{ outcome: "written", failed: [] }, 0],
+    [{ outcome: "prepared", failed: [] }, 0],
+    [{ outcome: "written", failed: [{}] }, 1],
+    [{ outcome: "prepared", failed: [{}] }, 1],
+    [{ outcome: "conflict", failed: [] }, 3],
+    [{ outcome: "conflict", failed: [{}] }, 3],
+  ])("%j → %i", (result, code) => {
+    expect(reuploadExitCode(result as never)).toBe(code);
+  });
+});
 
 describe("matching published media to sources", () => {
   const requirements = indexAssetRequirements([requirement("a", "a.jpg"), requirement("gone", "gone.jpg"), requirement("changed", "changed.jpg"), requirement("png", "png.png"), requirement("bad", "bad.jpg"), requirement("no-asset", "a.jpg")]);
@@ -64,6 +77,8 @@ describe("the approval", () => {
     expect(reuploadApprovalDigest(planned, new Set(), true)).not.toBe(base);
     expect(reuploadApprovalDigest(planned, new Set(["a"]))).not.toBe(base);
     expect(reuploadApprovalDigest([{ ...planned[0], _rev: "other" }], new Set())).not.toBe(base);
+    // The asset is what `--delete-replaced` deletes, so an altered plan must not keep the approval.
+    expect(reuploadApprovalDigest([{ ...planned[0], assetRef: "image-another" }], new Set())).not.toBe(base);
     expect(reuploadApprovalDigest([{ ...planned[0], contentHash: "other" }], new Set())).not.toBe(base);
   });
 

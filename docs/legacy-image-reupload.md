@@ -48,11 +48,14 @@ page do not receive what this restores. It stays in the stored original, for the
 
 ## What protects a run
 
-- **The digest** covers each medium, its revision and source hash, the sensitive list and `--delete-replaced`.
+- **The digest** covers each medium, its revision, the asset it replaces and its source hash, the sensitive list and `--delete-replaced`.
+- **A sensitive file is read back in full** after its location is removed. A field that still names a place fails that medium.
 - **The source is hashed again** before preparing, and each prepared file is checked: image data unchanged, nothing lost but what the rules remove.
 - **Each medium is patched under the plan's revision,** so an edit since then stops the run (exit code 3) rather than being overwritten. Build a fresh plan and continue: uploading the same bytes yields the same asset, so a finished medium is skipped.
 - **Uploaded dimensions must match** the prepared file. A mismatch fails that medium and moves nothing.
 - **`--delete-replaced` is permanent.** It deletes each old asset right after its medium moves, and Sanity refuses one that something still refers to. A cached page can show a broken image until the webhook has expired it. An old URL elsewhere stops working.
+
+The command exits 0 when everything went through, 1 when any medium failed, 2 on an error before the run, and 3 on a revision conflict.
 
 ## What it does not do
 

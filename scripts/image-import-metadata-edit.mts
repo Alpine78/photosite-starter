@@ -58,12 +58,20 @@ const STALE_ARGUMENTS: readonly string[] = [
  * creator's own city and country are contact details, not this, so they stay.
  */
 const LOCATION_TAGS = [
-  "XMP-exif:GPSLatitude", "XMP-exif:GPSLongitude", "XMP-exif:GPSAltitude", "XMP-exif:GPSAltitudeRef", "XMP-exif:GPSTimeStamp", "XMP-exif:GPSImgDirection", "XMP-exif:GPSImgDirectionRef",
+  "XMP:GPS*", "XMP-iptcExt:LocationCreated", "XMP-iptcExt:LocationShown",
   "XMP-photoshop:City", "XMP-photoshop:State", "XMP-photoshop:Country", "XMP-iptcCore:Location", "XMP-iptcCore:CountryCode",
   "IPTC:City", "IPTC:Sub-location", "IPTC:Province-State", "IPTC:Country-PrimaryLocationName", "IPTC:Country-PrimaryLocationCode",
+  "IPTC:ContentLocationName", "IPTC:ContentLocationCode",
 ] as const;
 const LOCATION_ARGUMENTS: readonly string[] = ["-GPS:all=", ...LOCATION_TAGS.map((tag) => `-${tag}=`)];
-const isLocationField = (field: string): boolean => field.startsWith("GPS:") || (LOCATION_TAGS as readonly string[]).includes(field);
+
+/**
+ * Any field naming a place, by its name rather than by the list above, so the check after removal
+ * also covers what the list missed: a field left behind fails the image instead of being uploaded.
+ * `CreatorCity` and the like do not match, because the name has to start with the place.
+ */
+const LOCATION_FIELD_NAME = /^(?:GPS|Location|Sub-?location|City$|State$|Province|Country|ContentLocation)/;
+const isLocationField = (field: string): boolean => LOCATION_FIELD_NAME.test(field.split(":").at(-1)!);
 
 export const REMOVAL_ARGUMENTS: readonly string[] = REMOVED_TAGS.map((tag) => `-${tag}=`);
 
@@ -96,6 +104,18 @@ function assertResult(result: Uint8Array, expectedCompressedData: string, remove
 
 export type ImportMetadataTool = Pick<ExifTool, "write" | "readRaw">;
 
+const readFields = (tool: ImportMetadataTool, file: string) => tool.readRaw(file, { readArgs: ["-G1", "-u"] }) as unknown as Promise<Record<string, unknown>>;
+
+/** `Composite` is computed from other fields, and `File` describes the copy. Neither is stored. */
+async function assertNoLocation(tool: ImportMetadataTool, file: string): Promise<void> {
+  let fields: Record<string, unknown>;
+  try { fields = await readFields(tool, file); }
+  catch { throw new ImportMetadataError("TOOL_FAILED"); }
+  for (const field of Object.keys(fields)) {
+    if (field.includes(":") && !/^(?:Composite|File|System|ExifTool):/.test(field) && isLocationField(field)) throw new ImportMetadataError("METADATA_REMAINS");
+  }
+}
+
 /**
  * `useMWG: false` is essential, and the wrapper allows it only per instance: with its
  * default a copy rewrote the IPTC and XMP creator from the EXIF artist, silently replacing
@@ -127,9 +147,8 @@ const NOT_COMPARED_FIELD = new Set(["Photoshop:XResolution", "Photoshop:YResolut
  * whole groups passed when ExifTool had dropped one custom XMP property next to others.
  */
 async function assertNothingLost(tool: ImportMetadataTool, source: string, result: string, removed: readonly string[], removeLocation: boolean): Promise<void> {
-  const read = (file: string) => tool.readRaw(file, { readArgs: ["-G1", "-u"] }) as unknown as Promise<Record<string, unknown>>;
   let before: Record<string, unknown>, after: Record<string, unknown>;
-  try { [before, after] = await Promise.all([read(source), read(result)]); }
+  try { [before, after] = await Promise.all([readFields(tool, source), readFields(tool, result)]); }
   catch { throw new ImportMetadataError("TOOL_FAILED"); }
   for (const [field, value] of Object.entries(before)) {
     const [group, tag] = field.split(":");
@@ -148,6 +167,7 @@ function carryOnto(derivative: Uint8Array, source: Uint8Array, extension: string
     // because ExifTool copies it inside its contact structure.
     await runTool(tool, file, [...STALE_ARGUMENTS, ...removed.map((tag) => `-${tag}=`), ...(removeLocation ? LOCATION_ARGUMENTS : [])]);
     await assertNothingLost(tool, original, file, removed, removeLocation);
+    if (removeLocation) await assertNoLocation(tool, file);
   }, extension);
 }
 
@@ -161,7 +181,10 @@ export async function prepareJpegForImport(source: Uint8Array, tool: ImportMetad
     // Nothing re-encodes this file, so a damaged scan would otherwise reach the upload.
     try { await sharp(source, { failOn: "error" }).stats(); }
     catch { throw new ImportMetadataError("UNDECODABLE_IMAGE"); }
-    const bytes = await editCopy(source, (file) => runTool(tool, file, [...REMOVAL_ARGUMENTS, ...(removeLocation ? LOCATION_ARGUMENTS : [])]));
+    const bytes = await editCopy(source, async (file) => {
+      await runTool(tool, file, [...REMOVAL_ARGUMENTS, ...(removeLocation ? LOCATION_ARGUMENTS : [])]);
+      if (removeLocation) await assertNoLocation(tool, file);
+    });
     assertResult(bytes, compressedImageDataSha256(source), removeLocation);
     return { bytes, action };
   }
