@@ -2,6 +2,8 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Keyword gallery smoke tests, 2026-11-05 — AB#90 **Active**: `e2e/keyword-gallery-continuation.spec.ts` covers continuing in place and in the viewer, reloading, history, refused cursors and what stays eager.
+
 Keyword selector, 2026-11-05 — AB#74 **Active**: a keyboard-operable combobox on the search landing state builds a selection of up to
 five keywords from a bounded suggestion endpoint and navigates to its canonical gallery.
 
