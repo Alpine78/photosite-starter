@@ -159,6 +159,140 @@ test.describe("keyword gallery", () => {
     await expect(page.getByRole("region", { name: labels.keywordBrowseHeading })).toHaveCount(0);
   });
 
+  test.describe("keyword selector", () => {
+    const field = (page: import("@playwright/test").Page) => page.getByRole("combobox", { name: labels.keywordSelectorLabel });
+    const chips = (page: import("@playwright/test").Page) => page.getByRole("list", { name: labels.keywordSelectorSelected }).getByRole("listitem");
+
+    async function pick(page: import("@playwright/test").Page, term: string) {
+      const input = field(page);
+      await input.fill(term);
+      await expect(page.getByRole("option").first()).toBeVisible();
+      await input.press("ArrowDown");
+      await expect(input).toHaveAttribute("aria-activedescendant", /.+/);
+      await input.press("Enter");
+      await expect(input).toHaveValue("");
+    }
+
+    test("the keyboard builds a selection and reaches its canonical gallery", async ({ page }) => {
+      await page.goto(SEARCH_PATH);
+      await pick(page, "water");
+      await pick(page, "coast");
+      await expect(chips(page)).toHaveCount(2);
+      await page.getByRole("button", { name: labels.keywordSelectorShow }).click();
+      await expect(page).toHaveURL(/\?keywords=coast,water$/);
+      await expect(page.getByText(labels.keywordSummary)).toBeVisible();
+    });
+
+    test("a descendant replaces its ancestor, and removing it does not bring the ancestor back", async ({ page }) => {
+      await page.goto(SEARCH_PATH);
+      await pick(page, "nature");
+      await pick(page, "water");
+      await expect(chips(page)).toHaveCount(1);
+      await expect(chips(page).first()).toContainText("Water");
+      await page.getByRole("button", { name: labels.keywordSelectorRemove.replace("{name}", "Water") }).click();
+      await expect(page.getByRole("list", { name: labels.keywordSelectorSelected })).toHaveCount(0);
+      await expect(field(page)).toBeFocused();
+    });
+
+    test("it stops at five, and says why", async ({ page }) => {
+      await page.goto(SEARCH_PATH);
+      for (const term of ["water", "trees", "coast", "forest", "autumn"]) await pick(page, term);
+      const input = field(page);
+      await input.fill("archive");
+      await expect(page.getByRole("option").first()).toBeVisible();
+      await input.press("ArrowDown");
+      await input.press("Enter");
+      await expect(chips(page)).toHaveCount(5);
+      await expect(page.getByRole("status").filter({ hasText: labels.keywordSelectorLimit.replace("{count}", "5") })).toBeAttached();
+    });
+
+    test("Escape closes the list, and no match is said out loud", async ({ page }) => {
+      await page.goto(SEARCH_PATH);
+      const input = field(page);
+      await input.fill("water");
+      await expect(page.getByRole("option").first()).toBeVisible();
+      await input.press("Escape");
+      await expect(page.getByRole("option")).toHaveCount(0);
+      await expect(input).toHaveAttribute("aria-expanded", "false");
+      await input.fill("zzzzzz");
+      await expect(page.getByRole("status").filter({ hasText: labels.keywordSelectorNoMatches })).toBeAttached();
+    });
+
+    test("it asks a debounced, bounded endpoint rather than downloading the vocabulary", async ({ page }) => {
+      const requests: string[] = [];
+      page.on("request", (request) => { if (request.url().includes("/api/keyword-suggest")) requests.push(request.postData() ?? ""); });
+      // The page's own clock, so the debounce does not depend on how fast this machine types.
+      await page.clock.install();
+      await page.goto(SEARCH_PATH);
+      await expect(field(page)).toBeEnabled();
+      await page.clock.pauseAt(Date.now() + 60_000);
+      await field(page).pressSequentially("water");
+      expect(requests).toEqual([]);
+      await page.clock.runFor(1000);
+      await expect(page.getByRole("option").first()).toBeVisible();
+      expect(requests).toHaveLength(1);
+      expect(requests[0]).toContain("water");
+    });
+
+    test("a dismissed list stays closed when its answer arrives, and the arrow key brings it back", async ({ page }) => {
+      await page.goto(SEARCH_PATH);
+      const input = field(page);
+      await expect(input).toBeEnabled();
+      await input.fill("water");
+      await page.keyboard.press("Escape");
+      await expect(page.getByRole("option")).toHaveCount(0);
+      await input.press("ArrowDown");
+      await expect(page.getByRole("option").first()).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(page.getByRole("option")).toHaveCount(0);
+      await input.press("ArrowDown");
+      await expect(page.getByRole("option").first()).toBeVisible();
+    });
+
+    test("Enter takes nothing from a list the visitor can no longer see", async ({ page }) => {
+      await page.goto(SEARCH_PATH);
+      const input = field(page);
+      await expect(input).toBeEnabled();
+      await input.fill("water");
+      await expect(page.getByRole("option").first()).toBeVisible();
+      await input.press("ArrowDown");
+      await input.press("x");
+      await input.press("Enter");
+      await expect(page.getByRole("list", { name: labels.keywordSelectorSelected })).toHaveCount(0);
+      await expect(input).toHaveValue("waterx");
+    });
+
+    test("the section keeps its place while the page hydrates", async ({ page }) => {
+      await page.goto(SEARCH_PATH, { waitUntil: "commit" });
+      await expect(page.getByRole("heading", { name: labels.keywordSelectorHeading })).toBeVisible();
+      const html = await (await page.request.get(SEARCH_PATH)).text();
+      expect(html).toContain(labels.keywordSelectorHeading);
+    });
+
+    test("the endpoint matches an alias without returning it, and refuses what it should", async ({ request, baseURL }) => {
+      const headers = { origin: baseURL! };
+      const answer = await request.post("/api/keyword-suggest", { headers, data: { q: "seash", lang: defaultLocale } });
+      expect(answer.status()).toBe(200);
+      expect(answer.headers()["cache-control"]).toBe("no-store");
+      const body = await answer.json() as { suggestions: readonly { keywordId: string }[] };
+      expect(body.suggestions.map((entry) => entry.keywordId)).toEqual(["coast"]);
+      expect(JSON.stringify(body)).not.toMatch(/seashore|shoreline/i);
+      expect((await request.post("/api/keyword-suggest", { headers: { origin: "https://elsewhere.example" }, data: { q: "seash", lang: defaultLocale } })).status()).toBe(403);
+      expect((await request.post("/api/keyword-suggest", { headers, data: { q: "seash", lang: "xx" } })).status()).toBe(422);
+      expect((await request.post("/api/keyword-suggest", { headers, data: { q: "seash" } })).status()).toBe(400);
+      expect((await request.post("/api/keyword-suggest", { headers, data: { q: "x".repeat(2000), lang: defaultLocale } })).status()).toBe(413);
+      expect((await request.get("/api/keyword-suggest")).status()).toBe(405);
+    });
+
+    test.describe("without JavaScript", () => {
+      test.use({ javaScriptEnabled: false });
+      test("it stays out of the page", async ({ page }) => {
+        await page.goto(SEARCH_PATH);
+        await expect(page.getByRole("combobox")).toHaveCount(0);
+      });
+    });
+  });
+
   test("the language links keep the selection and drop the cursor", async ({ page }) => {
     await page.goto(gallery("archive"));
     await page.goto((await page.locator('a[rel="next"]').getAttribute("href"))!);
