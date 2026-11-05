@@ -48,6 +48,7 @@ page do not receive what this restores. It stays in the stored original, for the
 
 ## What protects a run
 
+- **The plan is checked first.** A row with no revision would become an unconditional patch, so it refuses the whole file.
 - **The digest** covers each medium, its revision, the asset it replaces and its source hash, the sensitive list and `--delete-replaced`.
 - **A sensitive file is read back in full** after its location is removed. A field that still names a place fails that medium.
 - **The source is hashed again** before preparing, and each prepared file is checked: image data unchanged, nothing lost but what the rules remove.
@@ -55,7 +56,13 @@ page do not receive what this restores. It stays in the stored original, for the
 - **Uploaded dimensions must match** the prepared file. A mismatch fails that medium and moves nothing.
 - **`--delete-replaced` is permanent.** It deletes each old asset right after its medium moves, and Sanity refuses one that something still refers to. A cached page can show a broken image until the webhook has expired it. An old URL elsewhere stops working.
 
-The command exits 0 when everything went through, 1 when any medium failed, 2 on an error before the run, and 3 on a revision conflict.
+The command exits 0 when everything went through, 1 when any medium failed or the run was interrupted, 2 on an error before the run, and 3 on a revision conflict.
+
+**If an old asset could not be deleted,** the result file's `undeleted` lists it, and the run continues. A fresh plan knows only the new asset, so that list is the record: delete those ids once the cause has passed. A killed process leaves no result file. In that case, look for assets nothing refers to, and read the list before deleting anything, because it may also hold assets unrelated to this run:
+
+```groq
+*[_type == "sanity.imageAsset" && count(*[references(^._id)]) == 0]._id
+```
 
 ## What it does not do
 

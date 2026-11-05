@@ -10,7 +10,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import { createImportMetadataTool, prepareJpegForImport } from "./image-import-metadata-edit.mts";
 import { inspectJpegImportFacts } from "./image-import-metadata.mts";
 import {
-  buildPublishedReuploadPlan, indexAssetRequirements, parseSensitiveList, reuploadApprovalDigest,
+  assertReuploadPlan, buildPublishedReuploadPlan, indexAssetRequirements, parseSensitiveList, reuploadApprovalDigest,
   type PublishedMedium, type ReuploadPlanned, type ReuploadSource,
 } from "./legacy-image-reupload-match.mts";
 import { parseArguments, resolveSource, reuploadExitCode, runLegacyImageReupload, type ReuploadPort } from "./write-legacy-image-reupload.mts";
@@ -25,14 +25,32 @@ const hash = (seed: string) => createHash("sha256").update(seed).digest("hex");
 const source = (name: string, overrides: Partial<ReuploadSource> = {}): ReuploadSource => ({ path: name, sha256: hash(name), bytes: 10, action: "keep-compressed-data", gps: "absent", ...overrides });
 const requirement = (mediaId: string, file: string) => ({ mediaId, sourceLocator: file, contentHash: hash(file) });
 
+describe("a plan file", () => {
+  const row = { _id: "d", _rev: "r", mediaId: "m", sourceLocator: "a.jpg", contentHash: "h", assetRef: "image-1" };
+  it("is accepted when every row can be guarded, with or without an old asset", () => {
+    expect(() => assertReuploadPlan({ schemaVersion: 1, planned: [row, { ...row, assetRef: null }] })).not.toThrow();
+  });
+  it.each<unknown>([
+    { schemaVersion: 2, planned: [] },
+    { schemaVersion: 1 },
+    { schemaVersion: 1, planned: [null] },
+    ...["_id", "_rev", "mediaId", "sourceLocator", "contentHash", "assetRef"].map((field) => ({ schemaVersion: 1, planned: [{ ...row, [field]: undefined }] })),
+    { schemaVersion: 1, planned: [{ ...row, _rev: "" }] },
+  ])("is refused before anything happens: %j", (plan) => {
+    expect(() => assertReuploadPlan(plan as never)).toThrow("PLAN_MALFORMED");
+  });
+});
+
 describe("the exit status", () => {
   it.each([
-    [{ outcome: "written", failed: [] }, 0],
-    [{ outcome: "prepared", failed: [] }, 0],
-    [{ outcome: "written", failed: [{}] }, 1],
-    [{ outcome: "prepared", failed: [{}] }, 1],
-    [{ outcome: "conflict", failed: [] }, 3],
-    [{ outcome: "conflict", failed: [{}] }, 3],
+    [{ outcome: "written", failed: [], undeleted: [] }, 0],
+    [{ outcome: "prepared", failed: [], undeleted: [] }, 0],
+    [{ outcome: "written", failed: [{}], undeleted: [] }, 1],
+    [{ outcome: "prepared", failed: [{}], undeleted: [] }, 1],
+    [{ outcome: "written", failed: [], undeleted: [{}] }, 1],
+    [{ outcome: "interrupted", failed: [], undeleted: [] }, 1],
+    [{ outcome: "conflict", failed: [], undeleted: [] }, 3],
+    [{ outcome: "conflict", failed: [{}], undeleted: [] }, 3],
   ])("%j → %i", (result, code) => {
     expect(reuploadExitCode(result as never)).toBe(code);
   });
@@ -201,14 +219,16 @@ describe("running the re-upload", () => {
     expect(result).toMatchObject({ deleted: 1, keptReferenced: 0 });
   }, TOOL_TIMEOUT_MS);
 
-  it("leaves an old asset something still refers to, and surfaces any other failure", async () => {
+  it("leaves an old asset something still refers to, and records one it could not delete", async () => {
     const files = { "a.jpg": await fixture(400, 200) };
     const plan = planOf(files);
     const digest = reuploadApprovalDigest(plan.planned, new Set(), true);
     const referenced = portOf(files, { deleteAsset: async () => { throw Object.assign(new Error("x"), { status: 409 }); } });
     expect(await runLegacyImageReupload(plan, new Set(), referenced.port, tool, { yes: true, deleteReplaced: true, approvedDigest: digest })).toMatchObject({ outcome: "written", written: 1, deleted: 0, keptReferenced: 1 });
     const broken = portOf(files, { deleteAsset: async () => { throw Object.assign(new Error("server"), { status: 500 }); } });
-    await expect(runLegacyImageReupload(plan, new Set(), broken.port, tool, { yes: true, deleteReplaced: true, approvedDigest: digest })).rejects.toThrow("server");
+    const result = await runLegacyImageReupload(plan, new Set(), broken.port, tool, { yes: true, deleteReplaced: true, approvedDigest: digest });
+    expect(result).toMatchObject({ outcome: "written", written: 1, deleted: 0, undeleted: [{ mediaId: plan.planned[0].mediaId, assetRef: plan.planned[0].assetRef }] });
+    expect(reuploadExitCode(result)).toBe(1);
   }, TOOL_TIMEOUT_MS);
 
   it("skips a medium already holding the prepared asset, so a repeat writes nothing", async () => {
@@ -237,7 +257,7 @@ describe("running the re-upload", () => {
     expect(wrong.patches).toEqual([]);
   }, TOOL_TIMEOUT_MS);
 
-  it("stops on a conflict rather than overwriting an edit, and surfaces anything else", async () => {
+  it("stops on a conflict rather than overwriting an edit, and reports an interrupted write with what it did", async () => {
     const files = { "a.jpg": await fixture(400, 200), "b.jpg": await fixture(300, 200) };
     const plan = planOf(files);
     const digest = reuploadApprovalDigest(plan.planned, new Set());
@@ -245,7 +265,12 @@ describe("running the re-upload", () => {
     expect(await runLegacyImageReupload(plan, new Set(), conflicting.port, tool, { yes: true, approvedDigest: digest })).toMatchObject({ outcome: "conflict", written: 0 });
     expect(conflicting.uploads).toHaveLength(1);
     const failing = portOf(files, { patchAsset: async () => { throw Object.assign(new Error("server"), { status: 500 }); } });
-    await expect(runLegacyImageReupload(plan, new Set(), failing.port, tool, { yes: true, approvedDigest: digest })).rejects.toThrow("server");
+    const interrupted = await runLegacyImageReupload(plan, new Set(), failing.port, tool, { yes: true, approvedDigest: digest });
+    expect(interrupted).toMatchObject({ outcome: "interrupted", written: 0, failed: [{ code: "WRITE_INTERRUPTED" }] });
+    expect(failing.uploads).toHaveLength(1);
+    expect(reuploadExitCode(interrupted)).toBe(1);
+    const noUpload = portOf(files, { upload: async () => { throw new Error("server"); } });
+    expect(await runLegacyImageReupload(plan, new Set(), noUpload.port, tool, { yes: true, approvedDigest: digest })).toMatchObject({ outcome: "interrupted", failed: [{ code: "WRITE_INTERRUPTED" }] });
   }, TOOL_TIMEOUT_MS);
 });
 

@@ -21,7 +21,7 @@ import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 
 import { createImportMetadataTool, ImportMetadataError, prepareJpegForImport, type ImportMetadataTool } from "./image-import-metadata-edit.mts";
-import { parseSensitiveList, reuploadApprovalDigest, type PublishedReuploadPlan, type ReuploadPlanned } from "./legacy-image-reupload-match.mts";
+import { parseSensitiveList, reuploadApprovalDigest, type PublishedReuploadPlan, type ReuploadPlanned, assertReuploadPlan } from "./legacy-image-reupload-match.mts";
 import { MAX_PUBLIC_DELIVERY_DIMENSION, PUBLIC_DELIVERY_FORMATS } from "./sanity-seed-fixtures.mts";
 import { parseSeedConnection, runSeedMutationBatches, uploadSeedImageAsset } from "./sanity-seed-http.mts";
 
@@ -33,7 +33,8 @@ export type ReuploadPort = Readonly<{
 }>;
 
 export type ReuploadResult = Readonly<{
-  outcome: "prepared" | "written" | "conflict";
+  /** `interrupted`: a write failed in a way that says nothing about the next one, so the run stopped. */
+  outcome: "prepared" | "written" | "conflict" | "interrupted";
   digest: string;
   prepared: number;
   preparedBytes: number;
@@ -43,6 +44,11 @@ export type ReuploadResult = Readonly<{
   deleted: number;
   /** Something else still refers to it, so it stayed. */
   keptReferenced: number;
+  /**
+   * The medium moved but its old asset could not be deleted. A fresh plan knows only the new asset, so
+   * this list is the one record of what `--delete-replaced` still owes.
+   */
+  undeleted: readonly Readonly<{ mediaId: string; assetRef: string }>[];
 }>;
 
 const codeOf = (error: unknown): string => (error instanceof ImportMetadataError ? error.code : typeof (error as { code?: unknown }).code === "string" ? (error as { code: string }).code : "PREPARATION_FAILED");
@@ -63,11 +69,13 @@ export async function runLegacyImageReupload(
   tool: ImportMetadataTool,
   options: Readonly<{ yes?: boolean; approvedDigest?: string; deleteReplaced?: boolean }> = {},
 ): Promise<ReuploadResult> {
+  assertReuploadPlan(plan);
   const digest = reuploadApprovalDigest(plan.planned, sensitive, options.deleteReplaced === true);
   if (options.yes === true && options.approvedDigest !== digest) throw new Error("DIGEST_MISMATCH");
   const failed: { mediaId: string; code: string }[] = [];
+  const undeleted: { mediaId: string; assetRef: string }[] = [];
   let prepared = 0, preparedBytes = 0, written = 0, alreadyDone = 0, deleted = 0, keptReferenced = 0;
-  const totals = () => ({ digest, prepared, preparedBytes, failed, written, alreadyDone, deleted, keptReferenced });
+  const totals = () => ({ digest, prepared, preparedBytes, failed, written, alreadyDone, deleted, keptReferenced, undeleted });
   // One at a time, so no more than one prepared photograph is held in memory.
   for (const row of plan.planned) {
     let output: Awaited<ReturnType<typeof prepare>>;
@@ -80,7 +88,13 @@ export async function runLegacyImageReupload(
     prepared += 1;
     preparedBytes += output.bytes.length;
     if (options.yes !== true) continue;
-    const uploaded = await port.upload(output.bytes);
+    let uploaded: Awaited<ReturnType<ReuploadPort["upload"]>>;
+    try {
+      uploaded = await port.upload(output.bytes);
+    } catch {
+      failed.push({ mediaId: row.mediaId, code: "WRITE_INTERRUPTED" });
+      return { outcome: "interrupted", ...totals() };
+    }
     if (uploaded.width !== output.width || uploaded.height !== output.height) {
       failed.push({ mediaId: row.mediaId, code: "UPLOADED_DIMENSIONS_DIFFER" });
       continue;
@@ -93,7 +107,8 @@ export async function runLegacyImageReupload(
       await port.patchAsset(row, uploaded.assetId);
     } catch (error) {
       if ((error as { status?: unknown }).status === 409) return { outcome: "conflict", ...totals() };
-      throw error;
+      failed.push({ mediaId: row.mediaId, code: "WRITE_INTERRUPTED" });
+      return { outcome: "interrupted", ...totals() };
     }
     written += 1;
     if (options.deleteReplaced === true && row.assetRef !== null) {
@@ -102,8 +117,8 @@ export async function runLegacyImageReupload(
         deleted += 1;
       } catch (error) {
         // Sanity refuses to delete an asset something still refers to. That is the outcome wanted.
-        if ((error as { status?: unknown }).status !== 409) throw error;
-        keptReferenced += 1;
+        if ((error as { status?: unknown }).status === 409) keptReferenced += 1;
+        else undeleted.push({ mediaId: row.mediaId, assetRef: row.assetRef });
       }
     }
   }
@@ -143,7 +158,7 @@ function requiredEnvironment(name: string): string {
 export async function main(argv: readonly string[]): Promise<ReuploadResult> {
   const options = parseArguments(argv);
   const plan = JSON.parse(await readFile(options.plan, "utf8")) as PublishedReuploadPlan;
-  if (plan.schemaVersion !== 1 || !Array.isArray(plan.planned)) throw new Error("PLAN_MALFORMED");
+  assertReuploadPlan(plan);
   const sensitive = options.sensitive === undefined ? new Set<string>() : parseSensitiveList(await readFile(options.sensitive, "utf8"), plan.planned);
   const out = path.resolve(options.out);
   await mkdir(out, { mode: 0o700 });
@@ -174,14 +189,14 @@ export async function main(argv: readonly string[]): Promise<ReuploadResult> {
 }
 
 /** A run with failures is not a finished run, even though it reports what it did. */
-export function reuploadExitCode(result: Pick<ReuploadResult, "outcome" | "failed">): number {
+export function reuploadExitCode(result: Pick<ReuploadResult, "outcome" | "failed" | "undeleted">): number {
   if (result.outcome === "conflict") return 3;
-  return result.failed.length > 0 ? 1 : 0;
+  return result.outcome === "interrupted" || result.failed.length > 0 || result.undeleted.length > 0 ? 1 : 0;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   main(process.argv.slice(2)).then(
-    (result) => { console.log(JSON.stringify({ ...result, failed: result.failed.length })); process.exitCode = reuploadExitCode(result); },
+    (result) => { console.log(JSON.stringify({ ...result, failed: result.failed.length, undeleted: result.undeleted.length })); process.exitCode = reuploadExitCode(result); },
     (error: Error) => { console.error(`[write-legacy-image-reupload] ${error.message}`); process.exitCode = 2; },
   );
 }

@@ -96,6 +96,19 @@ export function buildPublishedReuploadPlan(
   };
 }
 
+/**
+ * A plan is a file someone can edit or truncate. A row with no revision would serialize as an
+ * unconditional patch, overwriting whatever changed since, so it stops the run before anything.
+ */
+export function assertReuploadPlan(plan: Readonly<{ schemaVersion?: unknown; planned?: unknown }>): void {
+  if (plan.schemaVersion !== 1 || !Array.isArray(plan.planned)) throw new Error("PLAN_MALFORMED");
+  const text = (value: unknown) => typeof value === "string" && value !== "";
+  for (const row of plan.planned as readonly Record<string, unknown>[]) {
+    const valid = text(row?._id) && text(row?._rev) && text(row?.mediaId) && text(row?.sourceLocator) && text(row?.contentHash) && (row?.assetRef === null || text(row?.assetRef));
+    if (!valid) throw new Error("PLAN_MALFORMED");
+  }
+}
+
 /** What an owner approves: which medium, at which revision, replacing which asset, from which bytes, which lose their location, and whether old assets go. */
 export function reuploadApprovalDigest(planned: readonly ReuploadPlanned[], sensitive: ReadonlySet<string>, deleteReplaced = false): string {
   const rows = planned.map((row) => [row.mediaId, row._id, row._rev, row.assetRef, row.contentHash, sensitive.has(row.mediaId)]);

@@ -63,7 +63,11 @@ const LOCATION_TAGS = [
   "IPTC:City", "IPTC:Sub-location", "IPTC:Province-State", "IPTC:Country-PrimaryLocationName", "IPTC:Country-PrimaryLocationCode",
   "IPTC:ContentLocationName", "IPTC:ContentLocationCode",
 ] as const;
-const LOCATION_ARGUMENTS: readonly string[] = ["-GPS:all=", ...LOCATION_TAGS.map((tag) => `-${tag}=`)];
+const LOCATION_ARGUMENTS: readonly string[] = [
+  "-GPS:all=", ...LOCATION_TAGS.map((tag) => `-${tag}=`),
+  // Embedded images can carry their own location. Remove them whole, never recursively edit them.
+  "-IFD1:all=", "-ThumbnailImage=", "-PreviewImage=", "-PhotoshopThumbnail=", "-PhotoshopBGRThumbnail=", "-XMP-xmp:Thumbnails=",
+];
 
 /**
  * Any field naming a place, by its name rather than by the list above, so the check after removal
@@ -72,6 +76,8 @@ const LOCATION_ARGUMENTS: readonly string[] = ["-GPS:all=", ...LOCATION_TAGS.map
  */
 const LOCATION_FIELD_NAME = /^(?:GPS|Location|Sub-?location|City$|State$|Province|Country|ContentLocation)/;
 const isLocationField = (field: string): boolean => LOCATION_FIELD_NAME.test(field.split(":").at(-1)!);
+/** Anchored: Lightroom's `XMP-crs:UprightPreview` is a setting on half the archive, not an image. */
+const isPreviewField = (field: string): boolean => /^(?:Thumbnail|Preview|PhotoshopThumbnail|PhotoshopBGRThumbnail)/.test(field.split(":").at(-1)!);
 
 export const REMOVAL_ARGUMENTS: readonly string[] = REMOVED_TAGS.map((tag) => `-${tag}=`);
 
@@ -106,13 +112,13 @@ export type ImportMetadataTool = Pick<ExifTool, "write" | "readRaw">;
 
 const readFields = (tool: ImportMetadataTool, file: string) => tool.readRaw(file, { readArgs: ["-G1", "-u"] }) as unknown as Promise<Record<string, unknown>>;
 
-/** `Composite` is computed from other fields, and `File` describes the copy. Neither is stored. */
+/** Ignore computed location and file facts; every embedded preview must be absent. */
 async function assertNoLocation(tool: ImportMetadataTool, file: string): Promise<void> {
   let fields: Record<string, unknown>;
-  try { fields = await readFields(tool, file); }
+  try { fields = await tool.readRaw(file, { readArgs: ["-G1:2", "-u"] }) as unknown as Record<string, unknown>; }
   catch { throw new ImportMetadataError("TOOL_FAILED"); }
   for (const field of Object.keys(fields)) {
-    if (field.includes(":") && !/^(?:Composite|File|System|ExifTool):/.test(field) && isLocationField(field)) throw new ImportMetadataError("METADATA_REMAINS");
+    if (field.includes(":") && (isPreviewField(field) || field.split(":").includes("Preview") || (!/^(?:Composite|File|System|ExifTool):/.test(field) && isLocationField(field)))) throw new ImportMetadataError("METADATA_REMAINS");
   }
 }
 
@@ -152,7 +158,7 @@ async function assertNothingLost(tool: ImportMetadataTool, source: string, resul
   catch { throw new ImportMetadataError("TOOL_FAILED"); }
   for (const [field, value] of Object.entries(before)) {
     const [group, tag] = field.split(":");
-    if (tag === undefined || removed.includes(field) || (removeLocation && isLocationField(field)) || NOT_COMPARED_FIELD.has(field) || NOT_COMPARED_TAG.test(tag) || (NOT_COMPARED_GROUP.test(group) && field !== "File:Comment")) continue;
+    if (tag === undefined || removed.includes(field) || (removeLocation && (isLocationField(field) || isPreviewField(field))) || NOT_COMPARED_FIELD.has(field) || NOT_COMPARED_TAG.test(tag) || (NOT_COMPARED_GROUP.test(group) && field !== "File:Comment")) continue;
     if (JSON.stringify(after[field]) !== JSON.stringify(value)) throw new ImportMetadataError("METADATA_NOT_CARRIED");
   }
 }
