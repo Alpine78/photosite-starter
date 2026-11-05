@@ -1,6 +1,9 @@
 /** Offline technical preparation only: no source eligibility decision or remote IO. */
 import { createHash } from "node:crypto";
 import sharp, { type Metadata } from "sharp";
+import { importActionFor, inspectJpegImportFacts } from "./image-import-metadata.mts";
+import { carryAllMetadata, ImportMetadataError } from "./image-import-metadata-edit.mts";
+import { JpegAuditError } from "./jpeg-export-audit.mts";
 import { generatePublicDerivative } from "./joomla-image-derivative.mts";
 import { MAX_PUBLIC_DELIVERY_DIMENSION, PUBLIC_DELIVERY_FORMATS } from "./sanity-seed-fixtures.mts";
 
@@ -65,6 +68,19 @@ export type ClientWebImageReceipt = {
   output: { bytes: number; sha256: string; width: number; height: number; format: Format };
   uploaded: false; published: false; sourceEligibilityApproved: false; metadataSuitabilityApproved: false;
 };
+/** Decision 8's no-re-encoding rule, for a strict single JPEG. Anything else takes the derivative. */
+function keepsJpegBytes(source: Buffer): boolean {
+  try { return importActionFor(inspectJpegImportFacts(source)) === "keep-compressed-data"; }
+  catch (error) { if (error instanceof JpegAuditError) return false; throw error; }
+}
+/** Owner decision 2026-11-04: the client gets the images with their metadata, so nothing is removed. */
+async function webCopy(source: Buffer, format: Format): Promise<Buffer> {
+  if (format === "jpeg" && keepsJpegBytes(source)) return source;
+  const derivative = await generatePublicDerivative(source), plain = await sharp(derivative.bytes, { failOn: "warning" }).metadata();
+  if (derivative.contentType !== PUBLIC_DELIVERY_FORMATS[format] || plain.exif || plain.icc || plain.iptc || plain.xmp || plain.xmpAsString ||
+      plain.tifftagPhotoshop || plain.comments?.length || plain.hasProfile) imageFailure("OUTPUT_CONTRACT_FAILED");
+  return Buffer.from(await carryAllMetadata(derivative.bytes, source, format === "jpeg" ? "jpg" : format));
+}
 export async function prepareClientWebImage(input: Uint8Array, classification: string) {
   if (classification !== "processed-export") imageFailure("SOURCE_CLASSIFICATION_REQUIRED");
   if (!(input instanceof Uint8Array) || input.byteLength < 1 || input.byteLength > CLIENT_WEB_IMAGE_LIMITS.bytes) imageFailure("INPUT_BYTE_LIMIT");
@@ -79,16 +95,13 @@ export async function prepareClientWebImage(input: Uint8Array, classification: s
   try {
     // Header inspection is cheap; this bounded full decode catches damaged scans.
     await sharp(source, { failOn: "warning", limitInputPixels: CLIENT_WEB_IMAGE_LIMITS.pixels }).stats();
-    const derivative = await generatePublicDerivative(source);
-    const bytes = Buffer.from(derivative.bytes), output = await sharp(bytes, { failOn: "warning" }).metadata();
+    const bytes = await webCopy(source, format), output = await sharp(bytes, { failOn: "warning" }).metadata();
     const scale = Math.min(1, MAX_PUBLIC_DELIVERY_DIMENSION / Math.max(dimensions.width, dimensions.height));
-    if (formatOf(output) !== format || derivative.contentType !== PUBLIC_DELIVERY_FORMATS[format] ||
-        output.width < 1 || output.height < 1 || Math.max(output.width, output.height) > MAX_PUBLIC_DELIVERY_DIMENSION ||
+    if (formatOf(output) !== format || output.width < 1 || output.height < 1 || Math.max(output.width, output.height) > MAX_PUBLIC_DELIVERY_DIMENSION ||
         output.width > dimensions.width || output.height > dimensions.height ||
         Math.abs(output.width - Math.max(1, Math.round(dimensions.width * scale))) > 1 ||
         Math.abs(output.height - Math.max(1, Math.round(dimensions.height * scale))) > 1 ||
-        (output.orientation !== undefined && output.orientation !== 1) || (output.pages ?? 1) !== 1 ||
-        output.exif || output.icc || output.iptc || output.xmp || output.xmpAsString || output.tifftagPhotoshop || output.comments?.length || output.hasProfile) imageFailure("OUTPUT_CONTRACT_FAILED");
+        (output.orientation !== undefined && output.orientation !== 1) || (output.pages ?? 1) !== 1) imageFailure("OUTPUT_CONTRACT_FAILED");
     const receipt: ClientWebImageReceipt = {
       version: 1,
       source: { bytes: source.length, sha256: imageDigest(source), ...dimensions, format },
@@ -98,6 +111,7 @@ export async function prepareClientWebImage(input: Uint8Array, classification: s
     return { bytes, filename: `web-image.${format === "jpeg" ? "jpg" : format}`, receipt };
   } catch (error) {
     if (error instanceof ClientWebImageError) throw error;
+    if (error instanceof ImportMetadataError) return imageFailure(error.code);
     return imageFailure("IMAGE_PROCESSING_FAILED");
   }
 }

@@ -271,6 +271,27 @@ derivative tool; implementation and the legacy re-upload are AB#391.
   are re-uploaded with the new tool as a separate owner-approved migration (AB#391).
 - ADR-0028's byte-for-byte exception for the 21 legacy delivery galleries is unchanged.
 
+**Scoped amendment, 2026-11-04 (AB#391).** The rules above left three paths open.
+
+- **Client gallery images: nothing is removed (owner decision).** The client has to get the
+  images with their metadata, so the removal list above applies only to public portfolio
+  imports. A client web JPEG within 2048 px stays byte for byte. A larger or rotated web copy
+  carries its metadata, including keywords, the creator's postal address and GPS. Only what
+  describes the source's pixels stays behind: orientation, colour profile, thumbnail, preview
+  and size fields, and Photoshop's print resolution. A copy that lost or changed any other
+  field is refused. These web copies are public files like the rest of the gallery, and the
+  kept data is public with them.
+- **A public JPEG that needs rotating is re-encoded upright,** with the kept metadata. This is
+  a narrow exception to the no-re-encoding rule: dimensions and the no-crop layout rely on
+  upright pixels, and whether Sanity follows an orientation tag is unverified. No legacy source
+  needs it: every readable JPEG in the 2026-11-04 report has orientation 1.
+- **A public non-JPEG source stays as it is today,** a metadata-free derivative. No separate
+  rule has been decided.
+
+`write-joomla-content.mts` still uses the metadata-free derivative: re-running it with kept
+metadata would publish GPS that nobody has reviewed. It changes together with the legacy
+re-upload, which carries the owner's list of sensitive locations.
+
 ## Options Considered
 
 1. **Keyword-side ancestor materialization (strategy A).** Cheap move (about 2 s), but

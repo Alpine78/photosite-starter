@@ -2,6 +2,15 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Import metadata tool, 2026-11-04 — AB#391 **Active**: `exiftool-vendored` is added as a
+devDependency, and `prepareJpegForImport` applies ADR-0039 decision 8 and verifies each result.
+The two rally writers use it. Client web images keep all their metadata by owner decision. The
+Joomla writer does not use it yet, because a re-run would publish GPS nobody has reviewed. The
+detector now follows the 2026-11-04 fields, and it now finds the creator's street address, which
+it missed because of a wrong spelling. The owner decided to do the legacy re-upload; matching the
+source report to published assets, its tool and its approved plan are still open, and no CMS write
+has been made. See [the path inventory](audits/ab391-import-path-inventory-2026-10-22.md).
+
 Keyword vocabulary schema, 2026-11-04 — AB#56 **Active**: `keyword`, `keywordCategory` and
 `keywordTaxonomyState` schemas with the governance rules of
 [ADR-0039](adr/0039-keyword-taxonomy-and-ingest-boundary.md) in a pure module. Studio publishes a
