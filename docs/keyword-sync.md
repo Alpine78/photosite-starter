@@ -13,7 +13,7 @@ uploads nothing and changes no asset URL. A medium is identified by its `mediaId
 | **Import** | `--imports <fields.json>`, an object of `mediaId` → ExifTool `-G1` fields | Maps the new terms and keeps the editor's additions and removals. |
 | **Re-sync** | none | Re-maps every medium from its stored import, after a parent move, merge or retirement. Acknowledges the taxonomy version only if nothing failed. |
 
-A keyword the site has moved stays on a medium already holding it, whichever use this is: the closure follows the new hierarchy, and the old path goes to review so that an editor can settle it with a whole-path alias.
+A keyword the site has moved stays on a medium already holding it, whichever use this is: the closure follows the new hierarchy, and the old path goes to review so that an editor can settle it in **Keyword review**.
 
 `--set-discoverable` also opts the imported media in to keyword galleries (ADR-0012 §2). It is off by default, and it never applies to a client
 delivery. Building the fields file from local exports belongs to the import path, once AB#391's metadata tool has landed.
@@ -57,7 +57,12 @@ the private record, and Studio's **Keyword review** tool shows them (AB#70). A d
 
 ## Term decisions
 
-A flat term several keywords answer to, such as one name in two categories, stays ambiguous however many aliases it gets. An editor chooses in Studio's **Keyword review** tool, and the choice goes in the private document `keywordTermDecisions.current`. The sync reads it on every run, so a choice also covers later imports. It applies only while that keyword is still one of the term's options; otherwise the term returns to review.
+An editor's choice in Studio's **Keyword review** tool goes in the private document `keywordTermDecisions.current`, and the sync reads it on every run, so a choice also covers later imports. There are two kinds:
+
+- **A Lightroom path.** A path can hold a client's or a person's name, so it never becomes an alias, which a public keyword would show to anyone. The choice can name any active keyword. Only the leaf is covered, so the path's other terms still resolve for themselves.
+- **A flat term several keywords answer to,** such as one name in two categories. It applies only while that keyword is still one of the term's options; otherwise the term returns to review.
+
+The tool lists recorded choices, and removing one returns its term to review on the next sync.
 
 ## Budget
 

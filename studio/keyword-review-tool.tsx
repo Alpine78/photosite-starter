@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Box, Button, Card, Flex, Heading, Select, Spinner, Stack, Text, TextInput } from "@sanity/ui";
+import { Box, Button, Card, Checkbox, Flex, Heading, Select, Spinner, Stack, Text, TextInput } from "@sanity/ui";
 import { useClient, useCurrentLocale, type Mutation } from "sanity";
 import { useRouter } from "sanity/router";
 
@@ -18,9 +18,12 @@ import {
   keywordReviewOutcome,
   planAddAlias,
   planChooseKeyword,
+  planRemoveDecision,
   planCreateKeywordDraft,
   proposedCategoryId,
   proposedKeywordId,
+  proposedParentId,
+  recordedDecisions,
   proposedTitle,
   type AliasTarget,
   type KeywordReviewGraph,
@@ -37,6 +40,39 @@ type Option = Readonly<{ _id: string; name?: string; keywordId?: string }>;
 type Status = Readonly<{ tone: "positive" | "critical"; text: string }>;
 type Copy = ReturnType<typeof keywordReviewCopy>;
 
+/** Reads the keyword graph under its revision, and writes one plan under it, as every keyword write does. */
+function useKeywordWrite(copy: Copy, locale: string, onSaved: () => void) {
+  const client = useClient({ apiVersion: STUDIO_VALIDATION_API_VERSION });
+  const raw = client.withConfig({ perspective: "raw", useCdn: false });
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<Status>();
+  const run = async (makePlan: (graph: KeywordReviewGraph) => Promise<KeywordReviewPlan>): Promise<KeywordReviewPlan | undefined> => {
+    setBusy(true);
+    setStatus(undefined);
+    try {
+      await raw.createIfNotExists({ ...INITIAL_KEYWORD_TAXONOMY_STATE }, { visibility: "sync", tag: "keyword-review" });
+      const result = await client.withConfig({ perspective: "published", useCdn: false }).fetch<{ state?: { _rev?: string } | null; keywords?: unknown[] }>(KEYWORD_PUBLISH_QUERY, { ...KEYWORD_PUBLISH_PARAMS }, { tag: "keyword-review" });
+      if (typeof result.state?._rev !== "string" || !Array.isArray(result.keywords)) { setStatus({ tone: "critical", text: copy.unavailable }); return undefined; }
+      const plan = await makePlan({ stateRevision: result.state._rev, keywords: result.keywords });
+      if ("refused" in plan) {
+        const known = copy.refused[plan.refused];
+        setStatus({ tone: "critical", text: known ?? studioValidationMessage(plan.refused)[locale] ?? plan.refused });
+        return plan;
+      }
+      await raw.mutate([...plan.mutations] as unknown as Mutation[], { visibility: "sync", tag: "keyword-review" });
+      setStatus({ tone: "positive", text: plan.draftId === undefined ? copy.done : copy.draftDone });
+      onSaved();
+      return plan;
+    } catch (error) {
+      setStatus({ tone: "critical", text: copy[keywordReviewOutcome(error)] });
+      return undefined;
+    } finally {
+      setBusy(false);
+    }
+  };
+  return { raw, busy, status, run };
+}
+
 function GroupCard({ group, keywords, categories, copy, locale, onSaved }: {
   readonly group: KeywordReviewGroup;
   readonly keywords: readonly Option[];
@@ -45,51 +81,21 @@ function GroupCard({ group, keywords, categories, copy, locale, onSaved }: {
   readonly locale: string;
   readonly onSaved: () => void;
 }) {
-  const client = useClient({ apiVersion: STUDIO_VALIDATION_API_VERSION });
-  const raw = client.withConfig({ perspective: "raw", useCdn: false });
+  const { raw, busy, status, run } = useKeywordWrite(copy, locale, onSaved);
   const router = useRouter();
   const [aliasTarget, setAliasTarget] = useState("");
   const [title, setTitle] = useState(() => proposedTitle(group));
   const [keywordId, setKeywordId] = useState(() => proposedKeywordId(proposedTitle(group)));
   const [categoryRef, setCategoryRef] = useState(() => proposedCategoryId(group, categories));
   const [visibility, setVisibility] = useState<"" | "public" | "internal">("");
-  const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState<Status>();
+  const [publicConfirmed, setPublicConfirmed] = useState(false);
+  const [parentRef, setParentRef] = useState(() => proposedParentId(group, keywords));
   const [draftId, setDraftId] = useState<string>();
-
-  const readGraph = async (): Promise<KeywordReviewGraph | undefined> => {
-    await raw.createIfNotExists({ ...INITIAL_KEYWORD_TAXONOMY_STATE }, { visibility: "sync", tag: "keyword-review" });
-    const result = await client.withConfig({ perspective: "published", useCdn: false }).fetch<{ state?: { _rev?: string } | null; keywords?: unknown[] }>(KEYWORD_PUBLISH_QUERY, { ...KEYWORD_PUBLISH_PARAMS }, { tag: "keyword-review" });
-    return typeof result.state?._rev === "string" && Array.isArray(result.keywords) ? { stateRevision: result.state._rev, keywords: result.keywords } : undefined;
-  };
-
-  const run = async (makePlan: (graph: KeywordReviewGraph) => Promise<KeywordReviewPlan>) => {
-    setBusy(true);
-    setStatus(undefined);
-    try {
-      const graph = await readGraph();
-      if (graph === undefined) { setStatus({ tone: "critical", text: copy.unavailable }); return; }
-      const plan = await makePlan(graph);
-      if ("refused" in plan) {
-        const known = copy.refused[plan.refused];
-        setStatus({ tone: "critical", text: known ?? studioValidationMessage(plan.refused)[locale] ?? plan.refused });
-        return;
-      }
-      await raw.mutate([...plan.mutations] as unknown as Mutation[], { visibility: "sync", tag: "keyword-review" });
-      setStatus({ tone: "positive", text: copy.done });
-      if (plan.draftId !== undefined) setDraftId(plan.draftId);
-      onSaved();
-    } catch (error) {
-      setStatus({ tone: "critical", text: copy[keywordReviewOutcome(error)] });
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const addAlias = () => run(async (graph) => {
     const { target, hasDraft } = await raw.fetch<{ target: Omit<AliasTarget, "hasDraft"> | null; hasDraft: boolean }>(KEYWORD_ALIAS_TARGET_QUERY, keywordAliasTargetParams(aliasTarget), { tag: "keyword-review" });
     if (target === null) return { refused: copy.unavailable };
-    return planAddAlias(graph, group, { ...target, hasDraft });
+    return planAddAlias(graph, group, { ...target, hasDraft }, publicConfirmed);
   });
 
   const chooseKeyword = () => run(async (graph) => {
@@ -99,14 +105,19 @@ function GroupCard({ group, keywords, categories, copy, locale, onSaved }: {
     return planChooseKeyword(graph, group, { documentId: chosen._id, keywordId: chosen.keywordId }, existing, crypto.randomUUID());
   });
 
-  const createDraft = () => run(async (graph) => planCreateKeywordDraft(graph, group, {
-    title, keywordId, categoryRef, internal: visibility === "internal",
+  const createDraft = async () => {
+    const plan = await run(async (graph) => planCreateKeywordDraft(graph, group, {
+    title, keywordId, categoryRef, internal: visibility === "internal", publicConfirmed, parentRef,
     idReserved: await raw.fetch<boolean>(KEYWORD_ID_RESERVATION_QUERY, { keywordId }, { tag: "keyword-review" }),
     language: studioSettings.defaultContentLanguage ?? locale.split("-")[0],
     uuid: crypto.randomUUID(),
-  }));
+    }));
+    if (plan !== undefined && "draftId" in plan && plan.draftId !== undefined) setDraftId(plan.draftId);
+  };
 
   const action = keywordReviewAction(group);
+  // A path stays private, and an alias on an internal keyword is not public.
+  const needsPublicConfirmation = action === "add-alias";
   const reason = copy.reasons[group.reason] ?? group.reason;
   const candidateIds = new Set(group.candidates);
   const sorted = [...keywords].sort((left, right) => Number(candidateIds.has(right.keywordId ?? "")) - Number(candidateIds.has(left.keywordId ?? "")));
@@ -123,19 +134,24 @@ function GroupCard({ group, keywords, categories, copy, locale, onSaved }: {
         </Stack>
 
         {action === "fix-source" && <Text size={1}>{copy.fixSource}</Text>}
-        {action === "choose-candidate" && <Stack gap={2}>
-          <Text weight="semibold" size={1}>{copy.chooseHeading}</Text>
+        {(action === "choose-candidate" || action === "choose-for-path") && <Stack gap={2}>
+          <Text weight="semibold" size={1}>{action === "choose-for-path" ? copy.choosePathHeading : copy.chooseHeading}</Text>
           <Flex gap={2}>
             <Box flex={1}>
               <Select aria-label={copy.aliasKeyword} value={aliasTarget} onChange={(event) => setAliasTarget(event.currentTarget.value)}>
                 <option value="">{copy.aliasChoose}</option>
-                {sorted.filter((option) => candidateIds.has(option.keywordId ?? "")).map((option) => <option key={option._id} value={option._id}>{option.name ?? option.keywordId} ({option.keywordId})</option>)}
+                {sorted.filter((option) => action === "choose-for-path" || candidateIds.has(option.keywordId ?? "")).map((option) => <option key={option._id} value={option._id}>{option.name ?? option.keywordId} ({option.keywordId})</option>)}
               </Select>
             </Box>
             <Button text={copy.chooseAction} tone="primary" disabled={busy || aliasTarget === ""} onClick={() => void chooseKeyword()} />
           </Flex>
         </Stack>}
-        {action === "decide" && <Stack gap={2}>
+        {needsPublicConfirmation && <Flex align="center" gap={2}>
+          <Checkbox id={`public-${group.reason}-${group.key}`} checked={publicConfirmed} onChange={(event) => setPublicConfirmed(event.currentTarget.checked)} />
+          <Text size={1}><label htmlFor={`public-${group.reason}-${group.key}`}>{copy.publicConfirm.replace("{name}", group.key)}</label></Text>
+        </Flex>}
+
+        {action === "add-alias" && <Stack gap={2}>
           <Text weight="semibold" size={1}>{copy.aliasHeading}</Text>
           <Flex gap={2}>
             <Box flex={1}>
@@ -148,7 +164,7 @@ function GroupCard({ group, keywords, categories, copy, locale, onSaved }: {
           </Flex>
         </Stack>}
 
-        {action === "decide" && <Stack gap={2}>
+        {(action === "add-alias" || action === "choose-for-path") && <Stack gap={2}>
           <Text weight="semibold" size={1}>{copy.createHeading}</Text>
           <TextInput aria-label={copy.createTitle} placeholder={copy.createTitle} value={title} onChange={(event) => { setTitle(event.currentTarget.value); setKeywordId(proposedKeywordId(event.currentTarget.value)); }} />
           <TextInput aria-label={copy.createId} placeholder={copy.createId} value={keywordId} onChange={(event) => setKeywordId(event.currentTarget.value)} />
@@ -156,6 +172,10 @@ function GroupCard({ group, keywords, categories, copy, locale, onSaved }: {
             <option value="">{copy.createChoose}</option>
             {categories.map((option) => <option key={option._id} value={option._id}>{option.name ?? option._id}</option>)}
           </Select>
+          {action === "choose-for-path" && <Select aria-label={copy.createParent} value={parentRef} onChange={(event) => setParentRef(event.currentTarget.value)}>
+            <option value="">{copy.createNoParent}</option>
+            {keywords.map((option) => <option key={option._id} value={option._id}>{option.name ?? option.keywordId} ({option.keywordId})</option>)}
+          </Select>}
           <Select aria-label={copy.createVisibility} value={visibility} onChange={(event) => setVisibility(event.currentTarget.value as typeof visibility)}>
             <option value="">{copy.createChooseVisibility}</option>
             <option value="public">{copy.createPublic}</option>
@@ -173,6 +193,33 @@ function GroupCard({ group, keywords, categories, copy, locale, onSaved }: {
   );
 }
 
+function RecordedDecisions({ decisions, keywords, copy, locale, onSaved }: {
+  readonly decisions: readonly TermDecision[] | null;
+  readonly keywords: readonly Option[];
+  readonly copy: Copy;
+  readonly locale: string;
+  readonly onSaved: () => void;
+}) {
+  const { busy, status, run } = useKeywordWrite(copy, locale, onSaved);
+  const rows = recordedDecisions(decisions);
+  if (rows.length === 0) return null;
+  const nameOf = (documentId: string) => { const keyword = keywords.find((option) => option._id === documentId); return keyword?.name ?? keyword?.keywordId ?? documentId; };
+  return (
+    <Card padding={4} radius={2} shadow={1}>
+      <Stack gap={3}>
+        <Heading as="h2" size={1}>{copy.decisionsHeading}</Heading>
+        {rows.map((row) => (
+          <Flex key={row.key} align="center" gap={2}>
+            <Box flex={1}><Text size={1}>{row.key} → {nameOf(row.documentId)}</Text></Box>
+            <Button mode="ghost" text={copy.decisionRemove} disabled={busy} onClick={() => void run(async (graph) => planRemoveDecision(graph, decisions, row.key))} />
+          </Flex>
+        ))}
+        {status !== undefined && <Card padding={3} radius={2} tone={status.tone} role="status"><Text size={1}>{status.text}</Text></Card>}
+      </Stack>
+    </Card>
+  );
+}
+
 /** One aggregated row per imported term (AB#70). Reads private records with the editor's own access. */
 export function KeywordReviewTool() {
   const { id: locale } = useCurrentLocale();
@@ -181,19 +228,22 @@ export function KeywordReviewTool() {
   const [groups, setGroups] = useState<readonly KeywordReviewGroup[]>();
   const [keywords, setKeywords] = useState<readonly Option[]>([]);
   const [categories, setCategories] = useState<readonly Option[]>([]);
+  const [decisions, setDecisions] = useState<readonly TermDecision[] | null>(null);
   const [failed, setFailed] = useState(false);
 
   const load = useCallback(async () => {
     try {
       const published = client.withConfig({ perspective: "published", useCdn: false });
-      const [records, keywordRows, categoryRows] = await Promise.all([
+      const [records, keywordRows, categoryRows, decisionRows] = await Promise.all([
         published.fetch<readonly Record<string, unknown>[]>(KEYWORD_REVIEW_RECORDS_QUERY, {}, { tag: "keyword-review" }),
         published.fetch<readonly Option[]>(KEYWORD_OPTIONS_QUERY, {}, { tag: "keyword-review" }),
         published.fetch<readonly Option[]>(CATEGORY_OPTIONS_QUERY, {}, { tag: "keyword-review" }),
+        published.fetch<readonly TermDecision[] | null>(KEYWORD_TERM_DECISIONS_QUERY, {}, { tag: "keyword-review" }),
       ]);
       setGroups(aggregateKeywordReview(records));
       setKeywords(keywordRows);
       setCategories(categoryRows);
+      setDecisions(decisionRows);
       setFailed(false);
     } catch {
       setFailed(true);
@@ -214,6 +264,7 @@ export function KeywordReviewTool() {
           : groups === undefined ? <Spinner />
           : groups.length === 0 ? <Text>{copy.empty}</Text>
           : groups.map((group) => <GroupCard key={`${group.reason}:${group.key}`} group={group} keywords={keywords} categories={categories} copy={copy} locale={locale} onSaved={() => void load()} />)}
+        <RecordedDecisions decisions={decisions} keywords={keywords} copy={copy} locale={locale} onSaved={() => void load()} />
       </Stack>
     </Box>
   );

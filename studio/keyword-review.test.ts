@@ -4,7 +4,7 @@ import { evaluate, parse } from "groq-js/1";
 
 import { keywordDocument, keywordRow } from "../sanity/schemas/keyword-fixtures";
 import {
-  aggregateKeywordReview, KEYWORD_TERM_DECISIONS_ID, planChooseKeyword, KEYWORD_ALIAS_TARGET_QUERY, KEYWORD_ID_RESERVATION_QUERY, keywordAliasTargetParams, keywordReviewAction, keywordReviewCopy, keywordReviewOutcome, planAddAlias, planCreateKeywordDraft, proposedCategoryId, proposedKeywordId, proposedTitle, REPRESENTATIVE_MEDIA_LIMIT,
+  aggregateKeywordReview, KEYWORD_TERM_DECISIONS_ID, planChooseKeyword, planRemoveDecision, proposedParentId, recordedDecisions, KEYWORD_ALIAS_TARGET_QUERY, KEYWORD_ID_RESERVATION_QUERY, keywordAliasTargetParams, keywordReviewAction, keywordReviewCopy, keywordReviewOutcome, planAddAlias, planCreateKeywordDraft, proposedCategoryId, proposedKeywordId, proposedTitle, REPRESENTATIVE_MEDIA_LIMIT,
   type AliasTarget, type KeywordReviewGraph, type KeywordReviewGroup,
 } from "./keyword-review";
 
@@ -38,6 +38,14 @@ describe("aggregating review items", () => {
     expect(rows.map((row) => row.reason).sort()).toEqual(["ambiguous", "unmatched"]);
   });
 
+  it("gives a term beside paths and without them one row, because they need one decision", () => {
+    const rows = aggregateKeywordReview([
+      { mediaId: "m1", reviewItems: [item("harbour", ["Harbour"])] },
+      { mediaId: "m2", reviewItems: [item("harbour", ["Harbour"], "unmatched-beside-paths")] },
+    ]);
+    expect(rows).toEqual([expect.objectContaining({ reason: "unmatched", key: "harbour", occurrences: 2 })]);
+  });
+
   it("orders by photographs, then term, and bounds the examples without losing the count", () => {
     const records = Array.from({ length: REPRESENTATIVE_MEDIA_LIMIT + 3 }, (_, index) => ({ mediaId: `m${index}`, reviewItems: [item("common", ["Common"])] }));
     const rows = aggregateKeywordReview([{ mediaId: "z", reviewItems: [item("rare", ["Rare"]), item("arare", ["A Rare"])] }, ...records]);
@@ -58,11 +66,10 @@ describe("aggregating review items", () => {
 
 describe("what can be decided here", () => {
   it.each([
-    ["unmatched", "new term", "decide"],
-    ["unmatched", "root|new term", "decide"],
-    ["unmatched-beside-paths", "new term", "decide"],
-    ["path-mismatch", "root|leaf", "decide"],
-    ["ambiguous", "root|leaf", "decide"],
+    ["unmatched", "new term", "add-alias"],
+    ["unmatched", "root|new term", "choose-for-path"],
+    ["path-mismatch", "root|leaf", "choose-for-path"],
+    ["ambiguous", "root|leaf", "choose-for-path"],
     ["ambiguous", "shared name", "choose-candidate"],
     ["malformed-path", "root||leaf", "fix-source"],
   ])("%s %s → %s", (reason, key, action) => {
@@ -78,16 +85,38 @@ describe("what can be decided here", () => {
     ] });
   });
 
+  it("lets a path name any keyword, because it is private and a path has no candidates to narrow", () => {
+    const path = group({ reason: "unmatched", key: "clients|some name|session" });
+    expect(planChooseKeyword(graph, path, { documentId: "doc-harbour", keywordId: "harbour" }, null, "u1")).toMatchObject({ mutations: [{}, { createOrReplace: { decisions: [{ key: "clients|some name|session" }] } }] });
+  });
+
+  it("repairs a damaged list by leaving out what the sync could not read", () => {
+    const shared = group({ reason: "ambiguous", key: "shared name", candidates: ["harbour"] });
+    const existing = [{ key: 5, keyword: { _ref: "x" } }, { key: "no keyword" }, null] as never;
+    expect(planChooseKeyword(graph, shared, { documentId: "doc-harbour", keywordId: "harbour" }, existing, "u")).toMatchObject({ mutations: [{}, { createOrReplace: { decisions: [{ key: "shared name" }] } }] });
+  });
+
+  it("shows recorded choices and takes one back, so a wrong choice can be corrected", () => {
+    const existing = [{ _key: "a", key: "one", keyword: { _ref: "doc-a" } }, { _key: "b", key: "two", keyword: { _ref: "doc-b" } }];
+    expect(recordedDecisions(existing)).toEqual([{ key: "one", documentId: "doc-a" }, { key: "two", documentId: "doc-b" }]);
+    expect(recordedDecisions(null)).toEqual([]);
+    expect(planRemoveDecision(graph, existing, "one")).toEqual({ mutations: [
+      { patch: { id: "keywordTaxonomyState", ifRevisionID: "state-1", inc: { publicationSequence: 1 } } },
+      { createOrReplace: { _id: KEYWORD_TERM_DECISIONS_ID, _type: "keywordTermDecisions", decisions: [existing[1]] } },
+    ] });
+  });
+
   it("refuses a choice that is not one of the term's keywords, or a term a choice cannot settle", () => {
     const shared = group({ reason: "ambiguous", key: "shared name", candidates: ["cycling", "harbour"] });
     expect(planChooseKeyword(graph, shared, { documentId: "doc-other", keywordId: "other" }, [], "u")).toEqual({ refused: "This term cannot be decided here." });
     expect(planChooseKeyword(graph, group(), { documentId: "doc-harbour", keywordId: "harbour" }, [], "u")).toEqual({ refused: "This term cannot be decided here." });
+    expect(planChooseKeyword(graph, group({ reason: "malformed-path", key: "a||b" }), { documentId: "doc-harbour", keywordId: "harbour" }, [], "u")).toEqual({ refused: "This term cannot be decided here." });
   });
 
   it("refuses both writes for a term no alias could settle, so nothing misleading is saved", () => {
     const shared = group({ reason: "ambiguous", key: "shared name" });
-    expect(planAddAlias(graph, shared, target())).toEqual({ refused: "This term cannot be decided here." });
-    expect(planCreateKeywordDraft(graph, shared, { title: "Shared Name", keywordId: "shared-name", categoryRef: place, internal: false, idReserved: false, language: "fi", uuid: "u" })).toEqual({ refused: "This term cannot be decided here." });
+    expect(planAddAlias(graph, shared, target(), true)).toEqual({ refused: "This term cannot be decided here." });
+    expect(planCreateKeywordDraft(graph, shared, { title: "Shared Name", keywordId: "shared-name", categoryRef: place, internal: false, idReserved: false, publicConfirmed: true, language: "fi", uuid: "u" })).toEqual({ refused: "This term cannot be decided here." });
   });
 });
 
@@ -104,22 +133,34 @@ describe("proposals", () => {
     expect(proposedKeywordId("Mäki Ääni")).toBe("maki-aani");
     expect(proposedKeywordId("!!")).toBe("");
   });
+
+  it("proposes a path's parent only when exactly one keyword is named by its next-to-last term", () => {
+    const keywords = [{ _id: "a", name: "Cycling" }, { _id: "b", name: "Twin" }, { _id: "c", name: "twin" }];
+    expect(proposedParentId(group({ key: "sport|cycling|track" }), keywords)).toBe("a");
+    expect(proposedParentId(group({ key: "x|twin|y" }), keywords)).toBe("");
+    expect(proposedParentId(group({ key: "flat" }), keywords)).toBe("");
+  });
 });
 
 describe("adding an alias", () => {
   it("writes under both revision guards", () => {
-    expect(planAddAlias(graph, group(), target())).toEqual({ mutations: [
+    expect(planAddAlias(graph, group(), target(), true)).toEqual({ mutations: [
       { patch: { id: "keywordTaxonomyState", ifRevisionID: "state-1", inc: { publicationSequence: 1 } } },
       { patch: { id: "doc-cycling", ifRevisionID: "rev-1", set: { aliases: ["bike racing", "new term"] } } },
     ] });
   });
 
-  it("can hold a whole path, so a keyword the site moved stops coming back", () => {
-    expect(planAddAlias(graph, group({ reason: "path-mismatch", key: "old root|cycling" }), target())).toMatchObject({ mutations: [{}, { patch: { set: { aliases: ["bike racing", "old root|cycling"] } } }] });
+  it("refuses a whole path, which could name a client on a public keyword", () => {
+    expect(planAddAlias(graph, group({ reason: "path-mismatch", key: "clients|some name" }), target(), true)).toEqual({ refused: "This term cannot be decided here." });
+  });
+
+  it("asks before a term becomes readable on a public keyword, but not on an internal one", () => {
+    expect(planAddAlias(graph, group(), target(), false)).toEqual({ refused: "Confirm that this name may be public." });
+    expect(planAddAlias(graph, group(), target({ visibility: "internal" }), false)).not.toHaveProperty("refused", "Confirm that this name may be public.");
   });
 
   it("refuses a keyword that is no longer active, because the term would not resolve to it", () => {
-    expect(planAddAlias(graph, group(), target({ status: "retired" }))).toEqual({ refused: "This keyword is not active." });
+    expect(planAddAlias(graph, group(), target({ status: "retired" }), true)).toEqual({ refused: "This keyword is not active." });
   });
 
   it("finds a draft or a release version of the keyword, either of which would overwrite the alias", async () => {
@@ -133,17 +174,17 @@ describe("adding an alias", () => {
 
   it("detects a collision before saving", () => {
     const other = { ...graph, keywords: [...graph.keywords, keywordRow({ id: "taken", title: "New Term", category: subject })] };
-    expect(planAddAlias(other, group(), target())).toEqual({ refused: expect.stringMatching(/both use the name "new term"/) });
+    expect(planAddAlias(other, group(), target(), true)).toEqual({ refused: expect.stringMatching(/both use the name "new term"/) });
   });
 
   it("refuses a repeat, and a keyword with an unpublished draft, which would drop the alias when published", () => {
-    expect(planAddAlias(graph, group({ key: "bike racing" }), target())).toEqual({ refused: "This keyword already has that alias." });
-    expect(planAddAlias(graph, group(), target({ hasDraft: true }))).toEqual({ refused: "This keyword has an unpublished draft. Publish or discard it first." });
+    expect(planAddAlias(graph, group({ key: "bike racing" }), target(), true)).toEqual({ refused: "This keyword already has that alias." });
+    expect(planAddAlias(graph, group(), target({ hasDraft: true }), true)).toEqual({ refused: "This keyword has an unpublished draft. Publish or discard it first." });
   });
 });
 
 describe("creating a keyword", () => {
-  const input = { title: "New Term", keywordId: "new-term", categoryRef: place, internal: false, idReserved: false, language: "fi", uuid: "uuid-1" };
+  const input = { title: "New Term", keywordId: "new-term", categoryRef: place, internal: false, idReserved: false, publicConfirmed: true, language: "fi", uuid: "uuid-1" };
 
   it("creates a draft, never a published keyword, for the guarded action to publish", () => {
     expect(planCreateKeywordDraft(graph, group(), input)).toEqual({
@@ -153,6 +194,23 @@ describe("creating a keyword", () => {
         category: { _type: "reference", _ref: place }, status: "active", visibility: "public",
       } }],
     });
+  });
+
+  it("never stores a path as an alias, and takes the parent the editor left in the form", () => {
+    const entry = planCreateKeywordDraft(graph, group({ reason: "unmatched", key: "sport|cycling|track" }), { ...input, title: "Track", keywordId: "track", parentRef: "doc-cycling", publicConfirmed: false });
+    expect(entry).toMatchObject({ mutations: [{ create: { parent: { _ref: "doc-cycling" } } }] });
+    expect(JSON.stringify(entry)).not.toContain("aliases");
+  });
+
+  it("asks before a differing term becomes a public alias, but not on an internal keyword", () => {
+    const named = { ...input, title: "Better Name", keywordId: "better-name", publicConfirmed: false };
+    expect(planCreateKeywordDraft(graph, group(), named)).toEqual({ refused: "Confirm that this name may be public." });
+    expect(planCreateKeywordDraft(graph, group(), { ...named, internal: true })).toMatchObject({ draftId: "drafts.keyword.better-name" });
+  });
+
+  it("never reuses an id, even one a retired internal keyword holds, whose document it would replace", () => {
+    const retired = { ...graph, keywords: [...graph.keywords, keywordRow({ id: "maki", documentId: "keyword.maki", title: "Old", category: subject, visibility: "internal", status: "retired" })] };
+    expect(planCreateKeywordDraft(retired, group(), { ...input, title: "Mäki", keywordId: "maki", internal: true })).toEqual({ refused: "This keyword ID is already in use." });
   });
 
   it("keeps the imported term as an alias when the title differs", () => {
@@ -167,7 +225,7 @@ describe("creating a keyword", () => {
     ["a blank title", { title: "  " }, /needs a title/],
     ["a bad id", { keywordId: "Not Valid" }, /2–40 lowercase/],
     ["an id an unpublished keyword holds", { idReserved: true }, /unpublished keyword already uses/],
-    ["an id already taken", { keywordId: "cycling" }, /More than one keyword document|keyword ID/],
+    ["an id already taken", { keywordId: "cycling" }, /already in use/],
     ["a name equal to another keyword's id in the category", { title: "Harbour", keywordId: "harbour-two" }, /equals the ID of another keyword/],
     ["a name another keyword in the category already answers to", { title: "Bike Racing", keywordId: "bike-racing-two", categoryRef: subject }, /both use the name/],
   ])("refuses %s before saving", (_name, overrides, message) => {
