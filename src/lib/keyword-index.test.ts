@@ -139,6 +139,12 @@ describe("the Sanity inputs", () => {
     expect(fallback).toMatchObject({ title: "Harbour", categoryTitle: "Place" });
   });
 
+  it("leaves out a keyword whose parent is not public, and what sits under it, keeping the rest", () => {
+    const rows = [row(), row({ keywordId: "orphan", parentRef: "doc-gone", parentKeywordId: null }), row({ keywordId: "below", parentRef: "doc-orphan", parentKeywordId: "orphan" })];
+    const index = parseKeywordIndex(rows, [["harbour"], ["below", "orphan"]], "en", "en");
+    expect(index.entries.map((entry) => entry.keywordId)).toEqual(["harbour"]);
+  });
+
   it("refuses two categories claiming one slug with different words, because last-wins would change between reads", () => {
     const other = row({ keywordId: "pier", categoryOrder: 9 });
     expect(() => parseKeywordIndex([row(), other], [], "en", "en")).toThrow(/two keyword categories claim the slug "place"/);

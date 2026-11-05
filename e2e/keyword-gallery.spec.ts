@@ -96,6 +96,12 @@ test.describe("keyword gallery", () => {
   test.describe("without JavaScript", () => {
     test.use({ javaScriptEnabled: false });
 
+    test("the keyword browser is plain links", async ({ page }) => {
+      await page.goto(SEARCH_PATH);
+      const link = page.getByRole("region", { name: labels.keywordBrowseHeading }).getByRole("link").first();
+      await expect(link).toHaveAttribute("href", /\?keywords=/);
+    });
+
     test("the continuation is a real link, with the selection before the cursor, and offers a way back", async ({ page }) => {
       await page.goto(gallery("archive"));
       const next = page.locator('a[rel="next"]');
@@ -117,6 +123,40 @@ test.describe("keyword gallery", () => {
     await expect(heading).toHaveText(first!);
     await page.goForward();
     await expect(heading).toHaveText(second!);
+  });
+
+  test("the search landing state browses the vocabulary by keyboard, down to a gallery", async ({ page }) => {
+    await page.goto(SEARCH_PATH);
+    const browser = page.getByRole("region", { name: labels.keywordBrowseHeading });
+    await expect(browser).toBeVisible();
+    await expect(browser.getByRole("heading", { level: 3 }).first()).toBeVisible();
+    const link = browser.getByRole("link").first();
+    const href = await link.getAttribute("href");
+    expect(href).toMatch(/\?keywords=[a-z0-9-]+$/);
+    await link.focus();
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(new RegExp(`${href!.replace("?", "\\?")}$`));
+    await expect(page.getByText(labels.keywordSummary)).toBeVisible();
+  });
+
+  test("a parent's count matches the photographs its gallery can reach", async ({ page }) => {
+    await page.goto(SEARCH_PATH);
+    // The keyword's own count, not one of its children's, which sit in the same list item.
+    const count = page.locator('li:has(> a[href$="keywords=nature"]) > span');
+    await expect(count).toHaveText(`(${labels.keywordCountOther.replace("{count}", "4")})`);
+    await page.goto(gallery("nature"));
+    await expect(page.getByRole("button", { name: /./ }).filter({ has: page.locator("img") })).toHaveCount(4);
+  });
+
+  test("the browser works in the prefixed language too, and links there", async ({ page }) => {
+    const search = `/${PREFIXED_LOCALE.prefix}/${PREFIXED_LOCALE.searchNamespace}`;
+    await page.goto(search);
+    await expect(page.locator(`a[href="${search}?keywords=nature"]`)).toBeVisible();
+  });
+
+  test("a results page does not repeat the browser", async ({ page }) => {
+    await page.goto(`${SEARCH_PATH}?q=zzzzzzzz`);
+    await expect(page.getByRole("region", { name: labels.keywordBrowseHeading })).toHaveCount(0);
   });
 
   test("the language links keep the selection and drop the cursor", async ({ page }) => {

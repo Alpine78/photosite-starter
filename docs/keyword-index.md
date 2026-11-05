@@ -37,6 +37,21 @@ Entries sort by category order (a category with none goes last), then category s
 - **A malformed row raises.** An unknown parent or category fails the read rather than hiding keywords.
 - **The vocabulary and the closures are separate reads,** so counts can briefly reflect another generation.
 
+## Browsing
+
+`src/components/keyword-browser.tsx` renders the index on the search landing state (AB#75), as plain links grouped by category
+and nested by hierarchy. ADR-0012 §8 reserves that state for it. Defined behaviour:
+
+- **Metadata:** the landing state is `noindex` and has no canonical link. Each one-keyword gallery it links to is `noindex` with a canonical
+  link to its own first page. All are outside the sitemap. ADR-0012 §8 keeps selections out until evidence argues for a bounded indexable subset.
+- **Reaching it:** the search dialog links to the search page, because a JavaScript visitor's search control opens the dialog instead.
+- **Categories:** a keyword nests under its nearest ancestor in the same category. With none, it is a root of its own category.
+- **An orphan:** a keyword whose parent is not in the public vocabulary, and whatever sits under it, is left out of the index.
+- **A slow store:** the page waits 3 seconds at most for the index, and then renders without it. A fault is logged.
+- **Nothing to show, or a store that cannot answer:** the section is absent and search keeps working. A failure is logged.
+- **A results page** does not show the browser.
+- **While a re-sync is outstanding,** a keyword whose parent has no entry sits under its nearest listed ancestor.
+
 ## Matching
 
 `keywordIndexMatchKey` is the import's match key: Unicode NFC, locale-independent lowercase, whitespace collapsed

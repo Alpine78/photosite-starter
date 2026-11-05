@@ -2,6 +2,9 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Keyword browser, 2026-11-05 — AB#75 **Active**: the search landing state lists public keywords by category and hierarchy, as plain
+links with counts. Absent until media has keywords.
+
 Public keyword index, 2026-11-05 — AB#59 **Active**: a server-side, per-language value with public counts for the
 typeahead and browsable index, documented in [keyword-index.md](keyword-index.md). Nothing renders it yet. The live webhook's
 filter needs the three keyword types added after this deploys; until then the index converges within an hour.

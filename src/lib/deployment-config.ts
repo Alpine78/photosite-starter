@@ -108,6 +108,9 @@ export type BuiltInLabels = {
     readonly keywordSummary: string;
     readonly keywordNoResults: string;
     readonly keywordBackToStart: string;
+    readonly keywordBrowseHeading: string;
+    readonly keywordCountOne: string;
+    readonly keywordCountOther: string;
     /** The header control's visible name. */
     readonly open: string;
     readonly close: string;
@@ -117,6 +120,8 @@ export type BuiltInLabels = {
     readonly submit: string;
     /** Prompt shown before a usable query: the empty and too-short states. */
     readonly prompt: string;
+    /** The dialog's way to the search page, where keywords can be browsed without typing. */
+    readonly allOptions: string;
     readonly searching: string;
     readonly storiesHeading: string;
     readonly servicesHeading: string;
@@ -754,6 +759,9 @@ const englishLabels = {
     keywordSummary: "Showing photographs that have all of these keywords.",
     keywordNoResults: "No photographs have all of these keywords.",
     keywordBackToStart: "Back to the first photographs",
+    keywordBrowseHeading: "Browse photographs by keyword",
+    keywordCountOne: "{count} photograph",
+    keywordCountOther: "{count} photographs",
     title: "Search",
     open: "Search",
     close: "Close",
@@ -761,6 +769,7 @@ const englishLabels = {
     placeholder: "Search stories and services",
     submit: "Search",
     prompt: "Type at least two letters to search.",
+    allOptions: "All search options",
     searching: "Searching…",
     storiesHeading: "Stories",
     servicesHeading: "Services",
@@ -1251,6 +1260,9 @@ const finnishLabels = {
     keywordSummary: "Näytetään kuvat, joissa on kaikki nämä avainsanat.",
     keywordNoResults: "Millään kuvalla ei ole kaikkia näitä avainsanoja.",
     keywordBackToStart: "Takaisin ensimmäisiin kuviin",
+    keywordBrowseHeading: "Selaa kuvia avainsanoittain",
+    keywordCountOne: "{count} kuva",
+    keywordCountOther: "{count} kuvaa",
     title: "Haku",
     open: "Hae",
     close: "Sulje",
@@ -1258,6 +1270,7 @@ const finnishLabels = {
     placeholder: "Hae tarinoita ja palveluita",
     submit: "Hae",
     prompt: "Kirjoita vähintään kaksi kirjainta hakeaksesi.",
+    allOptions: "Kaikki hakutavat",
     searching: "Haetaan…",
     storiesHeading: "Tarinat",
     servicesHeading: "Palvelut",

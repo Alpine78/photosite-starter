@@ -52,8 +52,23 @@ export function parseKeywordClosures(result: unknown): readonly (readonly string
   });
 }
 
+/**
+ * A keyword whose parent is not in the public vocabulary, and whatever sits under it, is left out of the index. Studio
+ * prevents this, but it does not bind an API write, and one bad row must not hide every keyword from every visitor.
+ */
+function withoutOrphans(rows: readonly unknown[]): readonly unknown[] {
+  let kept = rows;
+  for (;;) {
+    const ids = new Set(kept.map((row) => (isRecord(row) ? row.keywordId : undefined)));
+    const next = kept.filter((row) => !isRecord(row) || row.parentRef === null || row.parentRef === undefined || ids.has(row.parentKeywordId));
+    if (next.length === kept.length) return kept;
+    kept = next;
+  }
+}
+
 export function parseKeywordIndex(vocabulary: unknown, closures: unknown, language: string, fallbackLanguage: string): KeywordIndex {
   if (!Array.isArray(vocabulary)) throw new TypeError("the keyword index vocabulary is malformed");
+  vocabulary = withoutOrphans(vocabulary);
   const selected = toLanguageSubtag(language), fallback = toLanguageSubtag(fallbackLanguage);
   const taxonomy = parsePublicKeywordTaxonomy(vocabulary, selected, fallback);
   const categories = new Map<string, KeywordIndexCategory>();

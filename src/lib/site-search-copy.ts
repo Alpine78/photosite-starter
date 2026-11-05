@@ -19,6 +19,11 @@ export function resultCountText(labels: SiteSearchLabels, count: number): string
   return fill(count === 1 ? labels.resultsOne : labels.resultsOther, "{count}", String(count));
 }
 
+/** One formatter for the page, because a browser can list hundreds of keywords. */
+export function keywordCountText(labels: SiteSearchLabels, count: number, formatter: Intl.NumberFormat): string {
+  return fill(count === 1 ? labels.keywordCountOne : labels.keywordCountOther, "{count}", formatter.format(count));
+}
+
 export function noResultsText(labels: SiteSearchLabels, query: string): string {
   return fill(labels.noResults, "{query}", query);
 }
