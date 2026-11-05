@@ -26,7 +26,8 @@ the one-hour hard bound even if no operator intervenes.
 | `sanity:articles` | article listings, placements, bodies, end-gallery windows, and neighbours |
 | `sanity:categories` | localized tree, ancestry, routes, and branch listings |
 | `sanity:galleries` | gallery metadata, sections, placements, home topic counts, order, filters, and cursor inputs |
-| `sanity:keywords` | the keyword vocabulary and the public keyword index's closures (AB#59) |
+| `sanity:keywords` | the public keyword index's vocabulary (AB#59). A keyword gallery reads its own uncached, so it does not depend on the webhook |
+| `sanity:keyword-closures` | the public keyword index's closures, which a media change expires |
 | `sanity:media` | shared public media projections |
 | `sanity:metadata` | canonical and Open Graph inputs |
 | `sanity:sitemap` | current and future sitemap inputs (AB#85) |
@@ -95,8 +96,8 @@ Configure one Sanity **document webhook per deployment environment**:
 - dataset: the environment's exact `SANITY_DATASET`
 - trigger: create, update, and delete
 - filter:
-  `_type in ["siteSettings", "homePage", "service", "article", "category", "gallery", "galleryPlacement", "media", "keyword", "keywordCategory", "keywordTaxonomyState"]`
-  (the three keyword types since AB#59: deploy the change that recognizes them first, because an unknown type answers 400; see [the keyword index](keyword-index.md))
+  `_type in ["siteSettings", "homePage", "service", "article", "category", "gallery", "galleryPlacement", "articleEndGalleryPlacement", "media", "keyword", "keywordCategory", "keywordTaxonomyState"]`
+  (the three keyword types since AB#59: deploy the change that recognizes them first, because an unknown type answers 400; see [the keyword index](keyword-index.md). `articleEndGalleryPlacement` was missing from this list until 2026-11-05, although the map above has it: check it on a live webhook.)
 - HTTP method: `POST`
 - API version: the deployment's pinned `SANITY_API_VERSION`
 - drafts: off
