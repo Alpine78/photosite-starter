@@ -14,6 +14,7 @@ npm run verify:legacy-redirects -- report [--csv] # AB#19: mapping report or pen
 npm run benchmark:keywords -- plan # AB#65 spike: fixture + query-strategy benchmark (owner-run for the live matrix)
 npm run convert:joomla -- --source <articles.ndjson> --out <dir> # owner-run: convert legacy content, report only, never writes
 npm run write:joomla -- --plan <import-plan.json> --image-root <dir> --out <dir> --approved-digest <hash> # owner-run: write an approved import plan to Sanity, dry-run by default
+npm run sync:keywords -- --out <new-private-dir> [--imports <fields.json>] [--set-discoverable] [--approved-digest <hash> --yes] # owner-run: re-derive media keywords and closures (AB#69), dry-run by default, no upload; see docs/keyword-sync.md
 npm run plan:rally -- --folder <rally folder> --out <dir> # owner-run: plan a capture-sequence rally import offline, never writes
 npm run plan:legacy-delivery -- --input <private.json> --image-root <dir> --backup <archive.zip> --out <dir> # owner-run: verify unchanged retained legacy sources offline; no CMS write
 npm run plan:legacy-image-reupload -- --image-root <dir> --out <new-private-dir> # owner-run: AB#391 report on legacy source images (action, GPS, keywords, postal address); reads local files only, never writes CMS
