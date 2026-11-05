@@ -64,6 +64,12 @@ describe("an image embedded in the metadata", () => {
     expect(inspectJpegImportFacts(withSegment(await jpeg(32, 16), 0xe1, xmp('<rdf:li xmpGImg:image="AAAA"/>'))).gps).toBe("unreadable");
   });
 
+  it("finds that metadata behind a comment", async () => {
+    const located = withSegment(withSegment(await jpeg(), 0xe1, exifBlock(Buffer.from("MM"))), 0xfe, Buffer.from("note"));
+    const outer = withSegment(await jpeg(32, 16), 0xe1, exifBlock(Buffer.concat([tiffWithNoEntries(), located])));
+    expect(inspectJpegImportFacts(outer).gps).toBe("unreadable");
+  });
+
   it("does not count when it is a plain thumbnail, as a camera writes one", async () => {
     const outer = withSegment(await jpeg(32, 16), 0xe1, exifBlock(Buffer.concat([tiffWithNoEntries(), await jpeg()])));
     expect(inspectJpegImportFacts(outer).gps).toBe("absent");

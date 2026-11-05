@@ -92,7 +92,8 @@ const EMBEDDED_IMAGE_START = Buffer.from([0xff, 0xd8, 0xff]);
 function embedsImageWithMetadata(segment: Buffer): boolean {
   for (let start = segment.indexOf(EMBEDDED_IMAGE_START); start !== -1; start = segment.indexOf(EMBEDDED_IMAGE_START, start + EMBEDDED_IMAGE_START.length)) {
     let cursor = start + 2;
-    while (cursor + 4 <= segment.length && segment[cursor] === 0xff && segment[cursor + 1] >= 0xe0 && segment[cursor + 1] <= 0xef) {
+    // Every segment up to the scan, because a comment or table may come before the metadata.
+    while (cursor + 4 <= segment.length && segment[cursor] === 0xff && segment[cursor + 1] !== 0xda && segment[cursor + 1] !== 0xd9) {
       const body = cursor + 4;
       if (segment[cursor + 1] === 0xe1 && [EXIF_HEADER, XMP_HEADER].some((header) => segment.subarray(body, body + header.length).equals(header))) return true;
       cursor += 2 + segment.readUInt16BE(cursor + 2);
