@@ -58,24 +58,30 @@ const STALE_ARGUMENTS: readonly string[] = [
  * creator's own city and country are contact details, not this, so they stay.
  */
 const LOCATION_TAGS = [
+  "XMP-xmpDM:ShotLocation",
   "XMP:GPS*", "XMP-iptcExt:LocationCreated", "XMP-iptcExt:LocationShown",
   "XMP-photoshop:City", "XMP-photoshop:State", "XMP-photoshop:Country", "XMP-iptcCore:Location", "XMP-iptcCore:CountryCode",
   "IPTC:City", "IPTC:Sub-location", "IPTC:Province-State", "IPTC:Country-PrimaryLocationName", "IPTC:Country-PrimaryLocationCode",
   "IPTC:ContentLocationName", "IPTC:ContentLocationCode",
 ] as const;
 const LOCATION_ARGUMENTS: readonly string[] = [
+  "-Location:all=", "--XMP-iptcCore:CreatorCity", "--XMP-iptcCore:CreatorCountry",
   "-GPS:all=", ...LOCATION_TAGS.map((tag) => `-${tag}=`),
   // Embedded images can carry their own location. Remove them whole, never recursively edit them.
   "-IFD1:all=", "-ThumbnailImage=", "-PreviewImage=", "-PhotoshopThumbnail=", "-PhotoshopBGRThumbnail=", "-XMP-xmp:Thumbnails=",
 ];
 
 /**
- * Any field naming a place, by its name rather than by the list above, so the check after removal
- * also covers what the list missed: a field left behind fails the image instead of being uploaded.
- * `CreatorCity` and the like do not match, because the name has to start with the place.
+ * Family 2 Location catches fields whose names do not name a place. ShotLocation is
+ * classified as Image by ExifTool, so the name check still matters. Only the creator's
+ * own contact city and country are exempt from location removal.
  */
-const LOCATION_FIELD_NAME = /^(?:GPS|Location|Sub-?location|City$|State$|Province|Country|ContentLocation)/;
-const isLocationField = (field: string): boolean => LOCATION_FIELD_NAME.test(field.split(":").at(-1)!);
+const LOCATION_FIELD_NAME = /^(?:GPS|Location|ShotLocation$|Sub-?location|City$|State$|Province|Country|ContentLocation)/;
+const isLocationField = (field: string): boolean => {
+  const parts = field.split(":"), tag = parts.at(-1)!;
+  if (parts[0] === "XMP-iptcCore" && (tag === "CreatorCity" || tag === "CreatorCountry")) return false;
+  return parts.slice(1, -1).includes("Location") || LOCATION_FIELD_NAME.test(tag);
+};
 /** Anchored: Lightroom's `XMP-crs:UprightPreview` is a setting on half the archive, not an image. */
 const isPreviewField = (field: string): boolean => /^(?:Thumbnail|Preview|PhotoshopThumbnail|PhotoshopBGRThumbnail)/.test(field.split(":").at(-1)!);
 
@@ -110,7 +116,7 @@ function assertResult(result: Uint8Array, expectedCompressedData: string, remove
 
 export type ImportMetadataTool = Pick<ExifTool, "write" | "readRaw">;
 
-const readFields = (tool: ImportMetadataTool, file: string) => tool.readRaw(file, { readArgs: ["-G1", "-u"] }) as unknown as Promise<Record<string, unknown>>;
+const readFields = (tool: ImportMetadataTool, file: string, removeLocation: boolean) => tool.readRaw(file, { readArgs: [removeLocation ? "-G1:2" : "-G1", "-u"] }) as unknown as Promise<Record<string, unknown>>;
 
 /** Ignore computed location and file facts; every embedded preview must be absent. */
 async function assertNoLocation(tool: ImportMetadataTool, file: string): Promise<void> {
@@ -154,11 +160,12 @@ const NOT_COMPARED_FIELD = new Set(["Photoshop:XResolution", "Photoshop:YResolut
  */
 async function assertNothingLost(tool: ImportMetadataTool, source: string, result: string, removed: readonly string[], removeLocation: boolean): Promise<void> {
   let before: Record<string, unknown>, after: Record<string, unknown>;
-  try { [before, after] = await Promise.all([readFields(tool, source), readFields(tool, result)]); }
+  try { [before, after] = await Promise.all([readFields(tool, source, removeLocation), readFields(tool, result, removeLocation)]); }
   catch { throw new ImportMetadataError("TOOL_FAILED"); }
   for (const [field, value] of Object.entries(before)) {
-    const [group, tag] = field.split(":");
-    if (tag === undefined || removed.includes(field) || (removeLocation && (isLocationField(field) || isPreviewField(field))) || NOT_COMPARED_FIELD.has(field) || NOT_COMPARED_TAG.test(tag) || (NOT_COMPARED_GROUP.test(group) && field !== "File:Comment")) continue;
+    const parts = field.split(":"), group = parts[0], tag = parts.length > 1 ? parts.at(-1) : undefined;
+    const namedField = `${group}:${tag}`;
+    if (tag === undefined || removed.includes(namedField) || (removeLocation && (isLocationField(field) || isPreviewField(field))) || NOT_COMPARED_FIELD.has(namedField) || NOT_COMPARED_TAG.test(tag) || (NOT_COMPARED_GROUP.test(group) && namedField !== "File:Comment")) continue;
     if (JSON.stringify(after[field]) !== JSON.stringify(value)) throw new ImportMetadataError("METADATA_NOT_CARRIED");
   }
 }

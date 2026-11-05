@@ -96,6 +96,48 @@ const EVERY_PLACE = [
 ] as const;
 
 describe("removing a sensitive photograph's location", () => {
+  const otherLocations = [
+    ["XMP-xmpDM:Image:ShotLocation", "Synthetic shot location"],
+    ["XMP-cell:Location:CellTowerID", 123],
+    ["XMP-cell:Location:CellGlobalID", 456],
+  ] as const;
+
+  it.each([["keeping the image data", 400, 300], ["re-encoding a large one", 2400, 1600]])("removes shot and cell locations with the real tool when %s, only when requested", async (_name, width, height) => {
+    const source = await fixture(width, height, otherLocations.map(([field, value]) => `-${field.split(":")[0]}:${field.split(":").at(-1)}=${value}`));
+    const directory = await mkdtemp(path.join(tmpdir(), "location-groups-"));
+    try {
+      const file = path.join(directory, "image.jpg");
+      const read = async (bytes: Uint8Array) => {
+        await writeFile(file, bytes);
+        return await tool.readRaw(file, { readArgs: ["-G1:2", "-u"] }) as unknown as Record<string, unknown>;
+      };
+      const before = await read(source);
+      for (const [field, value] of otherLocations) expect(before[field], field).toBe(value);
+      for (const removeLocation of [true, false]) {
+        const { bytes, action } = await prepareJpegForImport(source, tool, { removeLocation });
+        expect(action).toBe(width <= 2048 ? "keep-compressed-data" : "re-encode");
+        if (action === "keep-compressed-data") expect(compressedImageDataSha256(bytes)).toBe(compressedImageDataSha256(source));
+        const after = await read(bytes);
+        for (const [field, value] of otherLocations) expect(after[field], field).toBe(removeLocation ? undefined : value);
+      }
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  }, TOOL_TIMEOUT_MS);
+
+  it.each([["keeping the image data", 400, 300], ["re-encoding a large one", 2400, 1600]])("refuses stored shot and cell locations that cannot be deleted when %s", async (_name, width, height) => {
+    for (const [field, value] of otherLocations) {
+      const source = await fixture(width, height, [`-${field.split(":")[0]}:${field.split(":").at(-1)}=${value}`]);
+      const stubborn = {
+        write: (file: string, tags: object, options: { writeArgs: string[] }) => tool.write(file, tags, {
+          writeArgs: options.writeArgs.filter((argument) => argument !== "-Location:all=" && argument !== "-XMP-xmpDM:ShotLocation="),
+        }),
+        readRaw: tool.readRaw.bind(tool),
+      } as unknown as ImportMetadataTool;
+      await expect(prepareJpegForImport(source, stubborn, { removeLocation: true })).rejects.toMatchObject({ code: "METADATA_REMAINS" });
+    }
+  }, TOOL_TIMEOUT_MS);
+
   it("keeps a Lightroom setting whose name only mentions a preview", async () => {
     const source = await fixture(400, 300, ["-XMP-crs:UprightPreview=False"]);
     const { bytes } = await prepareJpegForImport(source, tool, { removeLocation: true });
@@ -188,6 +230,8 @@ describe("removing a sensitive photograph's location", () => {
       const file = path.join(directory, "result.jpg");
       await writeFile(file, bytes);
       const fields = await tool.readRaw(file, { readArgs: ["-G1", "-u"] }) as unknown as Record<string, unknown>;
+      expect(fields["XMP-iptcCore:CreatorCity"]).toBe("The creator's city");
+      expect(fields["XMP-iptcCore:CreatorCountry"]).toBe("Exampleland");
       const text = JSON.stringify(Object.fromEntries(Object.entries(fields).filter(([key]) => !key.startsWith("File:") && !key.startsWith("SourceFile"))));
       expect(text).not.toMatch(/GPS|A city|A place|A content place/);
     } finally {
@@ -198,7 +242,7 @@ describe("removing a sensitive photograph's location", () => {
   it("refuses an image when a tool leaves a place behind, rather than uploading it", async () => {
     const source = await fixture(400, 300, ["-XMP-iptcExt:LocationShownCity=A city shown"]);
     const write = tool.write.bind(tool) as (file: string, tags: object, options: { writeArgs: string[] }) => Promise<unknown>;
-    const stubborn = { write: (file: string, tags: object, options: { writeArgs: string[] }) => write(file, tags, { writeArgs: options.writeArgs.filter((argument) => !argument.includes("iptcExt")) }), readRaw: tool.readRaw.bind(tool) } as unknown as ImportMetadataTool;
+    const stubborn = { write: (file: string, tags: object, options: { writeArgs: string[] }) => write(file, tags, { writeArgs: options.writeArgs.filter((argument) => !argument.includes("iptcExt") && argument !== "-Location:all=") }), readRaw: tool.readRaw.bind(tool) } as unknown as ImportMetadataTool;
     await expect(prepareJpegForImport(source, stubborn, { removeLocation: true })).rejects.toMatchObject({ code: "METADATA_REMAINS" });
   }, 60_000);
 });
