@@ -168,7 +168,8 @@ describe("removing a sensitive photograph's location", () => {
 
   it.each([["keeping the image data", 400, 300], ["re-encoding a large one", 2400, 1600]])("removes embedded thumbnails containing their own GPS when %s", async (_name, width, height) => {
     const { source, preview } = await fixtureWithPreviews(width, height);
-    expect(inspectJpegImportFacts(source).gps).toBe("absent");
+    // The outer image states no location, yet the review must still see this photograph.
+    expect(inspectJpegImportFacts(source).gps).toBe("unreadable");
     expect(inspectJpegImportFacts(preview).gps).toBe("present");
     const directory = await mkdtemp(path.join(tmpdir(), "location-preview-read-"));
     try {
