@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Box, Button, Card, Checkbox, Flex, Heading, Select, Spinner, Stack, Text, TextInput } from "@sanity/ui";
+import { Box, Button, Card, Flex, Heading, Select, Spinner, Stack, Text, TextInput } from "@sanity/ui";
 import { useClient, useCurrentLocale, type Mutation } from "sanity";
 import { useRouter } from "sanity/router";
 
@@ -9,6 +9,7 @@ import { INITIAL_KEYWORD_TAXONOMY_STATE, KEYWORD_PUBLISH_PARAMS, KEYWORD_PUBLISH
 import {
   aggregateKeywordReview,
   KEYWORD_ALIAS_TARGET_QUERY,
+  KEYWORD_ID_RESERVATION_QUERY,
   KEYWORD_REVIEW_RECORDS_QUERY,
   keywordAliasTargetParams,
   keywordReviewAction,
@@ -48,7 +49,7 @@ function GroupCard({ group, keywords, categories, copy, locale, onSaved }: {
   const [title, setTitle] = useState(() => proposedTitle(group));
   const [keywordId, setKeywordId] = useState(() => proposedKeywordId(proposedTitle(group)));
   const [categoryRef, setCategoryRef] = useState(() => proposedCategoryId(group, categories));
-  const [internal, setInternal] = useState(false);
+  const [visibility, setVisibility] = useState<"" | "public" | "internal">("");
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<Status>();
   const [draftId, setDraftId] = useState<string>();
@@ -89,7 +90,8 @@ function GroupCard({ group, keywords, categories, copy, locale, onSaved }: {
   });
 
   const createDraft = () => run(async (graph) => planCreateKeywordDraft(graph, group, {
-    title, keywordId, categoryRef, internal,
+    title, keywordId, categoryRef, internal: visibility === "internal",
+    idReserved: await raw.fetch<boolean>(KEYWORD_ID_RESERVATION_QUERY, { keywordId }, { tag: "keyword-review" }),
     language: studioSettings.defaultContentLanguage ?? locale.split("-")[0],
     uuid: crypto.randomUUID(),
   }));
@@ -133,12 +135,13 @@ function GroupCard({ group, keywords, categories, copy, locale, onSaved }: {
             <option value="">{copy.createChoose}</option>
             {categories.map((option) => <option key={option._id} value={option._id}>{option.name ?? option._id}</option>)}
           </Select>
-          <Flex align="center" gap={2}>
-            <Checkbox id={`internal-${group.key}`} checked={internal} onChange={(event) => setInternal(event.currentTarget.checked)} />
-            <Text size={1}><label htmlFor={`internal-${group.key}`}>{copy.createInternal}</label></Text>
-          </Flex>
+          <Select aria-label={copy.createVisibility} value={visibility} onChange={(event) => setVisibility(event.currentTarget.value as typeof visibility)}>
+            <option value="">{copy.createChooseVisibility}</option>
+            <option value="public">{copy.createPublic}</option>
+            <option value="internal">{copy.createInternal}</option>
+          </Select>
           <Flex gap={2}>
-            <Button text={copy.createAction} disabled={busy || categoryRef === "" || draftId !== undefined} onClick={() => void createDraft()} />
+            <Button text={copy.createAction} disabled={busy || categoryRef === "" || visibility === "" || draftId !== undefined} onClick={() => void createDraft()} />
             {draftId !== undefined && <Button mode="ghost" text={copy.openDraft} onClick={() => router.navigateIntent("edit", { id: draftId.replace(/^drafts\./u, ""), type: "keyword" })} />}
           </Flex>
         </Stack>}

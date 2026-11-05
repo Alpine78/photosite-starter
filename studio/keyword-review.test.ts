@@ -4,7 +4,7 @@ import { evaluate, parse } from "groq-js/1";
 
 import { keywordDocument, keywordRow } from "../sanity/schemas/keyword-fixtures";
 import {
-  aggregateKeywordReview, KEYWORD_ALIAS_TARGET_QUERY, keywordAliasTargetParams, keywordReviewAction, keywordReviewCopy, keywordReviewOutcome, planAddAlias, planCreateKeywordDraft, proposedCategoryId, proposedKeywordId, proposedTitle, REPRESENTATIVE_MEDIA_LIMIT,
+  aggregateKeywordReview, KEYWORD_ALIAS_TARGET_QUERY, KEYWORD_ID_RESERVATION_QUERY, keywordAliasTargetParams, keywordReviewAction, keywordReviewCopy, keywordReviewOutcome, planAddAlias, planCreateKeywordDraft, proposedCategoryId, proposedKeywordId, proposedTitle, REPRESENTATIVE_MEDIA_LIMIT,
   type AliasTarget, type KeywordReviewGraph, type KeywordReviewGroup,
 } from "./keyword-review";
 
@@ -72,7 +72,7 @@ describe("what can be decided here", () => {
   it("refuses both writes for a term no alias could settle, so nothing misleading is saved", () => {
     const shared = group({ reason: "ambiguous", key: "shared name" });
     expect(planAddAlias(graph, shared, target())).toEqual({ refused: "This term cannot be decided here." });
-    expect(planCreateKeywordDraft(graph, shared, { title: "Shared Name", keywordId: "shared-name", categoryRef: place, internal: false, language: "fi", uuid: "u" })).toEqual({ refused: "This term cannot be decided here." });
+    expect(planCreateKeywordDraft(graph, shared, { title: "Shared Name", keywordId: "shared-name", categoryRef: place, internal: false, idReserved: false, language: "fi", uuid: "u" })).toEqual({ refused: "This term cannot be decided here." });
   });
 });
 
@@ -128,7 +128,7 @@ describe("adding an alias", () => {
 });
 
 describe("creating a keyword", () => {
-  const input = { title: "New Term", keywordId: "new-term", categoryRef: place, internal: false, language: "fi", uuid: "uuid-1" };
+  const input = { title: "New Term", keywordId: "new-term", categoryRef: place, internal: false, idReserved: false, language: "fi", uuid: "uuid-1" };
 
   it("creates a draft, never a published keyword, for the guarded action to publish", () => {
     expect(planCreateKeywordDraft(graph, group(), input)).toEqual({
@@ -151,6 +151,7 @@ describe("creating a keyword", () => {
   it.each([
     ["a blank title", { title: "  " }, /needs a title/],
     ["a bad id", { keywordId: "Not Valid" }, /2–40 lowercase/],
+    ["an id an unpublished keyword holds", { idReserved: true }, /unpublished keyword already uses/],
     ["an id already taken", { keywordId: "cycling" }, /More than one keyword document|keyword ID/],
     ["a name equal to another keyword's id in the category", { title: "Harbour", keywordId: "harbour-two" }, /equals the ID of another keyword/],
     ["a name another keyword in the category already answers to", { title: "Bike Racing", keywordId: "bike-racing-two", categoryRef: subject }, /both use the name/],
@@ -162,6 +163,20 @@ describe("creating a keyword", () => {
 describe("a failed save", () => {
   it.each([[409, "conflict"], [403, "failed"], [500, "uncertain"], [undefined, "uncertain"]])("status %s → %s", (statusCode, outcome) => {
     expect(keywordReviewOutcome({ statusCode })).toBe(outcome);
+  });
+});
+
+describe("reserving a new keyword's id", () => {
+  const reserved = async (dataset: object[]) => (await evaluate(parse(KEYWORD_ID_RESERVATION_QUERY, { params: { keywordId: "maki" } }), { dataset, params: { keywordId: "maki" } })).get();
+
+  it("sees a draft or a release version, which the published graph cannot", async () => {
+    expect(await reserved([{ _id: "drafts.a", _type: "keyword", keywordId: "maki" }])).toBe(true);
+    expect(await reserved([{ _id: "versions.r1.a", _type: "keyword", keywordId: "maki" }])).toBe(true);
+    expect(await reserved([{ _id: "drafts.keyword.maki", _type: "keyword", keywordId: "maki" }])).toBe(true);
+  });
+
+  it("ignores a published keyword, which the graph validates, and another id", async () => {
+    expect(await reserved([{ _id: "a", _type: "keyword", keywordId: "maki" }, { _id: "drafts.b", _type: "keyword", keywordId: "other" }])).toBe(false);
   });
 });
 

@@ -28,6 +28,9 @@ export const KEYWORD_ALIAS_TARGET_QUERY = `{
 }`;
 export const keywordAliasTargetParams = (id: string) => ({ id, draftId: `drafts.${id}`, versions: `versions.*.${id}` });
 
+/** Unpublished keywords holding this id. The published graph cannot see them, and two of them block each other's publication. Raw perspective. */
+export const KEYWORD_ID_RESERVATION_QUERY = `count(*[_type == "${KEYWORD_TYPE_NAME}" && keywordId == $keywordId && (_id in path("drafts.**") || _id in path("versions.**"))]) > 0`;
+
 export type KeywordReviewGroup = Readonly<{
   reason: string;
   key: string;
@@ -148,8 +151,13 @@ export type NewKeywordInput = Readonly<{
   title: string;
   keywordId: string;
   categoryRef: string;
-  /** A person keyword starts internal (ADR-0039 decision 7), on a private path. */
+  /**
+   * Chosen each time, with no default: an imported term can be someone's name, and ADR-0039 decision 7
+   * has a person start internal, on a private path. A term cannot show which it is.
+   */
   internal: boolean;
+  /** An unpublished keyword already holds this id. */
+  idReserved: boolean;
   language: string;
   /** Injected: Sanity's own id for a new document. */
   uuid: string;
@@ -164,6 +172,7 @@ export function planCreateKeywordDraft(graph: KeywordReviewGraph, group: Keyword
   const title = input.title.trim();
   if (title === "") return { refused: "A keyword needs a title." };
   if (!KEYWORD_ID_PATTERN.test(input.keywordId)) return { refused: "Use 2–40 lowercase letters, digits and single hyphens." };
+  if (input.idReserved) return { refused: "An unpublished keyword already uses this ID." };
   const documentId = input.internal ? `keyword.${input.keywordId}` : input.uuid;
   const aliases = keywordMatchKey(title) === group.key ? [] : [group.key];
   const document = {
@@ -215,6 +224,9 @@ export function keywordReviewCopy(locale: string) {
     createId: "Tunniste",
     createCategory: "Kategoria",
     createChoose: "Valitse kategoria",
+    createVisibility: "Näkyvyys",
+    createChooseVisibility: "Valitse näkyvyys",
+    createPublic: "Julkinen",
     createInternal: "Sisäinen, esimerkiksi henkilö. Ei näy julkisesti.",
     createAction: "Luo luonnos",
     openDraft: "Avaa luonnos ja julkaise",
@@ -224,7 +236,7 @@ export function keywordReviewCopy(locale: string) {
     uncertain: "Tallennuksen tilaa ei saatu selville. Tarkista tilanne ennen uutta yritystä.",
     fixSource: "Korjaa polku lähdetiedostossa ja tuo kuva uudelleen.",
     fixKeywords: "Tämä nimi kuuluu usealle avainsanalle. Muuta niitä niin, että nimi on vain yhdellä, ja aja synkronointi.",
-    refused: { "This term cannot be decided here.": "Tätä termiä ei voi ratkaista täällä.", "This keyword is not active.": "Avainsana ei ole käytössä.", "This keyword has an unpublished draft. Publish or discard it first.": "Avainsanalla on julkaisematon luonnos. Julkaise tai hylkää se ensin.", "This keyword already has that alias.": "Avainsanalla on jo tämä vaihtoehtoinen nimi.", "A keyword needs a title.": "Avainsana tarvitsee nimen.", "Use 2–40 lowercase letters, digits and single hyphens.": "Käytä 2–40 pientä kirjainta, numeroa ja yksittäistä väliviivaa." } as Record<string, string>,
+    refused: { "This term cannot be decided here.": "Tätä termiä ei voi ratkaista täällä.", "This keyword is not active.": "Avainsana ei ole käytössä.", "This keyword has an unpublished draft. Publish or discard it first.": "Avainsanalla on julkaisematon luonnos. Julkaise tai hylkää se ensin.", "This keyword already has that alias.": "Avainsanalla on jo tämä vaihtoehtoinen nimi.", "A keyword needs a title.": "Avainsana tarvitsee nimen.", "An unpublished keyword already uses this ID.": "Julkaisematon avainsana käyttää jo tätä tunnistetta.", "Use 2–40 lowercase letters, digits and single hyphens.": "Käytä 2–40 pientä kirjainta, numeroa ja yksittäistä väliviivaa." } as Record<string, string>,
   } : {
     title: "Keyword review",
     intro: "These imported terms do not match one keyword. A decision covers every photograph holding the term. Changes reach the photographs after the next sync.",
@@ -250,6 +262,9 @@ export function keywordReviewCopy(locale: string) {
     createId: "ID",
     createCategory: "Category",
     createChoose: "Choose a category",
+    createVisibility: "Visibility",
+    createChooseVisibility: "Choose visibility",
+    createPublic: "Public",
     createInternal: "Internal, for example a person. Not shown publicly.",
     createAction: "Create a draft",
     openDraft: "Open the draft and publish",
