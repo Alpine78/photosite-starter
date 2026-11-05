@@ -33,7 +33,7 @@ const itemIds = (page: Page) => gridItems(page).evaluateAll((nodes) => nodes.map
  */
 const expectItems = (page: Page, expected: readonly string[]) => expect(async () => {
   expect(await itemIds(page)).toEqual(expected);
-}).toPass();
+}).toPass({ timeout: 10_000 });
 const nextHref = async (page: Page) => (await page.locator('a[rel="next"]').getAttribute("href"))!;
 const expectedArchive = Array.from({ length: ARCHIVE_SIZE }, (_, index) => `archive-${String(index + 1).padStart(2, "0")}`);
 
