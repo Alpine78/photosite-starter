@@ -275,10 +275,7 @@ Then iterate.
   scroll, hydration, tracker or animation settles asynchronously, poll for the state the
   app itself exposes (an `aria-current`, an attribute, a settled scroll position) rather
   than a fixed delay or "two equal reads": a time window passes under one load and fails
-  under another (AB#377: two such flakes and two rejected time-based fixes). A read that
-  can race a navigation belongs in `expect(async () => …).toPass()`: the document can be
-  replaced while it is read, which throws, and `expect.poll` does not retry a throw
-  (AB#90). Locally, run
+  under another (AB#377: two such flakes and two rejected time-based fixes). Locally, run
   a CSS or configuration change against a clean `.next` — the Turbopack cache once served
   stale CSS to the harness build (AB#382); CI always starts from a clean workspace.
 - A Vitest test that performs real cryptography (scrypt), evaluates a large GROQ
