@@ -40,9 +40,12 @@ function matchPredicate(canonicalIds: readonly string[]): string {
   return canonicalIds.map((_, index) => `$k${index} in expandedKeywordIds`).join(" && ");
 }
 
-/** Eligibility (ADR-0012 §2) plus the selection. Everything that reads or counts uses this. */
+/** ADR-0012 §2. The keyword index counts with this too, or its counts could mislead. */
+export const KEYWORD_GALLERY_ELIGIBILITY = `${PUBLIC_MEDIA_FILTER} && mediaType == "image" && dynamicallyDiscoverable == true`;
+
+/** Eligibility plus the selection. Everything that reads or counts uses this. */
 export function keywordGalleryFilter(canonicalIds: readonly string[]): string {
-  return `${PUBLIC_MEDIA_FILTER} && mediaType == "image" && dynamicallyDiscoverable == true && ${matchPredicate(canonicalIds)}`;
+  return `${KEYWORD_GALLERY_ELIGIBILITY} && ${matchPredicate(canonicalIds)}`;
 }
 
 const KEYED_PROJECTION = `{"orderKey": coalesce(capturedAt, ""), "document": @${PUBLIC_MEDIA_PROJECTION}}`;

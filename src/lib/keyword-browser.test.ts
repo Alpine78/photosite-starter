@@ -42,9 +42,14 @@ describe("the keyword browser tree", () => {
     expect(buildKeywordBrowserTree(index([]))).toEqual([]);
   });
 
-  it("does not list a child in its parent's category when the categories differ", () => {
+  it("keeps a keyword under its own category when its parent is in another, so that category does not vanish", () => {
     const tree = buildKeywordBrowserTree(index([entry("root", [], "subject"), entry("child", ["root"], "place")]));
-    expect(shape(tree)).toEqual([{ slug: "subject", roots: [{ root: ["child"] }] }]);
+    expect(shape(tree)).toEqual([{ slug: "subject", roots: ["root"] }, { slug: "place", roots: ["child"] }]);
+  });
+
+  it("nests under the nearest ancestor in the same category, past one in another", () => {
+    const tree = buildKeywordBrowserTree(index([entry("root", [], "subject"), entry("middle", ["root"], "place"), entry("leaf", ["root", "middle"], "subject")]));
+    expect(shape(tree)).toEqual([{ slug: "subject", roots: [{ root: ["leaf"] }] }, { slug: "place", roots: ["middle"] }]);
   });
 
   it("shows the mock vocabulary's hierarchy", () => {

@@ -6,15 +6,30 @@ import { buildKeywordBrowserTree, type KeywordBrowserNode } from "@/lib/keyword-
 import { keywordGalleryQuery } from "@/lib/keyword-gallery-route";
 import { getKeywordIndex } from "@/lib/keyword-index-access";
 import { buildSearchPath } from "@/lib/locale-routes";
+import { keywordCountText, type SiteSearchLabels } from "@/lib/site-search-copy";
 
-function countText(locale: string, count: number): string {
-  const copy = getBuiltInLabels(locale).search;
-  return (count === 1 ? copy.keywordCountOne : copy.keywordCountOther).replace("{count}", new Intl.NumberFormat(locale).format(count));
+/**
+ * The landing state must keep working. Reading the index takes one request per 1000 media while the
+ * cache is cold, one after another, and this page is rendered on the server for everyone.
+ */
+const KEYWORD_BROWSER_READ_BUDGET_MS = 3000;
+
+async function withinBudget<T>(read: Promise<T>): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => reject(new Error("the keyword index read past its budget")), KEYWORD_BROWSER_READ_BUDGET_MS);
+  });
+  try {
+    return await Promise.race([read, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
-function KeywordList({ nodes, locale, searchPath, nested = false }: {
+function KeywordList({ nodes, labels, formatter, searchPath, nested = false }: {
   readonly nodes: readonly KeywordBrowserNode[];
-  readonly locale: string;
+  readonly labels: SiteSearchLabels;
+  readonly formatter: Intl.NumberFormat;
   readonly searchPath: string;
   readonly nested?: boolean;
 }) {
@@ -23,13 +38,15 @@ function KeywordList({ nodes, locale, searchPath, nested = false }: {
       {nodes.map(({ entry, children }) => (
         <li key={entry.keywordId}>
           <Link
+            // A list this long must not start a gallery read for each link scrolled into view.
+            prefetch={false}
             href={`${searchPath}?${keywordGalleryQuery(entry.keywordId)}`}
             className="underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
           >
             {entry.title}
           </Link>{" "}
-          <span className="text-sm text-muted">({countText(locale, entry.count)})</span>
-          {children.length > 0 && <KeywordList nodes={children} locale={locale} searchPath={searchPath} nested />}
+          <span className="text-sm text-muted">({keywordCountText(labels, entry.count, formatter)})</span>
+          {children.length > 0 && <KeywordList nodes={children} labels={labels} formatter={formatter} searchPath={searchPath} nested />}
         </li>
       ))}
     </ul>
@@ -47,13 +64,14 @@ export async function KeywordBrowser({ locale }: { readonly locale: string }) {
   const labels = getBuiltInLabels(locale).search;
   let categories;
   try {
-    categories = buildKeywordBrowserTree(await getKeywordIndex(locale));
+    categories = buildKeywordBrowserTree(await withinBudget(getKeywordIndex(locale)));
   } catch (error) {
     console.error("[keyword-browser] unavailable", error instanceof Error ? `${error.name}: ${error.message}` : "unknown error");
     return null;
   }
   if (categories.length === 0) return null;
   const searchPath = buildSearchPath(getDeploymentConfig().localeRoutes, locale);
+  const formatter = new Intl.NumberFormat(locale);
   return (
     <>
     <KeywordSelector locale={locale} searchPath={searchPath} labels={labels} />
@@ -63,7 +81,7 @@ export async function KeywordBrowser({ locale }: { readonly locale: string }) {
         {categories.map((category) => (
           <section key={category.slug} aria-labelledby={`keyword-category-${category.slug}`}>
             <h3 id={`keyword-category-${category.slug}`} className="text-lg font-medium">{category.title}</h3>
-            <KeywordList nodes={category.roots} locale={locale} searchPath={searchPath} />
+            <KeywordList nodes={category.roots} labels={labels} formatter={formatter} searchPath={searchPath} />
           </section>
         ))}
       </div>
