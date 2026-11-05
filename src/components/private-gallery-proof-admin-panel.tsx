@@ -174,7 +174,7 @@ export function PrivateGalleryProofAdminPanel({
 
   return (
     <section className="flex flex-col gap-6">
-      <h2 className="text-lg font-medium text-strong">{labels.heading}</h2>
+      <h2 className="text-lg font-medium text-foreground">{labels.heading}</h2>
       <form onSubmit={lookUp} className="flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1">
           <label htmlFor={handleFieldId} className="text-sm text-muted">
@@ -186,13 +186,13 @@ export function PrivateGalleryProofAdminPanel({
             disabled={!hydrated}
             value={handle}
             onChange={(event) => setHandle(event.target.value)}
-            className="rounded-md border border-border-strong bg-surface px-3 py-1.5 text-strong"
+            className="rounded-md border border-border-strong bg-surface px-3 py-1.5 text-foreground"
           />
         </div>
         <button
           type="submit"
           disabled={!hydrated || state.kind === "looking"}
-          className="rounded-md border border-border-strong px-3 py-1.5 text-strong disabled:opacity-50"
+          className="rounded-md border border-border-strong px-3 py-1.5 text-foreground disabled:opacity-50"
         >
           {state.kind === "looking" ? labels.looking : labels.lookUp}
         </button>
@@ -205,22 +205,22 @@ export function PrivateGalleryProofAdminPanel({
         <div className="flex flex-col gap-4 border-t border-border-strong pt-4">
           <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm">
             <dt className="text-muted">{labels.confirmedLabel}</dt>
-            <dd className="text-strong">
+            <dd className="text-foreground">
               {state.status.confirmed ? labels.confirmedLabel : labels.openLabel}
             </dd>
             <dt className="text-muted">{labels.draftRevisionLabel}</dt>
-            <dd className="text-strong">{state.status.draftRevision}</dd>
+            <dd className="text-foreground">{state.status.draftRevision}</dd>
             <dt className="text-muted">{labels.latestConfirmationVersionLabel}</dt>
-            <dd className="text-strong">{state.status.latestConfirmationVersion}</dd>
+            <dd className="text-foreground">{state.status.latestConfirmationVersion}</dd>
             <dt className="text-muted">{labels.pricingLabel}</dt>
-            <dd className="text-strong">
+            <dd className="text-foreground">
               {state.status.pricing.includedCount} ·{" "}
               {money(state.status.pricing.extraUnitPriceMinor, state.status.pricing.currency)}
             </dd>
             {state.status.currentSummary !== undefined && (
               <>
                 <dt className="text-muted" />
-                <dd className="text-strong">
+                <dd className="text-foreground">
                   {labels.currentSummaryLabel
                     .replace("{count}", String(state.status.currentSummary.selectedCount))
                     .replace(
@@ -233,7 +233,7 @@ export function PrivateGalleryProofAdminPanel({
             {state.status.confirmedAt !== undefined && (
               <>
                 <dt className="text-muted" />
-                <dd className="text-strong">
+                <dd className="text-foreground">
                   <time dateTime={state.status.confirmedAt}>
                     {labels.confirmedAtLabel.replace(
                       "{date}",
@@ -248,15 +248,15 @@ export function PrivateGalleryProofAdminPanel({
           </dl>
 
           <div className="flex flex-col gap-2 border-t border-border-strong pt-4">
-            <h3 className="text-base font-medium text-strong">{labels.notificationHeading}</h3>
+            <h3 className="text-base font-medium text-foreground">{labels.notificationHeading}</h3>
             {state.status.notification === undefined ? (
               <p className="text-muted">{labels.notificationNone}</p>
             ) : (
               <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm">
                 <dt className="text-muted">{labels.notificationHeading}</dt>
-                <dd className="text-strong">{notificationStateLabel(state.status.notification.state)}</dd>
+                <dd className="text-foreground">{notificationStateLabel(state.status.notification.state)}</dd>
                 <dt className="text-muted">{labels.notificationAttemptsLabel}</dt>
-                <dd className="text-strong">{state.status.notification.attempts}</dd>
+                <dd className="text-foreground">{state.status.notification.attempts}</dd>
                 {state.status.notification.lastError !== undefined && (
                   <>
                     <dt className="text-muted">{labels.notificationLastErrorLabel}</dt>
@@ -266,7 +266,7 @@ export function PrivateGalleryProofAdminPanel({
                 {state.status.notification.sentAt !== undefined && (
                   <>
                     <dt className="text-muted" />
-                    <dd className="text-strong">
+                    <dd className="text-foreground">
                       {labels.notificationSentAtLabel.replace(
                         "{date}",
                         new Intl.DateTimeFormat(locale, { dateStyle: "long", timeStyle: "short" }).format(
@@ -279,7 +279,7 @@ export function PrivateGalleryProofAdminPanel({
                 {state.status.notification.nextAttemptAt !== undefined && (
                   <>
                     <dt className="text-muted" />
-                    <dd className="text-strong">
+                    <dd className="text-foreground">
                       {labels.notificationNextAttemptAtLabel.replace(
                         "{date}",
                         new Intl.DateTimeFormat(locale, { dateStyle: "long", timeStyle: "short" }).format(
@@ -302,7 +302,7 @@ export function PrivateGalleryProofAdminPanel({
                 action.kind === "resending"
               }
               onClick={() => act({ action: "reopen", expectedRevision: state.status.draftRevision })}
-              className="rounded-md border border-border-strong px-3 py-1.5 text-strong disabled:opacity-50"
+              className="rounded-md border border-border-strong px-3 py-1.5 text-foreground disabled:opacity-50"
             >
               {action.kind === "reopening" ? labels.reopening : labels.reopenButton}
             </button>
@@ -314,7 +314,7 @@ export function PrivateGalleryProofAdminPanel({
                 action.kind === "resending"
               }
               onClick={() => act({ action: "resend" })}
-              className="rounded-md border border-border-strong px-3 py-1.5 text-strong disabled:opacity-50"
+              className="rounded-md border border-border-strong px-3 py-1.5 text-foreground disabled:opacity-50"
             >
               {action.kind === "resending" ? labels.resending : labels.resendButton}
             </button>
