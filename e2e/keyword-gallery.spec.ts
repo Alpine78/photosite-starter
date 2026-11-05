@@ -141,10 +141,17 @@ test.describe("keyword gallery", () => {
 
   test("a parent's count matches the photographs its gallery can reach", async ({ page }) => {
     await page.goto(SEARCH_PATH);
-    const nature = page.getByRole("listitem").filter({ has: page.locator('a[href$="keywords=nature"]') });
-    await expect(nature.first()).toContainText("4");
+    // The keyword's own count, not one of its children's, which sit in the same list item.
+    const count = page.locator('li:has(> a[href$="keywords=nature"]) > span');
+    await expect(count).toHaveText(`(${labels.keywordCountOther.replace("{count}", "4")})`);
     await page.goto(gallery("nature"));
     await expect(page.getByRole("button", { name: /./ }).filter({ has: page.locator("img") })).toHaveCount(4);
+  });
+
+  test("the browser works in the prefixed language too, and links there", async ({ page }) => {
+    const search = `/${PREFIXED_LOCALE.prefix}/${PREFIXED_LOCALE.searchNamespace}`;
+    await page.goto(search);
+    await expect(page.locator(`a[href="${search}?keywords=nature"]`)).toBeVisible();
   });
 
   test("a results page does not repeat the browser", async ({ page }) => {

@@ -120,6 +120,8 @@ export type BuiltInLabels = {
     readonly submit: string;
     /** Prompt shown before a usable query: the empty and too-short states. */
     readonly prompt: string;
+    /** The dialog's way to the search page, where keywords can be browsed without typing. */
+    readonly allOptions: string;
     readonly searching: string;
     readonly storiesHeading: string;
     readonly servicesHeading: string;
@@ -767,6 +769,7 @@ const englishLabels = {
     placeholder: "Search stories and services",
     submit: "Search",
     prompt: "Type at least two letters to search.",
+    allOptions: "All search options",
     searching: "Searching…",
     storiesHeading: "Stories",
     servicesHeading: "Services",
@@ -1267,6 +1270,7 @@ const finnishLabels = {
     placeholder: "Hae tarinoita ja palveluita",
     submit: "Hae",
     prompt: "Kirjoita vähintään kaksi kirjainta hakeaksesi.",
+    allOptions: "Kaikki hakutavat",
     searching: "Haetaan…",
     storiesHeading: "Tarinat",
     servicesHeading: "Palvelut",
