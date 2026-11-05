@@ -110,10 +110,14 @@ const keywordRefs = (ids: readonly string[]) => ids.map((id) => ({ _key: keyOf(i
 /** Weak, because a private record must not stop an editor deleting a never-published keyword. */
 const weakRefs = (ids: readonly string[]) => ids.map((id) => ({ _key: keyOf(id), _type: "reference", _ref: id, _weak: true }));
 
+/** Optional reads on a string or a list find nothing, which would look like an empty field. */
+function assertContainer(value: unknown): void {
+  if (value !== undefined && value !== null && (typeof value !== "object" || Array.isArray(value))) throw new KeywordImportError("RECORD_MALFORMED");
+}
+
 /** Stored data is untrusted like any other CMS read. */
 function storedRaw(record: KeywordSyncRecord | undefined): ImportedKeywords {
-  const container: unknown = record?.importedKeywords;
-  if (container !== undefined && container !== null && (typeof container !== "object" || Array.isArray(container))) throw new KeywordImportError("RECORD_MALFORMED");
+  assertContainer(record?.importedKeywords);
   const raw = record?.importedKeywords?.raw;
   if (raw === undefined || raw === null) return NO_IMPORTED_KEYWORDS;
   const field = (value: unknown): readonly string[] | null => {
@@ -132,7 +136,8 @@ function planMedium(input: KeywordSyncInput, medium: KeywordSyncMedia, record: K
   if (medium.hasVersion === true) throw new KeywordImportError("RELEASE_VERSION_EXISTS");
   // Only this tool writes keywords. Without its record they have no known source, and
   // deriving from nothing would silently remove them.
-  if (record === undefined && refIds(medium.keywords).length > 0) throw new KeywordImportError("KEYWORDS_WITHOUT_RECORD");
+  if (record === undefined && (refIds(medium.keywords).length > 0 || refIds(medium.draft?.keywords).length > 0)) throw new KeywordImportError("KEYWORDS_WITHOUT_RECORD");
+  assertContainer(record?.keywordOverrides);
   const fields = input.imports?.get(medium.mediaId);
   // ADR-0039 decision 5: mapping a failed read as "no keywords" would remove every imported keyword.
   if (fields !== undefined && Object.keys(fields).some((name) => /(?:^|:)Error$/u.test(name))) throw new KeywordImportError("IMPORT_UNREADABLE");
@@ -142,11 +147,12 @@ function planMedium(input: KeywordSyncInput, medium: KeywordSyncMedia, record: K
     removed: refIds(record?.keywordOverrides?.removed),
   }, { currentKeywords: [...refIds(medium.keywords), ...refIds(record?.internalKeywords)] });
 
-  const nextDiscoverable = fields !== undefined && input.setDiscoverable === true ? true : medium.dynamicallyDiscoverable ?? undefined;
+  // Only an explicit opt-in writes this. Otherwise each document keeps its own, because a draft may differ on purpose.
+  const optIn = fields !== undefined && input.setDiscoverable === true;
   const keywordsDiffer = (document: Readonly<{ keywords?: readonly Reference[] | null; expandedKeywordIds?: readonly string[] | null }>) =>
     !sameSet(refIds(document.keywords), proposal.keywords) ||
     !sameSet(Array.isArray(document.expandedKeywordIds) ? document.expandedKeywordIds : [], proposal.expandedKeywordIds);
-  const mediaChanged = keywordsDiffer(medium) || nextDiscoverable !== (medium.dynamicallyDiscoverable ?? undefined);
+  const mediaChanged = keywordsDiffer(medium) || (optIn && medium.dynamicallyDiscoverable !== true);
   // On its own, because a draft can be stale while the published document is right, and publishing it would bring the old keywords back.
   const draftChanged = medium.draft != null && (mediaChanged || keywordsDiffer(medium.draft));
 
@@ -164,7 +170,7 @@ function planMedium(input: KeywordSyncInput, medium: KeywordSyncMedia, record: K
   const set = {
     keywords: keywordRefs(proposal.keywords),
     expandedKeywordIds: proposal.expandedKeywordIds,
-    ...(nextDiscoverable === undefined ? {} : { dynamicallyDiscoverable: nextDiscoverable }),
+    ...(optIn ? { dynamicallyDiscoverable: true } : {}),
   };
   const mutations: SeedMutation[] = [];
   if (mediaChanged) mutations.push({ patch: { id: medium._id, ifRevisionID: medium._rev, set } });

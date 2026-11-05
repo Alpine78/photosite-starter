@@ -97,9 +97,20 @@ describe("planning", () => {
     expect(onlyEntry({ records: [record], media: [medium("m1", { ...current, draft: { _id: "drafts.doc-m1", _rev: "draft-rev", ...current } })] }).status).toBe("unchanged");
   });
 
-  it("refuses a stored import whose container is not an object, rather than reading it as no import", () => {
-    for (const importedKeywords of ["corrupt", [], 5]) {
-      const record = { _id: keywordRecordId("m1"), _rev: "r", importedKeywords } as unknown as KeywordSyncRecord;
+  it("leaves each document's own discoverability alone unless asked", () => {
+    const record: KeywordSyncRecord = { _id: keywordRecordId("m1"), _rev: "r", keywordOverrides: { added: [{ _ref: "doc-harbour" }] } };
+    const media = [medium("m1", { dynamicallyDiscoverable: true, draft: { _id: "drafts.doc-m1", _rev: "d" } })];
+    expect(JSON.stringify(onlyEntry({ records: [record], media }))).not.toContain("dynamicallyDiscoverable");
+  });
+
+  it("refuses keywords on a draft with no record, rather than clearing what it cannot explain", () => {
+    const media = [medium("m1", { draft: { _id: "drafts.doc-m1", _rev: "d", keywords: [{ _ref: "doc-harbour" }] } })];
+    expect(onlyEntry({ media })).toEqual({ mediaId: "m1", status: "failed", code: "KEYWORDS_WITHOUT_RECORD" });
+  });
+
+  it.each(["importedKeywords", "keywordOverrides"])("refuses a record whose %s is not an object, rather than reading it as empty", (field) => {
+    for (const value of ["corrupt", [], 5]) {
+      const record = { _id: keywordRecordId("m1"), _rev: "r", [field]: value } as unknown as KeywordSyncRecord;
       expect(onlyEntry({ records: [record] })).toEqual({ mediaId: "m1", status: "failed", code: "RECORD_MALFORMED" });
     }
   });
