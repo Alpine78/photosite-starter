@@ -29,7 +29,10 @@ export const PROJECTED_KEYWORD_FIELDS = ["keywordId", "title", "category", "pare
 /** Fields read from a medium. A test pins them to the schema. */
 export const PROJECTED_MEDIA_KEYWORD_FIELDS = ["mediaId", "keywords", "expandedKeywordIds"] as const;
 
-export const PUBLIC_KEYWORD_TAXONOMY_QUERY = `*[_type == "${KEYWORD_DOCUMENT_TYPE}" && status == "active" && visibility == "public" && _id in path("*")]{
+/** What makes a keyword public. Every public read of the vocabulary builds on this one rule. */
+export const PUBLIC_KEYWORD_FILTER = `_type == "${KEYWORD_DOCUMENT_TYPE}" && status == "active" && visibility == "public" && _id in path("*")`;
+
+export const PUBLIC_KEYWORD_TAXONOMY_QUERY = `*[${PUBLIC_KEYWORD_FILTER}]{
   keywordId,
   title[]{language, value},
   "categorySlug": category->slug,

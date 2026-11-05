@@ -49,6 +49,14 @@ describe("the selection", () => {
 });
 
 describe("suggestions", () => {
+  it("keeps matching as the visitor types on past one word, and treats a hyphen as a word break", () => {
+    const words = index([entry("lake", "Upper Lake Saimaa"), entry("area", "Etelä-Karjala"), entry("tide", "Sea", { aliasKeys: ["the spring tide"] })]);
+    expect(suggestKeywords(words, "lake sa").map((item) => item.keywordId)).toEqual(["lake"]);
+    expect(suggestKeywords(words, "karj").map((item) => item.keywordId)).toEqual(["area"]);
+    expect(suggestKeywords(words, "spring ti").map((item) => item.keywordId)).toEqual(["tide"]);
+    expect(suggestKeywords(words, "ake sa")).toEqual([]);
+  });
+
   it("needs two characters after normalization, and refuses a very long term", () => {
     const words = index([entry("alpha", "Alpha")]);
     expect(suggestKeywords(words, "a")).toEqual([]);

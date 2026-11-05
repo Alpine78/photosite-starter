@@ -16,13 +16,16 @@ const DEBOUNCE_MS = 200;
 const MIN_QUERY_CHARACTERS = 2;
 const subscribeNothing = () => () => {};
 const focusRing = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
+/** A live region says nothing when its text stays the same, so a repeat differs by one invisible character. */
+const nextAnnouncement = (previous: string, text: string) => (previous === text ? `${text}\u00a0` : text);
 
 type RequestState = "idle" | "loading" | "ready" | "failed";
 
 /**
  * Choosing several keywords by typing (AB#74), as an ARIA combobox with a listbox popup. It needs
- * script, so it stays out of the page until hydrated; the plain links beside it work without
- * any. The address it builds still goes through the server's validation like any other.
+ * script, so a browser without any does not show it, and the plain links beside it work
+ * there. The server renders it so that nothing moves when it hydrates, with the field disabled until
+ * then. The address it builds still goes through the server's validation like any other.
  */
 export function KeywordSelector({ locale, searchPath, labels }: {
   readonly locale: string;
@@ -41,6 +44,9 @@ export function KeywordSelector({ locale, searchPath, labels }: {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<readonly KeywordSuggestion[]>([]);
   const [announcement, setAnnouncement] = useState("");
+  /** Asks again after a closed list took its pending request with it. */
+  const [retry, setRetry] = useState(0);
+  const cancelPending = useRef<() => void>(() => {});
 
   const usable = [...query.trim()].length >= MIN_QUERY_CHARACTERS;
 
@@ -61,28 +67,31 @@ export function KeywordSelector({ locale, searchPath, labels }: {
         if (!response.ok || body.status !== "ok" || !Array.isArray(body.suggestions)) throw new Error("unavailable");
         setSuggestions(body.suggestions);
         setActive(-1);
-        setOpen(true);
         setRequestState("ready");
-        setAnnouncement(body.suggestions.length === 0
+        const count = body.suggestions.length;
+        const text = count === 0
           ? labels.keywordSelectorNoMatches
-          : labels.keywordSelectorMatches.replace("{count}", new Intl.NumberFormat(locale).format(body.suggestions.length)));
+          : (count === 1 ? labels.keywordSelectorMatchesOne : labels.keywordSelectorMatches).replace("{count}", new Intl.NumberFormat(locale).format(count));
+        setAnnouncement((previous) => nextAnnouncement(previous, text));
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
         setSuggestions([]);
-        setOpen(true);
         setRequestState("failed");
-        setAnnouncement(labels.keywordSelectorUnavailable);
+        setAnnouncement((previous) => nextAnnouncement(previous, labels.keywordSelectorUnavailable));
       }
     }, DEBOUNCE_MS);
-    return () => {
+    cancelPending.current = () => {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [query, usable, locale, labels]);
+    return () => cancelPending.current();
+  }, [query, usable, locale, labels, retry]);
 
-  if (!hydrated) return null;
+  const announce = (text: string) => setAnnouncement((previous) => nextAnnouncement(previous, text));
 
+  // A list that was dismissed stays dismissed: an answer arriving later must not reopen it over the page.
   const closeList = () => {
+    cancelPending.current();
     setOpen(false);
     setActive(-1);
   };
@@ -91,13 +100,15 @@ export function KeywordSelector({ locale, searchPath, labels }: {
     const result = addKeyword(selected, suggestion);
     setSelected(result.selected);
     if (result.outcome === "added") {
-      setAnnouncement(labels.keywordSelectorAdded.replace("{name}", suggestion.title));
+      announce(result.replaced.length === 0
+        ? labels.keywordSelectorAdded.replace("{name}", suggestion.title)
+        : labels.keywordSelectorReplaced.replace("{name}", suggestion.title).replace("{replaced}", new Intl.ListFormat(locale, { type: "conjunction" }).format(result.replaced.map((entry) => entry.title))));
       setQuery("");
       setSuggestions([]);
       setRequestState("idle");
       closeList();
     } else {
-      setAnnouncement(result.outcome === "limit-reached"
+      announce(result.outcome === "limit-reached"
         ? labels.keywordSelectorLimit.replace("{count}", String(MAX_SELECTED_KEYWORDS))
         : labels.keywordSelectorAlreadyCovered.replace("{name}", suggestion.title));
     }
@@ -106,15 +117,22 @@ export function KeywordSelector({ locale, searchPath, labels }: {
 
   const remove = (suggestion: KeywordSuggestion) => {
     setSelected(removeKeyword(selected, suggestion.keywordId));
-    setAnnouncement(labels.keywordSelectorRemoved.replace("{name}", suggestion.title));
+    announce(labels.keywordSelectorRemoved.replace("{name}", suggestion.title));
     inputRef.current?.focus();
   };
 
+  const showPopup = open && usable && (requestState === "ready" || requestState === "failed");
+
   const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    const visible = open && usable ? suggestions : [];
-    if (event.key === "ArrowDown" && visible.length > 0) {
+    // Only what the visitor can see: never the previous term's list while a new one is on its way.
+    const visible = showPopup ? suggestions : [];
+    if (event.key === "ArrowDown" && !open && usable) {
       event.preventDefault();
       setOpen(true);
+      // Closing took a pending request with it, so ask again; a finished answer is still held.
+      if (requestState === "loading") setRetry((count) => count + 1);
+    } else if (event.key === "ArrowDown" && visible.length > 0) {
+      event.preventDefault();
       setActive((current) => (current + 1) % visible.length);
     } else if (event.key === "ArrowUp" && visible.length > 0) {
       event.preventDefault();
@@ -129,11 +147,10 @@ export function KeywordSelector({ locale, searchPath, labels }: {
     }
   };
 
-  const showPopup = open && usable && requestState !== "idle" && requestState !== "loading";
   const activeId = showPopup && active >= 0 && suggestions[active] !== undefined ? `${baseId}-option-${suggestions[active].keywordId}` : undefined;
 
   return (
-    <section aria-labelledby={`${baseId}-heading`} className="mt-12 max-w-2xl">
+    <section aria-labelledby={`${baseId}-heading`} className="mt-12 max-w-2xl [@media(scripting:none)]:hidden">
       <h2 id={`${baseId}-heading`} className="text-2xl font-semibold tracking-tight">{labels.keywordSelectorHeading}</h2>
       <p id={`${baseId}-help`} className="mt-2 text-muted">{labels.keywordSelectorHelp.replace("{count}", String(MAX_SELECTED_KEYWORDS))}</p>
 
@@ -159,6 +176,7 @@ export function KeywordSelector({ locale, searchPath, labels }: {
         <label htmlFor={`${baseId}-input`} className="block font-medium">{labels.keywordSelectorLabel}</label>
         <input
           ref={inputRef}
+          disabled={!hydrated}
           id={`${baseId}-input`}
           type="text"
           role="combobox"
@@ -173,9 +191,13 @@ export function KeywordSelector({ locale, searchPath, labels }: {
           onChange={(event) => {
             setQuery(event.target.value);
             setOpen(true);
+            setActive(-1);
+            // At once, not after the debounce: the previous term's list must not stay on show or take a key.
             if ([...event.target.value.trim()].length < MIN_QUERY_CHARACTERS) {
               setSuggestions([]);
               setRequestState("idle");
+            } else {
+              setRequestState("loading");
             }
           }}
           onKeyDown={onKeyDown}
@@ -212,7 +234,7 @@ export function KeywordSelector({ locale, searchPath, labels }: {
 
       <button
         type="button"
-        disabled={selected.length === 0}
+        disabled={!hydrated || selected.length === 0}
         onClick={() => router.push(keywordSelectionHref(searchPath, selected))}
         className={`mt-4 inline-flex min-h-12 items-center justify-center rounded-full bg-accent px-6 text-base font-medium text-accent-foreground disabled:opacity-60 ${focusRing}`}
       >

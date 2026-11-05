@@ -42,8 +42,12 @@ Entries sort by category order (a category with none goes last), then category s
 `src/components/keyword-browser.tsx` renders the index on the search landing state (AB#75), as plain links grouped by category
 and nested by hierarchy. ADR-0012 §8 reserves that state for it. Defined behaviour:
 
-- **Metadata:** the landing state is `noindex`, has no canonical link and is outside the sitemap, and so is each one-keyword gallery
-  it links to. ADR-0012 §8 keeps selections out until evidence argues for a bounded indexable subset.
+- **Metadata:** the landing state is `noindex` and has no canonical link. Each one-keyword gallery it links to is `noindex` with a canonical
+  link to its own first page. All are outside the sitemap. ADR-0012 §8 keeps selections out until evidence argues for a bounded indexable subset.
+- **Reaching it:** the search dialog links to the search page, because a JavaScript visitor's search control opens the dialog instead.
+- **Categories:** a keyword nests under its nearest ancestor in the same category. With none, it is a root of its own category.
+- **An orphan:** a keyword whose parent is not in the public vocabulary, and whatever sits under it, is left out of the index.
+- **A slow store:** the page waits 3 seconds at most for the index, and then renders without it. A fault is logged.
 - **Nothing to show, or a store that cannot answer:** the section is absent and search keeps working. A failure is logged.
 - **A results page** does not show the browser.
 - **While a re-sync is outstanding,** a keyword whose parent has no entry sits under its nearest listed ancestor.
@@ -81,7 +85,7 @@ one-hour cache lifetime.
 | --- | --- | --- |
 | A 500-keyword index, worst-case ids, titles and aliases | 250 KB of JSON | Test |
 | One page of closures: 1000 media, twenty 40-character ids each, base64-encoded as Next stores it | under 2 MB, Next's fetch cache item limit | Test |
-| Building and serializing it on a read | No fixed limit; recorded below | Measured once, because time is not deterministic |
+| Parsing, counting and building it on a read, without the reads themselves | 50 ms | Measured once, because time is not deterministic. Measured below at about 10 ms |
 
 Measured locally on 2026-11-05 with synthetic data, median of seven runs, on a development machine:
 
