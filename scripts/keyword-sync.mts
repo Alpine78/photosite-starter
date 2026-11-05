@@ -17,6 +17,7 @@
  */
 
 import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -54,7 +55,7 @@ export const KEYWORD_SYNC_VOCABULARY_QUERY = `*[_type == "keyword" && !(_id in p
 
 const MEDIA_PAGE_QUERY = `*[_type == "media" && !(_id in path("drafts.**")) && !(_id in path("versions.**"))] | order(_id asc) [$from...$to]{
   _id, _rev, mediaId, keywords, expandedKeywordIds, dynamicallyDiscoverable,
-  "draft": *[_id == "drafts." + ^._id][0]{_id, _rev}
+  "draft": *[_id == "drafts." + ^._id][0]{_id, _rev, keywords, expandedKeywordIds, dynamicallyDiscoverable}
 }`;
 /** Read once, because one lookup per medium would scan every version for each. */
 const VERSIONS_QUERY = `*[_id in path("versions.**")]._id`;
@@ -120,11 +121,13 @@ async function readPages<T>(port: KeywordSyncPort, query: string): Promise<reado
 async function readState(port: KeywordSyncPort): Promise<KeywordSyncState> {
   const state = await port.query(STATE_QUERY, {}) as KeywordSyncState | null;
   if (state === null || typeof state._rev !== "string") throw new KeywordSyncError("TAXONOMY_STATE_MISSING");
+  if (![state.taxonomyVersion, state.resyncedVersion, state.publicationSequence].every(Number.isSafeInteger)) throw new KeywordSyncError("TAXONOMY_STATE_MALFORMED");
   return state;
 }
 
 export type KeywordSyncResult = Readonly<{
-  outcome: "planned" | "written" | "conflict" | "taxonomy-changed";
+  /** `not-settled`: everything planned was written, but a read afterwards found more, so the version stays unacknowledged. */
+  outcome: "planned" | "written" | "conflict" | "taxonomy-changed" | "not-settled";
   digest: string;
   summary: KeywordSyncSummary;
   written: number;
@@ -141,32 +144,48 @@ type RunOptions = Readonly<{
 
 export async function runKeywordSync(port: KeywordSyncPort, options: RunOptions): Promise<KeywordSyncResult & { readonly plan: KeywordSyncPlan }> {
   const initial = await readState(port);
-  const [vocabulary, media, records, versions] = await Promise.all([
-    port.query(KEYWORD_SYNC_VOCABULARY_QUERY, {}),
-    readPages<KeywordSyncMedia>(port, MEDIA_PAGE_QUERY),
-    readPages<KeywordSyncRecord>(port, RECORD_PAGE_QUERY),
-    port.query(VERSIONS_QUERY, {}),
-  ]);
-  if (!Array.isArray(vocabulary) || !Array.isArray(versions)) throw new KeywordSyncError("READ_MALFORMED");
-  // `versions.<release>.<documentId>`.
-  const versioned = new Set((versions as unknown[]).flatMap((id) => (typeof id === "string" ? [id.split(".").slice(2).join(".")] : [])));
-  const plan = planKeywordSync({
-    vocabulary,
-    media: media.map((medium) => ({ ...medium, hasVersion: versioned.has(medium._id) })),
-    records,
-    now: options.now,
-    ...(options.imports === undefined ? {} : { imports: options.imports }),
-    ...(options.setDiscoverable === undefined ? {} : { setDiscoverable: options.setDiscoverable }),
-  });
-  const base = { digest: plan.digest, summary: summarizeKeywordSync(plan), plan };
+  const readPlan = async () => {
+    const [vocabulary, media, records, versions] = await Promise.all([
+      port.query(KEYWORD_SYNC_VOCABULARY_QUERY, {}),
+      readPages<KeywordSyncMedia>(port, MEDIA_PAGE_QUERY),
+      readPages<KeywordSyncRecord>(port, RECORD_PAGE_QUERY),
+      port.query(VERSIONS_QUERY, {}),
+    ]);
+    if (!Array.isArray(vocabulary) || !Array.isArray(versions)) throw new KeywordSyncError("READ_MALFORMED");
+    // `versions.<release>.<documentId>`.
+    const versioned = new Set((versions as unknown[]).flatMap((id) => (typeof id === "string" ? [id.split(".").slice(2).join(".")] : [])));
+    return planKeywordSync({
+      vocabulary,
+      media: media.map((medium) => ({ ...medium, hasVersion: versioned.has(medium._id) })),
+      records,
+      now: options.now,
+      ...(options.imports === undefined ? {} : { imports: options.imports }),
+      ...(options.setDiscoverable === undefined ? {} : { setDiscoverable: options.setDiscoverable }),
+    });
+  };
+  const plan = await readPlan();
+  const summary = summarizeKeywordSync(plan);
+  // Only a full run with nothing skipped has processed the version it read.
+  const acknowledges = options.imports === undefined && summary.failed === 0 && initial.resyncedVersion < initial.taxonomyVersion;
+  // Also the state, so an approval cannot authorize another version's acknowledgement, or a vocabulary published since.
+  const digest = createHash("sha256").update(JSON.stringify({ mutations: plan.digest, taxonomyVersion: initial.taxonomyVersion, publicationSequence: initial.publicationSequence, acknowledges })).digest("hex");
+  const base = { digest, summary, plan };
   if (options.yes !== true) return { ...base, outcome: "planned", written: 0 };
-  if (options.approvedDigest !== plan.digest) throw new KeywordSyncError("DIGEST_MISMATCH");
+  if (options.approvedDigest !== digest) throw new KeywordSyncError("DIGEST_MISMATCH");
+
+  // The plan rests on the vocabulary as read. A publication since moves this sequence even when it
+  // leaves the version alone (a new keyword, an alias), and only this run's own batches may move it.
+  let expectedSequence = initial.publicationSequence;
+  const stateIfUnmoved = async () => {
+    const state = await readState(port);
+    return state.taxonomyVersion === initial.taxonomyVersion && state.publicationSequence === expectedSequence ? state : undefined;
+  };
 
   const updates = plan.entries.filter((entry): entry is Extract<KeywordSyncEntry, { status: "update" }> => entry.status === "update");
   let written = 0;
   for (let start = 0; start < updates.length; start += KEYWORD_SYNC_BATCH_SIZE) {
-    const state = await readState(port);
-    if (state.taxonomyVersion !== initial.taxonomyVersion) return { ...base, outcome: "taxonomy-changed", written };
+    const state = await stateIfUnmoved();
+    if (state === undefined) return { ...base, outcome: "taxonomy-changed", written };
     const batch = updates.slice(start, start + KEYWORD_SYNC_BATCH_SIZE);
     try {
       await port.mutate([
@@ -178,13 +197,22 @@ export async function runKeywordSync(port: KeywordSyncPort, options: RunOptions)
       throw error;
     }
     written += batch.length;
+    expectedSequence += 1;
   }
 
-  // Only a full run with nothing skipped has processed the version it read.
-  if (options.imports === undefined && base.summary.failed === 0 && initial.resyncedVersion < initial.taxonomyVersion) {
-    const state = await readState(port);
-    if (state.taxonomyVersion !== initial.taxonomyVersion) return { ...base, outcome: "taxonomy-changed", written };
-    await port.mutate([{ patch: { id: KEYWORD_TAXONOMY_STATE_ID, ifRevisionID: state._rev, set: { resyncedVersion: initial.taxonomyVersion, publicationSequence: state.publicationSequence + 1 } } }]);
+  if (acknowledges) {
+    // A draft or release version created during the run leaves every revision guard intact, and publishing
+    // it would undo the sync. Only a fresh read finding nothing left to do may close the version.
+    const after = summarizeKeywordSync(await readPlan());
+    if (after.update > 0 || after.failed > 0) return { ...base, outcome: "not-settled", written };
+    const state = await stateIfUnmoved();
+    if (state === undefined) return { ...base, outcome: "taxonomy-changed", written };
+    try {
+      await port.mutate([{ patch: { id: KEYWORD_TAXONOMY_STATE_ID, ifRevisionID: state._rev, set: { resyncedVersion: initial.taxonomyVersion, publicationSequence: state.publicationSequence + 1 } } }]);
+    } catch (error) {
+      if ((error as { status?: unknown }).status === 409) return { ...base, outcome: "conflict", written };
+      throw error;
+    }
     return { ...base, outcome: "written", written, acknowledgedVersion: initial.taxonomyVersion };
   }
   return { ...base, outcome: "written", written };
@@ -228,9 +256,15 @@ export async function main(argv: readonly string[]): Promise<KeywordSyncResult> 
   return result;
 }
 
+/** A run that skipped media is not finished, even though it reports what it did. */
+export function keywordSyncExitCode(result: Pick<KeywordSyncResult, "outcome" | "summary">): number {
+  if (result.outcome !== "planned" && result.outcome !== "written") return 3;
+  return result.summary.failed > 0 ? 1 : 0;
+}
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   main(process.argv.slice(2)).then(
-    (result) => { console.log(JSON.stringify(result)); if (result.outcome !== "planned" && result.outcome !== "written") process.exitCode = 3; },
+    (result) => { console.log(JSON.stringify(result)); process.exitCode = keywordSyncExitCode(result); },
     (error: Error) => { console.error(error.message); process.exitCode = 2; },
   );
 }

@@ -138,6 +138,10 @@ class Vocabulary {
     return row;
   }
 
+  known(documentId: string): Row | undefined {
+    return this.#byId.get(documentId);
+  }
+
   /** The end of a merge chain, whatever its status: a retired end is a dormant decision. */
   end(row: Row): Row {
     const visited = new Set<string>();
@@ -265,8 +269,18 @@ class ReviewCollector {
  * The same arguments always give a deep-equal result, so running an import twice writes
  * nothing new. `published` is the keyword graph as `KEYWORD_GRAPH_PROJECTION` reads it.
  */
-export function mapImportedKeywords(raw: ImportedKeywords, published: readonly unknown[], overrides: KeywordOverrides): KeywordImportProposal {
+export function mapImportedKeywords(
+  raw: ImportedKeywords,
+  published: readonly unknown[],
+  overrides: KeywordOverrides,
+  /** What the medium holds now. A keyword the site has moved keeps its assignment while its old path goes to review. */
+  options: Readonly<{ currentKeywords?: readonly string[] }> = {},
+): KeywordImportProposal {
   const vocabulary = new Vocabulary(published);
+  const held = new Set((options.currentKeywords ?? []).flatMap((id) => {
+    const row = vocabulary.known(id);
+    return row === undefined ? [] : [vocabulary.end(row).documentId];
+  }));
   const review = new ReviewCollector();
   const mapped = new Map<string, Row>();
   /** Every path component → what explains it, for the flat fields that repeat it. */
@@ -295,7 +309,10 @@ export function mapImportedKeywords(raw: ImportedKeywords, published: readonly u
         continue;
       }
       if (ends.length > 1) review.add("ambiguous", pathKey, rawForms, ends, category);
-      else review.add(leafEnds.length > 0 ? "path-mismatch" : "unmatched", pathKey, rawForms, leafEnds, category);
+      else {
+        review.add(leafEnds.length > 0 ? "path-mismatch" : "unmatched", pathKey, rawForms, leafEnds, category);
+        for (const leaf of leafEnds) if (held.has(leaf.documentId)) mapped.set(leaf.documentId, leaf);
+      }
     }
     for (const key of path.keys) if (key !== "") remember(key, null, pathKey);
   }

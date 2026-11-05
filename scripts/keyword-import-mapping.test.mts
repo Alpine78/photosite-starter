@@ -220,6 +220,19 @@ describe("paths", () => {
     expect(mapImportedKeywords(flat("Shared"), rows, none).review).toMatchObject([{ reason: "ambiguous", key: "shared" }]);
   });
 
+  it("keeps a keyword the site moved on a medium already holding it, and still asks about the path", () => {
+    const rows = [
+      keywordRow({ id: "sport", title: "Sport", category: subject }),
+      keywordRow({ id: "outdoors", title: "Outdoors", category: subject }),
+      keywordRow({ id: "cycling", title: "Cycling", category: subject, parent: "outdoors" }),
+    ];
+    const held = mapImportedKeywords(paths(["Sport|Cycling"]), rows, none, { currentKeywords: ["doc-cycling"] });
+    expect(held).toMatchObject({ mapped: ["cycling"], expandedKeywordIds: ["cycling", "outdoors"], review: [{ reason: "path-mismatch" }] });
+    expect(mapImportedKeywords(paths(["Sport|Cycling"]), rows, none).mapped).toEqual([]);
+    expect(mapImportedKeywords(paths(["Sport|Cycling"]), rows, { added: [], removed: ["doc-cycling"] }, { currentKeywords: ["doc-cycling"] }).keywords).toEqual([]);
+    expect(mapImportedKeywords(paths(["Sport|Cycling"]), rows, none, { currentKeywords: ["doc-gone"] }).mapped).toEqual([]);
+  });
+
   it("requires the path to start at a root", () => {
     expect(mapImportedKeywords(paths(["Cycling|Road cycling"]), published, none).review).toMatchObject([{ reason: "path-mismatch" }]);
   });

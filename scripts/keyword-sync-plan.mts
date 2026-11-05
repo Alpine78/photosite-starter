@@ -43,7 +43,7 @@ export type KeywordSyncMedia = Readonly<{
   keywords?: readonly Reference[] | null;
   expandedKeywordIds?: readonly string[] | null;
   dynamicallyDiscoverable?: boolean | null;
-  draft?: Readonly<{ _id: string; _rev: string }> | null;
+  draft?: Readonly<{ _id: string; _rev: string; keywords?: readonly Reference[] | null; expandedKeywordIds?: readonly string[] | null; dynamicallyDiscoverable?: boolean | null }> | null;
   /** A Content Release holds a version of it, which would undo the sync when released. */
   hasVersion?: boolean;
 }>;
@@ -82,8 +82,23 @@ export type KeywordSyncPlan = Readonly<{
   digest: string;
 }>;
 
-const refIds = (references: readonly Reference[] | null | undefined): readonly string[] =>
-  (references ?? []).flatMap((reference) => (typeof reference._ref === "string" ? [reference._ref] : []));
+/** A malformed removal dropped here would quietly bring a keyword back, so it fails the medium. */
+function refIds(references: readonly Reference[] | null | undefined): readonly string[] {
+  if (references === undefined || references === null) return [];
+  if (!Array.isArray(references)) throw new KeywordImportError("RECORD_MALFORMED");
+  return references.map((reference: unknown) => {
+    const ref = (reference as Reference | null)?._ref;
+    if (typeof ref !== "string" || ref === "") throw new KeywordImportError("RECORD_MALFORMED");
+    return ref;
+  });
+}
+
+/** A CMS object has no key order, so comparing what was read with what would be written has to ignore it. */
+function canonicalJson(value: unknown): string {
+  return JSON.stringify(value, (_key, entry: unknown) => (typeof entry === "object" && entry !== null && !Array.isArray(entry)
+    ? Object.fromEntries(Object.entries(entry).sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0)))
+    : entry));
+}
 
 const sameSet = (left: readonly string[], right: readonly string[]): boolean => {
   const a = [...new Set(left)].sort(), b = [...new Set(right)].sort();
@@ -95,8 +110,14 @@ const keywordRefs = (ids: readonly string[]) => ids.map((id) => ({ _key: keyOf(i
 /** Weak, because a private record must not stop an editor deleting a never-published keyword. */
 const weakRefs = (ids: readonly string[]) => ids.map((id) => ({ _key: keyOf(id), _type: "reference", _ref: id, _weak: true }));
 
+/** Optional reads on a string or a list find nothing, which would look like an empty field. */
+function assertContainer(value: unknown): void {
+  if (value !== undefined && value !== null && (typeof value !== "object" || Array.isArray(value))) throw new KeywordImportError("RECORD_MALFORMED");
+}
+
 /** Stored data is untrusted like any other CMS read. */
 function storedRaw(record: KeywordSyncRecord | undefined): ImportedKeywords {
+  assertContainer(record?.importedKeywords);
   const raw = record?.importedKeywords?.raw;
   if (raw === undefined || raw === null) return NO_IMPORTED_KEYWORDS;
   const field = (value: unknown): readonly string[] | null => {
@@ -104,7 +125,7 @@ function storedRaw(record: KeywordSyncRecord | undefined): ImportedKeywords {
     if (Array.isArray(value) && value.every((entry) => typeof entry === "string")) return value;
     throw new KeywordImportError("RECORD_MALFORMED");
   };
-  if (typeof raw !== "object") throw new KeywordImportError("RECORD_MALFORMED");
+  if (typeof raw !== "object" || Array.isArray(raw)) throw new KeywordImportError("RECORD_MALFORMED");
   return {
     dcSubject: field(raw.dcSubject), iptcKeywords: field(raw.iptcKeywords),
     hierarchicalSubject: field(raw.hierarchicalSubject), weightedFlatSubject: field(raw.weightedFlatSubject),
@@ -115,40 +136,47 @@ function planMedium(input: KeywordSyncInput, medium: KeywordSyncMedia, record: K
   if (medium.hasVersion === true) throw new KeywordImportError("RELEASE_VERSION_EXISTS");
   // Only this tool writes keywords. Without its record they have no known source, and
   // deriving from nothing would silently remove them.
-  if (record === undefined && refIds(medium.keywords).length > 0) throw new KeywordImportError("KEYWORDS_WITHOUT_RECORD");
+  if (record === undefined && (refIds(medium.keywords).length > 0 || refIds(medium.draft?.keywords).length > 0)) throw new KeywordImportError("KEYWORDS_WITHOUT_RECORD");
+  assertContainer(record?.keywordOverrides);
   const fields = input.imports?.get(medium.mediaId);
+  // ADR-0039 decision 5: mapping a failed read as "no keywords" would remove every imported keyword.
+  if (fields !== undefined && Object.keys(fields).some((name) => /(?:^|:)Error$/u.test(name))) throw new KeywordImportError("IMPORT_UNREADABLE");
   const raw = fields === undefined ? storedRaw(record) : importedKeywordsFromFields(fields);
   const proposal = mapImportedKeywords(raw, input.vocabulary, {
     added: refIds(record?.keywordOverrides?.added),
     removed: refIds(record?.keywordOverrides?.removed),
-  });
+  }, { currentKeywords: [...refIds(medium.keywords), ...refIds(record?.internalKeywords)] });
 
-  const nextDiscoverable = fields !== undefined && input.setDiscoverable === true ? true : medium.dynamicallyDiscoverable ?? undefined;
-  const mediaChanged = !sameSet(refIds(medium.keywords), proposal.keywords) ||
-    !sameSet(medium.expandedKeywordIds ?? [], proposal.expandedKeywordIds) ||
-    nextDiscoverable !== (medium.dynamicallyDiscoverable ?? undefined);
+  // Only an explicit opt-in writes this. Otherwise each document keeps its own, because a draft may differ on purpose.
+  const optIn = fields !== undefined && input.setDiscoverable === true;
+  const keywordsDiffer = (document: Readonly<{ keywords?: readonly Reference[] | null; expandedKeywordIds?: readonly string[] | null }>) =>
+    !sameSet(refIds(document.keywords), proposal.keywords) ||
+    !sameSet(Array.isArray(document.expandedKeywordIds) ? document.expandedKeywordIds : [], proposal.expandedKeywordIds);
+  const mediaChanged = keywordsDiffer(medium) || (optIn && medium.dynamicallyDiscoverable !== true);
+  // On its own, because a draft can be stale while the published document is right, and publishing it would bring the old keywords back.
+  const draftChanged = medium.draft != null && (mediaChanged || keywordsDiffer(medium.draft) || (optIn && medium.draft.dynamicallyDiscoverable !== true));
 
-  const rawChanged = JSON.stringify(record?.importedKeywords?.raw ?? NO_IMPORTED_KEYWORDS) !== JSON.stringify(raw);
+  const rawChanged = canonicalJson(record?.importedKeywords?.raw ?? NO_IMPORTED_KEYWORDS) !== canonicalJson(raw);
   const recordChanged = rawChanged ||
     !sameSet(refIds(record?.keywordOverrides?.added), proposal.overrides.added) ||
     !sameSet(refIds(record?.keywordOverrides?.removed), proposal.overrides.removed) ||
     !sameSet(refIds(record?.internalKeywords), proposal.internalKeywords) ||
-    JSON.stringify(record?.reviewItems ?? []) !== JSON.stringify(proposal.review);
+    canonicalJson(record?.reviewItems ?? []) !== canonicalJson(proposal.review);
 
   // Nothing to say about a medium no import has ever touched, and no reason to create a record for it.
   const hasContent = record !== undefined || fields !== undefined;
-  if (!mediaChanged && (!recordChanged || !hasContent)) return { mediaId: medium.mediaId, status: "unchanged", review: proposal.review };
+  if (!mediaChanged && !draftChanged && (!recordChanged || !hasContent)) return { mediaId: medium.mediaId, status: "unchanged", review: proposal.review };
 
   const set = {
     keywords: keywordRefs(proposal.keywords),
     expandedKeywordIds: proposal.expandedKeywordIds,
-    ...(nextDiscoverable === undefined ? {} : { dynamicallyDiscoverable: nextDiscoverable }),
+    ...(optIn ? { dynamicallyDiscoverable: true } : {}),
   };
   const mutations: SeedMutation[] = [];
-  if (mediaChanged) {
-    mutations.push({ patch: { id: medium._id, ifRevisionID: medium._rev, set } });
-    if (medium.draft != null) mutations.push({ patch: { id: medium.draft._id, ifRevisionID: medium.draft._rev, set } });
-  }
+  if (mediaChanged) mutations.push({ patch: { id: medium._id, ifRevisionID: medium._rev, set } });
+  if (draftChanged) mutations.push({ patch: { id: medium.draft!._id, ifRevisionID: medium.draft!._rev, set } });
+  // The keywords come from the record's overrides, so an editor changing them since must stop this.
+  if ((mediaChanged || draftChanged) && !recordChanged && record !== undefined) mutations.push({ patch: { id: record._id, ifRevisionID: record._rev, set: { mediaId: medium.mediaId } } });
   if (recordChanged && hasContent) {
     const fieldsToSet = {
       importedKeywords: { raw, importedAt: rawChanged ? input.now : record?.importedKeywords?.importedAt ?? input.now },
@@ -167,10 +195,11 @@ function planMedium(input: KeywordSyncInput, medium: KeywordSyncMedia, record: K
 export function planKeywordSync(input: KeywordSyncInput): KeywordSyncPlan {
   mapImportedKeywords(NO_IMPORTED_KEYWORDS, input.vocabulary, { added: [], removed: [] });
   const records = new Map(input.records.map((record) => [record._id, record]));
-  const seen = new Set<string>();
+  const claims = new Map<string, number>();
+  for (const medium of input.media) claims.set(medium.mediaId, (claims.get(medium.mediaId) ?? 0) + 1);
   const entries = input.media.map((medium): KeywordSyncEntry => {
-    if (seen.has(medium.mediaId)) return { mediaId: medium.mediaId, status: "failed", code: "MEDIA_ID_REPEATED" };
-    seen.add(medium.mediaId);
+    // Every claimant, because no order makes one of them the right one to write.
+    if (claims.get(medium.mediaId)! > 1) return { mediaId: medium.mediaId, status: "failed", code: "MEDIA_ID_REPEATED" };
     try {
       return planMedium(input, medium, records.get(keywordRecordId(medium.mediaId)));
     } catch (error) {
@@ -183,7 +212,8 @@ export function planKeywordSync(input: KeywordSyncInput): KeywordSyncPlan {
   return {
     entries,
     unmatchedImports: [...(input.imports?.keys() ?? [])].filter((mediaId) => !known.has(mediaId)).sort(),
-    digest: createHash("sha256").update(JSON.stringify(planned)).digest("hex"),
+    // Today's clock is not part of what is approved: it differs between the dry run and the write.
+    digest: createHash("sha256").update(JSON.stringify(planned, (key, value) => (key === "importedAt" && value === input.now ? "<now>" : value))).digest("hex"),
   };
 }
 
