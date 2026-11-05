@@ -221,11 +221,52 @@ test.describe("keyword gallery", () => {
     test("it asks a debounced, bounded endpoint rather than downloading the vocabulary", async ({ page }) => {
       const requests: string[] = [];
       page.on("request", (request) => { if (request.url().includes("/api/keyword-suggest")) requests.push(request.postData() ?? ""); });
+      // The page's own clock, so the debounce does not depend on how fast this machine types.
+      await page.clock.install();
       await page.goto(SEARCH_PATH);
-      await field(page).pressSequentially("water", { delay: 10 });
+      await expect(field(page)).toBeEnabled();
+      await page.clock.pauseAt(Date.now() + 60_000);
+      await field(page).pressSequentially("water");
+      expect(requests).toEqual([]);
+      await page.clock.runFor(1000);
       await expect(page.getByRole("option").first()).toBeVisible();
-      expect(requests.length).toBeLessThanOrEqual(2);
-      expect(requests.at(-1)).toContain("water");
+      expect(requests).toHaveLength(1);
+      expect(requests[0]).toContain("water");
+    });
+
+    test("a dismissed list stays closed when its answer arrives, and the arrow key brings it back", async ({ page }) => {
+      await page.goto(SEARCH_PATH);
+      const input = field(page);
+      await expect(input).toBeEnabled();
+      await input.fill("water");
+      await page.keyboard.press("Escape");
+      await expect(page.getByRole("option")).toHaveCount(0);
+      await input.press("ArrowDown");
+      await expect(page.getByRole("option").first()).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(page.getByRole("option")).toHaveCount(0);
+      await input.press("ArrowDown");
+      await expect(page.getByRole("option").first()).toBeVisible();
+    });
+
+    test("Enter takes nothing from a list the visitor can no longer see", async ({ page }) => {
+      await page.goto(SEARCH_PATH);
+      const input = field(page);
+      await expect(input).toBeEnabled();
+      await input.fill("water");
+      await expect(page.getByRole("option").first()).toBeVisible();
+      await input.press("ArrowDown");
+      await input.press("x");
+      await input.press("Enter");
+      await expect(page.getByRole("list", { name: labels.keywordSelectorSelected })).toHaveCount(0);
+      await expect(input).toHaveValue("waterx");
+    });
+
+    test("the section keeps its place while the page hydrates", async ({ page }) => {
+      await page.goto(SEARCH_PATH, { waitUntil: "commit" });
+      await expect(page.getByRole("heading", { name: labels.keywordSelectorHeading })).toBeVisible();
+      const html = await (await page.request.get(SEARCH_PATH)).text();
+      expect(html).toContain(labels.keywordSelectorHeading);
     });
 
     test("the endpoint matches an alias without returning it, and refuses what it should", async ({ request, baseURL }) => {

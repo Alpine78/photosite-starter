@@ -4,27 +4,9 @@ import { KeywordSelector } from "@/components/keyword-selector";
 import { getBuiltInLabels, getDeploymentConfig } from "@/lib/deployment-config";
 import { buildKeywordBrowserTree, type KeywordBrowserNode } from "@/lib/keyword-browser";
 import { keywordGalleryQuery } from "@/lib/keyword-gallery-route";
-import { getKeywordIndex } from "@/lib/keyword-index-access";
+import { getKeywordIndexWithinBudget } from "@/lib/keyword-index-access";
 import { buildSearchPath } from "@/lib/locale-routes";
 import { keywordCountText, type SiteSearchLabels } from "@/lib/site-search-copy";
-
-/**
- * The landing state must keep working. Reading the index takes one request per 1000 media while the
- * cache is cold, one after another, and this page is rendered on the server for everyone.
- */
-const KEYWORD_BROWSER_READ_BUDGET_MS = 3000;
-
-async function withinBudget<T>(read: Promise<T>): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<never>((_resolve, reject) => {
-    timer = setTimeout(() => reject(new Error("the keyword index read past its budget")), KEYWORD_BROWSER_READ_BUDGET_MS);
-  });
-  try {
-    return await Promise.race([read, timeout]);
-  } finally {
-    clearTimeout(timer);
-  }
-}
 
 function KeywordList({ nodes, labels, formatter, searchPath, nested = false }: {
   readonly nodes: readonly KeywordBrowserNode[];
@@ -64,7 +46,7 @@ export async function KeywordBrowser({ locale }: { readonly locale: string }) {
   const labels = getBuiltInLabels(locale).search;
   let categories;
   try {
-    categories = buildKeywordBrowserTree(await withinBudget(getKeywordIndex(locale)));
+    categories = buildKeywordBrowserTree(await getKeywordIndexWithinBudget(locale));
   } catch (error) {
     console.error("[keyword-browser] unavailable", error instanceof Error ? `${error.name}: ${error.message}` : "unknown error");
     return null;
