@@ -104,7 +104,7 @@ function storedRaw(record: KeywordSyncRecord | undefined): ImportedKeywords {
     if (Array.isArray(value) && value.every((entry) => typeof entry === "string")) return value;
     throw new KeywordImportError("RECORD_MALFORMED");
   };
-  if (typeof raw !== "object") throw new KeywordImportError("RECORD_MALFORMED");
+  if (typeof raw !== "object" || Array.isArray(raw)) throw new KeywordImportError("RECORD_MALFORMED");
   return {
     dcSubject: field(raw.dcSubject), iptcKeywords: field(raw.iptcKeywords),
     hierarchicalSubject: field(raw.hierarchicalSubject), weightedFlatSubject: field(raw.weightedFlatSubject),
@@ -148,6 +148,8 @@ function planMedium(input: KeywordSyncInput, medium: KeywordSyncMedia, record: K
   if (mediaChanged) {
     mutations.push({ patch: { id: medium._id, ifRevisionID: medium._rev, set } });
     if (medium.draft != null) mutations.push({ patch: { id: medium.draft._id, ifRevisionID: medium.draft._rev, set } });
+    // The keywords come from the record's overrides, so an editor changing them since must stop this.
+    if (!recordChanged && record !== undefined) mutations.push({ patch: { id: record._id, ifRevisionID: record._rev, set: { mediaId: medium.mediaId } } });
   }
   if (recordChanged && hasContent) {
     const fieldsToSet = {
@@ -167,10 +169,11 @@ function planMedium(input: KeywordSyncInput, medium: KeywordSyncMedia, record: K
 export function planKeywordSync(input: KeywordSyncInput): KeywordSyncPlan {
   mapImportedKeywords(NO_IMPORTED_KEYWORDS, input.vocabulary, { added: [], removed: [] });
   const records = new Map(input.records.map((record) => [record._id, record]));
-  const seen = new Set<string>();
+  const claims = new Map<string, number>();
+  for (const medium of input.media) claims.set(medium.mediaId, (claims.get(medium.mediaId) ?? 0) + 1);
   const entries = input.media.map((medium): KeywordSyncEntry => {
-    if (seen.has(medium.mediaId)) return { mediaId: medium.mediaId, status: "failed", code: "MEDIA_ID_REPEATED" };
-    seen.add(medium.mediaId);
+    // Every claimant, because no order makes one of them the right one to write.
+    if (claims.get(medium.mediaId)! > 1) return { mediaId: medium.mediaId, status: "failed", code: "MEDIA_ID_REPEATED" };
     try {
       return planMedium(input, medium, records.get(keywordRecordId(medium.mediaId)));
     } catch (error) {
@@ -183,7 +186,8 @@ export function planKeywordSync(input: KeywordSyncInput): KeywordSyncPlan {
   return {
     entries,
     unmatchedImports: [...(input.imports?.keys() ?? [])].filter((mediaId) => !known.has(mediaId)).sort(),
-    digest: createHash("sha256").update(JSON.stringify(planned)).digest("hex"),
+    // Today's clock is not part of what is approved: it differs between the dry run and the write.
+    digest: createHash("sha256").update(JSON.stringify(planned, (key, value) => (key === "importedAt" && value === input.now ? "<now>" : value))).digest("hex"),
   };
 }
 

@@ -28,11 +28,13 @@ because a review item can hold anything a photographer typed. The console prints
 
 ## What protects a run
 
-- **The digest** covers every mutation and its revision guard, so an approval names exactly one state of the data. Anything changing since then fails it.
+- **The digest** covers every mutation and its revision guard, the taxonomy version and publication sequence, and whether the run acknowledges that version. An approval therefore names exactly one state of the data, and anything changing since then fails it. The clock is left out, so a dry run's digest still holds an hour later.
 - **Every document is revision-guarded.** A draft is patched with its published document, because publishing a stale draft would undo the sync.
 - **Every batch of 50 media is one transaction that also advances `keywordTaxonomyState`,** the guard Studio's keyword publication takes, so the two conflict rather than interleave.
+- **A medium whose keywords change also guards its record,** because the keywords come from the record's overrides.
 - **A conflict stops the run with exit code 3.** Run the dry run again: what was written is found unchanged and skipped, so resuming repeats nothing.
-- **A taxonomy change during the run stops it,** because the plan describes the older hierarchy.
+- **A publication during the run stops it, also with exit code 3,** because the plan rests on the older vocabulary. That covers a new keyword or alias, which leave the taxonomy version alone.
+- **A run that skipped any medium exits 1,** after writing the others and the report. Exit code 2 is an error before or outside the run.
 
 ## What it refuses, per medium
 
@@ -43,7 +45,7 @@ The report lists these as `failed`, and the others continue. A full re-sync with
 | `RELEASE_VERSION_EXISTS` | A Content Release holds a version, which would undo the sync when released. |
 | `KEYWORDS_WITHOUT_RECORD` | Keywords with no record have no known source, and deriving from nothing would remove them. |
 | `RECORD_MALFORMED` | The stored import is not in the expected shape. |
-| `MEDIA_ID_REPEATED` | Two documents claim one `mediaId`. |
+| `MEDIA_ID_REPEATED` | Two documents claim one `mediaId`. Every claimant fails, because no order makes one of them right. |
 | `VOCABULARY_REFERENCE_UNKNOWN` | An override names a keyword that does not exist. |
 
 A broken vocabulary stops the whole plan. An import naming no medium is listed under `unmatchedImports`, never guessed. Terms that do not resolve go to `reviewItems` on

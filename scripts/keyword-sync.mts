@@ -17,6 +17,7 @@
  */
 
 import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -120,6 +121,7 @@ async function readPages<T>(port: KeywordSyncPort, query: string): Promise<reado
 async function readState(port: KeywordSyncPort): Promise<KeywordSyncState> {
   const state = await port.query(STATE_QUERY, {}) as KeywordSyncState | null;
   if (state === null || typeof state._rev !== "string") throw new KeywordSyncError("TAXONOMY_STATE_MISSING");
+  if (![state.taxonomyVersion, state.resyncedVersion, state.publicationSequence].every(Number.isSafeInteger)) throw new KeywordSyncError("TAXONOMY_STATE_MALFORMED");
   return state;
 }
 
@@ -158,15 +160,28 @@ export async function runKeywordSync(port: KeywordSyncPort, options: RunOptions)
     ...(options.imports === undefined ? {} : { imports: options.imports }),
     ...(options.setDiscoverable === undefined ? {} : { setDiscoverable: options.setDiscoverable }),
   });
-  const base = { digest: plan.digest, summary: summarizeKeywordSync(plan), plan };
+  const summary = summarizeKeywordSync(plan);
+  // Only a full run with nothing skipped has processed the version it read.
+  const acknowledges = options.imports === undefined && summary.failed === 0 && initial.resyncedVersion < initial.taxonomyVersion;
+  // Also the state, so an approval cannot authorize another version's acknowledgement, or a vocabulary published since.
+  const digest = createHash("sha256").update(JSON.stringify({ mutations: plan.digest, taxonomyVersion: initial.taxonomyVersion, publicationSequence: initial.publicationSequence, acknowledges })).digest("hex");
+  const base = { digest, summary, plan };
   if (options.yes !== true) return { ...base, outcome: "planned", written: 0 };
-  if (options.approvedDigest !== plan.digest) throw new KeywordSyncError("DIGEST_MISMATCH");
+  if (options.approvedDigest !== digest) throw new KeywordSyncError("DIGEST_MISMATCH");
+
+  // The plan rests on the vocabulary as read. A publication since moves this sequence even when it
+  // leaves the version alone (a new keyword, an alias), and only this run's own batches may move it.
+  let expectedSequence = initial.publicationSequence;
+  const stateIfUnmoved = async () => {
+    const state = await readState(port);
+    return state.taxonomyVersion === initial.taxonomyVersion && state.publicationSequence === expectedSequence ? state : undefined;
+  };
 
   const updates = plan.entries.filter((entry): entry is Extract<KeywordSyncEntry, { status: "update" }> => entry.status === "update");
   let written = 0;
   for (let start = 0; start < updates.length; start += KEYWORD_SYNC_BATCH_SIZE) {
-    const state = await readState(port);
-    if (state.taxonomyVersion !== initial.taxonomyVersion) return { ...base, outcome: "taxonomy-changed", written };
+    const state = await stateIfUnmoved();
+    if (state === undefined) return { ...base, outcome: "taxonomy-changed", written };
     const batch = updates.slice(start, start + KEYWORD_SYNC_BATCH_SIZE);
     try {
       await port.mutate([
@@ -178,12 +193,12 @@ export async function runKeywordSync(port: KeywordSyncPort, options: RunOptions)
       throw error;
     }
     written += batch.length;
+    expectedSequence += 1;
   }
 
-  // Only a full run with nothing skipped has processed the version it read.
-  if (options.imports === undefined && base.summary.failed === 0 && initial.resyncedVersion < initial.taxonomyVersion) {
-    const state = await readState(port);
-    if (state.taxonomyVersion !== initial.taxonomyVersion) return { ...base, outcome: "taxonomy-changed", written };
+  if (acknowledges) {
+    const state = await stateIfUnmoved();
+    if (state === undefined) return { ...base, outcome: "taxonomy-changed", written };
     await port.mutate([{ patch: { id: KEYWORD_TAXONOMY_STATE_ID, ifRevisionID: state._rev, set: { resyncedVersion: initial.taxonomyVersion, publicationSequence: state.publicationSequence + 1 } } }]);
     return { ...base, outcome: "written", written, acknowledgedVersion: initial.taxonomyVersion };
   }
@@ -228,9 +243,15 @@ export async function main(argv: readonly string[]): Promise<KeywordSyncResult> 
   return result;
 }
 
+/** A run that skipped media is not finished, even though it reports what it did. */
+export function keywordSyncExitCode(result: Pick<KeywordSyncResult, "outcome" | "summary">): number {
+  if (result.outcome !== "planned" && result.outcome !== "written") return 3;
+  return result.summary.failed > 0 ? 1 : 0;
+}
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   main(process.argv.slice(2)).then(
-    (result) => { console.log(JSON.stringify(result)); if (result.outcome !== "planned" && result.outcome !== "written") process.exitCode = 3; },
+    (result) => { console.log(JSON.stringify(result)); process.exitCode = keywordSyncExitCode(result); },
     (error: Error) => { console.error(error.message); process.exitCode = 2; },
   );
 }

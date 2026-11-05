@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { keywordRow } from "../sanity/schemas/keyword-fixtures";
 import { KEYWORD_GRAPH_PROJECTION } from "../sanity/schemas/keyword-rules";
 import { keywordRecordId, KEYWORD_RECORD_TYPE, planKeywordSync, summarizeKeywordSync, type KeywordSyncInput, type KeywordSyncMedia, type KeywordSyncRecord } from "./keyword-sync-plan.mts";
-import { KEYWORD_SYNC_BATCH_SIZE, KEYWORD_SYNC_VOCABULARY_QUERY, parseArguments, parseImports, runKeywordSync, type KeywordSyncPort } from "./keyword-sync.mts";
+import { KEYWORD_SYNC_BATCH_SIZE, KEYWORD_SYNC_VOCABULARY_QUERY, keywordSyncExitCode, parseArguments, parseImports, runKeywordSync, type KeywordSyncPort } from "./keyword-sync.mts";
 
 const subject = "category-subject";
 const vocabulary = [
@@ -85,14 +85,31 @@ describe("planning", () => {
     expect(onlyEntry({ media: [medium("m1", { keywords: [{ _ref: "doc-harbour" }] })] })).toEqual({ mediaId: "m1", status: "failed", code: "KEYWORDS_WITHOUT_RECORD" });
   });
 
-  it.each([["a string", "text"], ["a bad field", { dcSubject: [1] }]])("refuses a stored import that is %s", (_name, raw) => {
+  it.each<[string, unknown]>([["a string", "text"], ["a list", []], ["a bad field", { dcSubject: [1] }]])("refuses a stored import that is %s", (_name, raw) => {
     const record = { _id: keywordRecordId("m1"), _rev: "r", importedKeywords: { raw } } as unknown as KeywordSyncRecord;
     expect(onlyEntry({ records: [record] })).toEqual({ mediaId: "m1", status: "failed", code: "RECORD_MALFORMED" });
   });
 
-  it("refuses two documents claiming one mediaId", () => {
-    const plan = planKeywordSync(input({ media: [medium("m1"), { ...medium("m1"), _id: "doc-other" }] }));
-    expect(plan.entries[1]).toEqual({ mediaId: "m1", status: "failed", code: "MEDIA_ID_REPEATED" });
+  it("refuses every document claiming one mediaId, so no arbitrary one is written", () => {
+    const plan = planKeywordSync(input({ media: [medium("m1"), { ...medium("m1"), _id: "doc-other" }], imports: new Map([["m1", fields("Harbour")]]) }));
+    expect(plan.entries).toEqual([
+      { mediaId: "m1", status: "failed", code: "MEDIA_ID_REPEATED" },
+      { mediaId: "m1", status: "failed", code: "MEDIA_ID_REPEATED" },
+    ]);
+  });
+
+  it("guards the record when only the medium changes, because its keywords come from the record", () => {
+    const record: KeywordSyncRecord = { _id: keywordRecordId("m1"), _rev: "record-rev", keywordOverrides: { added: [{ _ref: "doc-harbour" }] } };
+    const entry = onlyEntry({ records: [record] });
+    if (entry.status !== "update") throw new Error("expected an update");
+    expect(entry.mutations).toContainEqual({ patch: { id: keywordRecordId("m1"), ifRevisionID: "record-rev", set: { mediaId: "m1" } } });
+  });
+
+  it("gives one digest whatever the clock says, and a different one for different data", () => {
+    const imports = new Map([["m1", fields("Harbour")]]);
+    const digest = planKeywordSync(input({ imports })).digest;
+    expect(planKeywordSync(input({ imports, now: "2030-01-01T00:00:00.000Z" })).digest).toBe(digest);
+    expect(planKeywordSync(input({ imports: new Map([["m1", fields("Cycling")]]) })).digest).not.toBe(digest);
   });
 });
 
@@ -231,6 +248,50 @@ describe("running", () => {
     await expect(runKeywordSync(port, { imports, now: NOW, yes: true, approvedDigest: planned.digest })).rejects.toThrow("failed");
   });
 
+  it("accepts on the write the digest of a dry run made earlier, at another time", async () => {
+    const { port, docs } = store([state(), mediaDocument("m1")]);
+    const imports = importsFor(["m1"]);
+    const planned = await runKeywordSync(port, { imports, now: NOW });
+    const later = "2026-11-05T01:00:00.000Z";
+    expect(await runKeywordSync(port, { imports, now: later, yes: true, approvedDigest: planned.digest })).toMatchObject({ outcome: "written", written: 1 });
+    expect((docs.get(keywordRecordId("m1"))?.importedKeywords as { importedAt: string }).importedAt).toBe(later);
+  });
+
+  it("does not let an approval for one version acknowledge another", async () => {
+    const earlier = await runKeywordSync(store([state({ taxonomyVersion: 2 }), mediaDocument("m1")]).port, { now: NOW });
+    const { port, docs } = store([state({ taxonomyVersion: 3 }), mediaDocument("m1")]);
+    await expect(runKeywordSync(port, { now: NOW, yes: true, approvedDigest: earlier.digest })).rejects.toMatchObject({ code: "DIGEST_MISMATCH" });
+    expect(docs.get("keywordTaxonomyState")?.resyncedVersion).toBe(1);
+  });
+
+  it("does not accept an approval from before a keyword was published", async () => {
+    const { port, docs } = store([state(), mediaDocument("m1")]);
+    const imports = importsFor(["m1"]);
+    const planned = await runKeywordSync(port, { imports, now: NOW });
+    docs.set("keywordTaxonomyState", { ...docs.get("keywordTaxonomyState")!, publicationSequence: 1, _rev: "s1" });
+    await expect(runKeywordSync(port, { imports, now: NOW, yes: true, approvedDigest: planned.digest })).rejects.toMatchObject({ code: "DIGEST_MISMATCH" });
+  });
+
+  it("stops if a publication lands between batches, because the plan rests on the older vocabulary", async () => {
+    const ids = mediaIds(KEYWORD_SYNC_BATCH_SIZE + 1);
+    const base = store([state(), ...ids.map(mediaDocument)]);
+    const imports = importsFor(ids);
+    const planned = await runKeywordSync(base.port, { imports, now: NOW });
+    const publishing: KeywordSyncPort = {
+      ...base.port,
+      mutate: async (mutations) => {
+        await base.port.mutate(mutations);
+        const current = base.docs.get("keywordTaxonomyState")!;
+        base.docs.set("keywordTaxonomyState", { ...current, publicationSequence: (current.publicationSequence as number) + 1, _rev: "studio" });
+      },
+    };
+    expect(await runKeywordSync(publishing, { imports, now: NOW, yes: true, approvedDigest: planned.digest })).toMatchObject({ outcome: "taxonomy-changed", written: KEYWORD_SYNC_BATCH_SIZE });
+  });
+
+  it("refuses a state document with no usable numbers", async () => {
+    await expect(runKeywordSync(store([state({ publicationSequence: null }), mediaDocument("m1")]).port, { now: NOW })).rejects.toMatchObject({ code: "TAXONOMY_STATE_MALFORMED" });
+  });
+
   it("stops if the taxonomy moves during the run", async () => {
     const ids = mediaIds(KEYWORD_SYNC_BATCH_SIZE + 1);
     const base = store([state(), ...ids.map(mediaDocument)]);
@@ -259,6 +320,15 @@ describe("running", () => {
     expect(planned.summary.update).toBe(400);
     expect(performance.now() - start).toBeLessThan(5000);
   }, 60_000); // A generous ceiling for a loaded machine; the measured figure is in docs/keyword-sync.md.
+});
+
+describe("the exit status", () => {
+  const summary = (failed: number) => ({ failed }) as never;
+  it.each([
+    ["planned", 0, 0], ["written", 0, 0], ["planned", 2, 1], ["written", 2, 1], ["conflict", 0, 3], ["taxonomy-changed", 2, 3],
+  ] as const)("%s with %i failed → %i", (outcome, failed, code) => {
+    expect(keywordSyncExitCode({ outcome, summary: summary(failed) })).toBe(code);
+  });
 });
 
 describe("the command line", () => {
