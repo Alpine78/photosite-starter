@@ -55,7 +55,7 @@ export const KEYWORD_SYNC_VOCABULARY_QUERY = `*[_type == "keyword" && !(_id in p
 
 const MEDIA_PAGE_QUERY = `*[_type == "media" && !(_id in path("drafts.**")) && !(_id in path("versions.**"))] | order(_id asc) [$from...$to]{
   _id, _rev, mediaId, keywords, expandedKeywordIds, dynamicallyDiscoverable,
-  "draft": *[_id == "drafts." + ^._id][0]{_id, _rev, keywords, expandedKeywordIds}
+  "draft": *[_id == "drafts." + ^._id][0]{_id, _rev, keywords, expandedKeywordIds, dynamicallyDiscoverable}
 }`;
 /** Read once, because one lookup per medium would scan every version for each. */
 const VERSIONS_QUERY = `*[_id in path("versions.**")]._id`;
@@ -126,7 +126,8 @@ async function readState(port: KeywordSyncPort): Promise<KeywordSyncState> {
 }
 
 export type KeywordSyncResult = Readonly<{
-  outcome: "planned" | "written" | "conflict" | "taxonomy-changed";
+  /** `not-settled`: everything planned was written, but a read afterwards found more, so the version stays unacknowledged. */
+  outcome: "planned" | "written" | "conflict" | "taxonomy-changed" | "not-settled";
   digest: string;
   summary: KeywordSyncSummary;
   written: number;
@@ -143,23 +144,26 @@ type RunOptions = Readonly<{
 
 export async function runKeywordSync(port: KeywordSyncPort, options: RunOptions): Promise<KeywordSyncResult & { readonly plan: KeywordSyncPlan }> {
   const initial = await readState(port);
-  const [vocabulary, media, records, versions] = await Promise.all([
-    port.query(KEYWORD_SYNC_VOCABULARY_QUERY, {}),
-    readPages<KeywordSyncMedia>(port, MEDIA_PAGE_QUERY),
-    readPages<KeywordSyncRecord>(port, RECORD_PAGE_QUERY),
-    port.query(VERSIONS_QUERY, {}),
-  ]);
-  if (!Array.isArray(vocabulary) || !Array.isArray(versions)) throw new KeywordSyncError("READ_MALFORMED");
-  // `versions.<release>.<documentId>`.
-  const versioned = new Set((versions as unknown[]).flatMap((id) => (typeof id === "string" ? [id.split(".").slice(2).join(".")] : [])));
-  const plan = planKeywordSync({
-    vocabulary,
-    media: media.map((medium) => ({ ...medium, hasVersion: versioned.has(medium._id) })),
-    records,
-    now: options.now,
-    ...(options.imports === undefined ? {} : { imports: options.imports }),
-    ...(options.setDiscoverable === undefined ? {} : { setDiscoverable: options.setDiscoverable }),
-  });
+  const readPlan = async () => {
+    const [vocabulary, media, records, versions] = await Promise.all([
+      port.query(KEYWORD_SYNC_VOCABULARY_QUERY, {}),
+      readPages<KeywordSyncMedia>(port, MEDIA_PAGE_QUERY),
+      readPages<KeywordSyncRecord>(port, RECORD_PAGE_QUERY),
+      port.query(VERSIONS_QUERY, {}),
+    ]);
+    if (!Array.isArray(vocabulary) || !Array.isArray(versions)) throw new KeywordSyncError("READ_MALFORMED");
+    // `versions.<release>.<documentId>`.
+    const versioned = new Set((versions as unknown[]).flatMap((id) => (typeof id === "string" ? [id.split(".").slice(2).join(".")] : [])));
+    return planKeywordSync({
+      vocabulary,
+      media: media.map((medium) => ({ ...medium, hasVersion: versioned.has(medium._id) })),
+      records,
+      now: options.now,
+      ...(options.imports === undefined ? {} : { imports: options.imports }),
+      ...(options.setDiscoverable === undefined ? {} : { setDiscoverable: options.setDiscoverable }),
+    });
+  };
+  const plan = await readPlan();
   const summary = summarizeKeywordSync(plan);
   // Only a full run with nothing skipped has processed the version it read.
   const acknowledges = options.imports === undefined && summary.failed === 0 && initial.resyncedVersion < initial.taxonomyVersion;
@@ -197,6 +201,10 @@ export async function runKeywordSync(port: KeywordSyncPort, options: RunOptions)
   }
 
   if (acknowledges) {
+    // A draft or release version created during the run leaves every revision guard intact, and publishing
+    // it would undo the sync. Only a fresh read finding nothing left to do may close the version.
+    const after = summarizeKeywordSync(await readPlan());
+    if (after.update > 0 || after.failed > 0) return { ...base, outcome: "not-settled", written };
     const state = await stateIfUnmoved();
     if (state === undefined) return { ...base, outcome: "taxonomy-changed", written };
     try {

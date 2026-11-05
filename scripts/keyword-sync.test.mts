@@ -97,6 +97,15 @@ describe("planning", () => {
     expect(onlyEntry({ records: [record], media: [medium("m1", { ...current, draft: { _id: "drafts.doc-m1", _rev: "draft-rev", ...current } })] }).status).toBe("unchanged");
   });
 
+  it("applies an explicit opt-in to a draft that lacks it, because publishing it would reverse the choice", () => {
+    const record: KeywordSyncRecord = { _id: keywordRecordId("m1"), _rev: "r", importedKeywords: { raw: { dcSubject: ["Harbour"], iptcKeywords: null, hierarchicalSubject: null, weightedFlatSubject: null } }, keywordOverrides: { added: [], removed: [] }, internalKeywords: [], reviewItems: [] };
+    const current = { keywords: [{ _ref: "doc-harbour" }], expandedKeywordIds: ["harbour"] };
+    const media = [medium("m1", { ...current, dynamicallyDiscoverable: true, draft: { _id: "drafts.doc-m1", _rev: "d", ...current, dynamicallyDiscoverable: false } })];
+    const entry = onlyEntry({ records: [record], media, imports: new Map([["m1", fields("Harbour")]]), setDiscoverable: true });
+    if (entry.status !== "update") throw new Error("expected an update");
+    expect(entry.mutations[0]).toMatchObject({ patch: { id: "drafts.doc-m1", set: { dynamicallyDiscoverable: true } } });
+  });
+
   it("leaves each document's own discoverability alone unless asked", () => {
     const record: KeywordSyncRecord = { _id: keywordRecordId("m1"), _rev: "r", keywordOverrides: { added: [{ _ref: "doc-harbour" }] } };
     const media = [medium("m1", { dynamicallyDiscoverable: true, draft: { _id: "drafts.doc-m1", _rev: "d" } })];
@@ -358,6 +367,21 @@ describe("running", () => {
       },
     };
     expect(await runKeywordSync(publishing, { imports, now: NOW, yes: true, approvedDigest: planned.digest })).toMatchObject({ outcome: "taxonomy-changed", written: KEYWORD_SYNC_BATCH_SIZE });
+  });
+
+  it("does not acknowledge when a release version appeared during the run, because publishing it would undo the sync", async () => {
+    const record = { _id: keywordRecordId("m1"), _type: KEYWORD_RECORD_TYPE, _rev: "r0", importedKeywords: { raw: { dcSubject: ["Cycling"], iptcKeywords: null, hierarchicalSubject: null, weightedFlatSubject: null } } };
+    const base = store([state({ taxonomyVersion: 2 }), mediaDocument("m1"), record]);
+    const planned = await runKeywordSync(base.port, { now: NOW });
+    const editing: KeywordSyncPort = {
+      ...base.port,
+      mutate: async (mutations) => {
+        await base.port.mutate(mutations);
+        base.docs.set("versions.rel1.doc-m1", { _id: "versions.rel1.doc-m1", _type: "release-version", _rev: "v" });
+      },
+    };
+    expect(await runKeywordSync(editing, { now: NOW, yes: true, approvedDigest: planned.digest })).toMatchObject({ outcome: "not-settled", written: 1 });
+    expect(base.docs.get("keywordTaxonomyState")?.resyncedVersion).toBe(1);
   });
 
   it("reports a conflict on the final acknowledgement, keeping the count of what it wrote", async () => {

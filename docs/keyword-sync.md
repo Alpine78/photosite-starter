@@ -36,6 +36,7 @@ because a review item can hold anything a photographer typed. The console prints
 - **A medium whose keywords change also guards its record,** because the keywords come from the record's overrides.
 - **A conflict stops the run with exit code 3.** Run the dry run again: what was written is found unchanged and skipped, so resuming repeats nothing.
 - **A publication during the run stops it, also with exit code 3,** because the plan rests on the older vocabulary. That covers a new keyword or alias, which leave the taxonomy version alone.
+- **A re-sync reads everything again before it acknowledges the taxonomy version.** A draft or release version created during the run leaves every revision guard intact, so if that read finds anything left to do, the run ends as `not-settled` with exit code 3 and the version stays open. Run it again. One created after that read is not detected.
 - **A run that skipped any medium exits 1,** after writing the others and the report. Exit code 2 is an error before or outside the run.
 
 ## What it refuses, per medium

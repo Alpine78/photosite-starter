@@ -43,7 +43,7 @@ export type KeywordSyncMedia = Readonly<{
   keywords?: readonly Reference[] | null;
   expandedKeywordIds?: readonly string[] | null;
   dynamicallyDiscoverable?: boolean | null;
-  draft?: Readonly<{ _id: string; _rev: string; keywords?: readonly Reference[] | null; expandedKeywordIds?: readonly string[] | null }> | null;
+  draft?: Readonly<{ _id: string; _rev: string; keywords?: readonly Reference[] | null; expandedKeywordIds?: readonly string[] | null; dynamicallyDiscoverable?: boolean | null }> | null;
   /** A Content Release holds a version of it, which would undo the sync when released. */
   hasVersion?: boolean;
 }>;
@@ -154,7 +154,7 @@ function planMedium(input: KeywordSyncInput, medium: KeywordSyncMedia, record: K
     !sameSet(Array.isArray(document.expandedKeywordIds) ? document.expandedKeywordIds : [], proposal.expandedKeywordIds);
   const mediaChanged = keywordsDiffer(medium) || (optIn && medium.dynamicallyDiscoverable !== true);
   // On its own, because a draft can be stale while the published document is right, and publishing it would bring the old keywords back.
-  const draftChanged = medium.draft != null && (mediaChanged || keywordsDiffer(medium.draft));
+  const draftChanged = medium.draft != null && (mediaChanged || keywordsDiffer(medium.draft) || (optIn && medium.draft.dynamicallyDiscoverable !== true));
 
   const rawChanged = canonicalJson(record?.importedKeywords?.raw ?? NO_IMPORTED_KEYWORDS) !== canonicalJson(raw);
   const recordChanged = rawChanged ||
