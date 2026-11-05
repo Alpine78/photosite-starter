@@ -52,6 +52,37 @@ function exif(orientation: number | null, gpsEntries: number | null): Buffer {
   return Buffer.concat([Buffer.from("Exif\0\0", "latin1"), head, size, ...entries, Buffer.alloc(4), gps]);
 }
 
+describe("an image embedded in the metadata", () => {
+  const exifBlock = (gps: Buffer) => Buffer.concat([Buffer.from("Exif\0\0", "latin1"), gps]);
+
+  it("counts as unreadable when it has metadata of its own, so the photograph reaches the owner's review", async () => {
+    const located = withSegment(await jpeg(), 0xe1, exifBlock(Buffer.from("MM")));
+    const outer = withSegment(await jpeg(32, 16), 0xe1, exifBlock(Buffer.concat([tiffWithNoEntries(), located])));
+    expect(inspectJpegImportFacts(outer).gps).toBe("unreadable");
+    const photoshopThumbnail = withSegment(await jpeg(32, 16), 0xed, Buffer.concat([Buffer.from("Photoshop 3.0\0", "latin1"), withSegment(await jpeg(), 0xe1, xmp("<x:xmpmeta/>"))]));
+    expect(inspectJpegImportFacts(photoshopThumbnail).gps).toBe("unreadable");
+    expect(inspectJpegImportFacts(withSegment(await jpeg(32, 16), 0xe1, xmp('<rdf:li xmpGImg:image="AAAA"/>'))).gps).toBe("unreadable");
+  });
+
+  it("does not count when it is a plain thumbnail, as a camera writes one", async () => {
+    const outer = withSegment(await jpeg(32, 16), 0xe1, exifBlock(Buffer.concat([tiffWithNoEntries(), await jpeg()])));
+    expect(inspectJpegImportFacts(outer).gps).toBe("absent");
+  });
+
+  it("does not hide a location the outer image states", async () => {
+    const outer = withSegment(withSegment(await jpeg(32, 16), 0xe1, xmp('<x exif:GPSLatitude="1"/>')), 0xe1, xmp('<rdf:li xmpGImg:image="AAAA"/>'));
+    expect(inspectJpegImportFacts(outer).gps).toBe("present");
+  });
+});
+
+function tiffWithNoEntries(): Buffer {
+  const head = Buffer.alloc(14);
+  head.write("II", 0, "latin1");
+  head.writeUInt16LE(42, 2);
+  head.writeUInt32LE(8, 4);
+  return head;
+}
+
 describe("importActionFor", () => {
   it("keeps the compressed data up to the 2048 px bound and re-encodes above it", () => {
     expect(importActionFor({ width: 2048, height: 1365, orientation: 1 })).toBe("keep-compressed-data");
