@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { evaluate, parse } from "groq-js";
+import { evaluate, parse } from "groq-js/1";
 
 import { keywordDocument, keywordRow } from "../sanity/schemas/keyword-fixtures";
 import {
