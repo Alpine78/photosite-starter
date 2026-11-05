@@ -43,7 +43,7 @@ export type KeywordSyncMedia = Readonly<{
   keywords?: readonly Reference[] | null;
   expandedKeywordIds?: readonly string[] | null;
   dynamicallyDiscoverable?: boolean | null;
-  draft?: Readonly<{ _id: string; _rev: string }> | null;
+  draft?: Readonly<{ _id: string; _rev: string; keywords?: readonly Reference[] | null; expandedKeywordIds?: readonly string[] | null }> | null;
   /** A Content Release holds a version of it, which would undo the sync when released. */
   hasVersion?: boolean;
 }>;
@@ -112,6 +112,8 @@ const weakRefs = (ids: readonly string[]) => ids.map((id) => ({ _key: keyOf(id),
 
 /** Stored data is untrusted like any other CMS read. */
 function storedRaw(record: KeywordSyncRecord | undefined): ImportedKeywords {
+  const container: unknown = record?.importedKeywords;
+  if (container !== undefined && container !== null && (typeof container !== "object" || Array.isArray(container))) throw new KeywordImportError("RECORD_MALFORMED");
   const raw = record?.importedKeywords?.raw;
   if (raw === undefined || raw === null) return NO_IMPORTED_KEYWORDS;
   const field = (value: unknown): readonly string[] | null => {
@@ -141,9 +143,12 @@ function planMedium(input: KeywordSyncInput, medium: KeywordSyncMedia, record: K
   }, { currentKeywords: [...refIds(medium.keywords), ...refIds(record?.internalKeywords)] });
 
   const nextDiscoverable = fields !== undefined && input.setDiscoverable === true ? true : medium.dynamicallyDiscoverable ?? undefined;
-  const mediaChanged = !sameSet(refIds(medium.keywords), proposal.keywords) ||
-    !sameSet(Array.isArray(medium.expandedKeywordIds) ? medium.expandedKeywordIds : [], proposal.expandedKeywordIds) ||
-    nextDiscoverable !== (medium.dynamicallyDiscoverable ?? undefined);
+  const keywordsDiffer = (document: Readonly<{ keywords?: readonly Reference[] | null; expandedKeywordIds?: readonly string[] | null }>) =>
+    !sameSet(refIds(document.keywords), proposal.keywords) ||
+    !sameSet(Array.isArray(document.expandedKeywordIds) ? document.expandedKeywordIds : [], proposal.expandedKeywordIds);
+  const mediaChanged = keywordsDiffer(medium) || nextDiscoverable !== (medium.dynamicallyDiscoverable ?? undefined);
+  // On its own, because a draft can be stale while the published document is right, and publishing it would bring the old keywords back.
+  const draftChanged = medium.draft != null && (mediaChanged || keywordsDiffer(medium.draft));
 
   const rawChanged = canonicalJson(record?.importedKeywords?.raw ?? NO_IMPORTED_KEYWORDS) !== canonicalJson(raw);
   const recordChanged = rawChanged ||
@@ -154,7 +159,7 @@ function planMedium(input: KeywordSyncInput, medium: KeywordSyncMedia, record: K
 
   // Nothing to say about a medium no import has ever touched, and no reason to create a record for it.
   const hasContent = record !== undefined || fields !== undefined;
-  if (!mediaChanged && (!recordChanged || !hasContent)) return { mediaId: medium.mediaId, status: "unchanged", review: proposal.review };
+  if (!mediaChanged && !draftChanged && (!recordChanged || !hasContent)) return { mediaId: medium.mediaId, status: "unchanged", review: proposal.review };
 
   const set = {
     keywords: keywordRefs(proposal.keywords),
@@ -162,12 +167,10 @@ function planMedium(input: KeywordSyncInput, medium: KeywordSyncMedia, record: K
     ...(nextDiscoverable === undefined ? {} : { dynamicallyDiscoverable: nextDiscoverable }),
   };
   const mutations: SeedMutation[] = [];
-  if (mediaChanged) {
-    mutations.push({ patch: { id: medium._id, ifRevisionID: medium._rev, set } });
-    if (medium.draft != null) mutations.push({ patch: { id: medium.draft._id, ifRevisionID: medium.draft._rev, set } });
-    // The keywords come from the record's overrides, so an editor changing them since must stop this.
-    if (!recordChanged && record !== undefined) mutations.push({ patch: { id: record._id, ifRevisionID: record._rev, set: { mediaId: medium.mediaId } } });
-  }
+  if (mediaChanged) mutations.push({ patch: { id: medium._id, ifRevisionID: medium._rev, set } });
+  if (draftChanged) mutations.push({ patch: { id: medium.draft!._id, ifRevisionID: medium.draft!._rev, set } });
+  // The keywords come from the record's overrides, so an editor changing them since must stop this.
+  if ((mediaChanged || draftChanged) && !recordChanged && record !== undefined) mutations.push({ patch: { id: record._id, ifRevisionID: record._rev, set: { mediaId: medium.mediaId } } });
   if (recordChanged && hasContent) {
     const fieldsToSet = {
       importedKeywords: { raw, importedAt: rawChanged ? input.now : record?.importedKeywords?.importedAt ?? input.now },

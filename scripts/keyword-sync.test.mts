@@ -85,6 +85,25 @@ describe("planning", () => {
     expect(onlyEntry({ media: [medium("m1", { keywords: [{ _ref: "doc-harbour" }] })] })).toEqual({ mediaId: "m1", status: "failed", code: "KEYWORDS_WITHOUT_RECORD" });
   });
 
+  it("patches a stale draft on its own, because publishing it would bring the old keywords back", () => {
+    const record: KeywordSyncRecord = { _id: keywordRecordId("m1"), _rev: "record-rev", importedKeywords: { raw: { dcSubject: ["Harbour"], iptcKeywords: null, hierarchicalSubject: null, weightedFlatSubject: null } }, keywordOverrides: { added: [], removed: [] }, internalKeywords: [], reviewItems: [] };
+    const current = { keywords: [{ _ref: "doc-harbour" }], expandedKeywordIds: ["harbour"] };
+    const stale = onlyEntry({ records: [record], media: [medium("m1", { ...current, draft: { _id: "drafts.doc-m1", _rev: "draft-rev", keywords: [{ _ref: "doc-cycling" }], expandedKeywordIds: ["cycling", "sport"] } })] });
+    if (stale.status !== "update") throw new Error("expected an update");
+    expect(stale.mutations).toEqual([
+      expect.objectContaining({ patch: expect.objectContaining({ id: "drafts.doc-m1", ifRevisionID: "draft-rev" }) }),
+      { patch: { id: keywordRecordId("m1"), ifRevisionID: "record-rev", set: { mediaId: "m1" } } },
+    ]);
+    expect(onlyEntry({ records: [record], media: [medium("m1", { ...current, draft: { _id: "drafts.doc-m1", _rev: "draft-rev", ...current } })] }).status).toBe("unchanged");
+  });
+
+  it("refuses a stored import whose container is not an object, rather than reading it as no import", () => {
+    for (const importedKeywords of ["corrupt", [], 5]) {
+      const record = { _id: keywordRecordId("m1"), _rev: "r", importedKeywords } as unknown as KeywordSyncRecord;
+      expect(onlyEntry({ records: [record] })).toEqual({ mediaId: "m1", status: "failed", code: "RECORD_MALFORMED" });
+    }
+  });
+
   it.each<[string, unknown]>([["a string", "text"], ["a list", []], ["a bad field", { dcSubject: [1] }]])("refuses a stored import that is %s", (_name, raw) => {
     const record = { _id: keywordRecordId("m1"), _rev: "r", importedKeywords: { raw } } as unknown as KeywordSyncRecord;
     expect(onlyEntry({ records: [record] })).toEqual({ mediaId: "m1", status: "failed", code: "RECORD_MALFORMED" });

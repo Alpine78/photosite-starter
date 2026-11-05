@@ -55,7 +55,7 @@ export const KEYWORD_SYNC_VOCABULARY_QUERY = `*[_type == "keyword" && !(_id in p
 
 const MEDIA_PAGE_QUERY = `*[_type == "media" && !(_id in path("drafts.**")) && !(_id in path("versions.**"))] | order(_id asc) [$from...$to]{
   _id, _rev, mediaId, keywords, expandedKeywordIds, dynamicallyDiscoverable,
-  "draft": *[_id == "drafts." + ^._id][0]{_id, _rev}
+  "draft": *[_id == "drafts." + ^._id][0]{_id, _rev, keywords, expandedKeywordIds}
 }`;
 /** Read once, because one lookup per medium would scan every version for each. */
 const VERSIONS_QUERY = `*[_id in path("versions.**")]._id`;
