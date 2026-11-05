@@ -7,6 +7,7 @@ dynamic result by its `mediaId` instead of refusing it. See [ADR-0012's amendmen
 
 Keyword gallery at archive scale, 2026-11-05 — AB#73 **Active**: an 8000-media fixture runs the real route and GROQ for hierarchy, intersections, cursors and isolation in CI, and
 [budgets are proposed](keyword-gallery-scale.md) from local measurements. Live CMS latency, real images, physical devices and screen readers remain.
+
 Keyword gallery smoke tests, 2026-11-05 — AB#90 **Active**: `e2e/keyword-gallery-continuation.spec.ts` covers continuing in place and in the viewer, reloading, history, refused cursors and what stays eager.
 
 Keyword selector, 2026-11-05 — AB#74 **Active**: a keyboard-operable combobox on the search landing state builds a selection of up to
