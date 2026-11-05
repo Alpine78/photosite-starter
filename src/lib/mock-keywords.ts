@@ -1,7 +1,7 @@
 /**
  * Keyword fixture for the shared media model (AB#68): configurable categories, a two-level
  * hierarchy, one medium two keywords select together, and a video-capable item. Neutral on
- * purpose, because a deployment's vocabulary is content. Nothing renders these yet.
+ * purpose, because a deployment's vocabulary is content.
  */
 
 import "server-only";

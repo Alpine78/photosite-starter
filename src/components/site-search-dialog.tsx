@@ -282,7 +282,12 @@ export function SiteSearchDialog({
 
             <div className="pt-6 sm:pt-8">
               {!hasTokens ? (
-                <p className="text-base text-muted">{labels.prompt}</p>
+                <>
+                  <p className="text-base text-muted">{labels.prompt}</p>
+                  <p className="mt-4 text-base">
+                    <Link href={searchHref} prefetch={false} className={`underline underline-offset-4 ${focusRing}`}>{labels.allOptions}</Link>
+                  </p>
+                </>
               ) : current.phase === "unavailable" ? (
                 <p className="text-base text-muted">{labels.unavailable}</p>
               ) : shown === undefined ? (
