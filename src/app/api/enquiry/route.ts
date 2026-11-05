@@ -94,7 +94,6 @@ const RESOLUTION_RESPONSE: Record<
   "container-unavailable": { kind: "rejected", reason: "item-unavailable" },
   "not-public": { kind: "rejected", reason: "item-unavailable" },
   "not-enquirable": { kind: "rejected", reason: "item-unavailable" },
-  "dynamic-unsupported": { kind: "rejected", reason: "item-unavailable" },
   "source-unavailable": { kind: "failed", retryable: true, status: 503 },
   "source-error": { kind: "failed", retryable: false, status: 500 },
   "malformed-source": { kind: "failed", retryable: false, status: 500 },

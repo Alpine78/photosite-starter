@@ -104,7 +104,7 @@ resumed for this owner (AGENTS.md); AB#313 audits removing that inactive code.
 | AB#29 — Unlisted client galleries and whole-gallery ZIPs | Active | Follows ADR-0034 and the owner-accepted ADR-0035 ZIP contract (2026-10-25); AB#407 source and transport/capacity/hosted gates remain. |
 | AB#145 — Administer unlisted galleries | Active | Same branch; authoring boundaries need their own implementation. |
 | AB#130 — Proof selection without S3 | Active | Publication, selection, notices, reminders and manual deletion are merged/default-off. The [2026-10-24 replacement-deletion amendment](adr/0038-proof-selection-in-existing-sanity.md#replacement-deletion-amendment-2026-10-24) is source-built in merged/Closed AB#396. Hosted/privacy acceptance and activation remain separate. |
-| AB#60 — Enquiry about a public gallery item | Active | Curated-gallery path is built; a dynamic entry point needs the keyword branch. |
+| AB#60 — Enquiry about a public gallery item | Active | Curated path shipped. The dynamic path is on `feature/60-dynamic-enquiry`, stacked on AB#73. |
 
 **Keyword and commerce discovery:**
 

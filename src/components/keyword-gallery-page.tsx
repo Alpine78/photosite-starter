@@ -1,11 +1,12 @@
 import Link from "next/link";
 
 import { GalleryGrid } from "@/components/gallery-grid";
+import { GalleryItemEnquiry } from "@/components/gallery-item-enquiry";
 import { LanguageSwitch, type LanguageLink } from "@/components/language-switch";
 import { getBuiltInLabels, getDeploymentConfig } from "@/lib/deployment-config";
 import { effectiveGalleryPresentation } from "@/lib/gallery-presentation";
 import { projectGallerySlice } from "@/lib/gallery-slice-server";
-import { keywordGalleryQuery, type KeywordGalleryRoute } from "@/lib/keyword-gallery-route";
+import { keywordGalleryQuery, type KeywordGalleryRoute, type KeywordSelectionRoute } from "@/lib/keyword-gallery-route";
 import { languageName } from "@/lib/language-fallback";
 import { buildSearchPath } from "@/lib/locale-routes";
 import { getSiteSettings } from "@/lib/site-settings";
@@ -26,6 +27,12 @@ function languageLinks(locale: string, canonicalParam: string): readonly Languag
       ? []
       : [{ locale: route.locale, label: languageName(route.locale), href: `${buildSearchPath(localeRoutes, route.locale)}?${keywordGalleryQuery(canonicalParam)}` }],
   );
+}
+
+/** Authorized on submit by `/api/enquiry`, as a curated gallery's form is. */
+export function KeywordGalleryEnquiry({ locale, selection, itemId }: { readonly locale: string; readonly selection: KeywordSelectionRoute; readonly itemId: string }) {
+  const galleryPath = `${buildSearchPath(getDeploymentConfig().localeRoutes, locale)}?${keywordGalleryQuery(selection.canonicalParam)}`;
+  return <GalleryItemEnquiry locale={locale} itemId={itemId} galleryTitle={keywordGalleryTitle(locale, selection.titles)} galleryPath={galleryPath} labels={getBuiltInLabels(locale)} />;
 }
 
 /**
@@ -51,7 +58,6 @@ export async function KeywordGalleryPage({ locale, route }: { readonly locale: s
             key={`${locale}:${route.canonicalParam}:${route.cursor ?? ""}`}
             label={title}
             initialSlice={slice}
-            enquiriesEnabled={false}
             galleryPath={galleryPath}
             continuationKind="keyword-gallery"
             // No gallery owns this page, so the site-wide settings decide.

@@ -16,6 +16,7 @@ import type { DynamicGalleryResultItem, GalleryPage } from "@/lib/gallery-result
 import { readKeywordGalleryPage, type KeywordGalleryCursorCodec, type KeywordGallerySource } from "@/lib/keyword-gallery";
 import { canonicalizeKeywordSelection, MAX_RAW_KEYWORD_TOKENS, parseKeywordTokens, type KeywordVocabularySnapshot } from "@/lib/keyword-gallery-selection";
 import { createMockKeywordGallerySource, getMockKeywordVocabulary } from "@/lib/mock-keyword-gallery";
+import { isPublicIdentity } from "@/lib/public-identity";
 import { createSanityKeywordGallerySource, readSanityKeywordVocabulary } from "@/lib/sanity-keyword-gallery";
 
 export type KeywordGalleryStore = Readonly<{
@@ -41,7 +42,7 @@ export function deploymentKeywordGalleryStore(): Promise<KeywordGalleryStore> {
   });
 }
 
-export type KeywordGalleryRoute = Readonly<{
+export type KeywordSelectionRoute = Readonly<{
   canonicalParam: string;
   /** `keywords` then `cursor`, ADR-0012 §8's stable order, with literal commas. */
   canonicalQuery: string;
@@ -49,12 +50,47 @@ export type KeywordGalleryRoute = Readonly<{
   redirect: boolean;
   /** Display names of the canonical keywords, in canonical order. */
   titles: readonly string[];
+}>;
+
+export type KeywordGalleryRoute = KeywordSelectionRoute & Readonly<{
   cursor: string | undefined;
   page: GalleryPage<DynamicGalleryResultItem>;
 }>;
 
+/**
+ * What `?enquire=` means beside a selection (ADR-0012's 2026-11-05 amendment), the rule ADR-0003 §8
+ * gives a curated gallery: one valid identity opens a form, with a cursor it is a 404, and
+ * anything else is an ordinary unknown parameter.
+ */
+export function readKeywordEnquiry(params: Readonly<Record<string, string | readonly string[] | undefined>>):
+  | Readonly<{ kind: "none" }>
+  | Readonly<{ kind: "conflict" }>
+  | Readonly<{ kind: "enquire"; itemId: string }> {
+  const raw = params.enquire;
+  if (typeof raw !== "string" || !isPublicIdentity(raw)) return { kind: "none" };
+  return params.cursor === undefined ? { kind: "enquire", itemId: raw } : { kind: "conflict" };
+}
+
 export function keywordGalleryQuery(canonicalParam: string, cursor?: string): string {
   return `keywords=${canonicalParam}${cursor === undefined ? "" : `&cursor=${encodeURIComponent(cursor)}`}`;
+}
+
+/**
+ * The selection alone, for the enquiry view: it shows no photographs, so a fault in an unrelated
+ * photograph on the first page must not stop someone asking about this one. `undefined` is §8's 404.
+ */
+export async function resolveKeywordSelection(locale: string, rawKeywords: string, store?: KeywordGalleryStore): Promise<KeywordSelectionRoute | undefined> {
+  if (parseKeywordTokens(rawKeywords).length > MAX_RAW_KEYWORD_TOKENS) return undefined;
+  const { readVocabulary } = store ?? await deploymentKeywordGalleryStore();
+  const vocabulary = await readVocabulary(locale);
+  const selection = canonicalizeKeywordSelection(rawKeywords, vocabulary);
+  if (selection.state !== "selection") return undefined;
+  return {
+    canonicalParam: selection.canonicalParam,
+    canonicalQuery: keywordGalleryQuery(selection.canonicalParam),
+    redirect: selection.redirect,
+    titles: selection.canonicalIds.map((keywordId) => vocabulary.taxonomy.byId.get(keywordId)!.title),
+  };
 }
 
 /**

@@ -25,13 +25,13 @@
  * that one must never mention `archiveLocator` or `enquiryEligible`, and a
  * shared projection could not keep both properties.
  *
- * ## Dynamic is refused, not half-authorized
+ * ## A dynamic result names the photograph itself
  *
- * A dynamic result (`itemId === mediaId`, no placement) has no gallery or query
- * context in a Sanity deployment yet: AB#58 builds the dynamic query and AB#68
- * exposes `dynamicallyDiscoverable` in the model. Until both exist, a dynamic
- * enquiry against this source is refused (`dynamic-unsupported`) rather than
- * authorized on the two flags that do exist. AB#60 stays open for the wiring.
+ * A dynamic result (`itemId === mediaId`, ADR-0002 §1) has no placement and no
+ * gallery, so nothing is invented for it: the media document is read directly and
+ * must be an opted-in, discoverable image. The keyword selection is not part of
+ * the request, because any photograph passing these checks is public anyway and
+ * a selection would add nothing the server could not already answer.
  *
  * ## Failure is loud
  *
@@ -126,6 +126,17 @@ const CAPTURE_SEQUENCE_ORDERING_RULE = "capture-sequence";
  */
 const CAPTURE_SEQUENCE_MEDIA_QUERY = `*[_type == "${MEDIA_DOCUMENT_TYPE}" && captureSequence.galleryContentId == $contentId && mediaId == $itemId][0...2]{
   "sectionId": captureSequence.sectionId,
+  "media": @${ENQUIRY_MEDIA_PROJECTION}
+}`;
+
+/**
+ * A dynamic result's item (ADR-0012 §2): the media document by its own identity.
+ * The kind and discoverability are read beside the shared projection, so they stay
+ * out of the curated reads, which never use them.
+ */
+export const DYNAMIC_MEDIA_QUERY = `*[_type == "${MEDIA_DOCUMENT_TYPE}" && mediaId == $itemId][0...2]{
+  mediaType,
+  dynamicallyDiscoverable,
   "media": @${ENQUIRY_MEDIA_PROJECTION}
 }`;
 
@@ -236,6 +247,8 @@ function readSingleRow(rows: readonly unknown[]): Record<string, unknown> {
 function projectEnquiryMedia(
   raw: unknown,
   includeArchiveLocator: boolean,
+  /** Absent for a curated read, where discoverability is not a condition. */
+  dynamicallyDiscoverable?: boolean,
 ): {
   mediaId: string;
   archiveLocator?: string;
@@ -256,15 +269,14 @@ function projectEnquiryMedia(
     throw new EnquiryResolutionError("malformed-source");
   }
 
-  // Only a curated enquiry reaches this projection — a dynamic one is refused
-  // before any query — so the dynamic-discoverability conjunct never applies here.
   assertEnquiryEligible(
     {
       publiclyRenderable: media.publiclyRenderable === true,
       enquiryEligible: media.enquiryEligible === true,
       privateOnly: media.privateOnly === true,
+      ...(dynamicallyDiscoverable === undefined ? {} : { dynamicallyDiscoverable }),
     },
-    "curated",
+    dynamicallyDiscoverable === undefined ? "curated" : "dynamic",
   );
 
   // On a public dataset the archive-location field is not part of the contract;
@@ -287,15 +299,43 @@ export async function resolveSanityEnquiryTarget(
   language: string,
   options: SanityEnquiryReadOptions = {},
 ): Promise<ResolvedEnquiryTarget> {
-  if (request.kind === "dynamic") {
-    // No query: a Sanity deployment cannot yet authorize a dynamic enquiry
-    // (AB#58 result context, AB#68 `dynamicallyDiscoverable`).
-    throw new EnquiryResolutionError("dynamic-unsupported");
-  }
-
   const client = options.client ?? getSanityClient();
   const config = options.config ?? getSanityConfig();
   const subtag = toLanguageSubtag(language);
+
+  if (request.kind === "dynamic") {
+    const row = readSingleRow(
+      readRows(
+        await client.query({
+          query: DYNAMIC_MEDIA_QUERY,
+          params: { itemId: request.itemId },
+          tag: "enquiry.dynamic",
+        }),
+      ),
+    );
+    // A dynamic result is an image until a video renderer exists (ADR-0012 §2).
+    if (row.mediaType !== "image") {
+      throw new EnquiryResolutionError("not-enquirable");
+    }
+    const media = projectEnquiryMedia(
+      row.media,
+      config.datasetVisibility === "private",
+      row.dynamicallyDiscoverable === true,
+    );
+    if (media.mediaId !== request.itemId) {
+      throw new EnquiryResolutionError("malformed-source");
+    }
+    const caption = selectLocalizedText(media.captionEntries, subtag);
+    return {
+      kind: "dynamic",
+      mediaId: media.mediaId,
+      ...(media.archiveLocator === undefined
+        ? {}
+        : { archiveLocator: media.archiveLocator }),
+      ...(caption === undefined ? {} : { caption }),
+      ...(media.credit === undefined ? {} : { credit: media.credit }),
+    };
+  }
 
   const gallery = await resolveGalleryDocument(
     client,

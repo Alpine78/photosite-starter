@@ -12,7 +12,7 @@ import { ContentGallery } from "@/components/content-gallery";
 import { GalleryItemEnquiry } from "@/components/gallery-item-enquiry";
 import { JsonLd } from "@/components/json-ld";
 import { ServiceDetail, ServiceListing } from "@/components/service-pages";
-import { KeywordGalleryPage, keywordGalleryTitle } from "@/components/keyword-gallery-page";
+import { KeywordGalleryEnquiry, KeywordGalleryPage, keywordGalleryTitle } from "@/components/keyword-gallery-page";
 import { SiteSearchPage } from "@/components/site-search-page";
 import type { BreadcrumbStep } from "@/components/breadcrumbs";
 import type { LanguageLink } from "@/components/language-switch";
@@ -82,7 +82,7 @@ import {
   getServiceRoutes,
 } from "@/lib/services";
 import { REQUEST_PATH_HEADER, readRequestPath } from "@/lib/request-path";
-import { keywordGalleryQuery, resolveKeywordGalleryRoute, type KeywordGalleryRoute } from "@/lib/keyword-gallery-route";
+import { keywordGalleryQuery, readKeywordEnquiry, resolveKeywordGalleryRoute, resolveKeywordSelection, type KeywordGalleryRoute, type KeywordSelectionRoute } from "@/lib/keyword-gallery-route";
 import { readSearchRequest } from "@/lib/site-search-query";
 import { HomePage, homeMetadata } from "@/components/home-page";
 import { ContactPage, contactMetadata } from "@/components/contact-page";
@@ -163,6 +163,7 @@ async function resolveSearchRequest(
 ): Promise<
   | { readonly kind: "text"; readonly locale: string; readonly rawQuery: string | undefined }
   | { readonly kind: "keywords"; readonly locale: string; readonly route: KeywordGalleryRoute }
+  | { readonly kind: "keyword-enquiry"; readonly locale: string; readonly selection: KeywordSelectionRoute; readonly itemId: string }
   | undefined
 > {
   const { localePrefix, segments = [] } = await props.params;
@@ -173,13 +174,20 @@ async function resolveSearchRequest(
   const request = readSearchRequest(await props.searchParams);
   if (request.mode === "keywords") {
     const searchParams = await props.searchParams;
-    const route = await resolveKeywordRoute(resolved.locale, request.raw, searchParams.cursor);
+    const enquiry = readKeywordEnquiry(searchParams);
+    if (enquiry.kind === "conflict") notFound();
+    const enquire = enquiry.kind === "enquire" ? enquiry.itemId : undefined;
+    const route = enquire === undefined
+      ? await resolveKeywordRoute(resolved.locale, request.raw, searchParams.cursor)
+      : await resolveKeywordSelectionOnce(resolved.locale, request.raw);
     if (route === undefined) notFound();
     const requestPath = readRequestPath((await headers()).get(REQUEST_PATH_HEADER));
     if (route.redirect || resolved.canonicalPath !== undefined || (requestPath !== undefined && requestPath.length > 1 && requestPath.endsWith("/"))) {
-      permanentRedirect(`${buildSearchPath(localeRoutes, resolved.locale)}?${route.canonicalQuery}`);
+      permanentRedirect(`${buildSearchPath(localeRoutes, resolved.locale)}?${route.canonicalQuery}${enquire === undefined ? "" : `&enquire=${enquire}`}`);
     }
-    return { kind: "keywords", locale: resolved.locale, route };
+    return enquire === undefined
+      ? { kind: "keywords", locale: resolved.locale, route: route as KeywordGalleryRoute }
+      : { kind: "keyword-enquiry", locale: resolved.locale, selection: route, itemId: enquire };
   }
 
   if (resolved.canonicalPath !== undefined) {
@@ -194,6 +202,7 @@ async function resolveSearchRequest(
 
 /** Metadata and the page ask together, so one request reads the store once. */
 const resolveKeywordRoute = cache(resolveKeywordGalleryRoute);
+const resolveKeywordSelectionOnce = cache((locale: string, raw: string) => resolveKeywordSelection(locale, raw));
 
 /** A redundant-prefix request's canonical query, or `undefined` for an invalid selection. */
 async function keywordSelectionCanonicalQuery(
@@ -202,17 +211,21 @@ async function keywordSelectionCanonicalQuery(
 ): Promise<string | undefined> {
   const request = readSearchRequest(searchParams);
   if (request.mode !== "keywords") return undefined;
-  return (await resolveKeywordRoute(locale, request.raw, searchParams.cursor))?.canonicalQuery;
+  const enquiry = readKeywordEnquiry(searchParams);
+  if (enquiry.kind === "conflict") return undefined;
+  if (enquiry.kind === "none") return (await resolveKeywordRoute(locale, request.raw, searchParams.cursor))?.canonicalQuery;
+  const canonical = (await resolveKeywordSelectionOnce(locale, request.raw))?.canonicalQuery;
+  return canonical === undefined ? undefined : `${canonical}&enquire=${enquiry.itemId}`;
 }
 
 /**
  * A selection is never indexed or put in a sitemap (ADR-0012 §8). Its canonical link is the
  * first page of the canonical selection, in the recognized parameters only.
  */
-function keywordGalleryMetadata(locale: string, route: KeywordGalleryRoute): Metadata {
+function keywordGalleryMetadata(locale: string, route: KeywordSelectionRoute, title: string): Metadata {
   const { localeRoutes } = getDeploymentConfig();
   return {
-    title: keywordGalleryTitle(locale, route.titles),
+    title,
     robots: { index: false, follow: true },
     alternates: { canonical: `${buildSearchPath(localeRoutes, locale)}?${keywordGalleryQuery(route.canonicalParam)}` },
   };
@@ -717,7 +730,7 @@ export async function generateMetadata(
       : contactMetadata(staticPage.locale);
   }
   const search = await resolveSearchRequest(props);
-  if (search !== undefined) return search.kind === "keywords" ? keywordGalleryMetadata(search.locale, search.route) : searchMetadata(search.locale);
+  if (search !== undefined) return search.kind === "keywords" ? keywordGalleryMetadata(search.locale, search.route, keywordGalleryTitle(search.locale, search.route.titles)) : search.kind === "keyword-enquiry" ? keywordGalleryMetadata(search.locale, search.selection, getBuiltInLabels(search.locale).enquiry.pageTitle) : searchMetadata(search.locale);
   const service = await resolveServiceRequest(props.params);
   if (service !== undefined) return serviceMetadata(service, isLegacyFallbackNotice((await props.searchParams)[LEGACY_FALLBACK_NOTICE_PARAM]));
   const { config, trees, resolution } = await resolveRequest(props);
@@ -884,6 +897,7 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
   }
   const search = await resolveSearchRequest(props);
   if (search !== undefined) {
+    if (search.kind === "keyword-enquiry") return <KeywordGalleryEnquiry locale={search.locale} selection={search.selection} itemId={search.itemId} />;
     return search.kind === "keywords"
       ? <KeywordGalleryPage locale={search.locale} route={search.route} />
       : <SiteSearchPage locale={search.locale} rawQuery={search.rawQuery} />;
