@@ -186,7 +186,8 @@ administrator-initiated events, while reads happen on every visitor request.
   target, must equal the upper terms from the root by title or alias. Anything else goes to
   review as a path mismatch, so a leaf with the right name under another parent is not guessed.
   A term whose keyword the site has moved away from its Lightroom path therefore reaches review
-  on each import until AB#70 records the editor's decision.
+  on each import until AB#70 records the editor's decision. A medium already holding that keyword keeps
+  it meanwhile (AB#69), so a parent move updates its closure rather than removing the assignment.
 - **A path of one level resolves like a flat term,** because having no parents in Lightroom says
   nothing about the site's hierarchy.
 - **A path with an empty component is not repaired.** It goes to review as malformed.

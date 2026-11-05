@@ -13,6 +13,8 @@ uploads nothing and changes no asset URL. A medium is identified by its `mediaId
 | **Import** | `--imports <fields.json>`, an object of `mediaId` → ExifTool `-G1` fields | Maps the new terms and keeps the editor's additions and removals. |
 | **Re-sync** | none | Re-maps every medium from its stored import, after a parent move, merge or retirement. Acknowledges the taxonomy version only if nothing failed. |
 
+A keyword the site has moved stays on a medium already holding it, whichever use this is: the closure follows the new hierarchy, and the old path goes to review so that an editor can settle it with a whole-path alias.
+
 `--set-discoverable` also opts the imported media in to keyword galleries (ADR-0012 §2). It is off by default, and it never applies to a client
 delivery. Building the fields file from local exports belongs to the import path, once AB#391's metadata tool has landed.
 
@@ -44,7 +46,8 @@ The report lists these as `failed`, and the others continue. A full re-sync with
 | --- | --- |
 | `RELEASE_VERSION_EXISTS` | A Content Release holds a version, which would undo the sync when released. |
 | `KEYWORDS_WITHOUT_RECORD` | Keywords with no record have no known source, and deriving from nothing would remove them. |
-| `RECORD_MALFORMED` | The stored import is not in the expected shape. |
+| `RECORD_MALFORMED` | The stored import or a reference on the record is not in the expected shape. |
+| `IMPORT_UNREADABLE` | The fields for this medium hold an ExifTool error. Mapping that as "no keywords" would remove every imported keyword. |
 | `MEDIA_ID_REPEATED` | Two documents claim one `mediaId`. Every claimant fails, because no order makes one of them right. |
 | `VOCABULARY_REFERENCE_UNKNOWN` | An override names a keyword that does not exist. |
 

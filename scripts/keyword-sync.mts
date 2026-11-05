@@ -199,7 +199,12 @@ export async function runKeywordSync(port: KeywordSyncPort, options: RunOptions)
   if (acknowledges) {
     const state = await stateIfUnmoved();
     if (state === undefined) return { ...base, outcome: "taxonomy-changed", written };
-    await port.mutate([{ patch: { id: KEYWORD_TAXONOMY_STATE_ID, ifRevisionID: state._rev, set: { resyncedVersion: initial.taxonomyVersion, publicationSequence: state.publicationSequence + 1 } } }]);
+    try {
+      await port.mutate([{ patch: { id: KEYWORD_TAXONOMY_STATE_ID, ifRevisionID: state._rev, set: { resyncedVersion: initial.taxonomyVersion, publicationSequence: state.publicationSequence + 1 } } }]);
+    } catch (error) {
+      if ((error as { status?: unknown }).status === 409) return { ...base, outcome: "conflict", written };
+      throw error;
+    }
     return { ...base, outcome: "written", written, acknowledgedVersion: initial.taxonomyVersion };
   }
   return { ...base, outcome: "written", written };

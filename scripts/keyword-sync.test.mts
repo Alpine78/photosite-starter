@@ -98,6 +98,48 @@ describe("planning", () => {
     ]);
   });
 
+  it("fails a medium whose file could not be read, instead of treating it as having no keywords", () => {
+    const record: KeywordSyncRecord = { _id: keywordRecordId("m1"), _rev: "r", importedKeywords: { raw: { dcSubject: ["Harbour"], iptcKeywords: null, hierarchicalSubject: null, weightedFlatSubject: null } } };
+    expect(onlyEntry({ records: [record], imports: new Map([["m1", { "ExifTool:Error": "File not found" }]]) })).toEqual({ mediaId: "m1", status: "failed", code: "IMPORT_UNREADABLE" });
+  });
+
+  it("keeps a moved keyword through a re-sync of a Lightroom path, and updates its ancestors", () => {
+    const moved = [
+      keywordRow({ id: "sport", title: "Sport", category: subject }),
+      keywordRow({ id: "outdoors", title: "Outdoors", category: subject }),
+      keywordRow({ id: "cycling", title: "Cycling", category: subject, parent: "outdoors" }),
+    ];
+    const raw = { dcSubject: null, iptcKeywords: null, hierarchicalSubject: ["Sport|Cycling"], weightedFlatSubject: null };
+    const record: KeywordSyncRecord = { _id: keywordRecordId("m1"), _rev: "r", importedKeywords: { raw } };
+    const entry = onlyEntry({ vocabulary: moved, records: [record], media: [medium("m1", { keywords: [{ _ref: "doc-cycling" }], expandedKeywordIds: ["cycling", "sport"] })] });
+    if (entry.status !== "update") throw new Error("expected an update");
+    expect(entry.mutations[0]).toMatchObject({ patch: { set: { keywords: [{ _ref: "doc-cycling" }], expandedKeywordIds: ["cycling", "outdoors"] } } });
+    expect(entry.review).toMatchObject([{ reason: "path-mismatch" }]);
+  });
+
+  it.each<[string, unknown]>([
+    ["a removal with a bad reference", { keywordOverrides: { removed: [{ _ref: 5 }] } }],
+    ["an addition that is null", { keywordOverrides: { added: [null] } }],
+    ["overrides that are not a list", { keywordOverrides: { added: "doc-harbour" } }],
+    ["internal keywords with no reference", { internalKeywords: [{}] }],
+  ])("fails a medium with %s, rather than dropping the decision", (_name, fields) => {
+    const record = { _id: keywordRecordId("m1"), _rev: "r", ...(fields as object) } as KeywordSyncRecord;
+    const plan = planKeywordSync(input({ media: [medium("m1"), medium("m2")], records: [record], imports: new Map([["m2", { "XMP-dc:Subject": ["Harbour"] }]]) }));
+    expect(plan.entries.map((entry) => entry.status)).toEqual(["failed", "update"]);
+    expect(plan.entries[0]).toMatchObject({ code: "RECORD_MALFORMED" });
+  });
+
+  it("sees a stored record as unchanged whatever order its keys come back in", () => {
+    const imports = new Map([["m1", fields("Harbour", "Unknown Term")]]);
+    const first = onlyEntry({ imports });
+    if (first.status !== "update") throw new Error("expected an update");
+    const created = (first.mutations[1] as { create: KeywordSyncRecord & { importedKeywords: { raw: object } } }).create;
+    const reversed = <T extends object>(value: T) => Object.fromEntries(Object.entries(value).reverse()) as T;
+    const record = { ...created, _rev: "r", importedKeywords: { ...created.importedKeywords, raw: reversed(created.importedKeywords.raw) }, reviewItems: created.reviewItems?.map(reversed) } as KeywordSyncRecord;
+    const stored = medium("m1", { keywords: [{ _ref: "doc-harbour" }], expandedKeywordIds: ["harbour"] });
+    expect(onlyEntry({ media: [stored], records: [record], imports, now: "2030-01-01T00:00:00.000Z" }).status).toBe("unchanged");
+  });
+
   it("guards the record when only the medium changes, because its keywords come from the record", () => {
     const record: KeywordSyncRecord = { _id: keywordRecordId("m1"), _rev: "record-rev", keywordOverrides: { added: [{ _ref: "doc-harbour" }] } };
     const entry = onlyEntry({ records: [record] });
@@ -286,6 +328,14 @@ describe("running", () => {
       },
     };
     expect(await runKeywordSync(publishing, { imports, now: NOW, yes: true, approvedDigest: planned.digest })).toMatchObject({ outcome: "taxonomy-changed", written: KEYWORD_SYNC_BATCH_SIZE });
+  });
+
+  it("reports a conflict on the final acknowledgement, keeping the count of what it wrote", async () => {
+    const record = { _id: keywordRecordId("m1"), _type: KEYWORD_RECORD_TYPE, _rev: "r0", importedKeywords: { raw: { dcSubject: ["Cycling"], iptcKeywords: null, hierarchicalSubject: null, weightedFlatSubject: null } } };
+    const base = store([state({ taxonomyVersion: 2 }), mediaDocument("m1"), record], { failAt: 2 });
+    const planned = await runKeywordSync(base.port, { now: NOW });
+    expect(await runKeywordSync(base.port, { now: NOW, yes: true, approvedDigest: planned.digest })).toMatchObject({ outcome: "conflict", written: 1 });
+    expect(base.docs.get("keywordTaxonomyState")?.resyncedVersion).toBe(1);
   });
 
   it("refuses a state document with no usable numbers", async () => {

@@ -82,8 +82,23 @@ export type KeywordSyncPlan = Readonly<{
   digest: string;
 }>;
 
-const refIds = (references: readonly Reference[] | null | undefined): readonly string[] =>
-  (references ?? []).flatMap((reference) => (typeof reference._ref === "string" ? [reference._ref] : []));
+/** A malformed removal dropped here would quietly bring a keyword back, so it fails the medium. */
+function refIds(references: readonly Reference[] | null | undefined): readonly string[] {
+  if (references === undefined || references === null) return [];
+  if (!Array.isArray(references)) throw new KeywordImportError("RECORD_MALFORMED");
+  return references.map((reference: unknown) => {
+    const ref = (reference as Reference | null)?._ref;
+    if (typeof ref !== "string" || ref === "") throw new KeywordImportError("RECORD_MALFORMED");
+    return ref;
+  });
+}
+
+/** A CMS object has no key order, so comparing what was read with what would be written has to ignore it. */
+function canonicalJson(value: unknown): string {
+  return JSON.stringify(value, (_key, entry: unknown) => (typeof entry === "object" && entry !== null && !Array.isArray(entry)
+    ? Object.fromEntries(Object.entries(entry).sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0)))
+    : entry));
+}
 
 const sameSet = (left: readonly string[], right: readonly string[]): boolean => {
   const a = [...new Set(left)].sort(), b = [...new Set(right)].sort();
@@ -117,23 +132,25 @@ function planMedium(input: KeywordSyncInput, medium: KeywordSyncMedia, record: K
   // deriving from nothing would silently remove them.
   if (record === undefined && refIds(medium.keywords).length > 0) throw new KeywordImportError("KEYWORDS_WITHOUT_RECORD");
   const fields = input.imports?.get(medium.mediaId);
+  // ADR-0039 decision 5: mapping a failed read as "no keywords" would remove every imported keyword.
+  if (fields !== undefined && Object.keys(fields).some((name) => /(?:^|:)Error$/u.test(name))) throw new KeywordImportError("IMPORT_UNREADABLE");
   const raw = fields === undefined ? storedRaw(record) : importedKeywordsFromFields(fields);
   const proposal = mapImportedKeywords(raw, input.vocabulary, {
     added: refIds(record?.keywordOverrides?.added),
     removed: refIds(record?.keywordOverrides?.removed),
-  });
+  }, { currentKeywords: [...refIds(medium.keywords), ...refIds(record?.internalKeywords)] });
 
   const nextDiscoverable = fields !== undefined && input.setDiscoverable === true ? true : medium.dynamicallyDiscoverable ?? undefined;
   const mediaChanged = !sameSet(refIds(medium.keywords), proposal.keywords) ||
-    !sameSet(medium.expandedKeywordIds ?? [], proposal.expandedKeywordIds) ||
+    !sameSet(Array.isArray(medium.expandedKeywordIds) ? medium.expandedKeywordIds : [], proposal.expandedKeywordIds) ||
     nextDiscoverable !== (medium.dynamicallyDiscoverable ?? undefined);
 
-  const rawChanged = JSON.stringify(record?.importedKeywords?.raw ?? NO_IMPORTED_KEYWORDS) !== JSON.stringify(raw);
+  const rawChanged = canonicalJson(record?.importedKeywords?.raw ?? NO_IMPORTED_KEYWORDS) !== canonicalJson(raw);
   const recordChanged = rawChanged ||
     !sameSet(refIds(record?.keywordOverrides?.added), proposal.overrides.added) ||
     !sameSet(refIds(record?.keywordOverrides?.removed), proposal.overrides.removed) ||
     !sameSet(refIds(record?.internalKeywords), proposal.internalKeywords) ||
-    JSON.stringify(record?.reviewItems ?? []) !== JSON.stringify(proposal.review);
+    canonicalJson(record?.reviewItems ?? []) !== canonicalJson(proposal.review);
 
   // Nothing to say about a medium no import has ever touched, and no reason to create a record for it.
   const hasContent = record !== undefined || fields !== undefined;
