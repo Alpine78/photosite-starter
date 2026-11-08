@@ -573,6 +573,37 @@ changed. This is the check AB#370 asks for, not its outcome: the 2026-10-19 acce
 runs to 2026-12-19, and before then the owner renews it or a fix lands. A hosted recheck
 was not made, and the check should be repeated near the date.
 
+## Upstream recheck on Next.js 16.4.5 — 2026-11-07 (AB#370)
+
+**Not a local build.** No production harness build was run on 16.4.5 or on canary. The
+findings below are the GitHub and npm state read on 2026-11-07 and a third-party report.
+The repository is still on Next.js 16.4.4; the update is on AB#160's branch.
+
+- **Releases:** npm `latest` is 16.4.5 and `canary` is 16.5.0-canary.43.
+- **Third-party report:** a [comment on #62228](https://github.com/vercel/next.js/issues/62228)
+  states that the empty `__next_error__` shell for a matched-route `notFound()` still
+  reproduces on 16.4.5, 16.5.0-canary.43 and 16.3.8, with React 19.3.1, in `next build` and
+  `next dev`. Its minimal app has no `cacheComponents`, no `partialPrefetching` and an empty
+  config; moving the root layout under a dynamic segment or adding a route group with its own
+  `not-found.tsx` changes nothing. We have not reproduced this ourselves.
+- **Upstream state:** issues #62228, #99287 and #99793 are open. Candidate fixes #98455
+  (last updated 2026-09-12) and #98583 are open and unmerged; #98583 was updated on
+  2026-11-07, so it is the one to watch.
+- **The comment's workaround does not apply here.** It drops the catch-all route, enables
+  `experimental.globalNotFound` and rewrites paths that would match `[lang]` to an unmatched
+  address. That covers only URLs matching no route, and the comment itself says real
+  `notFound()` calls keep the empty shell. This site's scriptless 404s come from exactly
+  those calls: an unknown story or gallery slug and a refused cursor, all decided inside
+  `[localePrefix]/[[...segments]]`. `globalNotFound` is already recorded above as having no
+  effect, and removing the catch-all would reopen ADR-0003's routing contract without
+  fixing the gallery cases. The only verified local workaround remains the Proxy content
+  lookup the owner declined on 2026-09-11.
+
+**Owner decision, 2026-11-07:** the owner accepted this assessment: no code change, and the
+2026-10-19 acceptance continues to its 2026-12-19 review (AB#370). **Before that date:**
+run the scriptless probes on a production build of whichever release is then `latest`, and
+check whether #98583 has merged and shipped. AB#132 stays Active.
+
 ## 2026-10-18 maintenance matcher amendment (AB#341)
 
 This scoped amendment implements [ADR-0031's accepted maintenance policy](0031-identity-migration-operational-plan.md#4-rehearsal-and-production-sequence).

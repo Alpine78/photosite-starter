@@ -38,7 +38,7 @@ actions, approvals or accounts; an agent can prepare evidence but cannot close t
 | AB#131 — Two-domain email migration | Active | Owner-run DNS/mailbox work; [mail recovery evidence](mail-recovery-evidence.md). | Owner |
 | AB#158 — Availability monitoring | Active | Monitor options merged (PR #561); the owner chooses and controls the monitor account. | Owner |
 | AB#159 — Production failure triage | Active | [Runbook](production-failure-triage.md) prepared; the live controlled-failure exercise remains. | Owner with agent |
-| AB#132 / AB#370 — Scriptless 404 HTML | Active | Blocked upstream: [vercel/next.js#62228](https://github.com/vercel/next.js/issues/62228) and its fix PR #98455 were both still open on 2026-11-03, and the defect reproduces on 16.4.4, the latest release. Risk acceptance re-review due 2026-12-19 (AB#370). | Upstream, then owner |
+| AB#132 / AB#370 — Scriptless 404 HTML | Active | Blocked upstream: [vercel/next.js#62228](https://github.com/vercel/next.js/issues/62228) and its fix PRs #98455 and #98583 were all still open on 2026-11-07. The defect reproduced here on 16.4.4; a third-party report says it persists on 16.4.5 (now `latest`) and canary, not yet rechecked locally. Risk acceptance re-review due 2026-12-19 (AB#370). | Upstream, then owner |
 | AB#250 — Retained legacy galleries | Active | 21 galleries served from Sanity; whole-ZIP exception accepted 2026-10-14 (ADR-0028 amendment). Acceptance remains. | Owner |
 | AB#255 — FI/EN coverage | Active | Remaining gaps are authored content and owner approvals; see [bilingual page coverage](bilingual-page-coverage.md). | Owner |
 
