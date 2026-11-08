@@ -236,7 +236,7 @@ export function PrivateGalleryProofPanel({
         <ConfirmedReview labels={labels} view={view} locale={locale} money={money} legendId={legendId} />
       ) : (
         <>
-          <h2 id={legendId} className="text-xl font-semibold text-strong">
+          <h2 id={legendId} className="text-xl font-semibold text-foreground">
             {labels.heading}
           </h2>
           <p className="text-muted">
@@ -264,7 +264,7 @@ export function PrivateGalleryProofPanel({
               <button
                 type="button"
                 onClick={() => window.location.reload()}
-                className="rounded-md border border-border-strong px-3 py-1 text-strong"
+                className="rounded-md border border-border-strong px-3 py-1 text-foreground"
               >
                 {labels.reload}
               </button>
@@ -284,7 +284,7 @@ export function PrivateGalleryProofPanel({
                       queue={mintQueue}
                       labels={labels}
                     />
-                    <label className="flex cursor-pointer items-center gap-2 text-sm text-strong">
+                    <label className="flex cursor-pointer items-center gap-2 text-sm text-foreground">
                       <input
                         type="checkbox"
                         disabled={!hydrated || status.kind === "saving" || status.kind === "confirming" || status.kind === "unavailable"}
@@ -305,7 +305,7 @@ export function PrivateGalleryProofPanel({
                 type="button"
                 disabled={view.pageIndex === 0 || status.kind === "saving" || status.kind === "confirming" || status.kind === "unavailable"}
                 onClick={() => refresh(view.pageIndex - 1)}
-                className="rounded-md border border-border-strong px-3 py-1.5 text-strong disabled:opacity-50"
+                className="rounded-md border border-border-strong px-3 py-1.5 text-foreground disabled:opacity-50"
               >
                 {labels.previousPage}
               </button>
@@ -319,7 +319,7 @@ export function PrivateGalleryProofPanel({
                 type="button"
                 disabled={!view.hasNextPage || status.kind === "saving" || status.kind === "confirming" || status.kind === "unavailable"}
                 onClick={() => refresh(view.pageIndex + 1)}
-                className="rounded-md border border-border-strong px-3 py-1.5 text-strong disabled:opacity-50"
+                className="rounded-md border border-border-strong px-3 py-1.5 text-foreground disabled:opacity-50"
               >
                 {labels.nextPage}
               </button>
@@ -327,7 +327,7 @@ export function PrivateGalleryProofPanel({
           )}
 
           <div className="flex flex-col gap-2 border-t border-border-strong pt-6">
-            <h3 className="text-lg font-medium text-strong">{labels.reviewHeading}</h3>
+            <h3 className="text-lg font-medium text-foreground">{labels.reviewHeading}</h3>
             <p className="text-muted">{labels.confirmDescription}</p>
             <ProofReviewSummary labels={labels} view={view} money={money} />
             <button
@@ -339,7 +339,7 @@ export function PrivateGalleryProofPanel({
                 status.kind === "unavailable"
               }
               onClick={confirm}
-              className="w-fit rounded-md border border-border-strong px-4 py-2 text-strong disabled:opacity-50"
+              className="w-fit rounded-md border border-border-strong px-4 py-2 text-foreground disabled:opacity-50"
             >
               {status.kind === "confirming" ? labels.confirming : labels.confirmSelection}
             </button>
@@ -365,7 +365,7 @@ function ConfirmedReview({
 }) {
   return (
     <div className="flex flex-col gap-4">
-      <h2 id={legendId} className="text-xl font-semibold text-strong">
+      <h2 id={legendId} className="text-xl font-semibold text-foreground">
         {labels.confirmedHeading}
       </h2>
       {view.confirmedAt !== undefined && (
@@ -410,7 +410,7 @@ function ProofReviewSummary({
         <dd>{money(view.summary.extraTotalMinor)}</dd>
       </dl>
       <div>
-        <h4 className="font-medium text-strong">{labels.selectedImagesHeading}</h4>
+        <h4 className="font-medium text-foreground">{labels.selectedImagesHeading}</h4>
         {view.selectedImages.length === 0 ? (
           <p className="text-muted">{labels.noneSelected}</p>
         ) : (
