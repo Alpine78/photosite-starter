@@ -133,7 +133,7 @@ function PrivateGalleryPreviewImageInstance({
             type="button"
             onClick={retry}
             aria-label={`${labels.retryImage}: ${item.alt ?? fallbackAlt}`}
-            className="rounded-md border border-border-strong px-3 py-1 text-strong"
+            className="rounded-md border border-border-strong px-3 py-1 text-foreground"
           >
             {labels.retryImage}
           </button>

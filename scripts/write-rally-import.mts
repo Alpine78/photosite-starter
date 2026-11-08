@@ -30,7 +30,8 @@ import { fileURLToPath } from "node:url";
 
 import sharp from "sharp";
 
-import { generatePublicDerivative, type PublicDerivative } from "./joomla-image-derivative.mts";
+import { prepareImportImage } from "./image-import-metadata-edit.mts";
+import { type PublicDerivative } from "./joomla-image-derivative.mts";
 import type { RallyAssetRequirement, RallyImportPlan } from "./rally-import-plan.mts";
 import {
   buildRallyWriteMutations,
@@ -171,7 +172,7 @@ async function deriveAsset(folder: string, requirement: RallyAssetRequirement): 
   }
   let derivative: PublicDerivative;
   try {
-    derivative = await generatePublicDerivative(bytes);
+    derivative = await prepareImportImage(bytes);
   } catch (error) {
     return { ok: false, reason: error instanceof Error ? error.message : String(error) };
   }
