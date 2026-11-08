@@ -1,3 +1,4 @@
+import { KeywordBrowser } from "@/components/keyword-browser";
 import { LanguageSwitch, type LanguageLink } from "@/components/language-switch";
 import { SiteSearchResults } from "@/components/site-search-results";
 import { getBuiltInLabels, getDeploymentConfig } from "@/lib/deployment-config";
@@ -122,7 +123,10 @@ export async function SiteSearchPage({
               {copy.unavailable}
             </p>
           ) : query.tokens.length === 0 ? (
-            <p className="text-lg text-muted">{copy.prompt}</p>
+            <>
+              <p className="text-lg text-muted">{copy.prompt}</p>
+              <KeywordBrowser locale={locale} />
+            </>
           ) : response === undefined || total === 0 ? (
             <p className="text-lg text-muted">{noResultsText(copy, query.text)}</p>
           ) : (

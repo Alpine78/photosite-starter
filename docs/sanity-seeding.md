@@ -1463,7 +1463,9 @@ uploading a file that changed since approval, whatever caused the change.
 own 2048px public-delivery ceiling, `fit: "inside"` so it is never cropped,
 never upscaled if already smaller. EXIF orientation is applied before
 resizing so a sideways-tagged source publishes upright; EXIF/GPS metadata
-does not survive into the derivative. An AVIF, JPEG, PNG, or WebP source
+does not survive into the derivative. This Joomla writer has not moved to ADR-0039
+decision 8, because a re-run would publish GPS nobody has reviewed; it changes with
+AB#391's legacy re-upload. An AVIF, JPEG, PNG, or WebP source
 re-encodes to the same format at an explicit, stated quality — never Sharp's
 own version-dependent default, which would otherwise be an unstated
 publication policy. An animated or multi-page source (an animated GIF, a
@@ -1941,7 +1943,7 @@ npm run write:rally -- --plan <out>/rally-import-plan.json --folder <rally folde
 the content and compares it with `--approved-digest`, then re-reads every photograph:
 
 - the SHA-256 must still match;
-- the public copy is generated, with EXIF and GPS stripped, never cropped or upscaled;
+- the public copy is prepared under [ADR-0039 decision 8](adr/0039-keyword-taxonomy-and-ingest-boundary.md): a JPEG within 2048 px keeps its image data unchanged, keywords and the creator's postal address are removed, and everything else stays, **GPS included**. Leave a sensitive location out in the Lightroom export. It is never cropped or upscaled, and a file that needs rotating is re-encoded upright;
 - the public copy's dimensions must equal the planned ones.
 
 It reads no credential and makes no network request. A plan that was edited by hand, or

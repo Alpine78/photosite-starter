@@ -100,6 +100,7 @@
     "braces": "file:vendor/braces-3.0.4-photosite.1.tgz",
     "eslint": "^9",
     "eslint-config-next": "16.4.4",
+    "exiftool-vendored": "^39.1.0",
     "parse5": "^8.0.1",
     "sharp": "^0.35.5",
     "tailwindcss": "^4",

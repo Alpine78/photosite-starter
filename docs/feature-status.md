@@ -2,14 +2,59 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Scriptless 404 upstream recheck, 2026-11-07 — AB#132 and AB#370 **Active**: Next.js 16.4.5 is
+now `latest`, and a third-party report on
+[#62228](https://github.com/vercel/next.js/issues/62228) says the empty `__next_error__` shell
+persists on 16.4.5 and canary 43. Issues #62228, #99287 and #99793 and candidate fixes
+#98455 and #98583 are open. No local build was run on 16.4.5; the repository is on 16.4.4.
+The comment's workaround covers only unmatched URLs, not our `notFound()` cases, so no code
+changed. The owner accepted that assessment; the 2026-12-19 review stands. See
+[ADR-0007](adr/0007-proxy-request-path-boundary.md#upstream-recheck-on-nextjs-1645--2026-11-07-ab370).
+
+Keyword gallery smoke tests, 2026-11-05 — AB#90 **Active**: `e2e/keyword-gallery-continuation.spec.ts` covers continuing in place and in the viewer, reloading, history, refused cursors and what stays eager.
+
+Keyword selector, 2026-11-05 — AB#74 **Active**: a keyboard-operable combobox on the search landing state builds a selection of up to
+five keywords from a bounded suggestion endpoint and navigates to its canonical gallery.
+
+Keyword browser, 2026-11-05 — AB#75 **Active**: the search landing state lists public keywords by category and hierarchy, as plain
+links with counts. Absent until media has keywords.
+
+Public keyword index, 2026-11-05 — AB#59 **Active**: a server-side, per-language value with public counts for the
+typeahead and browsable index, documented in [keyword-index.md](keyword-index.md). Nothing renders it yet. The live webhook's
+filter needs the three keyword types added after this deploys; until then the index converges within an hour.
+
+Keyword gallery page, 2026-11-05 — AB#71 **Active**: `?keywords=` on the search route now renders a server-side
+gallery with the shared grid, lightbox and continuation, instead of a 404. Every spelling defect redirects once after
+validation; an invalid selection or cursor answers 404 and is never redirected. `noindex`, no sitemap entry. It shows
+nothing on a real site until media has keywords (AB#69), and nothing links to it yet (AB#74, AB#75).
+
 Keyword sync, 2026-11-05 — AB#69 **Active**: `npm run sync:keywords` writes media keywords, closures and the private record, dry-run by default, under
 revision guards and the taxonomy state's guard, and resumes by re-planning. See [keyword-sync.md](keyword-sync.md). It has not run on a real dataset, and Studio has no `keywordRecord` schema until AB#70.
+
+Dynamic keyword query, 2026-11-04 — AB#58 **Active**: `src/lib/keyword-gallery-selection.ts` canonicalizes a
+selection, `keyword-gallery.ts` reads one bounded page under a signed cursor, and `sanity-keyword-gallery.ts`
+and `mock-keyword-gallery.ts` are its sources. Media gained `dynamicallyDiscoverable`, off by default. No route
+uses this yet; AB#71 is next. No medium has the field or keywords yet, so a real query would return nothing.
+
+Media keyword model, 2026-11-04 — AB#68 **Active**: `src/lib/media-keywords.ts` is the server-side
+model of a medium's public keywords, keyed by `mediaId`, with mock data and the Sanity queries and
+parsers in `sanity-media-keywords.ts`. `ImageMedia` and `VideoMedia` stay free of keywords, so the grid
+and lightbox payloads are unchanged. Nothing renders, routes or fetches keywords yet; AB#58 is next.
 
 Keyword import mapping, 2026-11-04 — AB#57 **Active**: `scripts/keyword-import-mapping.mts` maps one
 medium's Lightroom fields to the controlled vocabulary and returns a proposal: mapped keywords, review
 items, canonicalized overrides, the effective public and internal sets and the closure. It is pure and
 writes nothing. Nothing calls it yet; the writer is AB#69 and the review workflow AB#70. The rules are in
 [ADR-0039's AB#57 amendment](adr/0039-keyword-taxonomy-and-ingest-boundary.md).
+
+Import metadata tool, 2026-11-04 — AB#391 **Active**: `exiftool-vendored` is added as a
+devDependency, and `prepareJpegForImport` applies ADR-0039 decision 8 and verifies each result.
+The two rally writers use it. Client web images keep all their metadata by owner decision. The
+Joomla writer does not use it yet, because a re-run would publish GPS nobody has reviewed. The
+detector now follows the 2026-11-04 fields, and it now finds the creator's street address, which
+it missed because of a wrong spelling. The owner decided to do the legacy re-upload; matching the
+source report to published assets, its tool and its approved plan are still open, and no CMS write
+has been made. See [the path inventory](audits/ab391-import-path-inventory-2026-10-22.md).
 
 Keyword vocabulary schema, 2026-11-04 — AB#56 **Active**: `keyword`, `keywordCategory` and
 `keywordTaxonomyState` schemas with the governance rules of
