@@ -11,6 +11,33 @@ The comment's workaround covers only unmatched URLs, not our `notFound()` cases,
 changed. The owner accepted that assessment; the 2026-12-19 review stands. See
 [ADR-0007](adr/0007-proxy-request-path-boundary.md#upstream-recheck-on-nextjs-1645--2026-11-07-ab370).
 
+Keyword gallery smoke tests, 2026-11-05 — AB#90 **Active**: `e2e/keyword-gallery-continuation.spec.ts` covers continuing in place and in the viewer, reloading, history, refused cursors and what stays eager.
+
+Keyword selector, 2026-11-05 — AB#74 **Active**: a keyboard-operable combobox on the search landing state builds a selection of up to
+five keywords from a bounded suggestion endpoint and navigates to its canonical gallery.
+
+Keyword browser, 2026-11-05 — AB#75 **Active**: the search landing state lists public keywords by category and hierarchy, as plain
+links with counts. Absent until media has keywords.
+
+Public keyword index, 2026-11-05 — AB#59 **Active**: a server-side, per-language value with public counts for the
+typeahead and browsable index, documented in [keyword-index.md](keyword-index.md). Nothing renders it yet. The live webhook's
+filter needs the three keyword types added after this deploys; until then the index converges within an hour.
+
+Keyword gallery page, 2026-11-05 — AB#71 **Active**: `?keywords=` on the search route now renders a server-side
+gallery with the shared grid, lightbox and continuation, instead of a 404. Every spelling defect redirects once after
+validation; an invalid selection or cursor answers 404 and is never redirected. `noindex`, no sitemap entry. It shows
+nothing on a real site until media has keywords (AB#69), and nothing links to it yet (AB#74, AB#75).
+
+Dynamic keyword query, 2026-11-04 — AB#58 **Active**: `src/lib/keyword-gallery-selection.ts` canonicalizes a
+selection, `keyword-gallery.ts` reads one bounded page under a signed cursor, and `sanity-keyword-gallery.ts`
+and `mock-keyword-gallery.ts` are its sources. Media gained `dynamicallyDiscoverable`, off by default. No route
+uses this yet; AB#71 is next. No medium has the field or keywords yet, so a real query would return nothing.
+
+Media keyword model, 2026-11-04 — AB#68 **Active**: `src/lib/media-keywords.ts` is the server-side
+model of a medium's public keywords, keyed by `mediaId`, with mock data and the Sanity queries and
+parsers in `sanity-media-keywords.ts`. `ImageMedia` and `VideoMedia` stay free of keywords, so the grid
+and lightbox payloads are unchanged. Nothing renders, routes or fetches keywords yet; AB#58 is next.
+
 Import metadata tool, 2026-11-04 — AB#391 **Active**: `exiftool-vendored` is added as a
 devDependency, and `prepareJpegForImport` applies ADR-0039 decision 8 and verifies each result.
 The two rally writers use it. Client web images keep all their metadata by owner decision. The

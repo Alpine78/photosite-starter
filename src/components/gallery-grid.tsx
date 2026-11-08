@@ -41,7 +41,7 @@ type GalleryGridProps = {
   /** Resolved layout and caption placement (AB#157). */
   presentation: GalleryPresentation;
   labels: BuiltInLabels;
-  continuationKind?: "curated-gallery" | "article-end-gallery";
+  continuationKind?: "curated-gallery" | "article-end-gallery" | "keyword-gallery";
   /**
    * How many leading images load eagerly, for a grid that is the first thing
    * its page shows (AB#383). Capped at the initial slice, so an appended
@@ -372,7 +372,9 @@ export function GalleryGrid({
       const endpoint =
         continuationKind === "article-end-gallery"
           ? "/api/article-gallery"
-          : "/api/gallery";
+          : continuationKind === "keyword-gallery"
+            ? "/api/keyword-gallery"
+            : "/api/gallery";
       const next = await fetchGallerySlice(
         galleryPath,
         cursor,

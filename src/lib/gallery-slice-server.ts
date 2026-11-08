@@ -10,17 +10,14 @@
  */
 
 import "server-only";
-import type {
-  CuratedGalleryResultItem,
-  GalleryPage,
-} from "@/lib/gallery-result";
+import type { GalleryPage, GalleryResultItem } from "@/lib/gallery-result";
 import type { GallerySlice } from "@/lib/gallery-slice";
 import { resolveLightboxRendition } from "@/lib/lightbox-rendition-server";
 import { buildLightboxSlides } from "@/lib/lightbox-slides";
 
 /** Projects one adapter result into the two ordered views the browser needs. */
 export function projectGallerySlice(
-  page: GalleryPage<CuratedGalleryResultItem>,
+  page: GalleryPage<GalleryResultItem>,
 ): GallerySlice {
   return {
     items: page.items,

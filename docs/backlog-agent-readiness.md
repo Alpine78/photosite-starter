@@ -63,6 +63,12 @@ actions, approvals or accounts; an agent can prepare evidence but cannot close t
 | AB#255 — Studio language select | Active | Fix on `fix/255-studio-locale-select`. |
 | AB#391 — Import metadata and no re-encoding | Active | Metadata tool on `feature/391-import-metadata-tool`, used by the rally writers; client web images keep all metadata by owner decision. Left: match the source report to published assets, a way to remove location from images the owner marks sensitive, the re-upload tool with the Joomla writer, and the owner's plan approval before any CMS write ([inventory](audits/ab391-import-path-inventory-2026-10-22.md)). |
 | AB#56 — Keyword vocabulary schema | Active | Schema, governance rules and guarded publication are on `feature/56-keyword-vocabulary-schema`. Anonymous and authenticated reads of a private-path document are verified in `preview`; the owner's look at it in Studio (ADR-0039 open question 6) is open. AB#57 follows it. |
+| AB#68 — Media keyword model | Active | Model, mocks and Sanity parsers on `feature/68-media-keywords-domain-model`. AB#58 and AB#59 follow it. |
+| AB#58 — Dynamic keyword query | Active | Query and adapter on `feature/58-keyword-gallery-query`, stacked on AB#68. AB#71 follows it. |
+| AB#71 — Keyword gallery page | Active | Route, page and continuation endpoint on `feature/71-keyword-gallery-page`, stacked on AB#58. AB#74, AB#75 and AB#90 follow it. |
+| AB#59 — Public keyword index | Active | Server-side index on `feature/59-keyword-index`, stacked on AB#71. AB#74 and AB#75 follow it. |
+| AB#75 — Keyword browser | Active | On `feature/75-keyword-browser`, stacked on AB#59. |
+| AB#74 — Keyword selector | Active | On `feature/74-keyword-selector`, stacked on AB#75. AB#90 follows it. |
 | AB#392 — Client gallery expiry cleanup | Active | Every child slice is Closed. Hosted acceptance and activation remain; see [retention](client-gallery-retention.md). |
 
 No other open item is agent-ready today. What remains needs an owner decision, an owner

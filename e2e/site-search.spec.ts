@@ -139,6 +139,15 @@ test.describe("the search dialog", () => {
     await expect(searchDialog(page)).toBeHidden();
   });
 
+  test("leads to the search page, where keywords can be browsed without typing", async ({ page }) => {
+    await page.goto("/");
+    const dialog = await openSearch(page);
+    const link = dialog.getByRole("link", { name: copy.allOptions });
+    await link.click();
+    await expect(page).toHaveURL(/\/[^/?]+$/);
+    await expect(page.getByRole("heading", { name: copy.keywordBrowseHeading })).toBeVisible();
+  });
+
   test("closes on Escape and returns focus to the control that opened it", async ({
     page,
   }) => {

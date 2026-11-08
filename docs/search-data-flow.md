@@ -47,12 +47,13 @@ results page to another origin sends that origin only, never the query.
 
 ## What the application stores and logs
 
-- **Stored:** nothing about a search. The only cached data is the public story
+- **Stored:** nothing about a search. The cached data is the public story
   index (titles, short leads, free keywords, dates and public cover derivatives
-  of already published stories), held in the framework's tagged data cache and
-  invalidated by the signed content webhook. It contains no visitor data.
+  of already published stories) and the public keyword index's inputs (names, aliases,
+  hierarchy and each eligible photograph's keywords), held in the framework's tagged data cache and
+  invalidated by the signed content webhook. They contain no visitor data.
 - **Logged:** the application never logs, stores or analyses a search term, on
-  success or on failure. When a search cannot be answered it logs the error's
+  success or on failure. When a search or the keyword browser cannot be answered it logs the error's
   class and message, which describe the content store and never the query. There
   are no search statistics and no "popular searches": that list is not built
   because it would require recording what visitors searched for.
