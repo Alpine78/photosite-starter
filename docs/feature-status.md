@@ -28,6 +28,9 @@ gallery with the shared grid, lightbox and continuation, instead of a 404. Every
 validation; an invalid selection or cursor answers 404 and is never redirected. `noindex`, no sitemap entry. It shows
 nothing on a real site until media has keywords (AB#69), and nothing links to it yet (AB#74, AB#75).
 
+Keyword sync, 2026-11-05 — AB#69 **Active**: `npm run sync:keywords` writes media keywords, closures and the private record, dry-run by default, under
+revision guards and the taxonomy state's guard, and resumes by re-planning. See [keyword-sync.md](keyword-sync.md). It has not run on a real dataset, and Studio has no `keywordRecord` schema until AB#70.
+
 Dynamic keyword query, 2026-11-04 — AB#58 **Active**: `src/lib/keyword-gallery-selection.ts` canonicalizes a
 selection, `keyword-gallery.ts` reads one bounded page under a signed cursor, and `sanity-keyword-gallery.ts`
 and `mock-keyword-gallery.ts` are its sources. Media gained `dynamicallyDiscoverable`, off by default. No route
@@ -37,6 +40,12 @@ Media keyword model, 2026-11-04 — AB#68 **Active**: `src/lib/media-keywords.ts
 model of a medium's public keywords, keyed by `mediaId`, with mock data and the Sanity queries and
 parsers in `sanity-media-keywords.ts`. `ImageMedia` and `VideoMedia` stay free of keywords, so the grid
 and lightbox payloads are unchanged. Nothing renders, routes or fetches keywords yet; AB#58 is next.
+
+Keyword import mapping, 2026-11-04 — AB#57 **Active**: `scripts/keyword-import-mapping.mts` maps one
+medium's Lightroom fields to the controlled vocabulary and returns a proposal: mapped keywords, review
+items, canonicalized overrides, the effective public and internal sets and the closure. It is pure and
+writes nothing. Nothing calls it yet; the writer is AB#69 and the review workflow AB#70. The rules are in
+[ADR-0039's AB#57 amendment](adr/0039-keyword-taxonomy-and-ingest-boundary.md).
 
 Import metadata tool, 2026-11-04 — AB#391 **Active**: `exiftool-vendored` is added as a
 devDependency, and `prepareJpegForImport` applies ADR-0039 decision 8 and verifies each result.

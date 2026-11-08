@@ -41,6 +41,7 @@ there is no other documentation to hunt for.
 | `docs/availability-monitoring-plan.md` | the site owner setting up uptime monitoring (AB#158) | the monitor contract, the owner-run probe, provider options or the launch record change |
 | `docs/backlog-agent-readiness.md` | agents and the owner planning work | the decision/agent-readiness map is reviewed; Azure Boards stays authoritative |
 | `docs/cache-revalidation.md` | whoever operates or changes the published-content cache (AB#83) | the cache boundary, tags, revalidation endpoint or its authentication change |
+| `docs/keyword-sync.md` | the owner running the keyword sync (AB#69) | `npm run sync:keywords`, its inputs, guards or refusals change |
 | `docs/keyword-index.md` | whoever changes keyword search, the typeahead or the browsable keyword index (AB#59) | the public keyword index's fields, rules, invalidation or budget change |
 | `docs/client-web-image-batches.md` | the owner preparing client-gallery web images (AB#325) | the local batch preparation command, its inputs or guarantees change |
 | `docs/client-gallery-zip.md` | owner attaching a verified whole ZIP to a delivery draft (AB#407) | the private attachment operator, approval/evidence contract, runtime ZIP or cleanup guarantees change |
