@@ -103,28 +103,28 @@ function ProofDraftPricingEditor({
 
   return (
     <details className="mt-2">
-      <summary className="cursor-pointer text-strong">{labels.editPricing}</summary>
+      <summary className="cursor-pointer text-foreground">{labels.editPricing}</summary>
       <form onSubmit={save} className="mt-2 grid gap-2 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
           <label htmlFor={`${id}-included`}>{labels.includedCount}</label>
           <input id={`${id}-included`} type="number" min="0" step="1" required value={included}
             onChange={(event) => setIncluded(event.target.value)}
-            className="rounded-md border border-border-strong bg-surface px-3 py-1.5 text-strong" />
+            className="rounded-md border border-border-strong bg-surface px-3 py-1.5 text-foreground" />
         </div>
         <div className="flex flex-col gap-1">
           <label htmlFor={`${id}-extra`}>{labels.extraUnitPriceMinor}</label>
           <input id={`${id}-extra`} type="number" min="0" step="1" required value={extra}
             onChange={(event) => setExtra(event.target.value)}
-            className="rounded-md border border-border-strong bg-surface px-3 py-1.5 text-strong" />
+            className="rounded-md border border-border-strong bg-surface px-3 py-1.5 text-foreground" />
         </div>
         <div className="flex flex-col gap-1">
           <label htmlFor={`${id}-currency`}>{labels.currency}</label>
           <input id={`${id}-currency`} type="text" maxLength={3} required value={currency}
             onChange={(event) => setCurrency(event.target.value)}
-            className="rounded-md border border-border-strong bg-surface px-3 py-1.5 text-strong" />
+            className="rounded-md border border-border-strong bg-surface px-3 py-1.5 text-foreground" />
         </div>
         <button type="submit" aria-disabled={pending || blocked || error === "conflict"}
-          className="rounded-md border border-border-strong px-3 py-1.5 text-strong aria-disabled:opacity-50 sm:self-end">
+          className="rounded-md border border-border-strong px-3 py-1.5 text-foreground aria-disabled:opacity-50 sm:self-end">
           {pending ? labels.savingPricing : labels.savePricing}
         </button>
       </form>
@@ -232,7 +232,7 @@ export function PrivateGalleryProofDraftCreator({
 
   return (
     <section aria-labelledby={`${id}-heading`} className="flex flex-col gap-4">
-      <h2 id={`${id}-heading`} className="text-lg font-medium text-strong">{labels.heading}</h2>
+      <h2 id={`${id}-heading`} className="text-lg font-medium text-foreground">{labels.heading}</h2>
       <p className="text-sm text-muted">{labels.description}</p>
       <form onSubmit={submit} className="grid gap-3 sm:grid-cols-2">
         {fields.map((field) => (
@@ -247,12 +247,12 @@ export function PrivateGalleryProofDraftCreator({
               required={field.name !== "customer" && field.name !== "job"}
               value={field.value}
               onChange={(event) => field.set(event.target.value)}
-              className="rounded-md border border-border-strong bg-surface px-3 py-1.5 text-strong"
+              className="rounded-md border border-border-strong bg-surface px-3 py-1.5 text-foreground"
             />
           </div>
         ))}
         <button type="submit" disabled={pending}
-          className="rounded-md border border-border-strong px-3 py-1.5 text-strong disabled:opacity-50 sm:self-end">
+          className="rounded-md border border-border-strong px-3 py-1.5 text-foreground disabled:opacity-50 sm:self-end">
           {pending ? labels.creating : labels.create}
         </button>
       </form>
@@ -262,16 +262,16 @@ export function PrivateGalleryProofDraftCreator({
       </p>}
       {created && <p role="status">{labels.created} {labels.handle}: <span className="font-mono">{created}</span></p>}
       <div className="flex items-center justify-between gap-3">
-        <h3 className="font-medium text-strong">{labels.listHeading}</h3>
+        <h3 className="font-medium text-foreground">{labels.listHeading}</h3>
         <button type="button" disabled={pending || loading} onClick={() => { setReferenceReset((value) => value + 1); setSavedReferenceHandle(undefined); setEditNotice(undefined); void refresh(); }}
-          className="rounded-md border border-border-strong px-3 py-1.5 text-strong disabled:opacity-50">{labels.refresh}</button>
+          className="rounded-md border border-border-strong px-3 py-1.5 text-foreground disabled:opacity-50">{labels.refresh}</button>
       </div>
       {list && list.items.length === 0 && <p className="text-sm text-muted">{labels.empty}</p>}
       {list && list.items.length > 0 && (
         <ul className="flex flex-col gap-2">
           {list.items.map((draft) => (
             <li key={draft.handle} className="rounded-md border border-border-strong p-3 text-sm">
-              <span className="font-mono text-strong">{draft.handle}</span>{" · "}
+              <span className="font-mono text-foreground">{draft.handle}</span>{" · "}
               <time dateTime={draft.createdAt}>{new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(draft.createdAt))}</time>
               <p>{draft.state === "ready" ? labels.readyState : draft.state === "preparing" ? labels.preparingState : labels.draftState}</p>
               {draft.upload && <div className="text-muted">
@@ -297,7 +297,7 @@ export function PrivateGalleryProofDraftCreator({
         <p id={`${id}-count`} aria-live="polite" aria-atomic="true" className="text-muted">{labels.loadedCount}: {list.items.length}</p>
         <button type="button" aria-disabled={pending || loading || !list.hasMore} aria-describedby={`${id}-count`}
           onClick={() => { if (!pending && !loading && list.hasMore) void loadMore(); }}
-          className="rounded-md border border-border-strong px-3 py-1.5 text-strong aria-disabled:opacity-50">
+          className="rounded-md border border-border-strong px-3 py-1.5 text-foreground aria-disabled:opacity-50">
           {loading ? labels.loadingMore : !firstPageReady ? labels.unavailable : list.hasMore ? labels.loadMore : labels.allLoaded}
         </button>
       </>}

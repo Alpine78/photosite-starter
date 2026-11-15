@@ -177,6 +177,30 @@ administrator-initiated events, while reads happen on every visitor request.
   to review. How a flat term that repeats a mapped path's parent or synonym is treated
   is settled by AB#57, so that it does not reach review as a separate term.
 
+**Scoped amendment, 2026-11-04 (AB#57): how the mapping order applies.**
+
+- **Nothing is created automatically.** A missing ancestor or an unmatched term goes to review,
+  which is the one rule for both. A review item may carry the top-level term of a path with at
+  least two levels as a proposed category (open question 4).
+- **A path of at least two levels must match.** The keyword's own parents, or those of its merge
+  target, must equal the upper terms from the root by title or alias. Anything else goes to
+  review as a path mismatch, so a leaf with the right name under another parent is not guessed.
+  A term whose keyword the site has moved away from its Lightroom path therefore reaches review
+  on each import until AB#70 records the editor's decision. A medium already holding that keyword keeps
+  it meanwhile (AB#69), so a parent move updates its closure rather than removing the assignment.
+- **A path of one level resolves like a flat term,** because having no parents in Lightroom says
+  nothing about the site's hierarchy.
+- **A path with an empty component is not repaired.** It goes to review as malformed.
+- **A flat term that repeats a path is consumed, with a record of what covers it.** That applies
+  to a component of a provided path, and to a term resolving to a mapped keyword or its ancestor.
+  A repeat of an unresolved path points at that path's review item, so one problem is one item.
+- **Any other unknown flat term goes to review, even beside paths.** AB#54 showed a Lightroom
+  synonym is flat-only, but not that every flat-only term is a synonym. The item is marked
+  `unmatched-beside-paths` so that AB#70 can group these.
+- **A retired keyword stays in the overrides as a dormant decision,** out of the effective set.
+- **An unreadable file is an error, not an empty import.** Mapping it as "no keywords" would make
+  the next write remove every imported keyword.
+
 ### 6. Article tags stay separate from photo keywords
 
 Article `tags` remain free per-article topic strings (ADR-0003 decision 4) and AB#25
@@ -270,6 +294,27 @@ derivative tool; implementation and the legacy re-upload are AB#391.
 - **Already uploaded legacy images** were re-encoded with all metadata stripped; they
   are re-uploaded with the new tool as a separate owner-approved migration (AB#391).
 - ADR-0028's byte-for-byte exception for the 21 legacy delivery galleries is unchanged.
+
+**Scoped amendment, 2026-11-04 (AB#391).** The rules above left three paths open.
+
+- **Client gallery images: nothing is removed (owner decision).** The client has to get the
+  images with their metadata, so the removal list above applies only to public portfolio
+  imports. A client web JPEG within 2048 px stays byte for byte. A larger or rotated web copy
+  carries its metadata, including keywords, the creator's postal address and GPS. Only what
+  describes the source's pixels stays behind: orientation, colour profile, thumbnail, preview
+  and size fields, and Photoshop's print resolution. A copy that lost or changed any other
+  field is refused. These web copies are public files like the rest of the gallery, and the
+  kept data is public with them.
+- **A public JPEG that needs rotating is re-encoded upright,** with the kept metadata. This is
+  a narrow exception to the no-re-encoding rule: dimensions and the no-crop layout rely on
+  upright pixels, and whether Sanity follows an orientation tag is unverified. No legacy source
+  needs it: every readable JPEG in the 2026-11-04 report has orientation 1.
+- **A public non-JPEG source stays as it is today,** a metadata-free derivative. No separate
+  rule has been decided.
+
+`write-joomla-content.mts` still uses the metadata-free derivative: re-running it with kept
+metadata would publish GPS that nobody has reviewed. It changes together with the legacy
+re-upload, which carries the owner's list of sensitive locations.
 
 ## Options Considered
 

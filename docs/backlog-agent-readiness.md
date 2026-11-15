@@ -38,7 +38,7 @@ actions, approvals or accounts; an agent can prepare evidence but cannot close t
 | AB#131 — Two-domain email migration | Active | Owner-run DNS/mailbox work; [mail recovery evidence](mail-recovery-evidence.md). | Owner |
 | AB#158 — Availability monitoring | Active | Monitor options merged (PR #561); the owner chooses and controls the monitor account. | Owner |
 | AB#159 — Production failure triage | Active | [Runbook](production-failure-triage.md) prepared; the live controlled-failure exercise remains. | Owner with agent |
-| AB#132 / AB#370 — Scriptless 404 HTML | Active | Blocked upstream: [vercel/next.js#62228](https://github.com/vercel/next.js/issues/62228) and its fix PR #98455 were both still open on 2026-11-03, and the defect reproduces on 16.4.4, the latest release. Risk acceptance re-review due 2026-12-19 (AB#370). | Upstream, then owner |
+| AB#132 / AB#370 — Scriptless 404 HTML | Active | Blocked upstream: [vercel/next.js#62228](https://github.com/vercel/next.js/issues/62228) and its fix PRs #98455 and #98583 were all still open on 2026-11-07. The defect reproduced here on 16.4.4; a third-party report says it persists on 16.4.5 (now `latest`) and canary, not yet rechecked locally. Risk acceptance re-review due 2026-12-19 (AB#370). | Upstream, then owner |
 | AB#250 — Retained legacy galleries | Active | 21 galleries served from Sanity; whole-ZIP exception accepted 2026-10-14 (ADR-0028 amendment). Acceptance remains. | Owner |
 | AB#255 — FI/EN coverage | Active | Remaining gaps are authored content and owner approvals; see [bilingual page coverage](bilingual-page-coverage.md). | Owner |
 
@@ -61,7 +61,7 @@ actions, approvals or accounts; an agent can prepare evidence but cannot close t
 | AB#160 — Vulnerable dependencies | Active | Fixes on `chore/160-root-audit-november` and `chore/160-studio-audit-november`. Two tooling advisories (`zod` 3.22.4, `minimatch` 3.1.5) need an owner decision before the scheduled audit can go green. The `sprintf-js` acceptance expires 2026-11-19; the Studio audit no longer reports it. |
 | AB#377 — e2e flake root causes | Active | Contents-bar flake fixed on `fix/377-content-reading-layout-flake`. Open: the WebKit `article-reading-position` locale case (run 1398; needs a new trace) and the aborted `goBack` in the inactive private-gallery spec (run 1445; AB#313 removes it). |
 | AB#255 — Studio language select | Active | Fix on `fix/255-studio-locale-select`. |
-| AB#391 — Import metadata and no re-encoding | Active | Read-only report on `feature/391-jpeg-metadata-preserving-derivative`. [AB#54's report](audits/ab54-lightroom-keyword-spike-2026-11-04.md) verifies the metadata tool. ADR-0039 is accepted, so the detector's update for the 2026-11-04 field changes and the wiring can start. The owner decided on 2026-11-04 to do the legacy re-upload; its plan needs approval before any CMS write. |
+| AB#391 — Import metadata and no re-encoding | Active | Metadata tool on `feature/391-import-metadata-tool`, used by the rally writers; client web images keep all metadata by owner decision. Left: match the source report to published assets, a way to remove location from images the owner marks sensitive, the re-upload tool with the Joomla writer, and the owner's plan approval before any CMS write ([inventory](audits/ab391-import-path-inventory-2026-10-22.md)). |
 | AB#56 — Keyword vocabulary schema | Active | Schema, governance rules and guarded publication are on `feature/56-keyword-vocabulary-schema`. Anonymous and authenticated reads of a private-path document are verified in `preview`; the owner's look at it in Studio (ADR-0039 open question 6) is open. AB#57 follows it. |
 | AB#68 — Media keyword model | Active | Model, mocks and Sanity parsers on `feature/68-media-keywords-domain-model`. AB#58 and AB#59 follow it. |
 | AB#58 — Dynamic keyword query | Active | Query and adapter on `feature/58-keyword-gallery-query`, stacked on AB#68. AB#71 follows it. |
@@ -69,7 +69,9 @@ actions, approvals or accounts; an agent can prepare evidence but cannot close t
 | AB#59 — Public keyword index | Active | Server-side index on `feature/59-keyword-index`, stacked on AB#71. AB#74 and AB#75 follow it. |
 | AB#75 — Keyword browser | Active | On `feature/75-keyword-browser`, stacked on AB#59. |
 | AB#74 — Keyword selector | Active | On `feature/74-keyword-selector`, stacked on AB#75. AB#90 follows it. |
-| AB#73 — Keyword gallery at archive scale | Active | Repeatable checks on `test/73-keyword-archive-scale`, stacked on AB#90. Needs the owner's agreement on budgets and the device profile, a dataset to measure, and physical-device checks. |
+| AB#73 — Keyword gallery at archive scale | Active | Repeatable checks on `test/73-keyword-archive-scale`, stacked on AB#90. The owner agreed the budgets on 2026-11-15 and asked for a faster network profile. Needs that profile confirmed and measured, a dataset to measure, and physical-device checks. |
+| AB#57 — Keyword import mapping | Active | Pure mapping on `feature/57-keyword-import-mapping`. AB#69 and AB#70 follow it. |
+| AB#69 — Keyword sync | Active | `npm run sync:keywords` on `feature/69-keyword-resync`, stacked on AB#57. The first run on `preview` is owner-run. |
 | AB#392 — Client gallery expiry cleanup | Active | Every child slice is Closed. Hosted acceptance and activation remain; see [retention](client-gallery-retention.md). |
 
 No other open item is agent-ready today. What remains needs an owner decision, an owner

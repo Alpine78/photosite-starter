@@ -25,6 +25,10 @@ async function apng() {
   return Buffer.concat([source.subarray(0, 8), chunk("IHDR", ihdr), chunk("acTL", animation), chunk("fcTL", control(0)), chunk("IDAT", idat), chunk("fcTL", control(1)), chunk("fdAT", Buffer.concat([Buffer.from([0, 0, 0, 2]), idat])), chunk("IEND", Buffer.alloc(0))]);
 }
 
+// A source with metadata starts ExifTool's Perl process, which takes seconds under the parallel suite.
+const TOOL_TIMEOUT_MS = 60_000;
+const SYNTHETIC_XMP = "<x:xmpmeta xmlns:x='adobe:ns:meta/'><rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'><rdf:Description xmlns:dc='http://purl.org/dc/elements/1.1/'><dc:subject><rdf:Bag><rdf:li>synthetic-keyword</rdf:li></rdf:Bag></dc:subject></rdf:Description></rdf:RDF></x:xmpmeta>";
+
 describe("offline client web image preparation", () => {
   it.each(["jpeg", "png", "webp", "avif"] as const)("prepares actual %s bytes compatible with the native Studio contract", async format => {
     const source = await image(120, 80, format), original = Buffer.from(source);
@@ -57,21 +61,52 @@ describe("offline client web image preparation", () => {
       expect([...data.subarray((y * info.width + x) * info.channels, (y * info.width + x) * info.channels + 3)]).toEqual([255, 0, 0]);
     }
   });
-  it("normalizes EXIF orientation while stripping source metadata and converting P3 to sRGB", async () => {
+  it("keeps a JPEG within the bound byte for byte, metadata included", async () => {
+    const source = await sharp({ create: { width: 120, height: 80, channels: 3, background: "red" } })
+      .withExif({ IFD0: { Make: "Synthetic label" } }).withXmp(SYNTHETIC_XMP).jpeg().toBuffer();
+    const output = await prepareClientWebImage(source, "processed-export");
+    expect(output.bytes.equals(source)).toBe(true);
+    expect(output.receipt.output.sha256).toBe(imageDigest(source));
+  });
+  it("carries every metadata group onto a resized JPEG, keywords included", async () => {
+    const source = await sharp({ create: { width: 3000, height: 1500, channels: 3, background: "red" } })
+      .withExif({ IFD0: { Make: "Synthetic label" } }).withXmp(SYNTHETIC_XMP).jpeg().toBuffer();
+    const output = await prepareClientWebImage(source, "processed-export"), metadata = await sharp(output.bytes).metadata();
+    expect(output.receipt.output).toMatchObject({ width: 2048, height: 1024 });
+    expect(metadata.exif?.toString("latin1")).toContain("Synthetic label");
+    expect(metadata.xmp?.toString("utf8")).toContain("synthetic-keyword");
+    expect(JSON.stringify(output.receipt)).not.toMatch(/Synthetic label|synthetic-keyword/);
+  }, TOOL_TIMEOUT_MS);
+  it.each(["png", "webp", "avif"] as const)("carries metadata onto a %s web copy", async format => {
+    const source = await sharp({ create: { width: 3000, height: 1500, channels: 3, background: "red" } })
+      .withExif({ IFD0: { Make: "Synthetic label" } }).withXmp(SYNTHETIC_XMP).toFormat(format).toBuffer();
+    const output = await prepareClientWebImage(source, "processed-export"), metadata = await sharp(output.bytes).metadata();
+    expect(output.receipt.output).toMatchObject({ width: 2048, height: 1024, format });
+    expect(metadata.exif?.toString("latin1")).toContain("Synthetic label");
+    expect(metadata.xmp?.toString("utf8")).toContain("synthetic-keyword");
+  }, TOOL_TIMEOUT_MS);
+  it("normalizes EXIF orientation and converts P3 to sRGB, leaving behind only what described the source's pixels", async () => {
     const source = await sharp({ create: { width: 120, height: 80, channels: 3, background: { r: 140, g: 80, b: 40 } } })
-      .withMetadata({ orientation: 6 }).withExif({ IFD0: { Make: "Synthetic private label" } }).withXmp("<x:xmpmeta xmlns:x='adobe:ns:meta/'>Synthetic</x:xmpmeta>")
+      .withMetadata({ orientation: 6 }).withExif({ IFD0: { Make: "Synthetic private label" } }).withXmp(SYNTHETIC_XMP)
       .withIccProfile("p3").jpeg().toBuffer();
     expect((await sharp(source).metadata()).icc).toBeDefined();
     const output = await prepareClientWebImage(source, "processed-export"), metadata = await sharp(output.bytes).metadata();
     expect(output.receipt.source).toMatchObject({ width: 80, height: 120 });
     expect(output.receipt.output).toMatchObject({ width: 80, height: 120 });
-    expect(metadata.orientation).toBeUndefined(); expect(metadata.exif).toBeUndefined(); expect(metadata.icc).toBeUndefined(); expect(metadata.xmp).toBeUndefined();
+    expect(metadata.orientation ?? 1).toBe(1); expect(metadata.icc).toBeUndefined();
+    expect(metadata.exif?.toString("latin1")).toContain("Synthetic private label"); expect(metadata.xmp).toBeDefined();
     const expected = await sharp(source).autoOrient().toColourspace("srgb").raw().toBuffer();
     const actual = await sharp(output.bytes).raw().toBuffer();
     expect(actual.length).toBe(expected.length);
     expect(Math.max(...actual.subarray(0, 3).map((value, index) => Math.abs(value - expected[index])))).toBeLessThanOrEqual(3);
     expect(JSON.stringify(output.receipt)).not.toMatch(/Synthetic|orientation|Make|xmp|icc/);
-  });
+  }, TOOL_TIMEOUT_MS);
+  it("does not lose an XMP block ExifTool cannot parse", async () => {
+    const source = await sharp({ create: { width: 3000, height: 1500, channels: 3, background: "red" } })
+      .withXmp("<x:xmpmeta xmlns:x='adobe:ns:meta/'>Not RDF</x:xmpmeta>").jpeg().toBuffer();
+    const output = await prepareClientWebImage(source, "processed-export");
+    expect((await sharp(output.bytes).metadata()).xmp?.toString("utf8")).toContain("Not RDF");
+  }, TOOL_TIMEOUT_MS);
   it.each(["tiff", "gif"] as const)("rejects static unsupported %s rather than legacy fallback", async format => {
     await expect(prepareClientWebImage(await image(8, 8, format), "processed-export")).rejects.toMatchObject({ code: "UNSUPPORTED_FORMAT" });
   });
@@ -102,16 +137,26 @@ describe("offline client web image preparation", () => {
   it("requires the explicit processed-export classification without approving eligibility", async () => {
     await expect(prepareClientWebImage(await image(), "camera-master")).rejects.toMatchObject({ code: "SOURCE_CLASSIFICATION_REQUIRED" });
   });
-  it("accepts the exact compressed-byte ceiling and strips PNG text payloads", async () => {
+  it("accepts the exact compressed-byte ceiling and carries PNG text payloads", async () => {
     const jpeg = await image(), bounded = Buffer.alloc(CLIENT_WEB_IMAGE_LIMITS.bytes); jpeg.copy(bounded);
     expect((await prepareClientWebImage(bounded, "processed-export")).receipt.source.bytes).toBe(CLIENT_WEB_IMAGE_LIMITS.bytes);
     const png = await image(8, 8, "png");
     const withText = Buffer.concat([png.subarray(0, 33), chunk("tEXt", Buffer.from("Comment\0Synthetic private description")), png.subarray(33)]);
     expect((await sharp(withText).metadata()).comments?.length).toBe(1);
     const output = await prepareClientWebImage(withText, "processed-export");
-    expect((await sharp(output.bytes).metadata()).comments).toBeUndefined();
+    expect((await sharp(output.bytes).metadata()).comments?.[0]?.text).toBe("Synthetic private description");
     expect(JSON.stringify(output.receipt)).not.toContain("Synthetic private description");
-  });
+  }, TOOL_TIMEOUT_MS);
+  it("refuses a PNG copy when a retained standard comment masks lost custom text", async () => {
+    const png = await image(8, 8, "png");
+    const comments = [
+      { keyword: "Comment", text: "Synthetic standard comment" },
+      { keyword: "CustomNote", text: "Synthetic custom text" },
+    ];
+    const source = Buffer.concat([png.subarray(0, 33), ...comments.map(({ keyword, text }) => chunk("tEXt", Buffer.from(`${keyword}\0${text}`))), png.subarray(33)]);
+    expect((await sharp(source).metadata()).comments).toEqual(comments);
+    await expect(prepareClientWebImage(source, "processed-export")).rejects.toMatchObject({ code: "METADATA_NOT_CARRIED" });
+  }, TOOL_TIMEOUT_MS);
   it("takes a private snapshot before the first asynchronous operation", async () => {
     const source = await image(), hash = imageDigest(source), pending = prepareClientWebImage(source, "processed-export"); source.fill(0);
     expect((await pending).receipt.source.sha256).toBe(hash);

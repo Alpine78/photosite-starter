@@ -3,7 +3,7 @@
 **Audience:** whoever changes keyword gallery queries, paging or rendering. **Work item:** AB#73.
 **Decisions:** [ADR-0012](adr/0012-dynamic-keyword-gallery-query-contract.md), [ADR-0039](adr/0039-keyword-taxonomy-and-ingest-boundary.md).
 
-The budgets below are **proposed from local measurements** and need the owner's agreement. AB#73 stays open until then and until [what remains](#what-remains) is done.
+The owner agreed the budgets below on 2026-11-15 and asked for a faster network profile than the one measured. AB#73 stays open until [what remains](#what-remains) is done.
 
 ## What runs in CI
 
@@ -51,7 +51,9 @@ Time and browser figures vary by machine, so they were measured once rather than
 | JavaScript heap after 984 photographs and a collection | 40 MB | 16.6 MB |
 | Live CMS query, cold and warm | Proposed: 1 s and 200 ms | **Not measured** |
 
-**Proposed mobile profile:** a 412 × 839 viewport at 2.625× with touch, 150 ms latency, 1.6 Mbps down, 750 kbps up and a 4× CPU slowdown. This is the usual "slow 4G" emulation. The owner should agree it or name another.
+**Measured profile:** a 412 × 839 viewport at 2.625× with touch, 150 ms latency, 1.6 Mbps down, 750 kbps up and a 4× CPU slowdown. This is the usual "slow 4G" emulation.
+
+**Profile for future measurements:** the owner found slow 4G too pessimistic. The proposal is the same viewport and CPU slowdown with 60 ms latency, 9 Mbps down and 1.5 Mbps up, which needs the owner's confirmation. Nothing has been measured with it yet. The figures above come from the slower network, so the network-bound ones are expected to be no worse on the faster one.
 
 ## How it was measured
 
@@ -74,4 +76,4 @@ These need something this repository cannot provide alone:
 - **Live CMS latency:** a dataset holding the fixture. The `preview` dataset would need 8000 synthetic documents written with the owner's authorization, and the document limit checked first. Production's media have no keyword fields until `sync:keywords` runs, which AB#69 adds.
 - **Real image weight and cache behaviour:** real media through the optimizer and CDN, on a deployed Preview.
 - **Physical device and screen reader:** a phone on a real network, with VoiceOver or TalkBack, through typeahead, first page, Show more and the viewer.
-- **The owner's agreement** on the budgets and the profile above.
+- **The owner's confirmation** of the faster network figures, and a measurement with them.

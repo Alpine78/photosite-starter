@@ -11,9 +11,9 @@ export function jpegAbortCode(signal: AbortSignal) {
 }
 const hash = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 /** A narrow, single-image DCT JPEG envelope. APP contents, including thumbnails, stay opaque. */
-export function walkSingleJpegSegments(bytes: Uint8Array, visit?: (marker: number, payloadStart: number, payloadBytes: number) => void): void {
+export function walkSingleJpegSegments(bytes: Uint8Array, visit?: (marker: number, payloadStart: number, payloadBytes: number) => void, maxBytes: number = JPEG_AUDIT_LIMITS.bytes): void {
   const b = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  if (b.length < 4 || b.length > JPEG_AUDIT_LIMITS.bytes || b[0] !== 255 || b[1] !== 216) failJpeg("INVALID_JPEG");
+  if (b.length < 4 || b.length > maxBytes || b[0] !== 255 || b[1] !== 216) failJpeg("INVALID_JPEG");
   let at = 2, frame = false, scans = 0, segments = 0;
   while (at < b.length) {
     if (++segments > JPEG_AUDIT_LIMITS.segments || b[at++] !== 255) failJpeg("INVALID_JPEG");
