@@ -175,4 +175,8 @@ export const appUnderTestEnvironment: Record<string, string> = {
   // Not a credential: it protects nothing but this fixture's page boundaries,
   // and it is deliberately safe to publish in a failure artifact.
   GALLERY_CURSOR_SIGNING_KEY: "e2e-harness-gallery-cursor-signing-key",
+  // The protected-gallery routes are gone (AB#313), but the store setting is
+  // still parsed at build time until the configuration slice removes it. Pinned
+  // off so a value in the shell or a local file cannot fail the harness build.
+  PRIVATE_GALLERY_STORE: "off",
 };
