@@ -2,6 +2,8 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Protected-gallery removal slices B1/B2, 2026-11-15 — AB#313 **Active**: the protected customer and administrator pages, endpoints, components, journeys and the secret generator are removed. Their URL prefixes stay reserved and every path under them answers one hygienic 404, by owner decision. The domain modules follow in slice C. Entries below that describe these routes are history. See [the removal audit](audits/protected-gallery-removal-2026-10-17.md).
+
 Scriptless 404 upstream recheck, 2026-11-07 — AB#132 and AB#370 **Active**: Next.js 16.4.5 is
 now `latest`, and a third-party report on
 [#62228](https://github.com/vercel/next.js/issues/62228) says the empty `__next_error__` shell

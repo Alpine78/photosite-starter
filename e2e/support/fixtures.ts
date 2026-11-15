@@ -1,8 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { test as base, expect, type Cookie } from "@playwright/test";
-
-import { HARNESS_BASE_URL } from "./harness-environment";
+import { test as base, expect } from "@playwright/test";
 
 type HarnessFixtures = {
   /**
@@ -23,11 +21,6 @@ type HarnessFixtures = {
    * reported (AB#390). Always empty in a passing test — the fixture asserts it.
    */
   contentSecurityViolations: string[];
-};
-
-type HarnessWorkerFixtures = {
-  /** Real session for gallery-management journeys that do not test sign-in. */
-  administratorCookies: Cookie[];
 };
 
 /**
@@ -63,39 +56,7 @@ function syntheticClientAddress(identity: string): string {
  * browser at all; its test adapter is selected through the harness environment
  * in `harness-environment.ts`.
  */
-export const test = base.extend<HarnessFixtures, HarnessWorkerFixtures>({
-  administratorCookies: [
-    async ({ playwright }, use, workerInfo) => {
-      // The deployment-wide login budget also counts successful logins. Reuse
-      // one real session per worker for management journeys; authentication
-      // specs keep their own sign-in/sign-out assertions and the real limits.
-      const request = await playwright.request.newContext({
-        baseURL: HARNESS_BASE_URL,
-        extraHTTPHeaders: {
-          "x-forwarded-for": syntheticClientAddress(
-            `administrator session: ${workerInfo.project.name}: ${workerInfo.workerIndex}`,
-          ),
-        },
-      });
-      let cookies: Cookie[];
-      try {
-        const response = await request.post("/admin/login", {
-          headers: { origin: HARNESS_BASE_URL },
-          data: { secret: "development-fixture-administrator-secret-not-for-any-real-deployment" },
-        });
-        expect(response.status()).toBe(200);
-        cookies = (await request.storageState()).cookies.filter(
-          (cookie) => cookie.name === "__Host-pg_admin_session",
-        );
-        expect(cookies).toHaveLength(1);
-      } finally {
-        await request.dispose();
-      }
-      await use(cookies);
-    },
-    { scope: "worker" },
-  ],
-
+export const test = base.extend<HarnessFixtures>({
   externalRequests: [
     async ({ context, baseURL }, use) => {
       if (!baseURL) {
@@ -199,12 +160,12 @@ export const test = base.extend<HarnessFixtures, HarnessWorkerFixtures>({
    *
    * `context.setExtraHTTPHeaders` above reaches only browser-originated
    * requests. An `APIRequestContext` is a separate client, so a spec that posts
-   * to an endpoint directly — the way the administrator, exchange, and enquiry
+   * to an endpoint directly — the way the enquiry and contact
    * journeys check a boundary without a page — arrived with **no** forwarded
    * address at all, and `deriveClientKey` hashes an empty string. Every such
    * call in the whole matrix therefore shared one throttle bucket.
    *
-   * That was not theoretical: `private-gallery-admin.spec.ts` posts to the
+   * That was not theoretical: the since-removed administrator spec posted to its
    * sign-in endpoint 9 times, twice over for the two projects, against an
    * in-process limit of 20 per client. Eighteen of twenty, before CI's `retries:
    * 1` adds any. The nineteenth would have failed on a throttle that has nothing

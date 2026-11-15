@@ -168,7 +168,7 @@ earlier three-way footer select was replaced on the owner's request.
   shift.
 - **Other tabs follow.** A choice made in one tab reaches the others through the
   `storage` event.
-- The private-gallery and administrator roots share `DocumentRoot`, so a stored
+- The client-gallery and client-proof roots share `DocumentRoot`, so a stored
   pin applies there too. They render no site header, so they show no toggle.
 
 `e2e/theme-toggle.spec.ts` covers both directions against the device, device
