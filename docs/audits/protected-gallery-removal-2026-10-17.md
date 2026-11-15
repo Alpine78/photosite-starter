@@ -289,6 +289,20 @@ unchanged: the ten script files reference only each other, and outside them only
 subsection has moved to lines 1478-1546; use the heading, not the old line numbers. No
 clearance row is answered and nothing is deleted.
 
+### A2 removal, retention worker — 2026-11-15
+
+Under the owner's decision of 2026-11-15 that the S3/Postgres protected-gallery code is not
+kept, `scripts/private-gallery-retention-workflow.mts` and its test are removed from
+`origin/main` `0fc48a7`. A tracked search found no importer, package command, pipeline step
+or document naming the file, apart from a comment in `src/lib/private-gallery-retention.ts`,
+which is updated. The deployment runbook describes the worker as a concept, not this file,
+and is left for slice D.
+
+The secret generator moves from A2 to B2. `src/lib/private-gallery-admin-credential.ts`
+names `npm run admin:secret` in its configuration error, and `.env.example`,
+`docs/deployment.md` and `docs/owner-run-commands.md` instruct its use. Removing the command
+before the administrator surface would leave those pointing at nothing.
+
 ## Operational evidence for the clearance table — 2026-10-20
 
 Collected by an agent with the owner's own CLI logins at `origin/main`
