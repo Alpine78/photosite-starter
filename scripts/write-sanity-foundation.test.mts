@@ -135,6 +135,32 @@ describe("CLI UTF-8 input integrity", () => {
     } finally { await rm(root, { recursive: true, force: true }); }
   }
   function fixture() { return { ...plan, documents: plan.documents.map((d) => d._type === "siteSettings" ? { ...d, photographerName: marker } : d) }; }
+  it("prints the write target before its first request with --yes (AB#421)", async () => {
+    const { mkdtemp, writeFile, rm } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const path = await import("node:path");
+    const support = await import("./write-safety-cli-support.mts");
+    const root = await mkdtemp(path.join(tmpdir(), "target-line-"));
+    try {
+      const planPath = path.join(root, "plan.json");
+      await writeFile(planPath, JSON.stringify(fixture()));
+      const result = support.runWriterCli("write-sanity-foundation.mts", ["--plan", planPath, "--approved-digest", foundationDocumentsDigest(fixture().documents), "--yes"], { SANITY_MIGRATION_TOKEN: support.SYNTHETIC_TOKEN });
+      support.expectTargetBeforeNetwork(result, "stdout");
+    } finally { await rm(root, { recursive: true, force: true }); }
+  }, 60_000);
+  it("refuses a NEXT_PUBLIC_ copy of the token through the shared check (AB#421)", async () => {
+    const { mkdtemp, writeFile, rm } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const path = await import("node:path");
+    const support = await import("./write-safety-cli-support.mts");
+    const root = await mkdtemp(path.join(tmpdir(), "target-line-"));
+    try {
+      const planPath = path.join(root, "plan.json");
+      await writeFile(planPath, JSON.stringify(fixture()));
+      const result = support.runWriterCli("write-sanity-foundation.mts", ["--plan", planPath, "--approved-digest", foundationDocumentsDigest(fixture().documents), "--yes"], { SANITY_MIGRATION_TOKEN: support.SYNTHETIC_TOKEN, NEXT_PUBLIC_SANITY_MIGRATION_TOKEN: support.SYNTHETIC_TOKEN });
+      support.expectRefusedBeforeNetwork(result, "SANITY_MIGRATION_TOKEN");
+    } finally { await rm(root, { recursive: true, force: true }); }
+  }, 60_000);
   function corrupt(bad: number[]) {
     const text = JSON.stringify(fixture());
     const at = text.indexOf("\uFFFD");

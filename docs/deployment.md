@@ -1585,8 +1585,13 @@ alias-host re-verification on every repoint still checks the SSO challenge *and*
 **Rollback** (repoint the alias to a known-good earlier deployment by hand):
 
 ```bash
-vercel alias set <previous-good-deployment-url> <PREVIEW_STABLE_ALIAS> --token="$VERCEL_TOKEN"
+vercel alias set <previous-good-deployment-url> <PREVIEW_STABLE_ALIAS>
 ```
+
+The CLI takes the credential from the `VERCEL_TOKEN` environment variable (or the owner's
+own `vercel login`), never from a `--token` argument, which would reach the process listing
+and shell history. The installed CLI's own credential lookup reads `VERCEL_TOKEN` from the
+environment when no `--token` flag is given (checked against the lockfile's `vercel` 65.10.0, AB#421).
 
 As with any rollback, an older deployment is only a safe target if its captured
 environment values are still valid — a rotated secret needs a fresh deployment, not an
@@ -1605,8 +1610,9 @@ alias move (ADR-0004 §3, and "Promotion and rollback" below).
 **Verification** — safe to run by hand at any time; it never assigns or removes the alias:
 
 ```bash
-PREVIEW_STABLE_ALIAS=<host> VERCEL_AUTOMATION_BYPASS_SECRET=... \
-VERCEL_TOKEN=... VERCEL_ORG_ID=... VERCEL_PROJECT_ID=... \
+# VERCEL_AUTOMATION_BYPASS_SECRET and VERCEL_TOKEN come from the environment (a private
+# env file), never typed into the command
+PREVIEW_STABLE_ALIAS=<host> VERCEL_ORG_ID=... VERCEL_PROJECT_ID=... \
 npm run verify:preview-alias
 ```
 
@@ -2167,11 +2173,12 @@ Promotion stages a production build without routing traffic to it, smoke-tests t
 deployment, and then promotes the same build without rebuilding:
 
 ```bash
-vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
-vercel build --prod --token="$VERCEL_TOKEN"
-vercel deploy --prebuilt --prod --skip-domain --token="$VERCEL_TOKEN"
+# VERCEL_TOKEN comes from the environment or the owner's login, never a --token argument
+vercel pull --yes --environment=production
+vercel build --prod
+vercel deploy --prebuilt --prod --skip-domain
 # smoke-test the staged deployment, then, after owner approval:
-vercel promote <deployment-url> --token="$VERCEL_TOKEN"
+vercel promote <deployment-url>
 ```
 
 ### Scripted release (AB#379)
@@ -2332,7 +2339,8 @@ the pre-import deployment is not automatically a safe code-only rollback afterwa
 Rollback repoints production at the last known-good deployment:
 
 ```bash
-vercel rollback <deployment-url> --token="$VERCEL_TOKEN"
+# VERCEL_TOKEN comes from the environment or the owner's login, never a --token argument
+vercel rollback <deployment-url>
 ```
 
 What rollback does **not** undo is the part worth knowing before needing it. It restores

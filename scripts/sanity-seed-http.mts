@@ -118,6 +118,8 @@ export async function runSeedMutationBatches(
   options?: RequestOptions & {
     readonly batchSize?: number;
     readonly visibility?: "sync" | "async" | "deferred";
+    /** Called after each batch the dataset accepted, so a caller can record how far a failed run got (AB#421). */
+    readonly onBatchCommitted?: (completed: number, total: number) => void;
   },
 ): Promise<{ readonly batchesRun: number; readonly mutationCount: number }> {
   const batches = chunk(mutations, options?.batchSize ?? MUTATION_BATCH_SIZE);
@@ -146,6 +148,7 @@ export async function runSeedMutationBatches(
     }
     // Body is intentionally not read: a successful mutate response can echo
     // document content back, which this module never logs or retains.
+    options?.onBatchCommitted?.(index + 1, batches.length);
   }
 
   return { batchesRun: batches.length, mutationCount: mutations.length };

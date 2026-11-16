@@ -24,6 +24,7 @@ import { createImportMetadataTool, ImportMetadataError, prepareJpegForImport, ty
 import { parseSensitiveList, reuploadApprovalDigest, type PublishedReuploadPlan, type ReuploadPlanned, assertReuploadPlan } from "./legacy-image-reupload-match.mts";
 import { MAX_PUBLIC_DELIVERY_DIMENSION, PUBLIC_DELIVERY_FORMATS } from "./sanity-seed-fixtures.mts";
 import { parseSeedConnection, runSeedMutationBatches, uploadSeedImageAsset } from "./sanity-seed-http.mts";
+import { formatWriteTarget, readWriteToken, WriteCredentialError } from "./sanity-write-safety.mts";
 
 export type ReuploadPort = Readonly<{
   readSource: (sourceLocator: string) => Promise<Uint8Array>;
@@ -49,6 +50,11 @@ export type ReuploadResult = Readonly<{
    * this list is the one record of what `--delete-replaced` still owes.
    */
   undeleted: readonly Readonly<{ mediaId: string; assetRef: string }>[];
+  /**
+   * Every asset this run uploaded, in order, including one whose medium was then not moved, so an
+   * interrupted run leaves the record of what it may have orphaned (AB#421). Kept out of the console.
+   */
+  uploadedAssetIds: readonly string[];
 }>;
 
 const codeOf = (error: unknown): string => (error instanceof ImportMetadataError ? error.code : typeof (error as { code?: unknown }).code === "string" ? (error as { code: string }).code : "PREPARATION_FAILED");
@@ -74,8 +80,9 @@ export async function runLegacyImageReupload(
   if (options.yes === true && options.approvedDigest !== digest) throw new Error("DIGEST_MISMATCH");
   const failed: { mediaId: string; code: string }[] = [];
   const undeleted: { mediaId: string; assetRef: string }[] = [];
+  const uploadedAssetIds: string[] = [];
   let prepared = 0, preparedBytes = 0, written = 0, alreadyDone = 0, deleted = 0, keptReferenced = 0;
-  const totals = () => ({ digest, prepared, preparedBytes, failed, written, alreadyDone, deleted, keptReferenced, undeleted });
+  const totals = () => ({ digest, prepared, preparedBytes, failed, written, alreadyDone, deleted, keptReferenced, undeleted, uploadedAssetIds });
   // One at a time, so no more than one prepared photograph is held in memory.
   for (const row of plan.planned) {
     let output: Awaited<ReturnType<typeof prepare>>;
@@ -91,6 +98,7 @@ export async function runLegacyImageReupload(
     let uploaded: Awaited<ReturnType<ReuploadPort["upload"]>>;
     try {
       uploaded = await port.upload(output.bytes);
+      uploadedAssetIds.push(uploaded.assetId);
     } catch {
       failed.push({ mediaId: row.mediaId, code: "WRITE_INTERRUPTED" });
       return { outcome: "interrupted", ...totals() };
@@ -149,6 +157,18 @@ export function resolveSource(imageRoot: string, sourceLocator: string): string 
   return full;
 }
 
+/** The shared writer check (AB#421), reported as this command's fixed codes. */
+function migrationToken(): string {
+  try {
+    return readWriteToken(process.env, "SANITY_MIGRATION_TOKEN");
+  } catch (error) {
+    if (error instanceof WriteCredentialError) {
+      throw new Error(error.code === "PUBLIC_TOKEN_REFUSED" ? "PUBLIC_TOKEN_REFUSED" : "SANITY_MIGRATION_TOKEN_REQUIRED");
+    }
+    throw error;
+  }
+}
+
 function requiredEnvironment(name: string): string {
   const value = process.env[name];
   if (value === undefined || value.trim() === "") throw new Error(`${name}_REQUIRED`);
@@ -166,8 +186,9 @@ export async function main(argv: readonly string[]): Promise<ReuploadResult> {
     projectId: requiredEnvironment("SANITY_PROJECT_ID"),
     dataset: requiredEnvironment("SANITY_DATASET"),
     apiVersion: requiredEnvironment("SANITY_API_VERSION"),
-    token: requiredEnvironment("SANITY_MIGRATION_TOKEN"),
+    token: migrationToken(),
   }) : undefined;
+  if (connection !== undefined) console.error(formatWriteTarget(connection));
   const port: ReuploadPort = {
     readSource: async (sourceLocator) => new Uint8Array(await readFile(resolveSource(options.imageRoot, sourceLocator))),
     upload: async (bytes) => uploadSeedImageAsset(connection!, { bytes, contentType: "image/jpeg" }, { maxDimension: MAX_PUBLIC_DELIVERY_DIMENSION, formatsByExtension: PUBLIC_DELIVERY_FORMATS }),
@@ -196,7 +217,11 @@ export function reuploadExitCode(result: Pick<ReuploadResult, "outcome" | "faile
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   main(process.argv.slice(2)).then(
-    (result) => { console.log(JSON.stringify({ ...result, failed: result.failed.length, undeleted: result.undeleted.length })); process.exitCode = reuploadExitCode(result); },
+    (result) => {
+      const { uploadedAssetIds, ...summary } = result;
+      console.log(JSON.stringify({ ...summary, failed: result.failed.length, undeleted: result.undeleted.length, uploaded: uploadedAssetIds.length }));
+      process.exitCode = reuploadExitCode(result);
+    },
     (error: Error) => { console.error(`[write-legacy-image-reupload] ${error.message}`); process.exitCode = 2; },
   );
 }

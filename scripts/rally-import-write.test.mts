@@ -509,6 +509,20 @@ describe("plan:rally then write:rally, as real Node processes", () => {
       } finally { await rm(root, { recursive: true, force: true }); }
     }
     function fixture() { return { ...utf8Plan, documents: utf8Plan.documents.map((d) => d._type === "gallery" ? { ...d, title: marker } : d) }; }
+    it("prints the write target before its first request with --yes (AB#421)", async () => {
+      const { mkdtemp, writeFile, rm } = await import("node:fs/promises");
+      const { tmpdir } = await import("node:os");
+      const path = await import("node:path");
+      const support = await import("./write-safety-cli-support.mts");
+      const root = await mkdtemp(path.join(tmpdir(), "rally-target-"));
+      try {
+        const plan = fixture();
+        const planPath = path.join(root, "plan.json");
+        await writeFile(planPath, JSON.stringify(plan));
+        const result = support.runWriterCli("write-rally-import.mts", ["--plan", planPath, "--folder", folder, "--out", path.join(root, "out"), "--approved-digest", recomputeRallyPlanDigest(plan), "--yes"], { SANITY_MIGRATION_TOKEN: support.SYNTHETIC_TOKEN });
+        support.expectTargetBeforeNetwork(result, "stdout");
+      } finally { await rm(root, { recursive: true, force: true }); }
+    }, 60_000);
     function corrupt(bad: number[]) {
       const text = JSON.stringify(fixture());
       const at = text.indexOf("\uFFFD");

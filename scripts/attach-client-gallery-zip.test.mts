@@ -192,7 +192,9 @@ describe("guarded ZIP attach operator with local files and fake provider", () =>
 const draft=${JSON.stringify(f.document())};
 const asset=${JSON.stringify(f.asset)};
 const archive=await readFile(${JSON.stringify(f.input.archiveFile)});
+let reached=false;
 globalThis.fetch=async(url,init)=>{
+if(!reached){reached=true;process.stderr.write("NETWORK_REACHED\\n");}
 if(init?.method!=="GET")throw Error("OFFLINE_WRITE_FORBIDDEN");
 if(String(url).startsWith("https://cdn.sanity.io/")){if(new Headers(init?.headers).has("authorization")||init?.credentials!=="omit")throw Error("CDN_AUTH_FORBIDDEN");return new Response(archive,{headers:{"content-type":"application/zip","content-disposition":"attachment"}});}
 if(!String(url).startsWith("https://fixture1.api.sanity.io/v2026-01-01/data/doc/production/"))throw Error("OFFLINE_ORIGIN_FORBIDDEN");
@@ -202,7 +204,9 @@ return Response.json({documents:[String(url).includes(asset._id)?asset:draft]});
     await writeFile(loader, script, { mode: 0o600 });
     const { spawnSync } = await import("node:child_process");
     const child = spawnSync(process.execPath, ["--disable-warning=MODULE_TYPELESS_PACKAGE_JSON", "--import", loader, "scripts/attach-client-gallery-zip.mts", "--input", options.input, "--output", options.output], { encoding: "utf8", timeout: 20_000, env: { PATH: process.env.PATH, NODE_ENV: "test", SANITY_MIGRATION_TOKEN: "synthetic-token" } });
-    expect(child.error).toBeUndefined(); expect(child.status).toBe(0); expect(child.stderr).toBe("");
+    expect(child.error).toBeUndefined(); expect(child.status).toBe(0);
+    // AB#421: the target line reaches stderr before the first request, and nothing else does.
+    expect(child.stderr).toBe("Sanity target: project fixture1, dataset production, API version v2026-01-01\nNETWORK_REACHED\n");
     expect(JSON.parse(child.stdout)).toMatchObject({ state: "dry-run", counts: { images: 1, zip: 1 }, mutations: 0 });
     expect(child.stdout).not.toMatch(/synthetic-token|fixture1|drafts\.|\/private\//u);
   }, timeout);

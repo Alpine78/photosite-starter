@@ -509,6 +509,22 @@ describe("CLI UTF-8 input integrity", () => {
     expect(at).toBeGreaterThan(-1);
     return Buffer.concat([Buffer.from(text.slice(0, at)), Buffer.from(bad), Buffer.from(text.slice(at + 1))]);
   }
+  it("prints the write target before its first request with --yes (AB#421)", async () => {
+    const { mkdtemp, writeFile, rm } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const path = await import("node:path");
+    const support = await import("./write-safety-cli-support.mts");
+    const root = await mkdtemp(path.join(tmpdir(), "conversion-target-"));
+    try {
+      const plan = fixture();
+      const planPath = path.join(root, "plan.json");
+      await writeFile(planPath, JSON.stringify(plan));
+      // Synthetic stat-only fixture, not evidence of a recoverable dataset export.
+      await writeFile(path.join(root, "backup.tar.gz"), Buffer.alloc(4096));
+      const result = support.runWriterCli("write-rally-conversion.mts", ["--plan", planPath, "--folder", root, "--out", path.join(root, "out"), "--approved-digest", recomputeConversionPlanDigest(JSON.parse(JSON.stringify(plan))), "--backup-archive", path.join(root, "backup.tar.gz"), "--yes"], { SANITY_MIGRATION_TOKEN: support.SYNTHETIC_TOKEN });
+      support.expectTargetBeforeNetwork(result, "stdout");
+    } finally { await rm(root, { recursive: true, force: true }); }
+  }, 60_000);
   it("preserves valid Unicode, an intentional replacement character and its approval digest", async () => {
     const result = await execute(Buffer.from(JSON.stringify(fixture())));
     expect(result.code).toBe(0);

@@ -2,6 +2,14 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Owner-run CMS writer safety, 2026-11-16 — AB#421 **Active**: every Sanity writer reads its write token through one shared
+check (`scripts/sanity-write-safety.mts`) that refuses a `NEXT_PUBLIC_` copy, and prints `Sanity target: project …, dataset …,
+API version …` before its first request. The upload and multi-batch writers leave a partial-run record (uploaded asset ids, last
+completed batch) when a run stops after it began writing. `repoint:preview` withholds raw failure messages like its siblings;
+the documented manual commands no longer type a token on the command line, and
+[owner-run-commands.md](owner-run-commands.md) lists every current writer. `write:joomla`'s dependent `createOrReplace` is
+unchanged and accepted with the existing retire-or-adapt decision in [sanity-seeding.md](sanity-seeding.md).
+
 Protected-gallery removal slice A2, 2026-11-15 — AB#313 **Active**: the unwired retention workflow script and its test are removed. The secret generator moves to slice B2, with the administrator surface that names it. See [the removal audit](audits/protected-gallery-removal-2026-10-17.md).
 
 Protected-gallery removal slices B1/B2, 2026-11-15 — AB#313 **Active**: the protected customer and administrator pages, endpoints, components, journeys and the secret generator are removed. Their URL prefixes stay reserved and every path under them answers one hygienic 404, by owner decision. The domain modules follow in slice C. Entries below that describe these routes are history. See [the removal audit](audits/protected-gallery-removal-2026-10-17.md).

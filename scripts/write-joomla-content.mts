@@ -63,6 +63,7 @@ import {
   type SeedMutation,
 } from "./sanity-seed-http.mts";
 import type { RequestOptions } from "./sanity-read-http.mts";
+import { formatWriteTarget, PARTIAL_RUN_FILE, readWriteToken, WriteRunProgress } from "./sanity-write-safety.mts";
 import { generatePublicDerivative, ImageDerivativeError, type PublicDerivative } from "./joomla-image-derivative.mts";
 import {
   IMPORT_PLAN_VERSION,
@@ -1683,26 +1684,17 @@ function requiredSetting(options: Options, flagKey: "project" | "dataset" | "api
   return value;
 }
 
-/** Used only for the write-scoped token — never accepted as a flag, so it never lands in shell history or a process listing. */
 /**
- * A value mirrored under a `NEXT_PUBLIC_` name is refused rather than ignored, the
- * exact rule `src/lib/sanity-config.ts#parseReadToken` already enforces for the
- * runtime app's own read token: Next.js inlines `NEXT_PUBLIC_`-prefixed values into
- * the browser bundle, so its presence means an Editor-scoped write credential is
- * already on its way to every visitor, and quietly preferring the correctly-scoped
- * copy would leave the leak in place (Codex round 9, finding "Reject a public copy of
- * the migration token").
+ * Used only for the write-scoped token — never accepted as a flag, so it never lands in shell
+ * history or a process listing. A `NEXT_PUBLIC_` copy is refused by the shared check
+ * (`sanity-write-safety.mts`, AB#421) every writer uses.
  */
 function requiredEnvSetting(envName: string): string {
-  const publicName = `NEXT_PUBLIC_${envName}`;
-  if (process.env[publicName]?.trim()) {
-    fail(
-      `${publicName} is set: a NEXT_PUBLIC_ prefixed value is compiled into the browser bundle, so this write-scoped credential must never be set under that name. Remove it and set ${envName} instead.`,
-    );
+  try {
+    return readWriteToken(process.env, envName);
+  } catch (error) {
+    fail(error instanceof Error ? error.message : String(error));
   }
-  const value = process.env[envName];
-  if (value === undefined || value.trim().length === 0) fail(`${envName} is required (this tool never accepts a token as a flag)`);
-  return value;
 }
 
 // Keep the fs UTF-8 reader's BOM behavior while refusing corrupt byte sequences.
@@ -1793,6 +1785,7 @@ async function main(): Promise<void> {
     apiVersion: requiredSetting(options, "apiVersion", "api-version", "SANITY_API_VERSION"),
     token: requiredEnvSetting("SANITY_MIGRATION_TOKEN"),
   });
+  console.log(formatWriteTarget(connection));
 
   // --- step 4: resolve categories ---
   const categoryResolution = await resolveCategoryReferences(
@@ -1835,6 +1828,27 @@ async function main(): Promise<void> {
 
   // --- step 7: verify + derive + upload every asset again, one at a time, discarding
   // each derivative once its upload completes ---
+  const progress = new WriteRunProgress(connection);
+  try {
+    await uploadAndWrite(options, plan, connection, documentsWithMergedMediaFields, categoryResolution.resolved, mediaMerge.existingRevisionById, progress);
+  } catch (error) {
+    if (progress.started) {
+      const recordPath = await writeReport(options.out, PARTIAL_RUN_FILE, progress.toRecord());
+      console.error(`The run stopped after it began writing. Uploaded asset ids and the last completed batch: ${recordPath}.`);
+    }
+    throw error;
+  }
+}
+
+async function uploadAndWrite(
+  options: Options,
+  plan: ImportPlan,
+  connection: SeedConnection,
+  documentsWithMergedMediaFields: readonly PlannedDocument[],
+  resolvedCategories: ReadonlyMap<string, string>,
+  existingRevisionById: ReadonlyMap<string, string>,
+  progress: WriteRunProgress,
+): Promise<void> {
   const assetIdByMediaId = new Map<string, string>();
   const uploadFailures: { readonly mediaId: string; readonly reason: string }[] = [];
   for (const requirement of plan.assetRequirements) {
@@ -1844,11 +1858,13 @@ async function main(): Promise<void> {
       break; // the file changed between the dry pass and now — stop rather than upload a mix of runs
     }
     try {
+      progress.start();
       const uploaded = await uploadSeedImageAsset(connection, outcome.derivative, {
         maxDimension: MAX_PUBLIC_DELIVERY_DIMENSION,
         formatsByExtension: PUBLIC_DELIVERY_FORMATS,
       });
       assetIdByMediaId.set(outcome.mediaId, uploaded.assetId);
+      progress.recordUpload(uploaded.assetId);
     } catch (error) {
       uploadFailures.push({ mediaId: outcome.mediaId, reason: error instanceof Error ? error.message : String(error) });
       break; // already-uploaded assets in this run are not rolled back; see docs/sanity-seeding.md
@@ -1856,6 +1872,7 @@ async function main(): Promise<void> {
   }
   if (uploadFailures.length > 0) {
     const reportPath = await writeReport(options.out, "upload-failures.json", uploadFailures);
+    if (progress.started) await writeReport(options.out, PARTIAL_RUN_FILE, progress.toRecord());
     console.error(
       `Upload failed after ${assetIdByMediaId.size} asset(s). See ${reportPath}. Assets already uploaded in this run were not rolled back — see docs/sanity-seeding.md.`,
     );
@@ -1865,7 +1882,7 @@ async function main(): Promise<void> {
   console.log(`Uploaded ${assetIdByMediaId.size} photograph(s).`);
 
   // --- step 8: substitute placeholders, reference-aware, then defensively re-scan ---
-  const substituted = substitutePendingReferences(documentsWithMergedMediaFields, assetIdByMediaId, categoryResolution.resolved);
+  const substituted = substitutePendingReferences(documentsWithMergedMediaFields, assetIdByMediaId, resolvedCategories);
   assertNoPendingReferencesRemain(substituted);
 
   // --- step 9: write in dependency waves — media first, then everything else ---
@@ -1874,9 +1891,12 @@ async function main(): Promise<void> {
   for (const [waveIndex, wave] of waves.entries()) {
     if (wave.length === 0) continue;
     const mutations: readonly SeedMutation[] = waveIndex === 0
-      ? buildMediaMutations(wave, mediaMerge.existingRevisionById)
+      ? buildMediaMutations(wave, existingRevisionById)
       : wave.map((document) => ({ createOrReplace: document }));
-    const summary = await runSeedMutationBatches(connection, mutations);
+    progress.start();
+    const summary = await runSeedMutationBatches(connection, mutations, {
+      onBatchCommitted: progress.batchRecorder(`wave ${waveIndex + 1}/${waves.length}`),
+    });
     batchesRun += summary.batchesRun;
   }
   console.log(`Wrote ${substituted.length} document(s) in ${batchesRun} batch(es).`);

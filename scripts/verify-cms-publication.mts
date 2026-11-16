@@ -10,6 +10,7 @@ import { compilePublicationPlan, object, reconcilePublication, requireRecoveryEv
 import { runPublicationSmoke } from "./publication-smoke-run.mts";
 import { parseReadConnection, runReadQuery } from "./sanity-read-http.mts";
 import { runSeedMutationBatches } from "./sanity-seed-http.mts";
+import { formatWriteTarget, readWriteToken } from "./sanity-write-safety.mts";
 
 const ROOT_KEYS = ["--plan", "--baseline", "--out"];
 async function privateJson(file: string) {
@@ -82,8 +83,10 @@ async function main() {
     // Resolve credentials only after local validation and reserving private output.
     if (process.env.SANITY_PROJECT_ID !== plan.target.projectId || process.env.SANITY_DATASET !== plan.target.dataset || process.env.SANITY_API_VERSION !== plan.target.apiVersion) throw new Error("SMOKE_ENV_TARGET");
     const tokenName = phase === "reconcile" ? "SANITY_AUDIT_TOKEN" : "SANITY_PUBLICATION_TOKEN";
-    if (process.env[`NEXT_PUBLIC_${tokenName}`]) throw new Error("SMOKE_PUBLIC_TOKEN");
-    const connection = parseReadConnection({ ...plan.target, token: process.env[tokenName] ?? "" });
+    // The shared writer check (AB#421); the catch below withholds details, as before.
+    const connection = parseReadConnection({ ...plan.target, token: readWriteToken(process.env, tokenName) });
+    // stdout carries only the JSON summary, so the target line goes to stderr.
+    console.error(formatWriteTarget(connection));
     const read = () => runReadQuery(connection, { perspective: "raw", query: "*[_id in $ids || _id match $versions][0...2]", params: { ids: [plan.source._id, `drafts.${plan.source._id}`], versions: `versions.*.${plan.source._id}` } });
     let report: unknown;
     if (phase === "reconcile") {

@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { planState, reviewPlan, versionConflicts, type ReviewedContentPlan } from "./reviewed-content-plan.mts";
 import { parseSeedConnection, runSeedMutationBatches, runSeedQuery, type SeedConnection } from "./sanity-seed-http.mts";
+import { formatWriteTarget, readWriteToken } from "./sanity-write-safety.mts";
 
 type Options = { planPath: string; approvedDigest?: string; out?: string; apply: boolean };
 
@@ -60,14 +61,14 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
     return;
   }
   if (options.approvedDigest !== plan.digest) throw new Error("Approved digest differs from reviewed plan");
-  if (process.env.NEXT_PUBLIC_SANITY_MIGRATION_TOKEN) throw new Error("Migration token must never have a NEXT_PUBLIC_ prefix");
-  const token = process.env.SANITY_MIGRATION_TOKEN;
+  const token = readWriteToken(process.env, "SANITY_MIGRATION_TOKEN");
   const apiVersion = process.env.SANITY_API_VERSION;
-  if (!token || !apiVersion || process.env.SANITY_PROJECT_ID !== plan.target.projectId ||
+  if (!apiVersion || process.env.SANITY_PROJECT_ID !== plan.target.projectId ||
       process.env.SANITY_DATASET !== plan.target.dataset) {
     throw new Error("Migration credential/API version or target configuration is missing or differs from the plan");
   }
   const connection = parseSeedConnection({ ...plan.target, apiVersion, token });
+  console.log(formatWriteTarget(connection));
   const state = planState(plan, await readDocuments(connection, plan));
   if (state === "after") { console.log("This plan is already applied."); return; }
   if (state !== "before") throw new Error("Current CMS documents differ from the reviewed revisions; no write occurred");

@@ -22,4 +22,30 @@ describe("owner publication CLI refusal before HTTP", () => {
       await expect(access(join(folder, "output"))).rejects.toThrow();
     } finally { await rm(folder, { recursive: true, force: true }); }
   });
+  async function approvedFixture(folder: string) {
+    const snapshot = Buffer.from(JSON.stringify(category) + "\n");
+    const plan = planLocaleAdditions(snapshot, packet, { projectId: "fixture1", dataset: "production", apiVersion: "v2026-01-01" });
+    const recovery = { snapshotSha256: plan.snapshotSha256, documentCount: 1, assetCount: 0, assets: [], localBytesRecoveredAndReadBack: true };
+    for (const [name, bytes] of Object.entries({ "snapshot.ndjson": snapshot, "packet.json": JSON.stringify(packet), "plan.json": JSON.stringify(plan), "recovery.json": JSON.stringify(recovery) })) await writeFile(join(folder, name), bytes, { mode: 0o600 });
+    return ["--plan", join(folder, "plan.json"), "--kind", "category-services", "--snapshot", join(folder, "snapshot.ndjson"), "--review-packet", join(folder, "packet.json"), "--recovery-receipt", join(folder, "recovery.json"), "--out", join(folder, "output"), "--apply", "--approved-digest", plan.digest];
+  }
+  it("prints the write target on stderr before its first request (AB#421)", async () => {
+    const folder = await mkdtemp(join(tmpdir(), "locale-publication-"));
+    try {
+      const support = await import("./write-safety-cli-support.mts");
+      const result = support.runWriterCli("write-locale-publication.mts", await approvedFixture(folder), { SANITY_LOCALIZATION_TOKEN: support.SYNTHETIC_TOKEN });
+      support.expectTargetBeforeNetwork(result, "stderr");
+      await expect(access(join(folder, "output"))).rejects.toThrow();
+    } finally { await rm(folder, { recursive: true, force: true }); }
+  }, 60_000);
+  it("refuses a NEXT_PUBLIC_ copy of the localization token before any request (AB#421)", async () => {
+    const folder = await mkdtemp(join(tmpdir(), "locale-publication-"));
+    try {
+      const support = await import("./write-safety-cli-support.mts");
+      const result = support.runWriterCli("write-locale-publication.mts", await approvedFixture(folder), { SANITY_LOCALIZATION_TOKEN: support.SYNTHETIC_TOKEN, NEXT_PUBLIC_SANITY_LOCALIZATION_TOKEN: support.SYNTHETIC_TOKEN });
+      support.expectRefusedBeforeNetwork(result, "SANITY_LOCALIZATION_TOKEN");
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toContain("[write-locale-publication] PUBLIC_TOKEN_REFUSED: SANITY_LOCALIZATION_TOKEN");
+    } finally { await rm(folder, { recursive: true, force: true }); }
+  }, 60_000);
 });

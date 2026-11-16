@@ -66,6 +66,7 @@ import {
   uploadSeedImageAsset,
   type SeedConnection,
 } from "./sanity-seed-http.mts";
+import { formatPartialRunLine, formatWriteTarget, readWriteToken, WriteRunProgress } from "./sanity-write-safety.mts";
 
 /**
  * A self-chosen, conservative chunk size for verifying the archive gallery's
@@ -116,13 +117,19 @@ function requiredSetting(flagName: string, envName: string): string {
  * Environment-only — no CLI flag. A process's argument list is visible to
  * every other process on the same machine (`ps`) and is commonly persisted
  * to shell history; a write-scoped credential must never pass through it.
- * Used only for `SANITY_SEED_TOKEN`.
+ * Used only for `SANITY_SEED_TOKEN`; a `NEXT_PUBLIC_` copy is refused by the
+ * shared writer check (`sanity-write-safety.mts`, AB#421).
  */
 function requiredEnvSetting(envName: string): string {
-  const value = process.env[envName];
-  if (!value) fail(`missing ${envName}`);
-  return value;
+  try {
+    return readWriteToken(process.env, envName);
+  } catch (error) {
+    fail(error instanceof Error ? error.message : String(error));
+  }
 }
+
+/** Set once the write path starts, so a failure can print what it uploaded and wrote (AB#421). */
+let writeProgress: WriteRunProgress | undefined;
 
 // ---------------------------------------------------------------------------
 // Locating the six demo image files
@@ -720,6 +727,7 @@ async function main(): Promise<void> {
       apiVersion: requiredSetting("api-version", "SANITY_API_VERSION"),
       token: requiredEnvSetting("SANITY_SEED_TOKEN"),
     });
+    console.log(formatWriteTarget(connection));
     await deleteAllSeededDocuments(connection);
     return;
   }
@@ -750,8 +758,12 @@ async function main(): Promise<void> {
   } catch (cause) {
     fail(cause instanceof SanitySeedConfigurationError ? cause.message : String(cause));
   }
+  console.log(formatWriteTarget(connection));
 
   await preflightIdentityCollisions(connection, dryRunDocuments);
+  const progress = new WriteRunProgress(connection);
+  writeProgress = progress;
+  progress.start();
 
   console.log("\nUploading demo photographs...");
   // The six uploads are fully independent — none depends on another's
@@ -765,6 +777,7 @@ async function main(): Promise<void> {
         { bytes, contentType: "image/webp" },
         { maxDimension: MAX_PUBLIC_DELIVERY_DIMENSION, formatsByExtension: PUBLIC_DELIVERY_FORMATS },
       );
+      progress.recordUpload(uploaded.assetId);
       console.log(`  uploaded ${key} -> ${uploaded.assetId} (${uploaded.width}x${uploaded.height})`);
       return [key, uploaded.assetId] as const;
     }),
@@ -781,6 +794,7 @@ async function main(): Promise<void> {
   const summary = await runSeedMutationBatches(
     connection,
     documents.map((doc) => ({ createOrReplace: doc })),
+    { onBatchCommitted: progress.batchRecorder("documents") },
   );
   console.log(`Wrote ${summary.mutationCount} documents in ${summary.batchesRun} batch(es).`);
 
@@ -795,5 +809,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((cause) => {
+  if (writeProgress?.started) console.error(formatPartialRunLine(writeProgress.toRecord()));
   fail(cause instanceof Error ? cause.message : String(cause));
 });

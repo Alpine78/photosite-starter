@@ -179,11 +179,10 @@ operator performs the same bounded global expiry against the newly current
 deployment:
 
 ```bash
+# SANITY_WEBHOOK_SECRET, VERCEL_AUTOMATION_BYPASS_SECRET and VERCEL_TOKEN come from the
+# environment (a private env file), never typed into the command
 SANITY_PROJECT_ID=... \
 SANITY_DATASET=... \
-SANITY_WEBHOOK_SECRET=... \
-VERCEL_AUTOMATION_BYPASS_SECRET=... \
-VERCEL_TOKEN=... \
 VERCEL_ORG_ID=... \
 VERCEL_PROJECT_ID=... \
 npm run revalidate:public-cache -- https://example.com/api/revalidate

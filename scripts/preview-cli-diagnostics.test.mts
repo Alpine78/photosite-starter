@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { main as identify } from "./identify-preview-deployment.mts";
 import { main as cleanup } from "./remove-preview-deployment.mts";
+import { main as repoint } from "./repoint-preview-alias.mts";
+import { VercelApiError } from "./vercel-preview-api.mts";
 const settings = { token: "synthetic-token", projectId: "prj_synthetic", orgId: "team_synthetic" };
 const settingsReader = () => settings;
 afterEach(() => { vi.restoreAllMocks(); });
@@ -31,5 +33,22 @@ describe("Preview CLI diagnostic boundary (AB#249)", () => {
   it("withholds environment resolver failures and leaves missing cleanup arguments local", async () => {
     const stderr = vi.spyOn(console, "error").mockImplementation(() => {}); const reader = vi.fn(() => { throw new Error("SYNTHETIC_PRIVATE"); });
     expect(await identify(["https://synthetic.vercel.app"], { readSettings: reader })).toBe(1); expect(await cleanup(["dpl_synthetic"], { readSettings: reader })).toBe(1); expect(await cleanup([], { readSettings: reader })).toBe(1); expect(reader).toHaveBeenCalledTimes(2); expect(JSON.stringify(stderr.mock.calls)).not.toContain("SYNTHETIC_PRIVATE");
+  });
+  it("withholds raw repoint failures but keeps this project's own Vercel diagnostics (AB#421)", async () => {
+    const argv = ["https://synthetic.vercel.app", "dpl_synthetic", "a".repeat(40)];
+    const environment: NodeJS.ProcessEnv = { NODE_ENV: "test", PREVIEW_STABLE_ALIAS: "synthetic-preview-alias.vercel.app", VERCEL_AUTOMATION_BYPASS_SECRET: "synthetic-bypass" };
+    const stdout = vi.spyOn(console, "log").mockImplementation(() => {});
+    const stderr = vi.spyOn(console, "error").mockImplementation(() => {});
+    for (const cause of failures) {
+      expect(await repoint(argv, environment, { readSettings: settingsReader, repoint: async () => { throw cause; } })).toBe(1);
+    }
+    expect(await repoint(argv, environment, { readSettings: () => { throw new Error("SYNTHETIC_PRIVATE"); } })).toBe(1);
+    expect(await repoint(argv, { ...environment, PREVIEW_STABLE_ALIAS: "SYNTHETIC_PRIVATE" }, { readSettings: settingsReader })).toBe(1);
+    expect(stdout).not.toHaveBeenCalled();
+    expect(stderr).toHaveBeenCalledTimes(failures.length + 2);
+    for (const call of stderr.mock.calls) { expect(call).toHaveLength(1); expect(call[0]).toContain("details withheld"); expect(call[0]).not.toContain("SYNTHETIC_PRIVATE"); }
+    stderr.mockClear();
+    expect(await repoint(argv, environment, { readSettings: settingsReader, repoint: async () => { throw new VercelApiError("Vercel alias lookup failed with HTTP 403", 403); } })).toBe(1);
+    expect(stderr.mock.calls).toEqual([["Preview alias repoint failed: Vercel alias lookup failed with HTTP 403"]]);
   });
 });
