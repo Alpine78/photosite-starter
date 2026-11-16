@@ -28,6 +28,7 @@ import {
   REQUEST_HAS_SECTION_VALUE,
   REQUEST_PATH_HEADER,
   isCarryableRequestPath,
+  isKeywordSelectionRequest,
   isPotentialStoryRequestPath,
   isPrivateAdminRequestPath,
   isPrivateGalleryAdminInternalPath,
@@ -373,7 +374,8 @@ export function proxy(request: NextRequest) {
     !isPotentialStoryRequestPath(
       getDeploymentConfig().localeRoutes,
       pathname,
-    )
+    ) &&
+    !isKeywordSelectionRequest(getDeploymentConfig().localeRoutes, pathname, request.nextUrl.searchParams)
   ) {
     // Use the platform URL rather than NextURL.clone(): the latter retains the
     // incoming trailing-slash formatting policy and can serialize the removed

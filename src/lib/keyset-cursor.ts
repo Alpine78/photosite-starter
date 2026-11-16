@@ -14,6 +14,8 @@
  * because a caller building a bounded store query needs the real boundary
  * values, not an opaque hash of them; the scope and visibility digests stay
  * one-way because nothing outside this module ever needs their raw inputs back.
+ * The token is signed, not encrypted: anyone holding the link can read those two
+ * fields, so neither may hold what a visitor should not see (AB#58).
  *
  * `afterKey` is `string | number` so a caller whose primary sort key is a
  * number (a gallery's manual `order`) and one whose primary sort key is a

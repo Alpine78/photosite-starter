@@ -35,17 +35,30 @@ Git checkout must be ignored and untracked. The output parent must already be
 private; the output directory must be new and outside the source root.
 
 The output contains neutral `image-0001.jpg`, `image-0002.png`, … names and one
-final `receipt.json`. The existing image converter preserves the complete frame,
-normalizes orientation, never enlarges, limits the longest edge to 2048 pixels
-and removes embedded metadata from the web version only. Sources remain byte
-for byte unchanged. Each receipt entry records source/output bytes, SHA256,
-format and true dimensions, without original names or metadata values.
+final `receipt.json`. The image converter preserves the complete frame, normalizes
+orientation, never enlarges and limits the longest edge to 2048 pixels. Sources
+remain byte for byte unchanged. Each receipt entry records source/output bytes,
+SHA256, format and true dimensions, without original names or metadata values.
+
+**Nothing is removed from a client image's metadata** (owner decision 2026-11-04,
+[ADR-0039](adr/0039-keyword-taxonomy-and-ingest-boundary.md)). A JPEG within the
+bound and already upright is copied byte for byte. Any other image gets a new web
+copy that carries its metadata, including keywords, the creator's postal address and
+GPS, and is compared with the source field by field. Only what describes the source's
+pixels stays behind: orientation, colour profile, thumbnail, embedded preview and size
+fields, and Photoshop's print resolution. A copy that lost or changed any other field is
+refused. Treat all of it as public once uploaded, and leave sensitive locations out in
+the export.
+[AB#54](audits/ab54-lightroom-keyword-spike-2026-11-04.md) found that the ordinary image
+CDN serves neither metadata nor original bytes on the requests it tested, so a client
+gets the metadata from the delivery ZIP rather than from the page. This tool needs
+`exiftool-vendored`, a development dependency.
 
 Processing is sequential: at most one image is converted at a time, with local
 reads and writes capped at 64 KiB. Limits are 256 selected images, 25 MB per input,
 100 megapixels per decoded source, a 64 KiB selection and 1 GB each of aggregate
 compressed input/output bytes. Native decoder memory and its cache are not a
-constant-RSS promise. These are local engineering limits, not Sanity or product
+constant-RSS promise. An image that carries metadata also starts one ExifTool process. These are local engineering limits, not Sanity or product
 limits. Very low file-descriptor limits may cause a closed local-IO refusal;
 previously opened descriptors are closed before returning.
 

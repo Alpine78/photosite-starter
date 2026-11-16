@@ -54,10 +54,11 @@ function exif(orientation: number | null, gpsEntries: number | null): Buffer {
 
 describe("importActionFor", () => {
   it("keeps the compressed data up to the 2048 px bound and re-encodes above it", () => {
-    expect(importActionFor({ width: 2048, height: 1365 })).toBe("keep-compressed-data");
-    expect(importActionFor({ width: 1365, height: 2048 })).toBe("keep-compressed-data");
-    expect(importActionFor({ width: 2049, height: 10 })).toBe("re-encode");
-    expect(importActionFor({ width: 10, height: 2049 })).toBe("re-encode");
+    expect(importActionFor({ width: 2048, height: 1365, orientation: 1 })).toBe("keep-compressed-data");
+    expect(importActionFor({ width: 1365, height: 2048, orientation: 1 })).toBe("keep-compressed-data");
+    expect(importActionFor({ width: 2049, height: 10, orientation: 1 })).toBe("re-encode");
+    expect(importActionFor({ width: 10, height: 2049, orientation: 1 })).toBe("re-encode");
+    expect(importActionFor({ width: 200, height: 100, orientation: 6 })).toBe("re-encode");
   });
 });
 
@@ -120,13 +121,19 @@ describe("inspectJpegImportFacts", () => {
     const plain = await jpeg();
     expect(inspectJpegImportFacts(withSegment(plain, 0xe1, xmp("<dc:subject><rdf:Bag/></dc:subject>"))).keywordMetadata).toBe(true);
     expect(inspectJpegImportFacts(withSegment(plain, 0xe1, xmp("<lr:hierarchicalSubject/>"))).keywordMetadata).toBe(true);
+    expect(inspectJpegImportFacts(withSegment(plain, 0xe1, xmp("<lr:weightedFlatSubject/>"))).keywordMetadata).toBe(true);
     expect(inspectJpegImportFacts(withSegment(plain, 0xed, photoshop(Buffer.concat([iim(5, "title"), iim(25, "term")])))).keywordMetadata).toBe(true);
     expect(inspectJpegImportFacts(withSegment(plain, 0xed, photoshop(iim(5, "title")))).keywordMetadata).toBe(false);
   });
 
   it("finds the creator's postal address but not the kept contact fields", async () => {
     const plain = await jpeg();
-    expect(inspectJpegImportFacts(withSegment(plain, 0xe1, xmp('<x Iptc4xmpCore:CiAdrCity="Town"/>'))).creatorPostalAddress).toBe(true);
+    for (const field of ["CiAdrExtadr", "CiAdrRegion", "CiAdrPcode"]) {
+      expect(inspectJpegImportFacts(withSegment(plain, 0xe1, xmp(`<x Iptc4xmpCore:${field}="x"/>`))).creatorPostalAddress, field).toBe(true);
+    }
+    for (const field of ["CiAdrCity", "CiAdrCtry"]) {
+      expect(inspectJpegImportFacts(withSegment(plain, 0xe1, xmp(`<x Iptc4xmpCore:${field}="x"/>`))).creatorPostalAddress, field).toBe(false);
+    }
     const kept = withSegment(plain, 0xe1, xmp('<x Iptc4xmpCore:CiEmailWork="a@example.test" Iptc4xmpCore:CiTelWork="1" Iptc4xmpCore:CiUrlWork="x" dc:creator="c"/>'));
     expect(inspectJpegImportFacts(kept)).toMatchObject({ creatorPostalAddress: false, keywordMetadata: false });
   });

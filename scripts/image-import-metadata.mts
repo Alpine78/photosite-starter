@@ -1,7 +1,7 @@
 /**
  * AB#391 / ADR-0039 decision 8: what an import has to do with one owner photograph, read
- * from its bytes. Pure and read-only. Field-level metadata removal waits for the metadata
- * tool, which AB#54's Lightroom files verify, so no import path calls this yet.
+ * from its bytes. Pure and read-only. `image-import-metadata-edit.mts` makes the edits and
+ * checks its results with this module.
  *
  * Presence checks are deliberately over-inclusive: a false "present" costs the owner one
  * review line, while a false "absent" could publish a location nobody reviewed.
@@ -34,9 +34,12 @@ const PHOTOSHOP_HEADER = Buffer.from("Photoshop 3.0\0", "latin1");
 const RESOURCE_SIGNATURE = Buffer.from("8BIM", "latin1");
 const IPTC_RESOURCE = 0x0404, IPTC_KEYWORDS_DATASET = 25;
 const TAG_ORIENTATION = 0x0112, TAG_GPS_IFD = 0x8825;
-const XMP_KEYWORDS = /\b(?:dc:subject|lr:hierarchicalSubject)\b/;
-const XMP_POSTAL_ADDRESS = /\bCiAdr(?:ExtAdr|City|Region|Pcode|Ctry)\b/;
+const XMP_KEYWORDS = /\b(?:dc:subject|lr:hierarchicalSubject|lr:weightedFlatSubject)\b/;
+/** The street address (IPTC's spelling is `CiAdrExtadr`), region and postal code. City and country stay. */
+const XMP_POSTAL_ADDRESS = /\bCiAdr(?:Extadr|Region|Pcode)\b/i;
 const XMP_GPS = /\bexif:GPS(?:Latitude|Longitude)\b/;
+/** An import source is already in memory and may be larger than a delivered file: this tool only downscales it. */
+const IMPORT_SOURCE_MAX_BYTES = Number.MAX_SAFE_INTEGER;
 
 class Malformed extends Error {}
 
@@ -107,7 +110,7 @@ export function inspectJpegImportFacts(bytes: Uint8Array): JpegImportFacts {
     } else if (marker === 0xed && segment.subarray(0, PHOTOSHOP_HEADER.length).equals(PHOTOSHOP_HEADER)) {
       if (hasIptcKeywords(segment)) keywordMetadata = true;
     }
-  });
+  }, IMPORT_SOURCE_MAX_BYTES);
   const swapped = orientation >= 5;
   return {
     width, height, orientation, gps, keywordMetadata, creatorPostalAddress,
@@ -115,9 +118,14 @@ export function inspectJpegImportFacts(bytes: Uint8Array): JpegImportFacts {
   };
 }
 
-/** Decision 8: at most 2048 px on the longest edge keeps its compressed data byte for byte. */
-export function importActionFor(facts: Pick<JpegImportFacts, "width" | "height">): ImportAction {
-  return Math.max(facts.width, facts.height) <= MAX_PUBLIC_DELIVERY_DIMENSION ? "keep-compressed-data" : "re-encode";
+/**
+ * Decision 8: at most 2048 px on the longest edge keeps its compressed data byte for byte.
+ * A file that needs rotating is the exception: recorded dimensions and the no-crop layout
+ * rely on upright pixels, and whether Sanity follows the tag is unverified. No legacy
+ * source needs this (AB#391's report found orientation 1 in every readable JPEG).
+ */
+export function importActionFor(facts: Pick<JpegImportFacts, "width" | "height" | "orientation">): ImportAction {
+  return facts.orientation === 1 && Math.max(facts.width, facts.height) <= MAX_PUBLIC_DELIVERY_DIMENSION ? "keep-compressed-data" : "re-encode";
 }
 
 /**
@@ -134,7 +142,7 @@ export function compressedImageDataSha256(bytes: Uint8Array): string {
     if (marker === 218) { firstScan = start - 4; return; }
     if (marker === 0xfe || (marker >= 0xe0 && marker <= 0xef)) return;
     hash.update(data.subarray(start - 4, start + length));
-  });
+  }, IMPORT_SOURCE_MAX_BYTES);
   if (firstScan < 0) throw new JpegAuditError("INVALID_JPEG");
   return hash.update(data.subarray(firstScan)).digest("hex");
 }

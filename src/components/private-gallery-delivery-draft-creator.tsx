@@ -56,22 +56,22 @@ export function PrivateGalleryDeliveryDraftCreator({ apiPath, locale, labels }: 
     finally { busy.current = false; if (active.current) setPending(false); }
   }
   return <section aria-labelledby={`${id}-heading`} className="flex flex-col gap-4">
-    <h2 id={`${id}-heading`} className="text-lg font-medium text-strong">{labels.heading}</h2>
+    <h2 id={`${id}-heading`} className="text-lg font-medium text-foreground">{labels.heading}</h2>
     <p className="text-sm text-muted">{labels.description}</p>
     <form method="post" action={apiPath} onSubmit={submit} aria-label={labels.create}>
       <fieldset disabled={!hydrated} className="grid gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
           <label htmlFor={`${id}-customer`}>{labels.customerReference}</label>
           <input id={`${id}-customer`} readOnly={pending} value={customer} maxLength={128} onChange={(event) => setCustomer(event.target.value)}
-            aria-invalid={notice === "invalid"} aria-describedby={notice === "invalid" ? `${id}-help ${id}-status` : `${id}-help`} className="rounded-md border border-border-strong bg-surface px-3 py-1.5 text-strong" />
+            aria-invalid={notice === "invalid"} aria-describedby={notice === "invalid" ? `${id}-help ${id}-status` : `${id}-help`} className="rounded-md border border-border-strong bg-surface px-3 py-1.5 text-foreground" />
         </div>
         <div className="flex flex-col gap-1">
           <label htmlFor={`${id}-job`}>{labels.jobReference}</label>
           <input id={`${id}-job`} readOnly={pending} value={job} maxLength={128} onChange={(event) => setJob(event.target.value)}
-            aria-invalid={notice === "invalid"} aria-describedby={notice === "invalid" ? `${id}-help ${id}-status` : `${id}-help`} className="rounded-md border border-border-strong bg-surface px-3 py-1.5 text-strong" />
+            aria-invalid={notice === "invalid"} aria-describedby={notice === "invalid" ? `${id}-help ${id}-status` : `${id}-help`} className="rounded-md border border-border-strong bg-surface px-3 py-1.5 text-foreground" />
         </div>
         <p id={`${id}-help`} className="text-sm text-muted sm:col-span-2">{labels.referenceHelp}</p>
-        <button type="submit" aria-disabled={pending} className="rounded-md border border-border-strong px-3 py-1.5 text-strong aria-disabled:opacity-50">
+        <button type="submit" aria-disabled={pending} className="rounded-md border border-border-strong px-3 py-1.5 text-foreground aria-disabled:opacity-50">
           {pending ? labels.creating : labels.create}
         </button>
       </fieldset>
@@ -81,9 +81,9 @@ export function PrivateGalleryDeliveryDraftCreator({ apiPath, locale, labels }: 
       {notice === undefined ? "" : labels[notice]}
     </p>
     <div className="flex items-center justify-between gap-3">
-      <h3 className="font-medium text-strong">{labels.listHeading}</h3>
+      <h3 className="font-medium text-foreground">{labels.listHeading}</h3>
       <button type="button" disabled={!hydrated || pending} onClick={() => { setNotice(undefined); setSavedHandle(undefined); void refresh(); }}
-        className="rounded-md border border-border-strong px-3 py-1.5 text-strong disabled:opacity-50">{labels.refresh}</button>
+        className="rounded-md border border-border-strong px-3 py-1.5 text-foreground disabled:opacity-50">{labels.refresh}</button>
     </div>
     {list?.items.length === 0 && <p className="text-muted">{labels.empty}</p>}
     <ul className="flex flex-col gap-2">
@@ -106,7 +106,7 @@ export function PrivateGalleryDeliveryDraftCreator({ apiPath, locale, labels }: 
       <p id={`${id}-count`} aria-live="polite" aria-atomic="true" className="text-muted">{labels.loadedCount}: {list.items.length}</p>
       <button type="button" aria-disabled={pending || loading || !list.hasMore} aria-describedby={`${id}-count`}
         onClick={() => { if (!pending && !loading && list.hasMore) void loadMore(); }}
-        className="rounded-md border border-border-strong px-3 py-1.5 text-strong aria-disabled:opacity-50">
+        className="rounded-md border border-border-strong px-3 py-1.5 text-foreground aria-disabled:opacity-50">
         {loading ? labels.loadingMore : !firstPageReady ? labels.unavailable : list.hasMore ? labels.loadMore : labels.allLoaded}
       </button>
     </>}

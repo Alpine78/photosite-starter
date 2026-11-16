@@ -45,24 +45,24 @@ export function PrivateGalleryDraftReferencesEditor<T extends ReferenceItem>({ i
     finally { busy.current = false; if (mutationLockRef) mutationLockRef.current = false; onPending?.(false); setPending(false); }
   }
   return <details open={open} onToggle={(event) => setOpen(event.currentTarget.open)} className="mt-2">
-    <summary ref={summary} className="cursor-pointer text-strong">{labels.editReferences}</summary>
+    <summary ref={summary} className="cursor-pointer text-foreground">{labels.editReferences}</summary>
     <form method="post" action={apiPath} onSubmit={save} className="mt-2">
       <fieldset disabled={!hydrated} className="grid gap-2 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
           <label htmlFor={`${id}-customer`}>{labels.customerReference}</label>
           <input id={`${id}-customer`} value={customer} readOnly={pending || blocked} maxLength={128} autoComplete="off" spellCheck={false}
             onChange={(event) => setCustomer(event.target.value)} aria-describedby={`${id}-help ${id}-error`}
-            aria-invalid={error === "invalid"} className="rounded-md border border-border-strong bg-surface px-3 py-1.5 text-strong" />
+            aria-invalid={error === "invalid"} className="rounded-md border border-border-strong bg-surface px-3 py-1.5 text-foreground" />
         </div>
         <div className="flex flex-col gap-1">
           <label htmlFor={`${id}-job`}>{labels.jobReference}</label>
           <input id={`${id}-job`} value={job} readOnly={pending || blocked} maxLength={128} autoComplete="off" spellCheck={false}
             onChange={(event) => setJob(event.target.value)} aria-describedby={`${id}-help ${id}-error`}
-            aria-invalid={error === "invalid"} className="rounded-md border border-border-strong bg-surface px-3 py-1.5 text-strong" />
+            aria-invalid={error === "invalid"} className="rounded-md border border-border-strong bg-surface px-3 py-1.5 text-foreground" />
         </div>
         <p id={`${id}-help`} className="text-muted sm:col-span-2">{labels.referenceHelp}</p>
         <button type="submit" aria-disabled={pending || blocked || error === "conflict"}
-          className="rounded-md border border-border-strong px-3 py-1.5 text-strong aria-disabled:opacity-50">
+          className="rounded-md border border-border-strong px-3 py-1.5 text-foreground aria-disabled:opacity-50">
           {pending ? labels.savingReferences : labels.saveReferences}
         </button>
       </fieldset>

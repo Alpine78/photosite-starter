@@ -33,7 +33,9 @@ export function buildGalleryHref(
   if (section !== undefined) params.set("section", section);
   if (cursor !== undefined) params.set("cursor", cursor);
   const query = params.toString();
-  return query.length === 0 ? galleryPath : `${galleryPath}?${query}`;
+  if (query.length === 0) return galleryPath;
+  // A keyword gallery's address already holds its selection, which comes first (ADR-0012 §8).
+  return `${galleryPath}${galleryPath.includes("?") ? "&" : "?"}${query}`;
 }
 
 /**

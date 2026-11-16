@@ -492,8 +492,8 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   webhook-invalidated story index, so keystrokes make no CMS request and a search term never
   reaches the CMS ([data flow](docs/search-data-flow.md)); results are `noindex` and thumbnails
   keep their native ratio. [ADR-0033](docs/adr/0033-unified-site-search.md) is still proposed and
-  decides how this shares its route with the keyword-gallery contract of ADR-0012. Image and
-  keyword search wait for the taxonomy chain (AB#55 and its dependants)*
+  decides how this shares its route with the keyword-gallery contract of ADR-0012. Keyword galleries,
+  browsing and suggestions are built; they need a published vocabulary and a keyword sync to show anything (AB#69)*
 - [x] Basic SEO (metadata, sitemap, robots.txt) — *settings-driven titles, descriptions,
   canonical URLs, and Open Graph output done for every current public page; `sitemap.xml`
   and `robots.txt` done (AB#85) — every published, public, indexable category, article,
@@ -565,17 +565,6 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   Its private plan is not approved or writable; asset binding, supported whole-ZIP
   transfer, recovery, notice reconciliation and customer publication remain gated.
   See [the operator contract](docs/sanity-seeding.md#offline-legacy-delivery-plan-ab250).
-  Protected client galleries have an independent offline source check:
-  `npm run plan:private-gallery-upload -- --input <private.json> --source-root
-  <local-export> --out <private-dir>`. It checks bounded JPEG bytes/dimensions and
-  hashes the complete delivery ZIP as a stream, writing only a private local plan.
-  Watermarks are owner-attested and ZIP contents are not validated. It performs no
-  upload, CMS write or publication; see [the operator contract](docs/deployment.md#offline-private-upload-source-check).
-  Recheck a selected plan's current source bytes with
-  `npm run verify:private-upload-sources --silent -- --plan <upload-source-plan.json>
-  --source-root <local-export> --expected-digest <digest>`. It validates the complete
-  report before source reads and writes no artifact. This is a read-time check,
-  not a lock or upload authorization.
   Every route-facing seam (`site-settings.ts`, `home-content.ts`, `services.ts`, `content.ts`,
   `gallery.ts`) is now wired: `SITE_CONTENT_SOURCE=mock` keeps reading fixtures, and `sanity`
   reads every one of these adapters, never a mixed mock/Sanity page. Closing that wiring
@@ -810,7 +799,7 @@ AB#409's separate [synthetic provider fault tool](docs/client-gallery-cleanup-re
 now has [AB#410 real-provider evidence](docs/audits/client-gallery-cleanup-fault-rehearsal-2026-10-28.md)
 for all nine revision/reference/duplicate/injected-response scenarios, with independent
 test-target absence. This is local-operator evidence, not hosted Studio or activation.
-Keyword-driven dynamic galleries remain post-MVP. See the MVP checklist above and
+Keyword-driven dynamic galleries are built but not activated. See the MVP checklist above and
 [detailed implementation history](docs/feature-status.md).
 
 ### Gallery presentation (AB#157)

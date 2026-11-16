@@ -62,7 +62,7 @@ export default async function PrivateGalleryAdminPage() {
     return (
       <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-4 p-6">
         <RestrictedPageLanguages pathname={pathname} locale={locale} />
-        <h1 className="text-2xl font-semibold text-strong">{text.title}</h1>
+        <h1 className="text-2xl font-semibold text-foreground">{text.title}</h1>
         <p className="text-muted">{text.signInUnavailable}</p>
       </main>
     );
@@ -77,7 +77,7 @@ export default async function PrivateGalleryAdminPage() {
     return (
       <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-6 p-6">
         <RestrictedPageLanguages pathname={pathname} locale={locale} />
-        <h1 className="text-2xl font-semibold text-strong">{text.title}</h1>
+        <h1 className="text-2xl font-semibold text-foreground">{text.title}</h1>
         <AdminSignInForm
           reloadPath={reloadPath}
           action={loginPath}
@@ -95,7 +95,7 @@ export default async function PrivateGalleryAdminPage() {
     <main className="mx-auto flex min-h-dvh max-w-2xl flex-col gap-8 p-6 py-16">
       <RestrictedPageLanguages pathname={pathname} locale={locale} />
       <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold text-strong">
+        <h1 className="text-2xl font-semibold text-foreground">
           {text.signedInHeading}
         </h1>
         <AdminSignOutButton reloadPath={reloadPath} action={logoutPath} label={text.signOut} />

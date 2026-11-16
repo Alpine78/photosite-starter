@@ -36,7 +36,8 @@ import { chmod, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { generatePublicDerivative, type PublicDerivative } from "./joomla-image-derivative.mts";
+import { prepareImportImage } from "./image-import-metadata-edit.mts";
+import { type PublicDerivative } from "./joomla-image-derivative.mts";
 import type { RallyConversionPlan } from "./rally-conversion-plan.mts";
 import {
   buildGalleryDeletionAndSwitchBatches,
@@ -192,7 +193,7 @@ async function deriveAsset(folder: string, requirement: { readonly relativePath:
     return { ok: false, reason: "the file has changed since the plan was made — re-run plan:rally-conversion and review again" };
   }
   try {
-    return { ok: true, derivative: await generatePublicDerivative(bytes) };
+    return { ok: true, derivative: await prepareImportImage(bytes) };
   } catch (error) {
     return { ok: false, reason: error instanceof Error ? error.message : String(error) };
   }
