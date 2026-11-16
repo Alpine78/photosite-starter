@@ -12,5 +12,5 @@
     "resolveJsonModule": true
   },
   "include": ["*.ts", "*.tsx", "../sanity/schemas/**/*.ts"],
-  "exclude": ["node_modules", "dist", "../sanity/**/*.test.ts", "*.test.ts"]
+  "exclude": ["node_modules", "dist", "../sanity/**/*.test.ts", "*.test.ts", "keyword-archive-fixture.ts"]
 }

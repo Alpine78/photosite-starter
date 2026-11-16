@@ -21,6 +21,8 @@ const SEARCH_PATH = `/${DEFAULT_SEARCH_NAMESPACE}`;
 const ARCHIVE = `${SEARCH_PATH}?keywords=archive`;
 const PAGE_SIZE = 24;
 const ARCHIVE_SIZE = 30;
+/** docs/keyword-gallery-scale.md. */
+const ELEMENTS_PER_PHOTOGRAPH = 6;
 /** `keyword-gallery-page.tsx`. */
 const EAGER_ITEMS = 4;
 const labels = getBuiltInLabels(appUnderTestEnvironment.SITE_LOCALE);
@@ -77,6 +79,20 @@ test.describe("continuing a keyword gallery", () => {
     // The address stayed on the first page, so that is what a reload restores.
     await page.reload({ waitUntil: "load" });
     await expectItems(page, expectedArchive.slice(0, PAGE_SIZE));
+  });
+
+  test("a photograph holds a bounded number of elements, so a long session stays usable", async ({ page }) => {
+    await page.goto(ARCHIVE, { waitUntil: "load" });
+    await expect(gridItems(page).first()).toBeVisible();
+    await continueInPlace(page);
+    await expect(gridItems(page)).toHaveCount(ARCHIVE_SIZE);
+    // Inside the grid only, so page chrome and hydration cannot count for or against a photograph.
+    const perPhotograph = await gridItems(page).evaluateAll((nodes) => {
+      let grid = nodes[0];
+      while (!nodes.every((node) => grid.contains(node))) grid = grid.parentElement!;
+      return grid.getElementsByTagName("*").length / nodes.length;
+    });
+    expect(perPhotograph).toBeLessThanOrEqual(ELEMENTS_PER_PHOTOGRAPH);
   });
 
   test("an open viewer continues past the last loaded photograph", async ({ page }) => {

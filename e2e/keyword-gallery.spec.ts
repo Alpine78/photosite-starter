@@ -18,6 +18,60 @@ const gallery = (keywords: string, cursor?: string) => `${SEARCH_PATH}?keywords=
 const defaultLocale = appUnderTestEnvironment.SITE_LOCALE;
 const labels = getBuiltInLabels(defaultLocale).search;
 
+test.describe("asking about a photograph in a keyword gallery", () => {
+  const builtIn = getBuiltInLabels(defaultLocale);
+  const SEARCH = SEARCH_PATH;
+  const COAST = `${SEARCH}?keywords=coast`;
+  const synthetic = { name: "Harness Visitor", email: "visitor@harness.test", message: "Automated public-journey check. No reply is expected." };
+
+  async function submit(page: import("@playwright/test").Page) {
+    const button = page.locator("form").getByRole("button", { name: /\S/ });
+    await expect(button).toBeEnabled();
+    for (const [name, value] of Object.entries(synthetic)) await page.locator(`[name="${name}"]`).fill(value);
+    await button.click();
+  }
+
+  test("the viewer's control keeps the selection, and the form sends only public context", async ({ page }) => {
+    await page.goto(COAST);
+    const dialog = page.getByRole("dialog");
+    await openLightbox(dialog, () => page.getByRole("main").locator('[data-item-id="coastal-landscape"]').click());
+    const enquire = dialog.getByRole("link", { name: builtIn.lightbox.enquire });
+    await expect(enquire).toHaveAttribute("href", `${COAST}&enquire=coastal-landscape`);
+    await enquire.click();
+    await expect(page.getByRole("heading", { name: builtIn.enquiry.pageTitle })).toBeVisible();
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", new RegExp(`${COAST.replace("?", "\\?")}$`));
+    await expect(page.getByRole("main").getByRole("link", { name: builtIn.enquiry.backToGallery })).toHaveAttribute("href", COAST);
+
+    const posted = page.waitForRequest((request) => request.url().endsWith("/api/enquiry"));
+    await submit(page);
+    const body = (await posted).postDataJSON() as Record<string, unknown>;
+    expect(body).toMatchObject({ kind: "dynamic", itemId: "coastal-landscape" });
+    expect(body).not.toHaveProperty("contentId");
+    await expect(page.getByRole("main").getByRole("status")).toContainText(builtIn.contact.successTitle);
+  });
+
+  test("a photograph that is not opted in has no control, and its form refuses", async ({ page }) => {
+    await page.goto(`${SEARCH}?keywords=water`);
+    const dialog = page.getByRole("dialog");
+    await openLightbox(dialog, () => page.getByRole("main").locator('[data-item-id="lakeside-reeds"]').click());
+    await expect(dialog.getByRole("link", { name: builtIn.lightbox.enquire })).toHaveCount(0);
+    await page.goto(`${SEARCH}?keywords=water&enquire=lakeside-reeds`);
+    await submit(page);
+    await expect(page.getByRole("main").getByRole("status")).toContainText(builtIn.enquiry.unavailable);
+  });
+
+  test("the address keeps ADR-0012's rules", async ({ page, request }) => {
+    const seaside = await request.get(`${SEARCH}?keywords=seaside&enquire=coastal-landscape`, { maxRedirects: 0 });
+    expect(seaside.status()).toBe(308);
+    expect(seaside.headers().location).toContain("keywords=coast&enquire=coastal-landscape");
+    expect((await request.get(`${COAST}&cursor=abc&enquire=coastal-landscape`, { maxRedirects: 0 })).status()).toBe(404);
+    expect((await request.get(`${SEARCH}?keywords=nonexistent-keyword&enquire=coastal-landscape`, { maxRedirects: 0 })).status()).toBe(404);
+    await page.goto(`${COAST}&enquire=Not%20Valid`);
+    await expect(page.getByRole("main").locator("[data-item-id]").first()).toBeVisible();
+  });
+});
+
 test.describe("keyword gallery", () => {
   test("a canonical address renders the selection on the server and says what it means", async ({ page }) => {
     const response = await page.goto(gallery("coast,water"));
