@@ -414,7 +414,7 @@ const nextConfig: NextConfig = {
       // `headers()` rule matches both the original request path and the path the
       // Proxy rewrote to, and among matching rules the **last** one wins for a
       // given header name — which is why these sit after the site-wide entry.
-      // `e2e/private-route-hygiene.spec.ts` is what would notice if either
+      // `e2e/reserved-namespace-hygiene.spec.ts` is what would notice if either
       // behaviour changed.
       ...(privateObjectStoreOrigin === undefined
         ? []

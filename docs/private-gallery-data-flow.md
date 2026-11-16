@@ -1,5 +1,10 @@
 # Private client gallery data flow
 
+**Routes removed, 2026-11-15 (AB#313):** the protected customer and administrator pages
+and endpoints described below no longer exist in the code. Their two URL prefixes stay
+reserved and answer 404. This document remains as the record of the deferred design until
+AB#313's last slice decides what is kept.
+
 **Current scope, 2026-10-16:** [ADR-0034](adr/0034-ongoing-unlisted-client-delivery.md)
 selects Sanity/unlisted client delivery for this owner's continuing work, not
 just migration. The protected reference design below is deferred and remains

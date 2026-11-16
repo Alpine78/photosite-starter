@@ -315,6 +315,31 @@ The secret generator moves from A2 to B2. `src/lib/private-gallery-admin-credent
 names `npm run admin:secret` in its configuration error, and `.env.example`,
 `docs/deployment.md` and `docs/owner-run-commands.md` instruct its use. Removing the command
 before the administrator surface would leave those pointing at nothing.
+### B1/B2 removal, customer and administrator surfaces — 2026-11-15
+
+Under the owner's decision of 2026-11-15, both surfaces are removed in one patch from
+`origin/main` `0fc48a7`. The owner chose the unavailable behaviour: **every path and method
+under both configured prefixes and both literal segments answers one empty 404** with the
+namespace's `no-store`, `noindex, nofollow` and `no-referrer` headers. This replaces the
+earlier mixed 401, 403, 404 and trailing-slash 308 answers. Production already answered 404
+with the store off.
+
+Removed: both `src/app/private-gallery*/` trees with their route tests,
+`public/private-gallery-bootstrap.js` and its test, the thirteen protected-only components
+including `admin-sign-in-form.tsx`, the eleven `e2e/private-gallery-*.spec.ts` journeys, the
+harness's `PRIVATE_GALLERY_STORE=memory` and administrator-session fixture, and
+`scripts/generate-admin-secret.mts` with `npm run admin:secret`.
+
+Kept: prefix validation and reservation in the deployment configuration, the three literal
+entries in `RESERVED_ROOT_SEGMENTS` (now tested as reserved without a file), the hygiene
+headers, the legacy and client-gallery branches of the Proxy, and every
+`src/lib/private-gallery-*.ts` module with its tests and ESLint bans, which are slice C.
+`e2e/private-route-hygiene.spec.ts` became `e2e/reserved-namespace-hygiene.spec.ts`, and
+`e2e/restricted-page-locales.spec.ts` keeps its retained-delivery cases.
+
+One journey is lost without a replacement: the language switch's unsaved-edit warning was
+exercised only on the administrator sign-in form. The shared component remains; no
+remaining restricted page has an editable field to drive it from a browser test.
 
 ## Operational evidence for the clearance table — 2026-10-20
 
