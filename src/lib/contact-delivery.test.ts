@@ -301,6 +301,12 @@ describe("buildContactDeliveryAdapter", () => {
     expect(buildContactDeliveryAdapter(resendEnvironment).name).toBe("resend");
   });
 
+  it("refuses a provider key mirrored under a NEXT_PUBLIC_ name (AB#420)", () => {
+    expect(() =>
+      buildContactDeliveryAdapter({ ...resendEnvironment, NEXT_PUBLIC_RESEND_API_KEY: "re_leaked" }),
+    ).toThrow(/NEXT_PUBLIC_RESEND_API_KEY/);
+  });
+
   it.each(["development", "preview"])(
     "allows the sink adapter in a %s deployment",
     (stage) => {

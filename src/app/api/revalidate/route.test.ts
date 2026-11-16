@@ -96,4 +96,25 @@ describe("POST /api/revalidate", () => {
     });
     expect(dependencies.revalidateTag).not.toHaveBeenCalled();
   });
+
+  it("logs one refusal per class per window, not one per request (AB#420)", async () => {
+    dependencies.readSanityWebhook.mockRejectedValue(
+      new SanityWebhookError("unsupported-media-type", 415),
+    );
+    const error = vi.mocked(console.error);
+    const logged = () => error.mock.calls.filter((call) => String(call[0]).includes("unsupported-media-type")).length;
+
+    const first = await POST(request.clone());
+    expect(await first.json()).toEqual({ status: "rejected", correlationId: expect.any(String) });
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const repeat = await POST(request.clone());
+      expect(repeat.status).toBe(415);
+      expect(await repeat.json()).toEqual({ status: "rejected" });
+    }
+    expect(logged()).toBe(1);
+
+    // Another class is counted on its own.
+    dependencies.readSanityWebhook.mockRejectedValue(new SanityWebhookError("invalid-size", 413));
+    expect(await (await POST(request.clone())).json()).toEqual({ status: "rejected", correlationId: expect.any(String) });
+  });
 });

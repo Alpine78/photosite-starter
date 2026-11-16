@@ -2,6 +2,8 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Security hardening batch, 2026-11-16 — AB#420 **Active**: the reminder cron refuses HEAD and other methods with the cleanup route's shared guard; the Proxy removes spoofed project headers before any early return and checks decoded spellings of reserved prefixes; versioned `/gallery/` caching names only files that exist; a signed webhook older than ten minutes is refused and webhook and proof-selection refusals no longer log one line each; the proof publication allowance is per member; the published cursor-key placeholder is refused in production; the poll write refuses redirects; and every `RESEND_API_KEY` reader refuses a `NEXT_PUBLIC_` copy.
+
 Protected-gallery removal slice C, 2026-11-16 — AB#313 **Active**: the protected domain, fixture and notification modules are removed, with their log events and import bans. Only the shared deployment leaf remains for slice D, which covers configuration, CSP, labels and runbooks. See [the removal audit](audits/protected-gallery-removal-2026-10-17.md).
 
 Protected-gallery removal slice A2, 2026-11-15 — AB#313 **Active**: the unwired retention workflow script and its test are removed. The secret generator moves to slice B2, with the administrator surface that names it. See [the removal audit](audits/protected-gallery-removal-2026-10-17.md).

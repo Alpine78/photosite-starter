@@ -291,6 +291,13 @@ export function buildContactDeliveryAdapter(
       }
       return createSinkDeliveryAdapter();
     case "resend":
+      // Refused rather than ignored, as every other secret is: a NEXT_PUBLIC_
+      // value is compiled into the browser bundle (AB#420).
+      if (environment[`NEXT_PUBLIC_${contactSettingNames.resendApiKey}`] !== undefined) {
+        throw new ContactDeliveryConfigurationError(
+          `Invalid NEXT_PUBLIC_${contactSettingNames.resendApiKey}: the provider key must never be set under a NEXT_PUBLIC_ name. Remove it and set ${contactSettingNames.resendApiKey} instead.`,
+        );
+      }
       return createResendDeliveryAdapter({
         apiKey: requireSetting(environment, contactSettingNames.resendApiKey),
         from: requireSetting(environment, contactSettingNames.from),

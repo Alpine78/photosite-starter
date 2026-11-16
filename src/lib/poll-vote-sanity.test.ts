@@ -58,6 +58,8 @@ describe("receipt and counter transaction", () => {
     ]);
     expect(JSON.stringify(body)).not.toContain(params.visitorToken);
     expect(send).toHaveBeenCalledTimes(1);
+    // A redirect must not carry the write token to another host (AB#420).
+    expect(send.mock.calls[0][1]).toMatchObject({ redirect: "error", cache: "no-store" });
   });
   it("treats only a 409 as already voted, without issuing a second increment", async () => {
     const send = vi.fn().mockResolvedValue(new Response(null, { status: 409 }));

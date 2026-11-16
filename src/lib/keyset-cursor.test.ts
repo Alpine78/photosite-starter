@@ -1,9 +1,12 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   KeysetCursorConfigurationError,
   KeysetCursorError,
   createHmacKeysetCursorCodec,
   loadKeysetCursorSigningKey,
+  PUBLISHED_PLACEHOLDER_SIGNING_KEY,
   type KeysetCursorScope,
 } from "@/lib/keyset-cursor";
 
@@ -90,6 +93,23 @@ describe("loadKeysetCursorSigningKey", () => {
     );
     expect(() => loadKeysetCursorSigningKey({})).toThrow(SETTING);
     expect(() => loadKeysetCursorSigningKey({ [SETTING]: "" })).toThrow(SETTING);
+  });
+
+  it("refuses the published .env.example placeholder in production only (AB#420)", () => {
+    const env = (stage?: string) => ({ [SETTING]: PUBLISHED_PLACEHOLDER_SIGNING_KEY, ...(stage === undefined ? {} : { SITE_DEPLOYMENT_STAGE: stage }) });
+    // An unset stage means production, the fail-closed direction.
+    for (const stage of ["production", undefined]) {
+      expect(() => loadKeysetCursorSigningKey(env(stage))).toThrow(KeysetCursorConfigurationError);
+      expect(() => loadKeysetCursorSigningKey(env(stage))).toThrow(/placeholder/);
+    }
+    for (const stage of ["development", "preview"]) {
+      expect(loadKeysetCursorSigningKey(env(stage))).toBe(PUBLISHED_PLACEHOLDER_SIGNING_KEY);
+    }
+  });
+
+  it("keeps .env.example's value equal to the refused placeholder", () => {
+    const example = readFileSync(resolve(process.cwd(), ".env.example"), "utf8");
+    expect(example).toMatch(new RegExp(`^${SETTING}=${PUBLISHED_PLACEHOLDER_SIGNING_KEY}$`, "m"));
   });
 
   it("refuses a key mirrored under a NEXT_PUBLIC_ name", () => {
