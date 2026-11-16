@@ -89,6 +89,165 @@ function expectKeptAndRemoved(tags: Record<string, unknown>) {
   expect(tags.ExposureTime).toBeDefined();
 }
 
+const EVERY_PLACE = [
+  "-XMP-exif:GPSLatitude=60.1", "-XMP-exif:GPSDestLatitude=60.2", "-XMP-exif:GPSDestLongitude=24.8",
+  "-XMP-iptcExt:LocationShownCity=A city shown", "-XMP-iptcExt:LocationCreatedCity=A city created",
+  "-XMP-photoshop:City=A city", "-XMP-iptcCore:Location=A place", "-IPTC:City=A city", "-IPTC:ContentLocationName=A content place",
+] as const;
+
+describe("removing a sensitive photograph's location", () => {
+  const otherLocations = [
+    ["XMP-xmpDM:Image:ShotLocation", "Synthetic shot location"],
+    ["XMP-cell:Location:CellTowerID", 123],
+    ["XMP-cell:Location:CellGlobalID", 456],
+  ] as const;
+
+  it.each([["keeping the image data", 400, 300], ["re-encoding a large one", 2400, 1600]])("removes shot and cell locations with the real tool when %s, only when requested", async (_name, width, height) => {
+    const source = await fixture(width, height, otherLocations.map(([field, value]) => `-${field.split(":")[0]}:${field.split(":").at(-1)}=${value}`));
+    const directory = await mkdtemp(path.join(tmpdir(), "location-groups-"));
+    try {
+      const file = path.join(directory, "image.jpg");
+      const read = async (bytes: Uint8Array) => {
+        await writeFile(file, bytes);
+        return await tool.readRaw(file, { readArgs: ["-G1:2", "-u"] }) as unknown as Record<string, unknown>;
+      };
+      const before = await read(source);
+      for (const [field, value] of otherLocations) expect(before[field], field).toBe(value);
+      for (const removeLocation of [true, false]) {
+        const { bytes, action } = await prepareJpegForImport(source, tool, { removeLocation });
+        expect(action).toBe(width <= 2048 ? "keep-compressed-data" : "re-encode");
+        if (action === "keep-compressed-data") expect(compressedImageDataSha256(bytes)).toBe(compressedImageDataSha256(source));
+        const after = await read(bytes);
+        for (const [field, value] of otherLocations) expect(after[field], field).toBe(removeLocation ? undefined : value);
+      }
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  }, TOOL_TIMEOUT_MS);
+
+  it.each([["keeping the image data", 400, 300], ["re-encoding a large one", 2400, 1600]])("refuses stored shot and cell locations that cannot be deleted when %s", async (_name, width, height) => {
+    for (const [field, value] of otherLocations) {
+      const source = await fixture(width, height, [`-${field.split(":")[0]}:${field.split(":").at(-1)}=${value}`]);
+      const stubborn = {
+        write: (file: string, tags: object, options: { writeArgs: string[] }) => tool.write(file, tags, {
+          writeArgs: options.writeArgs.filter((argument) => argument !== "-Location:all=" && argument !== "-XMP-xmpDM:ShotLocation="),
+        }),
+        readRaw: tool.readRaw.bind(tool),
+      } as unknown as ImportMetadataTool;
+      await expect(prepareJpegForImport(source, stubborn, { removeLocation: true })).rejects.toMatchObject({ code: "METADATA_REMAINS" });
+    }
+  }, TOOL_TIMEOUT_MS);
+
+  it("keeps a Lightroom setting whose name only mentions a preview", async () => {
+    const source = await fixture(400, 300, ["-XMP-crs:UprightPreview=False"]);
+    const { bytes } = await prepareJpegForImport(source, tool, { removeLocation: true });
+    const directory = await mkdtemp(path.join(tmpdir(), "setting-"));
+    try {
+      const file = path.join(directory, "result.jpg");
+      await writeFile(file, bytes);
+      const fields = await tool.readRaw(file, { readArgs: ["-G1", "-u"] }) as unknown as Record<string, unknown>;
+      expect(fields["XMP-crs:UprightPreview"]).toBeDefined();
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  const previewTags = ["IFD1:ThumbnailImage", "Photoshop:PhotoshopThumbnail", "Photoshop:PhotoshopBGRThumbnail", "XMP-xmp:ThumbnailImage"];
+
+  async function fixtureWithPreviews(width: number, height: number) {
+    const preview = await fixture(32, 24);
+    const directory = await mkdtemp(path.join(tmpdir(), "location-preview-"));
+    try {
+      const file = path.join(directory, "preview.jpg");
+      await writeFile(file, preview);
+      return { preview, source: await fixture(width, height, ["-GPS:all=", ...previewTags.map((tag) => `-${tag}<=${file}`)]) };
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  }
+
+  it.each([["keeping the image data", 400, 300], ["re-encoding a large one", 2400, 1600]])("removes embedded thumbnails containing their own GPS when %s", async (_name, width, height) => {
+    const { source, preview } = await fixtureWithPreviews(width, height);
+    // The outer image states no location, yet the review must still see this photograph.
+    expect(inspectJpegImportFacts(source).gps).toBe("unreadable");
+    expect(inspectJpegImportFacts(preview).gps).toBe("present");
+    const directory = await mkdtemp(path.join(tmpdir(), "location-preview-read-"));
+    try {
+      const file = path.join(directory, "image.jpg");
+      await writeFile(file, source);
+      const before = await tool.readRaw(file, { readArgs: ["-G1", "-b", ...previewTags.map((tag) => `-${tag}`)] }) as unknown as Record<string, unknown>;
+      for (const tag of previewTags) expect(before[tag], tag).toBeDefined();
+      expect(Buffer.from(String(before[previewTags[0]]).replace(/^base64:/, ""), "base64")).toEqual(Buffer.from(preview));
+      const { bytes, action } = await prepareJpegForImport(source, tool, { removeLocation: true });
+      expect(action).toBe(width <= 2048 ? "keep-compressed-data" : "re-encode");
+      if (action === "keep-compressed-data") expect(compressedImageDataSha256(bytes)).toBe(compressedImageDataSha256(source));
+      await writeFile(file, bytes);
+      const after = await tool.readRaw(file, { readArgs: ["-G1:2", "-u"] }) as unknown as Record<string, unknown>;
+      expect(Object.keys(after).filter((field) => /Preview|Thumbnail/.test(field))).toEqual([]);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  }, TOOL_TIMEOUT_MS);
+
+  it("keeps embedded thumbnails byte for byte when location removal is disabled", async () => {
+    const { source } = await fixtureWithPreviews(400, 300);
+    const directory = await mkdtemp(path.join(tmpdir(), "location-preview-kept-"));
+    try {
+      const file = path.join(directory, "image.jpg");
+      await writeFile(file, source);
+      const before = await tool.readRaw(file, { readArgs: ["-G1", "-b", ...previewTags.map((tag) => `-${tag}`)] }) as unknown as Record<string, unknown>;
+      const { bytes, action } = await prepareJpegForImport(source, tool, { removeLocation: false });
+      expect(action).toBe("keep-compressed-data");
+      expect(compressedImageDataSha256(bytes)).toBe(compressedImageDataSha256(source));
+      await writeFile(file, bytes);
+      const after = await tool.readRaw(file, { readArgs: ["-G1", "-b", ...previewTags.map((tag) => `-${tag}`)] }) as unknown as Record<string, unknown>;
+      for (const tag of previewTags) {
+        expect(before[tag], tag).toBeDefined();
+        expect(after[tag], tag).toEqual(before[tag]);
+      }
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  }, TOOL_TIMEOUT_MS);
+
+  it.each([["keeping the image data", 400, 300], ["re-encoding a large one", 2400, 1600]])("refuses a remaining embedded preview when %s", async (_name, width, height) => {
+    const source = await fixture(width, height);
+    for (const field of ["MakerNotes:Preview:PreviewImage", "Composite:Preview:OtherImage"]) {
+      const stubborn = {
+        write: tool.write.bind(tool),
+        readRaw: async (file: string, options: { readArgs: string[] }) => ({
+          ...await tool.readRaw(file, options), [field]: "(Binary data)",
+        }),
+      } as unknown as ImportMetadataTool;
+      await expect(prepareJpegForImport(source, stubborn, { removeLocation: true })).rejects.toMatchObject({ code: "METADATA_REMAINS" });
+    }
+  }, TOOL_TIMEOUT_MS);
+
+  it.each([["keeping the image data", 400, 300], ["re-encoding a large one", 2400, 1600]])("leaves no place behind when %s, and keeps the creator's own city", async (_name, width, height) => {
+    const source = await fixture(width, height, [...EVERY_PLACE, "-XMP-iptcCore:CreatorCity=The creator's city"]);
+    const { bytes } = await prepareJpegForImport(source, tool, { removeLocation: true });
+    const directory = await mkdtemp(path.join(tmpdir(), "location-"));
+    try {
+      const file = path.join(directory, "result.jpg");
+      await writeFile(file, bytes);
+      const fields = await tool.readRaw(file, { readArgs: ["-G1", "-u"] }) as unknown as Record<string, unknown>;
+      expect(fields["XMP-iptcCore:CreatorCity"]).toBe("The creator's city");
+      expect(fields["XMP-iptcCore:CreatorCountry"]).toBe("Exampleland");
+      const text = JSON.stringify(Object.fromEntries(Object.entries(fields).filter(([key]) => !key.startsWith("File:") && !key.startsWith("SourceFile"))));
+      expect(text).not.toMatch(/GPS|A city|A place|A content place/);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  it("refuses an image when a tool leaves a place behind, rather than uploading it", async () => {
+    const source = await fixture(400, 300, ["-XMP-iptcExt:LocationShownCity=A city shown"]);
+    const write = tool.write.bind(tool) as (file: string, tags: object, options: { writeArgs: string[] }) => Promise<unknown>;
+    const stubborn = { write: (file: string, tags: object, options: { writeArgs: string[] }) => write(file, tags, { writeArgs: options.writeArgs.filter((argument) => !argument.includes("iptcExt") && argument !== "-Location:all=") }), readRaw: tool.readRaw.bind(tool) } as unknown as ImportMetadataTool;
+    await expect(prepareJpegForImport(source, stubborn, { removeLocation: true })).rejects.toMatchObject({ code: "METADATA_REMAINS" });
+  }, 60_000);
+});
+
 describe("JPEG import metadata", () => {
   it("edits only metadata at the 2048 px bound, keeping the compressed image data", async () => {
     const source = await fixture(2048, 1024);
