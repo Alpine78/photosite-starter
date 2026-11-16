@@ -200,6 +200,16 @@ function resolveFlat(vocabulary: Vocabulary, key: string): Resolution {
   return { ends: [...ends.values()] };
 }
 
+type TermDecisions = ReadonlyMap<string, string> | undefined;
+
+/** A choice only narrows what the vocabulary offers now, so a keyword changed since cannot be forced on a photograph. */
+function narrowByDecision(vocabulary: Vocabulary, claimed: readonly Row[], key: string, decisions: TermDecisions): readonly Row[] {
+  const decision = decisions?.get(key);
+  const row = decision === undefined ? undefined : vocabulary.known(decision);
+  const decided = row === undefined ? undefined : claimed.find((end) => end.documentId === vocabulary.end(row).documentId);
+  return decided === undefined ? claimed : [decided];
+}
+
 type PathComponents = Readonly<{ raw: string; keys: readonly string[]; malformed: boolean }>;
 
 function parsePath(raw: string): PathComponents {
@@ -212,11 +222,17 @@ function parsePath(raw: string): PathComponents {
  * record. A one-level path says nothing about the site's hierarchy, because a term without
  * parents in Lightroom may have one here, so it resolves like a flat term.
  */
-function resolvePath(vocabulary: Vocabulary, path: PathComponents): { ends: readonly Row[]; leafEnds: readonly Row[] } {
+function resolvePath(vocabulary: Vocabulary, path: PathComponents, decisions: TermDecisions): { ends: readonly Row[]; leafEnds: readonly Row[]; decided?: boolean } {
   if (path.keys.length === 1) {
-    const { ends } = resolveFlat(vocabulary, path.keys[0]);
+    const ends = narrowByDecision(vocabulary, resolveFlat(vocabulary, path.keys[0]).ends, path.keys[0], decisions);
     return { ends, leafEnds: ends };
   }
+  // An editor's decision about this exact path (AB#70). A whole path can hold a client's or a
+  // person's name, so it is kept in the private decisions and never becomes a public alias.
+  const decision = decisions?.get(path.keys.join("|"));
+  const decidedRow = decision === undefined ? undefined : vocabulary.known(decision);
+  const decidedEnd = decidedRow === undefined ? null : vocabulary.activeEnd(decidedRow);
+  if (decidedEnd !== null) return { ends: [decidedEnd], leafEnds: [decidedEnd], decided: true };
   const leaf = path.keys[path.keys.length - 1], upper = path.keys.slice(0, -1);
   const matches = new Map<string, Row>(), leafEnds = new Map<string, Row>();
   for (const row of vocabulary.claimants(leaf)) {
@@ -271,7 +287,11 @@ export function mapImportedKeywords(
   published: readonly unknown[],
   overrides: KeywordOverrides,
   /** What the medium holds now. A keyword the site has moved keeps its assignment while its old path goes to review. */
-  options: Readonly<{ currentKeywords?: readonly string[] }> = {},
+  options: Readonly<{
+    currentKeywords?: readonly string[];
+    /** An editor's choice for a path, or for a flat term several keywords answer to (AB#70): match key → document id. */
+    termDecisions?: ReadonlyMap<string, string>;
+  }> = {},
 ): KeywordImportProposal {
   const vocabulary = new Vocabulary(published);
   const held = new Set((options.currentKeywords ?? []).flatMap((id) => {
@@ -299,10 +319,11 @@ export function mapImportedKeywords(
     if (path.malformed) {
       review.add("malformed-path", pathKey, rawForms, [], null);
     } else {
-      const { ends, leafEnds } = resolvePath(vocabulary, path);
+      const { ends, leafEnds, decided } = resolvePath(vocabulary, path, options.termDecisions);
       if (ends.length === 1) {
         mapped.set(ends[0].documentId, ends[0]);
-        for (const key of path.keys) remember(key, ends[0], null);
+        // A decision names the leaf only, so the path's other terms still resolve for themselves.
+        for (const key of decided === true ? path.keys.slice(-1) : path.keys) remember(key, ends[0], null);
         continue;
       }
       if (ends.length > 1) review.add("ambiguous", pathKey, rawForms, ends, category);
@@ -327,7 +348,7 @@ export function mapImportedKeywords(
       consumed.push({ key, terms: sorted(new Set(terms)), coveredByKeyword: component.keyword?.keywordId ?? null, coveredByReviewPath: component.reviewPath });
       continue;
     }
-    const { ends } = resolveFlat(vocabulary, key);
+    const ends = narrowByDecision(vocabulary, resolveFlat(vocabulary, key).ends, key, options.termDecisions);
     const leaf = ends.length === 1 ? covering(ends[0]) : null;
     if (leaf !== null) {
       consumed.push({ key, terms: sorted(new Set(terms)), coveredByKeyword: leaf.keywordId, coveredByReviewPath: null });

@@ -46,6 +46,7 @@ export function LocaleToolMenu(props: ToolMenuProps) {
   const tools = props.tools.map((tool) => {
     if (tool.name === "structure" && tool.title === "Structure") return { ...tool, title: finnish ? "Rakenne" : "Structure" };
     if (tool.name === "releases" && tool.title === "Releases") return { ...tool, title: finnish ? "Julkaisut" : "Releases" };
+    if (tool.name === "keyword-review") return { ...tool, title: finnish ? "Avainsanojen tarkistus" : "Keyword review" };
     return tool;
   });
   return props.renderDefault({ ...props, tools });
