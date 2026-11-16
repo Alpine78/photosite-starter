@@ -236,7 +236,6 @@ describe("POST /api/enquiry — resolution outcomes", () => {
     "container-unavailable",
     "not-public",
     "not-enquirable",
-    "dynamic-unsupported",
   ] as const)("answers %s with one generic 404 that discloses nothing", async (rejection) => {
     enquiryMedia.resolveEnquiryTarget.mockRejectedValueOnce(
       new EnquiryResolutionError(rejection),
