@@ -1713,7 +1713,11 @@ its canonical home is one indexing accident away from competing with it.
 `azure-pipelines.yml` has three stages: Verify, DependencyAudit and DeployPreview.
 
 **Verify** runs on every push and pull request to `main`: lint, the browser-free test
-suite, the architecture-diagram check, the production build, and the Playwright journey suites.
+suite, the architecture-diagram check, the type-check of the Studio journey specs
+(`npm run typecheck:studio-journeys`), the production build, and the Playwright journey
+suites. A second job in the same stage, `Studio`, checks the standalone Studio on its own
+dependency tree: `typecheck`, `schema:validate` and `build` with synthetic settings
+(no customer content, never deployed from CI).
 
 After a failed Verify step, browser diagnostics are published only when the
 `playwright-report` directory exists (AB#333). Since AB#377 they are also published

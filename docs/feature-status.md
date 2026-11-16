@@ -2,6 +2,16 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Documentation drift correction, 2026-11-16 — AB#422 **Active**: seven statements found stale by the
+2026-11 review were corrected, documentation and comments only, no behaviour change. In
+`docs/security-privacy-review.md` the publish-route identity check now names project-member metadata
+instead of `/users/me`, the pipeline variable is `SANITY_BUILD_READ_TOKEN`, the endpoint list covers all
+fourteen route handlers under `src/app/api`, and AC6 lists the `localStorage` keys and the poll-vote
+cookie. The `playwright.config.ts` worker comment and the `azure-pipelines.yml` "Verify" reference match the
+self-hosted agent, `docs/deployment.md` lists the Studio checks, and ADR-0013 carries a dated amendment naming
+four cursor families on the shared signing key. The `AGENTS.md` "until Sanity is integrated" sentence is
+proposed in the pull request, not applied.
+
 Scriptless 404 upstream recheck, 2026-11-07 — AB#132 and AB#370 **Active**: Next.js 16.4.5 is
 now `latest`, and a third-party report on
 [#62228](https://github.com/vercel/next.js/issues/62228) says the empty `__next_error__` shell
