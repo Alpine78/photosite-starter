@@ -51,6 +51,9 @@ items, canonicalized overrides, the effective public and internal sets and the c
 writes nothing. Nothing calls it yet; the writer is AB#69 and the review workflow AB#70. The rules are in
 [ADR-0039's AB#57 amendment](adr/0039-keyword-taxonomy-and-ingest-boundary.md).
 
+Legacy re-upload tooling, 2026-11-05 — AB#391 **Active**: `plan:legacy-image-reupload` now matches sources to published media, and `write:legacy-image-reupload` replaces
+the assets, dry-run by default, with a sensitive list and optional deletion of the old assets. See [the guide](legacy-image-reupload.md). It has not written to any dataset; the location review and the run are the owner's.
+
 Import metadata tool, 2026-11-04 — AB#391 **Active**: `exiftool-vendored` is added as a
 devDependency, and `prepareJpegForImport` applies ADR-0039 decision 8 and verifies each result.
 The two rally writers use it. Client web images keep all their metadata by owner decision. The

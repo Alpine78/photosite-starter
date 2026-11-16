@@ -83,6 +83,25 @@ function hasIptcKeywords(segment: Buffer): boolean {
   return false;
 }
 
+const EMBEDDED_IMAGE_START = Buffer.from([0xff, 0xd8, 0xff]);
+
+/**
+ * A thumbnail or preview inside a metadata segment that has metadata of its own. Its location
+ * stays unread here, so it counts as `unreadable`, which puts the photograph in front of the owner.
+ */
+function embedsImageWithMetadata(segment: Buffer): boolean {
+  for (let start = segment.indexOf(EMBEDDED_IMAGE_START); start !== -1; start = segment.indexOf(EMBEDDED_IMAGE_START, start + EMBEDDED_IMAGE_START.length)) {
+    let cursor = start + 2;
+    // Every segment up to the scan, because a comment or table may come before the metadata.
+    while (cursor + 4 <= segment.length && segment[cursor] === 0xff && segment[cursor + 1] !== 0xda && segment[cursor + 1] !== 0xd9) {
+      const body = cursor + 4;
+      if (segment[cursor + 1] === 0xe1 && [EXIF_HEADER, XMP_HEADER].some((header) => segment.subarray(body, body + header.length).equals(header))) return true;
+      cursor += 2 + segment.readUInt16BE(cursor + 2);
+    }
+  }
+  return false;
+}
+
 /** Throws `JpegAuditError` when the file is outside the shared strict JPEG envelope. */
 export function inspectJpegImportFacts(bytes: Uint8Array): JpegImportFacts {
   const data = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
@@ -90,6 +109,7 @@ export function inspectJpegImportFacts(bytes: Uint8Array): JpegImportFacts {
   const markGps = (next: GpsPresence) => { if (gps !== "present") gps = next; };
   walkSingleJpegSegments(bytes, (marker, start, length) => {
     const segment = data.subarray(start, start + length);
+    if (marker >= 0xe0 && marker <= 0xef && embedsImageWithMetadata(segment)) markGps("unreadable");
     if (marker >= 192 && marker <= 194 && length >= 5) {
       height = segment.readUInt16BE(1); width = segment.readUInt16BE(3);
     } else if (marker === 0xe1 && segment.subarray(0, EXIF_HEADER.length).equals(EXIF_HEADER)) {
@@ -107,6 +127,8 @@ export function inspectJpegImportFacts(bytes: Uint8Array): JpegImportFacts {
       if (XMP_KEYWORDS.test(text)) keywordMetadata = true;
       if (XMP_POSTAL_ADDRESS.test(text)) creatorPostalAddress = true;
       if (XMP_GPS.test(text)) markGps("present");
+      // A base64 image in XMP may carry metadata as well, and is not decoded here.
+      if (text.includes("xmpGImg:image")) markGps("unreadable");
     } else if (marker === 0xed && segment.subarray(0, PHOTOSHOP_HEADER.length).equals(PHOTOSHOP_HEADER)) {
       if (hasIptcKeywords(segment)) keywordMetadata = true;
     }
