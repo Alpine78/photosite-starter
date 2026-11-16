@@ -239,9 +239,9 @@ describe("canonical placement seam in the real Sanity adapter", () => {
     expect(identityAliases).not.toHaveBeenCalled(); expect(query).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps dynamic Sanity unsupported without alias/config/client access", async () => {
-    const query = vi.fn(); const identityAliases = vi.fn();
-    await expect(resolveSanityEnquiryTarget({ kind: "dynamic", locale: "en-GB", itemId: "coastal-landscape" }, "en", { client: { query }, config: sanityConfig, identityAliases })).rejects.toMatchObject({ rejection: "dynamic-unsupported" });
-    expect(query).not.toHaveBeenCalled(); expect(identityAliases).not.toHaveBeenCalled();
+  it("resolves a dynamic result by media identity, outside the alias contract", async () => {
+    const query = vi.fn(async () => [{ mediaType: "image", dynamicallyDiscoverable: true, media: { mediaId: "coastal-landscape", publiclyRenderable: true, enquiryEligible: true } }]); const identityAliases = vi.fn();
+    await expect(resolveSanityEnquiryTarget({ kind: "dynamic", locale: "en-GB", itemId: "coastal-landscape" }, "en", { client: { query }, config: sanityConfig, identityAliases })).resolves.toMatchObject({ kind: "dynamic", mediaId: "coastal-landscape" });
+    expect(identityAliases).not.toHaveBeenCalled();
   });
 });

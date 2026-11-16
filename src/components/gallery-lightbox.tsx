@@ -250,7 +250,8 @@ export function GalleryLightbox({
       enquireElement.hidden = !allowed;
       enquireElement.style.display = allowed ? "" : "none";
       if (allowed && itemId !== undefined) {
-        enquireElement.href = `${enquiryBasePath}?enquire=${encodeURIComponent(itemId)}`;
+        // A keyword gallery's address already holds its selection.
+        enquireElement.href = `${enquiryBasePath}${enquiryBasePath.includes("?") ? "&" : "?"}enquire=${encodeURIComponent(itemId)}`;
       } else {
         enquireElement.removeAttribute("href");
       }

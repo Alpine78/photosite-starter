@@ -1,3 +1,4 @@
+import { mockMediaAllowsDynamicEnquiries } from "@/lib/mock-enquiry-policy";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -204,6 +205,17 @@ describe("resolveEnquiryTarget — curated", () => {
 });
 
 describe("resolveEnquiryTarget — dynamic", () => {
+  it("resolves every photograph the mock keyword gallery offers an enquiry for", async () => {
+    for (const mediaId of ["coastal-landscape", "forest-stream", "open-marsh"]) {
+      expect(mockMediaAllowsDynamicEnquiries(mediaId)).toBe(true);
+      await expect(resolveEnquiryTarget(dynamic(mediaId))).resolves.toMatchObject({ kind: "dynamic", mediaId });
+    }
+    for (const mediaId of ["misty-birch", "lakeside-reeds", "lichen-stones", "archive-01"]) {
+      expect(mockMediaAllowsDynamicEnquiries(mediaId)).toBe(false);
+      await expect(resolveEnquiryTarget(dynamic(mediaId))).rejects.toBeInstanceOf(EnquiryResolutionError);
+    }
+  });
+
   it("resolves a discoverable, enquirable mediaId with no placement context", async () => {
     const target = await resolveEnquiryTarget(dynamic("forest-stream"));
 

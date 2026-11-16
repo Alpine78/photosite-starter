@@ -26,7 +26,8 @@ export function EnquiryForm({
   privacyNotice,
 }: {
   locale: string;
-  contentId: string;
+  /** The curated gallery; absent for a dynamic result. */
+  contentId?: string;
   itemId: string;
   galleryTitle: string;
   labels: BuiltInLabels;
@@ -35,7 +36,7 @@ export function EnquiryForm({
   return (
     <SubmissionForm
       endpoint="/api/enquiry"
-      context={{ kind: "enquiry", locale, contentId, itemId }}
+      context={{ kind: "enquiry", locale, ...(contentId === undefined ? {} : { contentId }), itemId }}
       labels={labels.contact}
       unavailableMessage={labels.enquiry.unavailable}
       intro={
