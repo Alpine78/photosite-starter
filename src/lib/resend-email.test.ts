@@ -3,7 +3,6 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { sendResendEmail } from "@/lib/resend-email";
 import { createResendDeliveryAdapter } from "@/lib/contact-delivery-resend";
-import { createResendGalleryNotificationTransport } from "@/lib/gallery-notification-resend";
 
 const cap = 16_384;
 const settings = { apiKey: "synthetic-key", from: "synthetic@example.test" };
@@ -189,12 +188,10 @@ describe("shared Resend response resource bounds", () => {
     const pending = sendResendEmail({ ...settings, fetchImplementation: fetcher }, request, 20);
     await vi.advanceTimersByTimeAsync(20); await expect(pending).resolves.toEqual(timeout); expect(cancellation).toHaveBeenCalledOnce();
   });
-  it.each(["contact", "gallery"])("applies bounded body fallback and success cleanup through the real %s caller", async caller => {
+  it("applies bounded body fallback and success cleanup through the real contact caller", async () => {
     for (const status of [200, 429]) {
       const f = streamed([new Uint8Array(cap + 1)], status), fetcher = vi.fn(async () => f.response);
-      const outcome = caller === "contact"
-        ? await createResendDeliveryAdapter({ ...settings, to: request.to, fetchImplementation: fetcher }).deliver({ subject: request.subject, text: request.text, replyTo: "synthetic@example.test", idempotencyKey: "synthetic-key" })
-        : await createResendGalleryNotificationTransport({ ...settings, fetchImplementation: fetcher }).deliver({ to: request.to, subject: request.subject, text: request.text, idempotencyKey: "proof-confirmation:synthetic-gallery:1" });
+      const outcome = await createResendDeliveryAdapter({ ...settings, to: request.to, fetchImplementation: fetcher }).deliver({ subject: request.subject, text: request.text, replyTo: "synthetic@example.test", idempotencyKey: "synthetic-key" });
       expect(outcome).toMatchObject(status === 200 ? { status: "delivered" } : { errorClass: "provider-unavailable" });
       expect(fetcher).toHaveBeenCalledOnce(); expect(f.cancellation).toHaveBeenCalledOnce(); if (status === 200) expect(f.pull).not.toHaveBeenCalled();
     }

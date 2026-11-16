@@ -2,6 +2,8 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Protected-gallery removal slice C, 2026-11-16 — AB#313 **Active**: the protected domain, fixture and notification modules are removed, with their log events and import bans. Only the shared deployment leaf remains for slice D, which covers configuration, CSP, labels and runbooks. See [the removal audit](audits/protected-gallery-removal-2026-10-17.md).
+
 Dependency audit exceptions, 2026-11-16 — AB#160 **Active**: the `minimatch` and Studio `sprintf-js` exceptions are removed because `npm audit` no longer reports either. The `zod` exception remains: Vercel CLI 65.16.0 still pins `zod` 3.22.4, and its acceptance ends on 2026-11-19 unless the owner extends it. See [dependency security](dependency-security.md).
 
 Protected-gallery removal slice A2, 2026-11-15 — AB#313 **Active**: the unwired retention workflow script and its test are removed. The secret generator moves to slice B2, with the administrator surface that names it. See [the removal audit](audits/protected-gallery-removal-2026-10-17.md).
