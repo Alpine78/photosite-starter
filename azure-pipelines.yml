@@ -298,7 +298,7 @@ stages:
     jobs:
       - job: DeployPreview
         displayName: "Build, deploy, and verify the Preview deployment"
-        # Deliberately still Microsoft-hosted, unlike Verify below (docs/deployment.md §
+        # Deliberately still Microsoft-hosted, unlike the Verify stage above (docs/deployment.md §
         # "The Verify stage runs on a self-hosted agent"): Verify also runs on every pull
         # request, so a persistent self-hosted agent shared with this stage would let
         # PR-triggered code (e.g. a compromised dependency pulled in by `npm ci`) leave
