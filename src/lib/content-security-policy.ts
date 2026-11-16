@@ -36,7 +36,6 @@ export type SanityImageScope = {
 
 export type ContentSecurityPolicyOptions = {
   readonly sanityImageScope: SanityImageScope | null;
-  readonly privateObjectStoreOrigin?: string;
   /** Present only on responses whose HTML is rendered with this nonce. */
   readonly scriptNonce?: string;
   readonly development: boolean;
@@ -81,7 +80,6 @@ export function readSanityImageScope(
  */
 export function contentSecurityPolicy({
   sanityImageScope,
-  privateObjectStoreOrigin,
   scriptNonce,
   development,
 }: ContentSecurityPolicyOptions): string {
@@ -105,9 +103,7 @@ export function contentSecurityPolicy({
     "frame-ancestors 'none'",
     `script-src ${scriptSources}${development ? " 'unsafe-eval'" : ""}`,
     "style-src 'self' 'unsafe-inline'",
-    `img-src 'self' data:${sanityImageOrigins}${
-      privateObjectStoreOrigin === undefined ? "" : ` ${privateObjectStoreOrigin}`
-    }`,
+    `img-src 'self' data:${sanityImageOrigins}`,
     `frame-src ${YOUTUBE_NOCOOKIE_ORIGIN}`,
     "connect-src 'self'",
     "font-src 'self'",

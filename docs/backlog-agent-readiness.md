@@ -59,7 +59,7 @@ actions, approvals or accounts; an agent can prepare evidence but cannot close t
 | --- | --- | --- |
 | AB#415 — Root build on a root-only install | Active | **Main's release candidate has failed since PR #630.** Fix on `fix/415-root-build-studio-ui`; merge first, because AB#255's branch below adds a spec the fix also covers. |
 | AB#160 — Vulnerable dependencies | Active | Fixes on `chore/160-root-audit-november` and `chore/160-studio-audit-november`. Two tooling advisories (`zod` 3.22.4, `minimatch` 3.1.5) need an owner decision before the scheduled audit can go green. The `sprintf-js` acceptance expires 2026-11-19; the Studio audit no longer reports it. |
-| AB#377 — e2e flake root causes | Active | Contents-bar flake fixed on `fix/377-content-reading-layout-flake`. Open: the WebKit `article-reading-position` locale case (run 1398; needs a new trace) and the aborted `goBack` in the inactive private-gallery spec (run 1445; AB#313 removes it). |
+| AB#377 — e2e flake root causes | Active | Contents-bar flake fixed on `fix/377-content-reading-layout-flake`. Open: the WebKit `article-reading-position` locale case (run 1398; needs a new trace) and the aborted `goBack` in the private-gallery spec (run 1445; that spec was removed under AB#313). |
 | AB#255 — Studio language select | Active | Fix on `fix/255-studio-locale-select`. |
 | AB#391 — Import metadata and no re-encoding | Active | Metadata tool on `feature/391-import-metadata-tool`, used by the rally writers; client web images keep all metadata by owner decision. The re-upload's plan and tool are on `feature/391-legacy-reupload`. Left: the owner's location review, a decision on deleting old assets, and the run ([guide](legacy-image-reupload.md)). |
 | AB#56 — Keyword vocabulary schema | Active | Schema, governance rules and guarded publication are on `feature/56-keyword-vocabulary-schema`. Anonymous and authenticated reads of a private-path document are verified in `preview`; the owner's look at it in Studio (ADR-0039 open question 6) is open. AB#57 follows it. |
@@ -93,7 +93,7 @@ They are the owner's to close or keep; nothing was changed:
 
 **Client delivery (ADR-0034, 2026-10-16):** the reference deployment uses existing
 Sanity and unlisted galleries for client delivery. Protected S3/PostgreSQL work is not
-resumed for this owner (AGENTS.md); AB#313 audits removing that inactive code.
+resumed for this owner (AGENTS.md); AB#313 removed that code in slices A1–D (2026-11-15/16).
 
 | Work item | State | Readiness |
 | --- | --- | --- |

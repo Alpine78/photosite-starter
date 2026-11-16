@@ -145,29 +145,36 @@ describe("loadDeploymentConfig", () => {
     });
   });
 
-  describe("private client galleries (ADR-0014 §9)", () => {
-    it("defaults to off with the reserved default route prefix", () => {
+  describe("reserved namespaces of the removed protected gallery (ADR-0014 §9, AB#313)", () => {
+    it("reserves the default route prefixes", () => {
       expect(loadDeploymentConfig(validEnvironment).privateGallery).toEqual({
-        store: "off",
         routePrefix: "private",
         adminRoutePrefix: "admin",
       });
     });
 
-    it("reads an explicit enabled switch and a custom prefix", () => {
+    it("reads custom prefixes with the store explicitly off", () => {
       expect(
         loadDeploymentConfig({
           ...validEnvironment,
-          PRIVATE_GALLERY_STORE: "enabled",
+          PRIVATE_GALLERY_STORE: "off",
           PRIVATE_GALLERY_ROUTE_PREFIX: "clients",
           PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX: "studio",
         }).privateGallery,
       ).toEqual({
-        store: "enabled",
         routePrefix: "clients",
         adminRoutePrefix: "studio",
       });
     });
+
+    it.each(["enabled", "memory", "on"])(
+      "fails the build on a stale PRIVATE_GALLERY_STORE=%s",
+      (store) => {
+        expect(() =>
+          loadDeploymentConfig({ ...validEnvironment, PRIVATE_GALLERY_STORE: store }),
+        ).toThrow(/protected client gallery was removed \(AB#313\)/);
+      },
+    );
 
     it("fails the build when a locale prefix collides with the private route prefix", () => {
       expect(() =>

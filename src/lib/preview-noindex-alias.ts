@@ -3,9 +3,8 @@
  * non-indexable (AB#136), and optional Production alias configuration (AB#18),
  * as a leaf module with no imports.
  *
- * It lives apart from the rest of the deployment configuration for the same
- * mechanical reason `private-object-store-origin.ts` next to it does:
- * `next.config.ts` needs this value — it is the `has: [{ type: "host" }]`
+ * It lives apart from the rest of the deployment configuration for a
+ * mechanical reason: `next.config.ts` needs this value — it is the `has: [{ type: "host" }]`
  * condition on a `headers()` rule that adds `X-Robots-Tag: noindex` — and
  * Next.js's config transpiler resolves a config file's `@/` imports only one
  * level deep, so a module that imports anything else is unreachable from there.

@@ -35,11 +35,9 @@ The numbers below follow AB#28's current fifteen acceptance bullets.
 
 ## Additional scope boundaries
 
-Customer accounts do not reuse private-gallery sessions as identity. The existing
-private-gallery draft's optional external customer/job references are not domain
-records or a relational CRM. [ADR-0014](adr/0014-private-gallery-security-delivery-retention-boundary.md)
-keeps private storage behind its own authorization boundary; it does not approve
-using that store for operations. Hosting, storage, credentials, operational
+The protected private gallery ([ADR-0014](adr/0014-private-gallery-security-delivery-retention-boundary.md)),
+with its sessions and draft customer/job references, was removed under AB#313; nothing
+from it is available as customer identity, domain records or operational storage. Hosting, storage, credentials, operational
 recovery and owner maintenance remain O12/O15 decisions, including whether an
 external owner-operated tool satisfies the business need better.
 

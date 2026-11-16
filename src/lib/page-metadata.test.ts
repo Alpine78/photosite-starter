@@ -68,7 +68,6 @@ const deployment: DeploymentConfig = {
     "Rocky shoreline beside calm water",
   ),
   privateGallery: {
-    store: "off",
     routePrefix: "private",
     adminRoutePrefix: "admin",
   },

@@ -484,6 +484,8 @@ passed: lint, 4,479 browser-free tests and the complete production-build browser
 matrix (738 passes, 36 documented skips, four workers and zero retries). See the
 private-gallery data flow's AB#199 checkpoint for ordering proof and the separate
 shared-fixture counter concern; these checks establish no live-storage readiness.
+(2026-11-16: the protected gallery and that data-flow section were removed under AB#313;
+the checkpoint text remains in the Git history of `private-gallery-data-flow.md`.)
 
 - **Sitemap**: `sitemap.ts`'s `buildSitemapPaths` reads through the exact same seams
   (`getContentTrees`, `getServices`, locale route config) route pages themselves read

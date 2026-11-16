@@ -61,9 +61,8 @@ export const REQUEST_HAS_SECTION_VALUE = "1";
  *
  * The Proxy uses this to stamp ADR-0014 §6's response-hygiene headers
  * (`Cache-Control: no-store`, `X-Robots-Tag: noindex, nofollow`,
- * `Referrer-Policy: no-referrer`) on every response for such a path — feature
- * on or off, since the prefix is reserved unconditionally and a request here is
- * a 404 today that still must not be indexed or cached.
+ * `Referrer-Policy: no-referrer`) on the empty 404 every such path answers
+ * since the protected gallery's removal (AB#313).
  *
  * `prefix` is a validated single lowercase segment
  * (`readPrivateGalleryDeployment`), so no escaping is needed; `pathname` is
@@ -84,9 +83,9 @@ export function isPrivateRequestPath(pathname: string, prefix: string): boolean 
  * the *prefix*: `readPrivateGalleryDeployment` refuses a configuration where
  * they are equal, so a path can satisfy at most one of these.
  *
- * Like the customer namespace, this holds whether the feature is on or off: the
- * prefix is reserved unconditionally, and a request here is a 404 today that
- * still must not be indexed, cached, or leak a referrer.
+ * Like the customer namespace, the prefix stays reserved after the removal
+ * (AB#313), and a request here is a 404 that must not be indexed, cached, or
+ * leak a referrer.
  */
 export function isPrivateAdminRequestPath(
   pathname: string,
@@ -105,17 +104,11 @@ function isPathInReservedNamespace(pathname: string, prefix: string): boolean {
 }
 
 /**
- * The application-internal root segment a private-gallery request is rewritten
- * onto.
- *
- * The public prefix is deployment-configured (`PRIVATE_GALLERY_ROUTE_PREFIX`),
- * but a Next.js file-system route cannot be — so the Proxy, which already owns
- * the private prefix (ADR-0014 §9), reconciles the two with one rewrite onto
- * this literal segment. It is a reserved root segment (`public-routes.ts`), so
- * no clone can configure it as a prefix, locale prefix, or story namespace, and
- * the Proxy answers a *direct* request to it with a 404 — otherwise it would be
- * a second, unprefixed door into the private namespace, reachable without §6's
- * response hygiene.
+ * The literal root segment the removed protected gallery's customer routes were
+ * rewritten onto. The implementation was removed under AB#313; the segment
+ * stays reserved (`public-routes.ts`), so no clone can configure it as a
+ * prefix, locale prefix or story namespace, and the Proxy answers every path
+ * beneath it with the same empty 404 as the configured namespaces.
  */
 export const PRIVATE_GALLERY_INTERNAL_SEGMENT = "private-gallery";
 
@@ -126,24 +119,10 @@ export function isPrivateGalleryInternalPath(pathname: string): boolean {
   );
 }
 
-/** `/<prefix>/rest` → `/private-gallery/rest`; `/<prefix>` → `/private-gallery`. */
-export function privateGalleryInternalPath(
-  pathname: string,
-  prefix: string,
-): string {
-  return `/${PRIVATE_GALLERY_INTERNAL_SEGMENT}${pathname.slice(prefix.length + 1)}`;
-}
-
 /**
- * The application-internal root segment an administrator request is rewritten
- * onto (ADR-0015 §1), for the reason {@link PRIVATE_GALLERY_INTERNAL_SEGMENT}
- * gives: the public prefix is deployment-configured and a Next.js file-system
- * route cannot be.
- *
- * A **different** segment from the customer namespace's, not a subtree of it.
- * ADR-0015 §1 keeps the two from overlapping at all, and that has to hold for
- * the internal shape as much as the public one — otherwise the isolation would
- * be true of the URL a visitor sees and false of the route tree behind it.
+ * The retired administrator counterpart of
+ * {@link PRIVATE_GALLERY_INTERNAL_SEGMENT} (ADR-0015 §1), reserved and answered
+ * on the same terms.
  */
 export const PRIVATE_GALLERY_ADMIN_INTERNAL_SEGMENT = "private-gallery-admin";
 
@@ -152,16 +131,6 @@ export function isPrivateGalleryAdminInternalPath(pathname: string): boolean {
     pathname === `/${PRIVATE_GALLERY_ADMIN_INTERNAL_SEGMENT}` ||
     pathname.startsWith(`/${PRIVATE_GALLERY_ADMIN_INTERNAL_SEGMENT}/`)
   );
-}
-
-/** `/<adminPrefix>/rest` → `/private-gallery-admin/rest`. */
-export function privateGalleryAdminInternalPath(
-  pathname: string,
-  adminPrefix: string,
-): string {
-  return `/${PRIVATE_GALLERY_ADMIN_INTERNAL_SEGMENT}${pathname.slice(
-    adminPrefix.length + 1,
-  )}`;
 }
 
 const ROUTE_SEGMENT_PATTERN = /^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$/;

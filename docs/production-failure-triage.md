@@ -173,7 +173,7 @@ the delivery gap and explaining launch sufficiency; this draft makes no such dec
 
 [AB#118's rollback path](deployment.md#promotion-and-rollback) restores code and the
 environment captured by that deployment. It does not restore Sanity content,
-email-provider/mailbox state, private-gallery store/object state, or other external
+email-provider/mailbox state, or other external
 systems. It cannot recover an undelivered message: the application stores no form
 content. Rotated/expired credentials can make an old deployment unusable. CMS/cache
 need their own [reconciliation](cache-revalidation.md#recovery-and-reconciliation);

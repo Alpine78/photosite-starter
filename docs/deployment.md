@@ -626,8 +626,8 @@ human-Editor/Studio, fault/privacy and supported-upload gates remain open.
 
 The first production site's 21 retained legacy galleries are available through
 direct `/client-gallery/<handle>` links without authentication. They use the
-separate `LEGACY_GALLERY_ADAPTER=sanity` path, not the protected private-gallery
-store or its `/admin` page. The adapter remains off by default for clones.
+separate `LEGACY_GALLERY_ADAPTER=sanity` path; the protected private-gallery
+store and its `/admin` page were removed under AB#313. The adapter remains off by default for clones.
 These galleries are intentionally excluded from ordinary listings, search and
 the sitemap; use the customer's direct link or the owner-local approved mapping.
 Keep real customer titles, handles and old paths outside the public repository.
@@ -1044,437 +1044,38 @@ remove it from a public dataset. Neither pause nor expiry revokes asset URLs,
 provider caches or downloaded copies. No legacy gallery, handle, image, ZIP,
 customer field or protected store is edited by this tool.
 
-### Private client galleries (ADR-0014, deferred alternative)
+### Reserved namespaces of the removed protected gallery (AB#313)
 
-> **Routes removed (AB#313, 2026-11-15).** The protected customer and administrator pages
-> and endpoints, the link bootstrap script and `npm run admin:secret` no longer exist. The
-> two route prefixes stay reserved and every path under them answers a 404 with the
-> namespace's `no-store`, `noindex` and `no-referrer` headers. The rest of this section
-> describes the removed model and is kept until AB#313's configuration slice rewrites it;
-> none of its steps can be followed on this code.
+The S3/Postgres protected client gallery (ADR-0014, ADR-0015) was removed under AB#313
+on 2026-11-15/16, after [ADR-0034](adr/0034-ongoing-unlisted-client-delivery.md) selected
+existing Sanity and unlisted galleries for ongoing customer delivery. There is no protected
+route, store adapter, object-store CSP grant, administrator credential, upload command,
+retention worker or provisioning step left to configure. The removal and its evidence are
+recorded in [the removal audit](audits/protected-gallery-removal-2026-10-17.md).
 
-**Owner decision, 2026-10-16:** [ADR-0034](adr/0034-ongoing-unlisted-client-delivery.md)
-selects existing Sanity/unlisted delivery for ongoing customer work, including
-future galleries. Do not provision the S3/Postgres services below for this owner
-or enable the protected runtime. These instructions remain an inactive
-alternative, not prerequisites for the current deployment. Existing legacy
-configuration remains unchanged; new authoring and reads use the separate
-Sanity workflow above.
+What remains is a reservation:
 
-Post-MVP and **off on every environment today**. The feature is a separate service
-boundary — a private S3-compatible object store and a private PostgreSQL-family database
-in accounts the site owner controls, never Sanity and never a public bucket (ADR-0014
-§8, §9). AB#29 ships it in slices; the isolation boundary, the reserved route namespace
-and its response hygiene, the capability envelope, the session and cookie contract, the
-rate-limited exchange, the link/exchange routes, and a bounded per-asset mint
-route exist so far. The mint route reauthorizes a session before it reads an asset
-request, enforces a per-session rolling 60-per-minute mint limit, and reaches
-the existing budget-and-signing facade; it is verified against
-the development fixture only and cannot deliver bytes in a real deployment yet.
-**No store adapter does** — `PRIVATE_GALLERY_STORE=enabled` throws on the first
-request that needs one, by design, so a deployment that turns the feature on
-before AB#29's provisioning slice fails
-visibly instead of half-serving.
-
-Three build-safe settings, read during `loadDeploymentConfig` like the `SITE_*` values:
-
-| Setting | Preview | Production |
+| Setting | Development and Preview | Production |
 | --- | --- | --- |
-| `PRIVATE_GALLERY_STORE` | `off` (or unset) | `off` (or unset) until AB#29 provisioning |
 | `PRIVATE_GALLERY_ROUTE_PREFIX` | unset (defaults to `private`) | same |
 | `PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX` | unset (defaults to `admin`) | same |
-
-`PRIVATE_GALLERY_STORE` accepts a third value, `memory`, which
-`readPrivateGalleryDeployment` accepts **only when `SITE_DEPLOYMENT_STAGE` is
-`development`** —
-the same production-refusal safeguard `SITE_CONTENT_SOURCE=mock` and
-`CONTACT_DELIVERY_ADAPTER=sink` already carry, and for the same reason: its one fixture
-gallery has a **published, non-secret** capability. It exists so the exchange can actually
-be run — locally with `npm run dev`, and by the Playwright harness, which sets it in
-`e2e/support/harness-environment.ts`. It reads none of the Sensitive settings below: the
-fixture is sealed under an ephemeral key minted per process and never written anywhere, so
-a restart re-seals the same link under a fresh key and nothing from one run authorizes
-anything in another. The link is
-
-```
-/<PRIVATE_GALLERY_ROUTE_PREFIX>/EREREREREREREREREREREQ#LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0
-```
-
-— the two constants `src/lib/private-gallery-memory-store.ts` exports. Preview is refused
-as well as production, and deliberately: Preview is a shared, access-protected environment
-standing in for Production, so a fixture gallery there would be a private-namespace
-surface nobody reviewed. `npm run dev` and the Playwright harness both declare
-`development` already, so nothing that legitimately needs the fixture loses it.
-
-`PRIVATE_GALLERY_ROUTE_PREFIX` is validated and reserved as a root segment **whether the
-feature is on or off**, so a deployment can never assign `/private` to a locale prefix or
-a story namespace and then be unable to enable the feature without a public URL
-migration. A collision fails the build.
-
-`PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX` (ADR-0015 §1) is the administrator namespace's own
-root segment, reserved on exactly the same terms and for the same reason. Two things
-about it are worth knowing before a clone changes it:
-
-- **It must differ from `PRIVATE_GALLERY_ROUTE_PREFIX`,** and the build refuses a
-  configuration where the two are equal. ADR-0015 §1 keeps the namespaces from
-  overlapping at all: the customer session cookie is `Path`-scoped beneath the customer
-  prefix, so a shared root would place an administrator route inside the scope of a
-  customer credential.
-- **The prefix is not a secret and is not a security control.** Changing it to something
-  unguessable is fine and costs nothing, but the boundary is the credential, the
-  persisted login rate limit, and the `__Host-` session ADR-0015 §2–§4 decide — none of
-  which is built yet (AB#145). Note in particular that **production `robots.txt`
-  publishes whatever value you choose**, as a `Disallow` line: renaming the prefix is
-  not concealment, and nothing here is designed on the assumption that it is.
-
-Administration does not exist yet, so every path under this prefix is a 404 today. It
-already answers with `Cache-Control: no-store`, `X-Robots-Tag: noindex, nofollow`, and
-`Referrer-Policy: no-referrer`, and production `robots.txt` disallows it: a namespace has
-to behave privately *before* it has content, or the deployment that adds the first route
-is also the first one crawled.
-
-#### The administrator credential
-
-`PRIVATE_GALLERY_ADMIN_SECRET_HASH` (ADR-0015 §4) is the whole administrator identity
-mechanism: a `scrypt` hash of a **generated** secret, carrying its own salt and cost
-parameters:
-
-```
-scrypt$1$32768$8$1$<salt>$<hash>
-```
-
-The generator command (`npm run admin:secret`) was removed with the administrator routes.
-It printed two values and wrote neither to disk. The **secret** goes into the operator's
-password manager — it is printed once and is not recoverable. The **hash** becomes this
-Sensitive environment variable on the deployment.
-
-- **A memorable passphrase is not an acceptable value.** ADR-0015 §4 makes that a
-  requirement of the decision rather than advice, because the boundary has to be
-  *stronger* than a 256-bit customer capability, and there is deliberately no
-  password-reset flow to fall back on. The command generates the secret for you; if you
-  supply your own with `--secret`, it enforces a length floor.
-- **Rotation and recovery are the same operation**: change the variable, redeploy. That
-  ends every live administrator session immediately (ADR-0015 §2), because each session
-  row stores a digest of the credential it was minted against and every request compares
-  it. There is no table to clear and nothing to remember.
-- It is read **lazily at request time**, never at build, so a deployment that has not
-  provisioned administration still builds — the same posture `GALLERY_CURSOR_SIGNING_KEY`
-  has. Administration simply refuses every login until the value is set.
-- Never `NEXT_PUBLIC_`, which is refused unconditionally at two layers.
-
-The parameters are ADR-0015 §4's `N = 2^15, r = 8, p = 1`, roughly 74 ms of CPU per
-verification. A deployment may raise the cost and never lower it; the parser enforces that
-floor. There is a ceiling too, so a mistyped `N` fails the command rather than exhausting
-memory inside a login.
-
-#### Signing in
-
-With `PRIVATE_GALLERY_ADMIN_SECRET_HASH` set, the operator signs in at
-`/<PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX>` — `/admin` by default. The same address serves
-both states: with a session that currently authorizes it renders the signed-in surface,
-and without one it renders the sign-in form. A stranger and an operator whose session ran
-out see exactly the same page.
-
-Signing in needs JavaScript. ADR-0015 §3 fixes `application/json` for the login and every
-mutation, so the form posts JSON rather than submitting a plain form — the opposite of the
-trade the customer gallery makes, and deliberately: a visitor did not choose their browser
-for this site, while the operator is one person using their own tools.
-
-**There is nothing to administer yet.** The surface says so rather than implying more.
-Creating, publishing, notifying, and revoking galleries are AB#145's remaining scope and
-need the private stores this runbook's provisioning section describes.
-
-#### Consider platform access control in front of the administrator namespace
-
-The administrator login will carry a **deployment-wide** persisted rate limit (ADR-0015
-§3): thirty attempts per fifteen minutes, for the whole site rather than per client (the
-development-only `memory` fixture, whose credential is published, uses a larger cap so the
-production-build journey suite cannot exhaust it — AB#377). That
-is the right shape for what it protects — one operator, one shared CPU budget, and a
-counter whose key nothing a caller sends can influence, so it cannot be used to grow a
-table — but it has an accepted cost the ADR does not discuss:
-
-> **Sustained attempts from anywhere can exhaust the window and leave the operator unable
-> to log in until it rolls over.** The failure mode is a wait of at most fifteen minutes,
-> not an escalating lockout, and it does not affect customers: a private gallery link and
-> an already-issued administrator session both keep working.
-
-The reason it is accepted rather than solved in the application is that the alternatives
-are worse. A per-client persisted counter reintroduces the unbounded key space ADR-0014 §3
-deliberately avoided for the capability exchange, and rotating addresses defeat it anyway.
-
-If that residual matters for a given deployment, the fix belongs at the platform rather
-than in this repository: restrict the administrator namespace at the edge — an IP allow
-list, or the host's own access control — so the endpoint is not reachable from the open
-internet in the first place. Nothing in the application depends on that being configured,
-and nothing about it is required for correctness; it is a defence against a nuisance.
-
-**One exception to the request-time rule.** `PRIVATE_GALLERY_S3_ENDPOINT` is additionally
-read at **build** time, and only when `PRIVATE_GALLERY_STORE=enabled`. The private routes
-grant that origin — and only that origin — in their Content-Security-Policy `img-src`
-(ADR-0011 action item 4, ADR-0014 §6), because a private preview is an `<img>` pointed at
-a signed object-store URL; a CSP is a static response header and cannot be assembled per
-request. The endpoint is an origin rather than a credential, and this follows the
-precedent already in `next.config.ts`, where `SANITY_PROJECT_ID` and `SANITY_DATASET` are
-read at build for the optimizer's allow-list. Practical consequence: **an `enabled` build
-must supply the endpoint**, and fails closed if it does not — the alternative is a gallery
-whose every photograph the browser blocks with no build error to explain it. No
-`connect-src` grant is added, because the browser never fetches the store from script,
-which is also why the bucket needs no CORS policy.
-
-The credential-bearing settings — `PRIVATE_GALLERY_DATABASE_URL`, the
-`PRIVATE_GALLERY_S3_*` endpoint/region/bucket/key-prefix and verifier credentials, and
-the `PRIVATE_GALLERY_CAPABILITY_KEYS` keyring plus
-`PRIVATE_GALLERY_CAPABILITY_ACTIVE_KEY_ID` — are **request-time Sensitive**, exactly like
-`GALLERY_CURSOR_SIGNING_KEY`: read lazily when a private route first needs one, never by
-`next build`, and stored as Vercel Sensitive variables per environment. None is ever
-prefixed `NEXT_PUBLIC_`; that name is refused unconditionally. ADR-0014 §8a defines
-**three** least-privilege object-store credentials — the deployed runtime/verifier pair
-(GET signing + metadata HEAD only), the retention worker's prefix-scoped
-enumerate/delete pair, and the owner-run upload CLI's write/multipart pair that lives
-only on the photographer's machine (the same posture as `SANITY_SEED_TOKEN`). Only the
-verifier pair belongs in a deployed environment. `.env.example` lists all of them.
-
-**The proof-confirmation notification transport (AB#130) is a separate, smaller
-settings group**, not part of the object-store/database credentials above:
-`PRIVATE_GALLERY_NOTIFICATION_ADAPTER` (no default, `resend` or the
-development-only `sink`) and `PRIVATE_GALLERY_NOTIFICATION_FROM`, sharing the
-contact path's own `RESEND_API_KEY`. Same request-time-only, no-`NEXT_PUBLIC_`
-posture, and `sink` is refused outright in a production deployment, exactly as
-`CONTACT_DELIVERY_ADAPTER=sink` is. Configuring this does not, by itself, send
-anything: no scheduled worker yet claims a queued proof-confirmation attempt
-and calls this transport (`docs/feature-status.md`).
-
-#### Provisioning the two private services — deferred alternative
-
-**Not part of the owner's selected deployment (ADR-0034).** The historical
-procedure below requires a separately approved protected-gallery scope before
-any service order or credential/configuration change.
-
-**Nothing in this repository can do this part.** The object store and the database are
-accounts in the site owner's own name (ADR-0014 §8), the same way the Resend account is
-AB#117's own prerequisite. It is written down here now, ahead of the code that needs it,
-because it is the long-lead item on AB#29: the delivery slices (signed URLs, the ZIP)
-cannot start without it, and every step below is a decision or a signup rather than a
-deployment.
-
-The reference object store is **UpCloud Managed Object Storage** (ADR-0014 §8a: an EU/
-Finnish company, S3-compatible, presigned `GET`, zero-cost egress under Fair Transfer);
-Cloudflare R2 is the named alternative. The database is **any PostgreSQL-family managed
-service the owner controls**, vendor deliberately left open (§8b). What follows is
-provider-neutral: it states what must be *true* and how to *verify* it over the S3 and
-Postgres wire protocols. Console paths change and are not restated here — read them from
-the provider's current documentation, per this repository's anti-hallucination rule.
-
-**1. Object store: one bucket, default-deny.** ADR-0014 §8a: *"naming it private is not
-the control."* The bucket must satisfy all of:
-
-- an EU region, in the owner's own account, holding nothing else;
-- no public-read ACL on the bucket or on any object, and no credential below permitted to
-  set one;
-- an explicit policy (or the provider's equivalent) that **rejects anonymous and unsigned
-  access for every operation** while still honouring a valid presigned `GET`. UpCloud
-  exposes no S3 `PublicAccessBlock` API — verified against its S3-compatibility table on
-  2026-08-31 — so the deny policy plus the no-public-ACL rule *is* the control there, and
-  it is verified live in step 4 rather than assumed from a toggle;
-- one key prefix for private-gallery objects, which becomes `PRIVATE_GALLERY_S3_KEY_PREFIX`.
-
-**1b. The key layout the policies are scoped to.** Objects are written under a shape the
-application assigns; nothing else may write into the prefix. Knowing it before you write
-the policies matters, because all three credentials below are prefix-scoped and a policy
-written against a guess would either be too wide or would refuse the application's own
-objects:
-
-```
-<PRIVATE_GALLERY_S3_KEY_PREFIX>/g/<galleryId>/<preview|proof|zip>/<128-bit token>
-```
-
-The trailing token is CSPRNG, not a counter, so one key never implies a sibling — that is
-what makes the runtime credential's *absence* of `ListBucket` meaningful. The key carries
-**nothing about the customer or the photograph**: no name, no shoot title, no original
-filename, no capture date, no gallery handle. A key is not browser-facing, but it is
-visible to anyone who can list the bucket and to the provider's own tooling, and a listing
-that read `.../smith-wedding-2026/DSC_0431.jpg` would have published the customer
-relationship to all of them. `src/lib/private-gallery-object-key.ts` is the only place a
-key is created, and it refuses any gallery id that would escape the prefix.
-
-**2. Object store: three credentials, not one (§8a).** Each is least-privilege and scoped
-to the private key prefix in this one bucket. None may write a bucket policy or ACL,
-delete the bucket, or reach another bucket.
-
-| Credential | Permissions | Lives in |
-| --- | --- | --- |
-| **Runtime / verifier** | object read on the key prefix, plus metadata-only `HEAD` for an exact key. **No `ListBucket`, no writes.** | The deployed environment — `PRIVATE_GALLERY_S3_VERIFIER_ACCESS_KEY_ID` / `…_SECRET_ACCESS_KEY` as Vercel Sensitive values. The **only** storage credential a deployment ever holds. |
-| **Retention worker** | prefix-scoped enumeration and deletion of objects, versions, and incomplete multipart uploads. Nothing else. | The scheduled worker's own environment only (§7). Never the web deployment. |
-| **Owner-run upload CLI** | `PutObject` and the multipart create/upload/complete/abort operations on the prefix. **No read, delete, list, ACL, or policy.** | The photographer's machine only — the same posture as `SANITY_SEED_TOKEN`. Never any deployed environment, never CI. |
-
-**3. Private metadata store.** A PostgreSQL-family managed service. Before committing to a
-vendor, verify and record each of these — §8b makes them the decision criteria, not a
-wish list: EU region; encryption at rest and in transit; automated backup **and** a
-point-in-time-recovery window inside §7's ≤ 30-day ceiling; a **restore actually tested**,
-not merely offered; unambiguous customer ownership and a working export; connection
-pooling suited to serverless invocation (a pooler endpoint or an HTTP driver); a
-schema-migration path; and current price. The connection URL becomes
-`PRIVATE_GALLERY_DATABASE_URL`, Sensitive, request-time only.
-
-**4. The live verification gate.** ADR-0014 §8a requires these to pass against the real
-bucket *before* the deployment is accepted. They are protocol-level, so they hold whatever
-the console looked like:
-
-- an unsigned `GET` of a known object key **fails**;
-- an unsigned `LIST` of the bucket or prefix **fails**;
-- a presigned `GET` minted with the verifier credential **succeeds**;
-- a `Range` request against a large (~20 GB) ZIP object **succeeds and returns 206**, so a
-  resumed download works;
-- object responses carry `Cache-Control: no-store`, and the ZIP additionally carries
-  `Content-Disposition: attachment`;
-- the CLI credential **cannot** read or delete, and the verifier credential **cannot**
-  write or list — check the denials, not only the grants. A credential that is merely
-  *not used* for an operation is not the same as one that *cannot* perform it.
-
-Record the results against AB#29 in Azure Boards, the way AB#116's Preview verification
-and AB#84's seed run were recorded: which provider, which region, the date, and the
-observed outcome of each check. A provisioning claim with no evidence is what the AB#117
-re-check found and had to retract twice.
-
-**5. Generate the capability keyring.** Independent of both services, and the one value
-this repository can tell you how to produce exactly:
-
-```bash
-# One 256-bit key, standard base64. The id is yours to choose (lowercase, digits, hyphens).
-printf '%s:%s\n' "k1" "$(openssl rand -base64 32)"
-```
-
-Set `PRIVATE_GALLERY_CAPABILITY_KEYS` to the comma-separated `id:base64` list and
-`PRIVATE_GALLERY_CAPABILITY_ACTIVE_KEY_ID` to the id new capabilities are sealed under.
-Both are Sensitive and request-time. Rotation adds a key and moves the active id; the old
-key stays in the list until every stored envelope has been re-sealed under the new one
-(ADR-0014 §3). A key removed too early makes those galleries permanently unopenable — the
-envelope is encrypted, not hashed, precisely so links can be re-issued, and that only
-works while its key is still in the ring.
-
-**What must never happen:** none of these values belongs in a pull-request job, in
-`.env.example`, in a Playwright artifact, or in this repository. `PRIVATE_GALLERY_STORE`
-stays `off` until step 4 has actually passed — the code refuses to half-serve, but an
-`enabled` deployment with a half-provisioned bucket is a deployment throwing on every
-private request.
-
-**6. The scheduled retention worker.** ADR-0014 §7 makes a metadata-driven worker
-authoritative for the six-month lifecycle, and it must run **at least once every 24
-hours** — a platform cron or scheduled job, not an owner-run command. Owner-run
-invocation of the same script is for repair or backfill only. The worker's decision
-rules are already built and tested (`src/lib/private-gallery-retention.ts`); the job
-that performs the IO lands with the store adapters. Two provisioning consequences to
-settle while you are in the consoles:
-
-- the object store needs the **backstop lifecycle policy** — expire objects on the
-  private prefix at **275 days** after creation, expire noncurrent versions at **30
-  days**, abort incomplete multipart uploads at **7 days**. It is a backstop for
-  objects the worker missed, never the access clock: an age rule cannot see a
-  gallery's publication-derived expiry, and the 275 days sit beyond every legitimate
-  object lifetime, so the rule can only ever hit a genuine orphan. A deployment may
-  lower these ages; raising one breaks the derivation.
-- the database's **PITR window** must sit inside the ≤ 30-day retention ceiling, which
-  is why step 3 lists it as a selection criterion rather than a nice-to-have: a backup
-  that can restore private objects' metadata from beyond the deletion horizon
-  reintroduces data the lifecycle promised was gone. A restore also re-runs the worker,
-  by design — that is what makes expiry restore-safe.
-
-#### Backups, and the gate a restore has to pass
-
-Two stores, two different rules, and they do not meet in the middle.
-
-The **object store** must not carry backup or version history that outlives
-`accessExpiresAt + 30 days`. If versioning is enabled for accident recovery, its
-noncurrent-version expiration must be **at most the 30-day deletion grace** — otherwise
-the lifecycle's promise that a gallery's bytes are gone becomes a promise that they are
-gone *except in versions*, which is not the same statement and is not the one the
-customer was given.
-
-The **metadata store's** point-in-time-recovery window is bounded at **30 days**, and may
-be set lower. PITR is never a substitute for the retention worker: it recovers from a
-mistake, it does not implement the access clock.
-
-**The restore gate.** A restore from any metadata backup **runs the retention worker
-before traffic resumes**. ADR-0014 §7 states this as a gate rather than a suggestion, and
-the reason is concrete: a backup taken before an expiry, restored after it, brings back
-rows describing a gallery whose access window has since closed. Without the worker running
-first, that gallery is briefly accessible again — a customer's photographs reachable after
-the six months they were told about. The order is: restore, run the worker to completion,
-verify the gallery states it moved, then allow traffic.
-
-A restore that cannot run the worker first is not a restore that may be put into service.
-
-**Test it before you need it.** ADR-0014 makes a *tested* restore a provider-selection
-criterion, not a nice-to-have. Restore into a scratch database, run the worker against it,
-and confirm both that it completes and that an expired gallery came back expired. Record
-the date and the outcome against AB#29 the way AB#116's deployment verification and
-AB#84's seed run are recorded — an untested restore is an assumption with a runbook
-attached.
-
-#### Drift monitoring
-
-The backstop lifecycle policy is the net under the retention worker, and a net nobody
-checks is a net that has already failed. The worker's **final step asserts that the policy
-is present and enabled, and reports if it is not** (ADR-0014 §7). A silently disabled
-policy is a finding, not a warning to be skimmed: it means orphaned objects — the ones the
-worker itself missed — now live indefinitely.
-
-Three things drift in practice, and the first is the only one automated:
-
-- **the backstop lifecycle policy** — asserted by the worker on every scheduled run;
-- **the bucket's default-deny posture** — re-run §8a's live checks after any console change
-  to the bucket, because an unsigned `GET` that starts succeeding is not something the
-  application can detect from inside;
-- **the three credentials' scopes** — a credential that gains permissions is invisible until
-  something uses them. Re-check them when the provider's console is touched and at the same
-  cadence as any other credential review.
-
-#### Owner-run repair and backfill
-
-The retention worker's normal mechanism is the **scheduled** run, at least once every 24
-hours. The same script may be invoked by hand, and that invocation is for **repair or
-backfill only** — after an incident, after a restore, or to reconcile a preparation the
-scheduled run could not finish.
-
-It is never the normal mechanism, for the reason ADR-0014 §7 gives: a lifecycle that
-depends on somebody remembering to run it is not a lifecycle. If hand-running becomes
-routine, the schedule is broken and that is the thing to fix.
-
-An owner-run invocation is subject to the same rules as the scheduled one — it obeys the
-same deadlines, the same bounded batches, and the same deletion guard — and it should be
-recorded when it changes state, because "why did this gallery move to `deleting` on a
-Sunday" is a question somebody will eventually ask.
-
-#### The exit path
-
-Both services are the site owner's, and ADR-0004's ownership boundary means leaving has to
-be possible without asking anyone's permission. Neither store holds anything that cannot
-be taken out.
-
-**Getting the data out.** The metadata store exports with the provider's own dump — it is
-ordinary PostgreSQL, thousands of rows, no media. The object store's contents are
-enumerable and downloadable with the retention-worker credential's prefix-scoped list plus
-any S3-compatible client. **What matters is what is *not* there:** the camera masters were
-never uploaded (ADR-0014 §8c — the photographer prepares everything locally), so an export
-is derivatives and delivery ZIPs, not the archive. The archive is already on the
-photographer's own machine, which is the point of that decision.
-
-**Shutting it down.** Set `PRIVATE_GALLERY_STORE=off` and redeploy: the routes stop serving
-and the reserved prefix stays reserved, so nothing else can claim it. Then delete the
-objects, drop the database, and **revoke all three credentials plus the capability
-keyring** — the keyring last, because a retained key is what would let a recovered envelope
-be opened later.
-
-**What the customer keeps.** Nothing about shutting the service down reaches a customer who
-already downloaded their ZIP; it is on their machine. A customer who has not downloaded it
-loses access at shutdown exactly as they would at the six-month expiry, which is the
-argument for telling them before it happens rather than after.
-
-**None of this has been exercised.** No deployment has provisioned either service, so every
-step here is derived from the ADR and the providers' documented capabilities rather than
-from a run. The first owner to follow it should correct it where it is wrong — that is more
-useful than leaving it aspirational.
+| `PRIVATE_GALLERY_STORE` | unset (or `off`) | unset (or `off`) |
+
+- Both prefixes stay validated (one lowercase segment, at most 32 characters) and
+  reserved: the build refuses a locale prefix, the redundant default-locale prefix, a
+  story namespace, a legacy-redirect root or an existing route that claims one, and
+  refuses the two prefixes being equal. Every path and method under either, and under the
+  literal `/private-gallery` and `/private-gallery-admin` segments, answers one empty
+  `404` from the Proxy with `Cache-Control: no-store`, `X-Robots-Tag: noindex, nofollow`
+  and `Referrer-Policy: no-referrer`. Production `robots.txt` still disallows both
+  prefixes.
+- **`PRIVATE_GALLERY_STORE` is accepted only unset or `off`.** Any other value,
+  including the former `enabled` and `memory`, fails configuration loading, and therefore
+  the build, with a message naming AB#313. Remove the setting rather than changing it.
+- Every other `PRIVATE_GALLERY_*` setting (database URL, `PRIVATE_GALLERY_S3_*`,
+  capability keyring, administrator secret hash, notification adapter and sender) is no
+  longer read. Delete it from local `.env` files and hosted environments; a
+  `NEXT_PUBLIC_` mirror of a formerly secret one still fails the build.
 
 ### The Sanity webhook signing secret
 

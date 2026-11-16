@@ -2,6 +2,8 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Protected-gallery removal slice D, 2026-11-16 — AB#313 **Active**: the last configuration remnants are removed: the store modes, the private object-store origin and its CSP grant, the `/private-gallery` headers rule, the unused protected UI labels, the internal rewrite helpers, the `.env.example` blocks and the runbook section. `PRIVATE_GALLERY_STORE` is accepted only unset or `off`; any other value now fails the build. The two route prefixes stay validated and reserved, and the namespaces still answer one hygienic 404. The data-flow record and diagrams describe the removal. AB#313 can close after this merges once the owner accepts. See [the removal audit](audits/protected-gallery-removal-2026-10-17.md).
+
 Protected-gallery removal slice C, 2026-11-16 — AB#313 **Active**: the protected domain, fixture and notification modules are removed, with their log events and import bans. Only the shared deployment leaf remains for slice D, which covers configuration, CSP, labels and runbooks. See [the removal audit](audits/protected-gallery-removal-2026-10-17.md).
 
 Protected-gallery removal slice A2, 2026-11-15 — AB#313 **Active**: the unwired retention workflow script and its test are removed. The secret generator moves to slice B2, with the administrator surface that names it. See [the removal audit](audits/protected-gallery-removal-2026-10-17.md).

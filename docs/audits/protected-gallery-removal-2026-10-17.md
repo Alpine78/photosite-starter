@@ -359,6 +359,60 @@ Left for slice D: the store mode and prefix settings in `private-gallery-deploym
 `private-object-store-origin.ts` and its CSP grant, the protected labels in
 `deployment-config.ts`, `.env.example`, the runbook section and the diagrams.
 
+### D removal, configuration, CSP, labels and runbooks — 2026-11-16
+
+Under the owner's decision of 2026-11-15, slice D removes the remaining configuration of
+the protected model from `origin/main` `6f18d4d`. A reverse-import search found no caller of
+`readPrivateObjectStoreOrigin`, `isPrivateObjectStoreOrigin`, `PrivateGalleryStoreMode`,
+`getPrivateGalleryDeployment`, the `store` field of the deployment configuration,
+`privateGalleryInternalPath` or `privateGalleryAdminInternalPath` outside their own modules
+and tests, and none of the nine protected label groups outside `deployment-config.ts`.
+
+Removed:
+
+- `src/lib/private-object-store-origin.ts` and its test; the `privateObjectStoreOrigin`
+  option of `src/lib/content-security-policy.ts`; in `next.config.ts` the origin read and
+  the two `/private-gallery` header rules that widened `img-src` for `enabled`.
+- The store modes in `src/lib/private-gallery-deployment.ts`: the `enabled`/`memory`
+  parsing, the `store` field, the stage parameter and the unused memoized reader.
+- In `src/lib/deployment-config.ts`, the unused English and Finnish label groups
+  `privateGallery`, `privateGalleryDeliveryPaging`, `deliveryNotificationEmail`,
+  `proofConfirmationEmail`, `privateGalleryProof`, `privateGalleryAdmin`,
+  `privateGalleryDeliveryCreation`, `privateGalleryProofCreation` and
+  `privateGalleryProofAdmin`.
+- The two unused rewrite helpers in `src/lib/request-path.ts` and their tests.
+- The four "Private" blocks of `.env.example`, the `docs/deployment.md` section
+  "Private client galleries (ADR-0014, deferred alternative)" with its credential,
+  sign-in, provisioning, backup, drift, repair and exit subsections, the protected design
+  record in `docs/private-gallery-data-flow.md`, and the protected nodes and flows in
+  `docs/architecture/application-boundaries.d2` and `system-context.d2` (SVGs regenerated).
+
+Kept:
+
+- `PRIVATE_GALLERY_ROUTE_PREFIX` and `PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX`, their validation,
+  their reservation against locale prefixes, story namespaces, legacy-redirect roots and
+  each other, and the three literal entries in `RESERVED_ROOT_SEGMENTS`.
+- The Proxy's hygienic empty 404 for both namespaces and both literal segments, unchanged,
+  and the production `robots.txt` disallow of both prefixes.
+- The `NEXT_PUBLIC_` mirror refusal for the formerly secret setting names, as a stale
+  configuration refusal.
+- `privateOnly`/sales restrictions, unlisted, legacy, client-gallery and proof behaviour,
+  contact/enquiry/poll code and `resend-email.ts`.
+
+Replacement behaviour: `PRIVATE_GALLERY_STORE` is accepted only unset or `off`. Any other
+value, including the former `enabled` and `memory`, fails configuration loading, and with
+it the build, with a message naming AB#313 and asking for the setting to be removed. No
+CSP on any path carries a private object-store origin for any configuration; the
+site-wide CSP and the Sanity image policy are unchanged, as the existing `next.config`
+tests show.
+
+Maintained documents that described the removed model as current now state the removal.
+Historical ADRs, dated audit sections and dated feature-status entries are unchanged.
+Recovery is a revert of this slice's commit; it restores the configuration source, not
+any service. With this slice every protected-gallery source module, route, command,
+runbook and setting is removed; AB#313 can close after this merges once the owner
+accepts.
+
 ## Operational evidence for the clearance table — 2026-10-20
 
 Collected by an agent with the owner's own CLI logins at `origin/main`

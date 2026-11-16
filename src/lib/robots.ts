@@ -6,17 +6,16 @@
  * for a well-behaved crawler, not the thing keeping a Preview URL out of an
  * index.
  *
- * The private client-gallery namespace (`privateRoutePrefix`, ADR-0014 §6) and
- * the administrator namespace (`adminRoutePrefix`, ADR-0015 §1) are both
- * `Disallow`ed in production as further defense in depth — the real control is
- * the per-request authorization a later slice adds, plus the Proxy's
- * `X-Robots-Tag: noindex` on every response in either namespace. A
- * non-production stage already disallows `/`, which covers them.
+ * The reserved namespaces of the removed protected client gallery
+ * (`privateRoutePrefix`, ADR-0014 §6, and `adminRoutePrefix`, ADR-0015 §1;
+ * AB#313) are both `Disallow`ed in production so crawlers do not spend requests
+ * on them. Every path beneath either answers the Proxy's empty 404 with
+ * `X-Robots-Tag: noindex, nofollow`. A non-production stage already disallows
+ * `/`, which covers them.
  *
  * Each entry keeps its trailing slash deliberately. A robots.txt `Disallow` is
  * a prefix match, so the slash-free form would also claim any *unrelated* root
- * path that merely starts with the same letters — `/private-gallery-bootstrap.js`
- * is a real one. The namespace root itself (`/<prefix>`) is therefore not
+ * path that merely starts with the same letters. The namespace root itself (`/<prefix>`) is therefore not
  * covered here, which costs nothing: it answers with `X-Robots-Tag: noindex,
  * nofollow` like every other path in the namespace, and that is the header a
  * crawler must honour to leave it out of an index.

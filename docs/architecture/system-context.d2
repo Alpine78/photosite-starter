@@ -63,13 +63,6 @@ resend: "Resend\nContact delivery from the site\nowner's own account — ADR-000
   class: external
 }
 
-private-store: "Private object store (deferred — ADR-0034)\nS3-compatible, the site owner's own account,\nseparate from Sanity — client-gallery previews,\nwatermarked proofs, and one ZIP per delivery gallery" {
-  class: [store; planned]
-}
-
-private-db: "Private Postgres (deferred — ADR-0034)\nThe site owner's own database — private gallery\nrecords, access capabilities, sessions, proof\nselections, notification outbox, retention state" {
-  class: [store; planned]
-}
 
 unlisted: "Unlisted client delivery (selected — ADR-0034)\nExisting Sanity; public metadata and files.\n21 legacy pages observed live 2026-10-15;\nnew authoring + reader + verified whole-ZIP link built, default-off.\nPage expiry does not revoke files." {
   class: built
@@ -88,8 +81,6 @@ owner -> repo: Commits
 owner -> sanity: "Optional GET-only cleanup readiness probe (AB#399)\nSource-built, not run; private local manifest + transient export.\nCounts/fingerprints only; no role proof, write or activation." {class: pending-flow}
 owner -> studio: "Edits content with a Sanity account\n(authenticated workflow unverified)" {class: pending-flow}
 studio -> sanity: "Authenticated editor reads/writes\n(authenticated workflow unverified)" {class: pending-flow}
-owner -> site: "Administers client galleries\nthrough the protected model's admin route\n(deferred — ADR-0034)" {class: pending-flow}
-owner -> private-store: "Private upload CLI (deferred alternative)" {class: pending-flow}
 
 repo -> pipeline: Triggers every push and PR
 pipeline -> vercel: "Deploys a release candidate\n(built and gated, never yet run)" {class: pending-flow}
@@ -98,6 +89,3 @@ vercel -> site: "Runs the site\n(not yet deployed)" {class: pending-flow}
 site -> fixtures: SITE_CONTENT_SOURCE=mock
 site -> sanity: "Reads published content\n(connection built, reads planned)" {class: pending-flow}
 site -> resend: Delivers an enquiry over HTTPS
-site -> private-store: "Signed GETs (deferred alternative)" {class: pending-flow}
-site -> private-db: "Private metadata (deferred alternative)" {class: pending-flow}
-visitor -> private-store: "Signed downloads (deferred alternative)" {class: pending-flow}

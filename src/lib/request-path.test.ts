@@ -8,7 +8,6 @@ import {
   isPrivateAdminRequestPath,
   isPrivateGalleryInternalPath,
   isPrivateRequestPath,
-  privateGalleryInternalPath,
   readRequestHasCursor,
   readRequestPath,
 } from "@/lib/request-path";
@@ -209,38 +208,11 @@ describe("isPrivateGalleryInternalPath", () => {
     "/",
     "/private",
     "/private/handle",
-    // The bootstrap script sits beside the namespace, not inside it, so the
-    // Proxy's 404 guard needs no exception for it.
+    // A sibling root segment, reserved on its own in `public-routes.ts`.
     "/private-gallery-bootstrap.js",
     "/private-galleries",
     "/x/private-gallery",
   ])("does not match a path outside it: %s", (path) => {
     expect(isPrivateGalleryInternalPath(path)).toBe(false);
-  });
-});
-
-describe("privateGalleryInternalPath", () => {
-  it.each([
-    ["/private", "private", `/${PRIVATE_GALLERY_INTERNAL_SEGMENT}`],
-    ["/private/h", "private", `/${PRIVATE_GALLERY_INTERNAL_SEGMENT}/h`],
-    [
-      "/private/h/exchange",
-      "private",
-      `/${PRIVATE_GALLERY_INTERNAL_SEGMENT}/h/exchange`,
-    ],
-    ["/clients/h", "clients", `/${PRIVATE_GALLERY_INTERNAL_SEGMENT}/h`],
-    // A prefix of a different length must not shift the remainder.
-    ["/c/h/i", "c", `/${PRIVATE_GALLERY_INTERNAL_SEGMENT}/h/i`],
-  ])("maps %s under prefix %s to %s", (path, prefix, expected) => {
-    expect(privateGalleryInternalPath(path, prefix)).toBe(expected);
-  });
-
-  it("produces a path the internal-path guard recognises", () => {
-    // The two must agree: the Proxy rewrites onto this segment and refuses a
-    // direct request to it, so a mapping the guard did not recognise would be
-    // a second, unguarded door.
-    expect(
-      isPrivateGalleryInternalPath(privateGalleryInternalPath("/private/h", "private")),
-    ).toBe(true);
   });
 });

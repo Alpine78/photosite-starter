@@ -29,7 +29,7 @@ The application narrows this before anything leaves the browser:
 | Off unless a production deployment opts in | `readSiteAnalyticsProvider` | Development, Preview, the Playwright harness and any clone that never set `SITE_ANALYTICS` load nothing |
 | Pathname only | `scrubAnalyticsEvent` | Query strings and fragments are removed from every event URL, so a token or personal value in a URL never reaches the provider |
 | Excluded namespaces | `isAnalyticsExcludedPath` | The retained legacy `client-gallery` namespace, the private-gallery and administrator prefixes the Proxy reserves, `/api`, and their locale-prefixed aliases send nothing. An undecodable path segment is treated as excluded |
-| Rendered by the public shell only | `SiteRoot` | The document shells of the private, client and administrator namespaces never include the script at all; the exclusion above is a second layer |
+| Rendered by the public shell only | `SiteRoot` | The client-gallery document shell never includes the script, and the reserved private and administrator namespaces answer an empty 404 (AB#313); the exclusion above is a second layer |
 | Page views only | — | No custom events and no identification call exist in this slice |
 
 The **referrer** and the **geolocation** are added by the provider from the
