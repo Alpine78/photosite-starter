@@ -89,7 +89,8 @@ export async function recordPollVote(params: { readonly pollId: string; readonly
   let response: Response;
   try {
     response = await send(`https://${config.projectId}.api.sanity.io/${config.apiVersion}/data/mutate/${config.dataset}`, {
-      method: "POST", cache: "no-store", signal: AbortSignal.timeout(10_000),
+      // A redirect would resend the write token to another host (AB#420).
+      method: "POST", cache: "no-store", redirect: "error", signal: AbortSignal.timeout(10_000),
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${options?.token ?? readPollVoteToken()}` },
       body: JSON.stringify({ mutations: [
         { create: { _id: receiptId, _type: "pollVoteReceipt", pollId: params.pollId } },

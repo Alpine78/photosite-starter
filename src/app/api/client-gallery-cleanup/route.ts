@@ -1,6 +1,6 @@
-import { timingSafeEqual } from "node:crypto";
 import { readClientGalleryCleanupConfig } from "@/lib/client-gallery-cleanup-config";
 import { runConfiguredClientGalleryCleanup } from "@/lib/client-gallery-cleanup-access";
+import { cronMethodNotAllowed, isCronBearer } from "@/lib/cron-route";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,17 +11,16 @@ export async function GET(request: Request): Promise<Response> {
   const config = readClientGalleryCleanupConfig(process.env);
   if (config.state === "disabled") return new Response(null, { status: 404, headers });
   if (config.state !== "enabled") return Response.json({ status: "failed" }, { status: 503, headers });
-  const presented = Buffer.from(request.headers.get("authorization") ?? ""), expected = Buffer.from(`Bearer ${config.cronSecret}`);
-  if (presented.length !== expected.length || !timingSafeEqual(presented, expected)) return new Response(null, { status: 401, headers });
+  if (!isCronBearer(request.headers.get("authorization"), config.cronSecret)) return new Response(null, { status: 401, headers });
   try {
     const counts = await runConfiguredClientGalleryCleanup(config);
     return Response.json({ status: "ok", ...counts }, { headers });
   } catch { return Response.json({ status: "failed" }, { status: 503, headers }); }
 }
 // Next otherwise implements HEAD by invoking GET. This endpoint mutates state.
-export function HEAD(): Response { return new Response(null, { status: 405, headers: { ...headers, Allow: "GET" } }); }
-export const POST = HEAD;
-export const PUT = HEAD;
-export const PATCH = HEAD;
-export const DELETE = HEAD;
-export const OPTIONS = HEAD;
+export const HEAD = cronMethodNotAllowed;
+export const POST = cronMethodNotAllowed;
+export const PUT = cronMethodNotAllowed;
+export const PATCH = cronMethodNotAllowed;
+export const DELETE = cronMethodNotAllowed;
+export const OPTIONS = cronMethodNotAllowed;

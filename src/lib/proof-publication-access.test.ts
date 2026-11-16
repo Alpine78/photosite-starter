@@ -26,6 +26,16 @@ const editor = { id: "abc123", members: [{ id: "editor-1", isCurrentUser: true, 
 const ok = { member: json(editor), state: json({ result: { draft, published: null, terms: null, versions: 0 } }), related: json({ result: { conflicts: [], assets } }), mutate: json({ transactionId: "t" }) };
 
 describe("proof publication facade order", () => {
+  it("a member without write permission cannot spend an editor's gallery allowance (AB#420)", async () => {
+    const viewer = { ...editor, members: [{ ...editor.members[0], id: "viewer-1", roles: [{ name: "viewer" }] }] };
+    const refused = sanity({ ...ok, member: json(viewer), state: json({ result: { draft: { ...draft, _id: "drafts.SHARED" }, published: null, terms: null, versions: 0 } }), mutate: json({}, 403) });
+    const attempt = (send: typeof fetch) => runProofPublication({ galleryId: "SHARED", operation: "publish", expectedDraftRevision: "r1", terms }, "token-0123456789-abcdefgh", secret, { config, fetchImplementation: send });
+    let outcome;
+    for (let index = 0; index < 12; index++) outcome = await attempt(refused.send);
+    expect(outcome).toEqual({ outcome: "rejected", reason: "rate-limited" });
+    const allowed = sanity({ ...ok, state: json({ result: { draft: { ...draft, _id: "drafts.SHARED" }, published: null, terms: null, versions: 0 } }) });
+    expect(await attempt(allowed.send)).toMatchObject({ outcome: "committed" });
+  });
   it("proves a non-admin Editor, reads, plans and returns the key only after the commit", async () => {
     const { send, calls } = sanity(ok);
     const result = await runProofPublication({ galleryId: "GALLERY", operation: "publish", expectedDraftRevision: "r1", terms }, "token-0123456789-abcdefgh", secret, { config, fetchImplementation: send });

@@ -10,6 +10,7 @@
 import "server-only";
 
 import {
+  decodeSignatureHeader,
   isValidSignature,
   SIGNATURE_HEADER_NAME,
 } from "@sanity/webhook";
@@ -37,9 +38,21 @@ export type SanityWebhookErrorClass =
   | "unsupported-media-type"
   | "invalid-size"
   | "invalid-signature"
+  | "stale-signature"
   | "malformed-payload"
   | "wrong-source"
   | "unknown-document-type";
+
+/**
+ * How old a signed delivery may be. Sanity signs at send time and retries a
+ * 429/5xx answer twice at 30-second intervals, so ten minutes covers a delayed
+ * delivery and its retries with a wide margin. A refused stale delivery is a
+ * terminal 401: the content change it announced is reconciled by the next
+ * delivery or the cache's own lifetime, exactly as a lost delivery is.
+ */
+export const SIGNATURE_MAX_AGE_MS = 10 * 60 * 1000;
+/** Tolerated clock skew for a timestamp ahead of this server. */
+export const SIGNATURE_MAX_FUTURE_MS = 5 * 60 * 1000;
 
 export class SanityWebhookError extends Error {
   readonly errorClass: SanityWebhookErrorClass;
@@ -250,6 +263,8 @@ export async function readSanityWebhook(
   options: {
     readonly environment?: SanityWebhookEnvironment;
     readonly config?: Pick<SanityConfig, "projectId" | "dataset">;
+    /** Milliseconds since the epoch; injectable so the window is testable. */
+    readonly now?: () => number;
   } = {},
 ): Promise<SanityWebhookPlan> {
   if (!JSON_CONTENT_TYPE.test(request.headers.get("content-type") ?? "")) {
@@ -273,6 +288,16 @@ export async function readSanityWebhook(
     !(await isValidSignature(rawBody, signature, secret))
   ) {
     return fail("invalid-signature", 401);
+  }
+
+  // `@sanity/webhook` authenticates the timestamp but enforces no window, so a
+  // captured delivery would otherwise stay replayable for as long as the secret
+  // lives (AB#420). Checked only after the signature, which covers the
+  // timestamp, so an unauthenticated sender learns nothing from this answer.
+  const signedAt = decodeSignatureHeader(signature).timestamp;
+  const age = (options.now ?? Date.now)() - signedAt;
+  if (age > SIGNATURE_MAX_AGE_MS || age < -SIGNATURE_MAX_FUTURE_MS) {
+    return fail("stale-signature", 401);
   }
 
   return parsePayload(rawBody, options.config ?? getSanityConfig());
