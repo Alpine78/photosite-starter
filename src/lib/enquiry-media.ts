@@ -37,13 +37,8 @@
  * payload; the public gallery result contract (`gallery-result.ts`) carries no
  * such field and this module adds none to it.
  *
- * Dynamic resolution is real in the pure and mock layers so the seam and its
- * authorization are tested now, but a Sanity deployment has no authoritative
- * dynamic result to resolve against yet — AB#58 (the dynamic query) and AB#68
- * (`dynamicallyDiscoverable` in the model) are its prerequisites — so the Sanity
- * source refuses a dynamic enquiry (`dynamic-unsupported`) rather than
- * authorizing one on partial information. AB#60 stays open until a real dynamic
- * result exists to wire in.
+ * A dynamic request has no container to authorize, so only boundaries 1 and 3
+ * apply, and a dynamic target carries no placement or gallery.
  */
 
 import "server-only";
@@ -126,8 +121,6 @@ export type EnquiryResolutionRejection =
   | "not-public"
   /** The photograph is not opted in to enquiries (or, dynamic: not discoverable). */
   | "not-enquirable"
-  /** A dynamic-result enquiry against a source that cannot authorize one yet. */
-  | "dynamic-unsupported"
   /**
    * A read against the content store failed in a way a retry could survive —
    * a timeout, a 5xx, a rate limit. The visitor is told it may be worth trying
@@ -163,8 +156,6 @@ const REJECTION_MESSAGES: Record<EnquiryResolutionRejection, string> = {
     "the item's gallery is not a published public route in this locale",
   "not-public": "the photograph is not available to the public",
   "not-enquirable": "the photograph is not open to enquiries",
-  "dynamic-unsupported":
-    "a dynamic-result enquiry is not supported by this content source yet",
   "source-unavailable":
     "a content-store read failed in a way a retry could survive",
   "source-error":
@@ -392,7 +383,7 @@ export function createEnquiryTargetResolver(
 
     try {
       // Media identity is outside the alias contract, even when its spelling
-      // happens to equal a placement alias. Dynamic Sanity stays unsupported.
+      // happens to equal a placement alias.
       if (normalized.kind === "dynamic") return await source(normalized, language);
 
       // The async function starts capture immediately and also retains a

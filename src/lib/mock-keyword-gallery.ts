@@ -11,6 +11,7 @@ import { compareKeywordGalleryOrder, type KeywordGallerySource, type KeywordGall
 import { buildKeywordIndex, type KeywordIndex } from "@/lib/keyword-index";
 import type { KeywordVocabularySnapshot } from "@/lib/keyword-gallery-selection";
 import { keywordsOfMedia, mediaMatchesAllKeywords } from "@/lib/media-keywords";
+import { mockMediaAllowsDynamicEnquiries } from "@/lib/mock-enquiry-policy";
 import { getMockImages } from "@/lib/mock-media";
 import { getMockKeywordTaxonomy, getMockMediaKeywordIndex, MOCK_ARCHIVE_MEDIA_IDS } from "@/lib/mock-keywords";
 
@@ -63,7 +64,7 @@ export function createMockKeywordGallerySource(language: string): KeywordGallery
   const archive = MOCK_ARCHIVE_MEDIA_IDS.map((mediaId) => ({ ...images.coastalLandscape, mediaId }));
   const rowsFor = (canonicalIds: readonly string[]): readonly KeywordGalleryRow[] => [...Object.values(images), ...archive]
     .filter((media) => !OPTED_OUT.has(media.mediaId) && index.has(media.mediaId) && mediaMatchesAllKeywords(keywordsOfMedia(index, media.mediaId), canonicalIds))
-    .map((media) => ({ orderKey: CAPTURED_AT[media.mediaId] ?? "", media }))
+    .map((media) => ({ orderKey: CAPTURED_AT[media.mediaId] ?? "", enquiryAllowed: mockMediaAllowsDynamicEnquiries(media.mediaId), media }))
     .sort((left, right) => compareKeywordGalleryOrder({ orderKey: left.orderKey, mediaId: left.media.mediaId }, { orderKey: right.orderKey, mediaId: right.media.mediaId }));
   return {
     readLatestChange: async (canonicalIds) => (rowsFor(canonicalIds).length === 0 ? undefined : MOCK_LATEST_CHANGE),

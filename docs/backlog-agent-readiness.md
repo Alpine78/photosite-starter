@@ -63,6 +63,13 @@ actions, approvals or accounts; an agent can prepare evidence but cannot close t
 | AB#255 — Studio language select | Active | Fix on `fix/255-studio-locale-select`. |
 | AB#391 — Import metadata and no re-encoding | Active | Metadata tool on `feature/391-import-metadata-tool`, used by the rally writers; client web images keep all metadata by owner decision. The re-upload's plan and tool are on `feature/391-legacy-reupload`. Left: the owner's location review, a decision on deleting old assets, and the run ([guide](legacy-image-reupload.md)). |
 | AB#56 — Keyword vocabulary schema | Active | Schema, governance rules and guarded publication are on `feature/56-keyword-vocabulary-schema`. Anonymous and authenticated reads of a private-path document are verified in `preview`; the owner's look at it in Studio (ADR-0039 open question 6) is open. AB#57 follows it. |
+| AB#68 — Media keyword model | Active | Model, mocks and Sanity parsers on `feature/68-media-keywords-domain-model`. AB#58 and AB#59 follow it. |
+| AB#58 — Dynamic keyword query | Active | Query and adapter on `feature/58-keyword-gallery-query`, stacked on AB#68. AB#71 follows it. |
+| AB#71 — Keyword gallery page | Active | Route, page and continuation endpoint on `feature/71-keyword-gallery-page`, stacked on AB#58. AB#74, AB#75 and AB#90 follow it. |
+| AB#59 — Public keyword index | Active | Server-side index on `feature/59-keyword-index`, stacked on AB#71. AB#74 and AB#75 follow it. |
+| AB#75 — Keyword browser | Active | On `feature/75-keyword-browser`, stacked on AB#59. |
+| AB#74 — Keyword selector | Active | On `feature/74-keyword-selector`, stacked on AB#75. AB#90 follows it. |
+| AB#73 — Keyword gallery at archive scale | Active | Repeatable checks on `test/73-keyword-archive-scale`, stacked on AB#90. The owner agreed the budgets on 2026-11-15 and asked for a faster network profile. Needs that profile confirmed and measured, a dataset to measure, and physical-device checks. |
 | AB#57 — Keyword import mapping | Active | Pure mapping on `feature/57-keyword-import-mapping`. AB#69 and AB#70 follow it. |
 | AB#69 — Keyword sync | Active | `npm run sync:keywords` on `feature/69-keyword-resync`, stacked on AB#57. The first run on `preview` is owner-run. |
 | AB#70 — Keyword review | Active | Studio tool on `feature/70-keyword-review`, stacked on AB#69. Needs a Studio deployment and an editor's look. |
@@ -100,7 +107,7 @@ resumed for this owner (AGENTS.md); AB#313 audits removing that inactive code.
 | AB#29 — Unlisted client galleries and whole-gallery ZIPs | Active | Follows ADR-0034 and the owner-accepted ADR-0035 ZIP contract (2026-10-25); AB#407 source and transport/capacity/hosted gates remain. |
 | AB#145 — Administer unlisted galleries | Active | Same branch; authoring boundaries need their own implementation. |
 | AB#130 — Proof selection without S3 | Active | Publication, selection, notices, reminders and manual deletion are merged/default-off. The [2026-10-24 replacement-deletion amendment](adr/0038-proof-selection-in-existing-sanity.md#replacement-deletion-amendment-2026-10-24) is source-built in merged/Closed AB#396. Hosted/privacy acceptance and activation remain separate. |
-| AB#60 — Enquiry about a public gallery item | Active | Curated-gallery path is built; a dynamic entry point needs the keyword branch. |
+| AB#60 — Enquiry about a public gallery item | Active | Curated path shipped. The dynamic path is on `feature/60-dynamic-enquiry`, stacked on AB#73. |
 
 **Keyword and commerce discovery:**
 

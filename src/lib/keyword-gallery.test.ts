@@ -147,7 +147,7 @@ const media = (mediaId: string) => projectPublicImageMedia({
   mediaId, publiclyRenderable: true, alt: "",
   rendition: { src: "/gallery/m.1683eecb7e65.webp", version: "1683eecb7e65", width: 4, height: 3, sourceKind: "public-web-derivative" },
 });
-const row = (orderKey: string, mediaId: string): KeywordGalleryRow => ({ orderKey, media: media(mediaId) });
+const row = (orderKey: string, mediaId: string): KeywordGalleryRow => ({ orderKey, enquiryAllowed: mediaId !== "not-opted-in", media: media(mediaId) });
 
 /** An in-memory store with the query's semantics, so a walk exercises the real page logic. */
 function storeOf(rows: readonly KeywordGalleryRow[], latest = "2026-01-01T00:00:00Z"): KeywordGallerySource {
@@ -182,9 +182,11 @@ describe("reading pages", () => {
     expect(await walk(storeOf(rows), pageSize)).toEqual(["a", "b", "c", "d", "e", "f", "g", "h"]);
   });
 
-  it("returns the shared result shape, with no placement or enquiry permission", async () => {
+  it("returns the shared result shape, with no placement, and the permission the source read", async () => {
     const page = await readKeywordGalleryPage({ locale: "en", canonicalIds: ["aa"], taxonomyVersion: 1, source: storeOf(rows), cursorCodec: codec, pageSize: 1 });
-    expect(Object.keys(page.items[0]).sort()).toEqual(["itemId", "media", "mediaId"]);
+    expect(Object.keys(page.items[0]).sort()).toEqual(["enquiryAllowed", "itemId", "media", "mediaId"]);
+    const refused = await readKeywordGalleryPage({ locale: "en", canonicalIds: ["aa"], taxonomyVersion: 1, source: storeOf([row("", "not-opted-in")]), cursorCodec: codec });
+    expect(refused.items[0].enquiryAllowed).toBe(false);
     expect(page.items[0].itemId).toBe("a");
     expect(page.page).toMatchObject({ size: 1, hasNextPage: true });
   });
