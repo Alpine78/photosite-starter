@@ -3,8 +3,9 @@ import { describe, expect, it } from "vitest";
 
 import { keywordRow } from "../sanity/schemas/keyword-fixtures";
 import { KEYWORD_GRAPH_PROJECTION } from "../sanity/schemas/keyword-rules";
-import { keywordRecordId, KEYWORD_RECORD_TYPE, planKeywordSync, summarizeKeywordSync, type KeywordSyncInput, type KeywordSyncMedia, type KeywordSyncRecord } from "./keyword-sync-plan.mts";
-import { KEYWORD_SYNC_BATCH_SIZE, KEYWORD_SYNC_VOCABULARY_QUERY, keywordSyncExitCode, parseArguments, parseImports, runKeywordSync, type KeywordSyncPort } from "./keyword-sync.mts";
+import { KEYWORD_TERM_DECISIONS_ID as STUDIO_TERM_DECISIONS_ID } from "../studio/keyword-review";
+import { keywordRecordId, KEYWORD_RECORD_TYPE, KEYWORD_TERM_DECISIONS_ID, planKeywordSync, summarizeKeywordSync, type KeywordSyncInput, type KeywordSyncMedia, type KeywordSyncRecord } from "./keyword-sync-plan.mts";
+import { KEYWORD_SYNC_BATCH_SIZE, KEYWORD_SYNC_VOCABULARY_QUERY, keywordSyncExitCode, parseArguments, parseTermDecisions, parseImports, runKeywordSync, type KeywordSyncPort } from "./keyword-sync.mts";
 
 const subject = "category-subject";
 const vocabulary = [
@@ -201,6 +202,7 @@ function store(documents: readonly (Readonly<Record<string, unknown>> & { _id: s
   const port: KeywordSyncPort = {
     query: async (query, params) => {
       if (query === KEYWORD_SYNC_VOCABULARY_QUERY) return vocabulary;
+      if (query.includes(KEYWORD_TERM_DECISIONS_ID)) return docs.get(KEYWORD_TERM_DECISIONS_ID)?.decisions ?? null;
       if (query.includes('path("versions.**")]._id')) return [...docs.keys()].filter((id) => id.startsWith("versions."));
       if (query.includes('_id == "keywordTaxonomyState"')) return docs.get("keywordTaxonomyState") ?? null;
       const type = query.includes('_type == "media"') ? "media" : KEYWORD_RECORD_TYPE;
@@ -424,6 +426,39 @@ describe("running", () => {
     expect(planned.summary.update).toBe(400);
     expect(performance.now() - start).toBeLessThan(5000);
   }, 60_000); // A generous ceiling for a loaded machine; the measured figure is in docs/keyword-sync.md.
+});
+
+describe("term decisions", () => {
+  it("are read from the same document Studio writes", () => {
+    expect(KEYWORD_TERM_DECISIONS_ID).toBe(STUDIO_TERM_DECISIONS_ID);
+    expect(KEYWORD_TERM_DECISIONS_ID).toContain(".");
+  });
+
+  it("are read as a map, nothing when absent, and stop the run when damaged", () => {
+    expect(parseTermDecisions(null).size).toBe(0);
+    expect(parseTermDecisions([{ key: "shared", documentId: "doc-a" }]).get("shared")).toBe("doc-a");
+    for (const damaged of ["x", [null], [{ key: 1, documentId: "a" }], [{ key: "a" }]]) {
+      expect(() => parseTermDecisions(damaged)).toThrow(/TERM_DECISIONS_MALFORMED/);
+    }
+  });
+
+  it("settle a flat term two categories share, in the plan", () => {
+    const shared = [keywordRow({ id: "one", title: "Shared", category: subject }), keywordRow({ id: "two", title: "Shared", category: "category-other" })];
+    const imports = new Map([["m1", fields("Shared")]]);
+    expect(onlyEntry({ vocabulary: shared, imports })).toMatchObject({ status: "update", review: [{ reason: "ambiguous" }] });
+    const decided = onlyEntry({ vocabulary: shared, imports, termDecisions: new Map([["shared", "doc-two"]]) });
+    expect(decided).toMatchObject({ status: "update", review: [], mutations: [{ patch: { set: { expandedKeywordIds: ["two"] } } }, {}] });
+  });
+
+  it("reach the photographs through a re-sync", async () => {
+    const shared = { dcSubject: ["Harbour"], iptcKeywords: null, hierarchicalSubject: null, weightedFlatSubject: null };
+    const record = { _id: keywordRecordId("m1"), _type: KEYWORD_RECORD_TYPE, _rev: "r0", importedKeywords: { raw: shared } };
+    const decisions = { _id: KEYWORD_TERM_DECISIONS_ID, _type: "keywordTermDecisions", _rev: "d0", decisions: [{ key: "harbour", documentId: "doc-harbour" }] };
+    const { port, docs } = store([state(), mediaDocument("m1"), record, decisions]);
+    const planned = await runKeywordSync(port, { now: NOW });
+    await runKeywordSync(port, { now: NOW, yes: true, approvedDigest: planned.digest });
+    expect(docs.get("doc-m1")?.expandedKeywordIds).toEqual(["harbour"]);
+  });
 });
 
 describe("the exit status", () => {

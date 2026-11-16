@@ -17,7 +17,8 @@ npm run write:joomla -- --plan <import-plan.json> --image-root <dir> --out <dir>
 npm run sync:keywords -- --out <new-private-dir> [--imports <fields.json>] [--set-discoverable] [--approved-digest <hash> --yes] # owner-run: re-derive media keywords and closures (AB#69), dry-run by default, no upload; see docs/keyword-sync.md
 npm run plan:rally -- --folder <rally folder> --out <dir> # owner-run: plan a capture-sequence rally import offline, never writes
 npm run plan:legacy-delivery -- --input <private.json> --image-root <dir> --backup <archive.zip> --out <dir> # owner-run: verify unchanged retained legacy sources offline; no CMS write
-npm run plan:legacy-image-reupload -- --image-root <dir> --out <new-private-dir> # owner-run: AB#391 report on legacy source images (action, GPS, keywords, postal address); reads local files only, never writes CMS
+npm run plan:legacy-image-reupload -- --image-root <dir> --out <new-private-dir> [--asset-plans <dir> --published <media.json>] # owner-run: AB#391 report on legacy source images (action, GPS, keywords, postal address), and by published medium with the two options; reads local files only, never writes CMS
+npm run write:legacy-image-reupload -- --plan <published.json> --image-root <dir> --out <new-private-dir> [--sensitive <list>] [--delete-replaced] [--approved-digest <hash> --yes] # owner-run: replace public assets from their sources under ADR-0039 decision 8, dry-run by default; see docs/legacy-image-reupload.md
 npm run write:rally -- --plan <plan.json> --folder <rally folder> --out <dir> --approved-digest <hash> # owner-run: write an approved rally plan to Sanity, dry-run by default
 npm run plan:rally-conversion -- --gallery <contentId> --folder <renamed copy> --artifacts <dir> --out <dir> # owner-run: plan converting a published rally gallery, read-only
 npm run write:rally-conversion -- --plan <plan.json> --folder <renamed copy> --out <dir> --approved-digest <hash> --backup-archive <path> # owner-run: write an approved rally gallery conversion to Sanity, dry-run by default
@@ -27,6 +28,5 @@ npm run reconcile:identities -- --map <map.json> --approval <approval.json> --ba
 npm run plan:identity-changes -- --map <map.json> --approval <approval.json> --baseline <original.ndjson> --snapshot <current.ndjson> --approved-digest <hash> --out <private-dir> # offline revision-bound change batches; never writes CMS
 npm run plan:article-end-sections -- --manifest <private.json> --snapshot <complete-raw.ndjson> --out <new-private-directory> # offline first-adoption evidence only; never writes CMS
 npm run revalidate:article-end-sections -- --baseline-manifest <private.json> --baseline-snapshot <raw.ndjson> --baseline-digest <sha256> --current-manifest <private.json> --current-snapshot <raw.ndjson> --out <new-private-directory> # offline pre-write comparison only; never writes CMS
-npm run admin:secret # owner-run: generate the private-gallery administrator credential (ADR-0015 §4)
 npm run release:production -- stage | promote --receipt <03-staged.json> --confirm <dpl_id> # owner-run: staged Production release; stage never changes production, promote needs the passed receipt (AB#379)
 ```

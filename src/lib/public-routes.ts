@@ -45,21 +45,13 @@ export const RESERVED_ROOT_SEGMENTS: readonly string[] = [
   // The public directory the mock media is served from. It owns no page, but a
   // locale prefix that claimed it would shadow every image beneath it.
   "gallery",
-  // The Proxy's internal rewrite target for the private client-gallery
-  // namespace (`request-path.ts`). It owns real routes, so nothing else may
-  // claim it — including `PRIVATE_GALLERY_ROUTE_PREFIX` itself, which
-  // `deployment-config.ts` already refuses to set to a reserved segment.
+  // Retired with the protected client-gallery routes (AB#313): the two literal
+  // segments those routes lived under and the link bootstrap script beside
+  // them. Nothing is served there now. They stay reserved so no locale prefix,
+  // story namespace or configured prefix can take an address the protected
+  // model once used; the Proxy answers the two segments with a hygienic 404.
   "private-gallery",
-  // The link bootstrap script, served as a same-origin static file so it needs
-  // no CSP grant beyond `script-src 'self'`. It carries nothing secret — the
-  // capability it reads lives in the visitor's own URL fragment — and it sits
-  // beside the private namespace rather than inside it, so the Proxy's
-  // internal-path 404 never has to make an exception for it.
   "private-gallery-bootstrap.js",
-  // The Proxy's internal rewrite target for the administrator namespace
-  // (`request-path.ts`, ADR-0015 §1). Owns real routes, so nothing else may
-  // claim it — including `PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX` itself, which
-  // `deployment-config.ts` already refuses to set to a reserved segment.
   "private-gallery-admin",
   "services",
 ];

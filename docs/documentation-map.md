@@ -44,6 +44,7 @@ there is no other documentation to hunt for.
 | `docs/keyword-gallery-scale.md` | whoever changes keyword gallery queries, paging or rendering (AB#73) | a budget, a measurement or the archive-scale checks change |
 | `docs/keyword-sync.md` | the owner running the keyword sync (AB#69) | `npm run sync:keywords`, its inputs, guards or refusals change |
 | `docs/keyword-index.md` | whoever changes keyword search, the typeahead or the browsable keyword index (AB#59) | the public keyword index's fields, rules, invalidation or budget change |
+| `docs/legacy-image-reupload.md` | the owner running the legacy image re-upload (AB#391) | the re-upload commands, their inputs, guards or limits change |
 | `docs/client-web-image-batches.md` | the owner preparing client-gallery web images (AB#325) | the local batch preparation command, its inputs or guarantees change |
 | `docs/client-gallery-zip.md` | owner attaching a verified whole ZIP to a delivery draft (AB#407) | the private attachment operator, approval/evidence contract, runtime ZIP or cleanup guarantees change |
 | `docs/cms-recovery-rehearsal.md` | the owner and recovery operator (AB#267) | the local CMS and original-asset recovery rehearsal command or its evidence change |

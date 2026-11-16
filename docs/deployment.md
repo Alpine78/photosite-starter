@@ -1046,6 +1046,13 @@ customer field or protected store is edited by this tool.
 
 ### Private client galleries (ADR-0014, deferred alternative)
 
+> **Routes removed (AB#313, 2026-11-15).** The protected customer and administrator pages
+> and endpoints, the link bootstrap script and `npm run admin:secret` no longer exist. The
+> two route prefixes stay reserved and every path under them answers a 404 with the
+> namespace's `no-store`, `noindex` and `no-referrer` headers. The rest of this section
+> describes the removed model and is kept until AB#313's configuration slice rewrites it;
+> none of its steps can be followed on this code.
+
 **Owner decision, 2026-10-16:** [ADR-0034](adr/0034-ongoing-unlisted-client-delivery.md)
 selects existing Sanity/unlisted delivery for ongoing customer work, including
 future galleries. Do not provision the S3/Postgres services below for this owner
@@ -1136,14 +1143,8 @@ parameters:
 scrypt$1$32768$8$1$<salt>$<hash>
 ```
 
-Produce it with the repository's own command, which generates the secret, hashes it, and
-verifies its own output before printing anything:
-
-```bash
-npm run admin:secret
-```
-
-It prints two values and writes neither to disk. The **secret** goes into the operator's
+The generator command (`npm run admin:secret`) was removed with the administrator routes.
+It printed two values and wrote neither to disk. The **secret** goes into the operator's
 password manager — it is printed once and is not recoverable. The **hash** becomes this
 Sensitive environment variable on the deployment.
 
@@ -1474,75 +1475,6 @@ argument for telling them before it happens rather than after.
 step here is derived from the ADR and the providers' documented capabilities rather than
 from a run. The first owner to follow it should correct it where it is wrong — that is more
 useful than leaving it aspirational.
-
-#### Offline private upload source check
-
-This development tool runs before storage upload and needs no provider credential.
-It never changes images, writes to Sanity/object storage, assigns object keys or
-publishes a gallery. Input and output contain private local paths/filenames: use
-owner-owned `0700` directories and a `0600` input JSON. Inside a checkout, both
-artifacts must be untracked and Git-ignored. Symlink components are refused.
-Native Windows ACL handling is unverified and refused; filesystems that do not
-honour the required POSIX permissions also fail closed.
-
-For externally watermarked proof exports, the input shape is:
-
-```json
-{"mode":"proof","externallyWatermarked":true,"images":[{"relativePath":"proofs/IMG_0001.JPG","mediaId":"media-1"}]}
-```
-
-The watermark flag is the operator's declaration, **not watermark detection**.
-Every proof needs its existing stable media identity; filenames do not create it.
-For delivery, use `{"mode":"delivery","images":[{"relativePath":"previews/IMG_0001.JPG"}],"zipPath":"delivery.zip"}`.
-Paths are relative to the source root; ambiguous case/NFC aliases, hardlink aliases,
-traversal and duplicate media identities are refused. Delivery requires its one ZIP.
-
-```bash
-npm run plan:private-gallery-upload -- --input <private.json> --source-root <export-folder> --out <private-output>
-```
-
-The tool checks JPEG metadata and a complete pixel decode at native ratio, one page, upright orientation,
-≤ 2,048 pixels on the longest edge and ≤ 8 MiB per preview; it changes no bytes.
-The existing 1,000-object plan limit permits 1,000 proofs or 999 previews plus ZIP.
-The ZIP is streamed and capped at 20 GiB, with a 25 GiB gallery total. Only its
-local-file signature is recognized: archive entries, CRC and full-JPEG membership
-remain unchecked. The local report flags EXIF/ICC presence without copying their
-contents. Review private export metadata before upload.
-
-`upload-source-plan.json` is written exclusively at `0600`; an existing result is
-never overwritten. Its digest covers the versioned manifest, local asset paths,
-sizes/hashes and declared checks, excluding the digest itself. It detects change,
-not authenticity. This is a planning-time snapshot: the future uploader must rehash
-before writing and obtain/obey the server-committed preparation and opaque keys.
-Only the report's `manifest` is input for future preparation; the local paths and
-hash report never belong in a browser payload. Server coordination, upload,
-provider checksum semantics and actual publication remain separate work.
-
-The npm command suppresses only Node's module-type detection notice for shared
-TypeScript policy imports. Validation failures print a fixed code and optional
-item ordinal, without native filesystem/Sharp errors or private filenames.
-
-Revalidate a selected saved plan immediately before later upload tooling:
-
-```bash
-npm run verify:private-upload-sources --silent -- --plan <private-output/upload-source-plan.json> --source-root <export-folder> --expected-digest <selected-digest>
-```
-
-The verifier reads a private report of at most 4 MiB, reconstructs its complete
-closed contract and checks the selected digest before touching a source path.
-It reuses the planner's unchanged path/open/stat guards and complete JPEG decode;
-ZIPs are streamed again. Sizes, hashes, dimensions, metadata-presence flags and
-the ordered manifest must still match. Identical copied/restored files remain
-valid: inode identity detects aliases within one run, not changes across runs.
-The tool writes no artifact and emits only counts, digest and fixed caveats.
-`--silent` suppresses npm's command echo, which otherwise repeats local arguments.
-
-This checks the selected bytes, not authenticity, watermarks or archive contents.
-Files can change after any preflight; a later uploader must verify/stream its own
-open handles rather than reopening files and treating this as a lock. Intermediate
-path components can also change between the component walk and open: this is
-offline operator tooling, not an adversarial-filesystem isolation boundary.
-No credential, remote metadata, object key or upload is provided by this command.
 
 ### The Sanity webhook signing secret
 
