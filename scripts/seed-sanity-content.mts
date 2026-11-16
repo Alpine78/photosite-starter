@@ -63,6 +63,7 @@ import {
   runSeedMutationBatches,
   runSeedQuery,
   SanitySeedConfigurationError,
+  SanitySeedHttpError,
   uploadSeedImageAsset,
   type SeedConnection,
 } from "./sanity-seed-http.mts";
@@ -87,6 +88,7 @@ const EXPECTED_ARTICLE_DOCUMENT_COUNT = ARTICLE_FIXTURES.reduce(
 const GALLERY_DIRECTORY = new URL("../public/gallery/", import.meta.url);
 
 function fail(message: string): never {
+  if (writeProgress?.started) console.error(formatPartialRunLine(writeProgress.toRecord()));
   console.error(`Sanity seeding failed: ${message}`);
   process.exit(1);
 }
@@ -550,9 +552,10 @@ async function runLiveVerification(connection: SeedConnection, documents: readon
     try {
       await check.run();
       console.log(`  PASS  ${check.name}`);
-    } catch (cause) {
+    } catch {
+      // The check's own message can quote the provider's response, so only its name is printed.
       failures += 1;
-      console.log(`  FAIL  ${check.name} — ${cause instanceof Error ? cause.message : String(cause)}`);
+      console.log(`  FAIL  ${check.name}`);
     }
   }
   if (failures > 0) {
@@ -634,11 +637,15 @@ async function findAllSeededDocuments(connection: SeedConnection): Promise<reado
 async function deleteInDependencySafeOrder(
   connection: SeedConnection,
   docs: readonly FoundSeedDocument[],
+  progress: WriteRunProgress,
 ): Promise<void> {
-  for (const wave of orderSeedDocumentsForDeletion(docs)) {
+  const waves = orderSeedDocumentsForDeletion(docs);
+  for (const [index, wave] of waves.entries()) {
+    progress.start();
     await runSeedMutationBatches(
       connection,
       wave.map((doc) => ({ delete: { id: doc._id } })),
+      { onBatchCommitted: progress.batchRecorder(`deletions wave ${index + 1}/${waves.length}`) },
     );
   }
 }
@@ -653,7 +660,7 @@ async function deleteInDependencySafeOrder(
  * path only ever queries and deletes; it never builds fixtures, uploads an
  * asset, or writes anything.
  */
-async function deleteAllSeededDocuments(connection: SeedConnection): Promise<void> {
+async function deleteAllSeededDocuments(connection: SeedConnection, progress: WriteRunProgress): Promise<void> {
   const existing = await findAllSeededDocuments(connection);
 
   if (existing.length === 0) {
@@ -662,7 +669,7 @@ async function deleteAllSeededDocuments(connection: SeedConnection): Promise<voi
   }
 
   console.log(`Deleting ${existing.length} seed-owned document(s)...`);
-  await deleteInDependencySafeOrder(connection, existing);
+  await deleteInDependencySafeOrder(connection, existing, progress);
   const remaining = await findAllSeededDocuments(connection);
   if (remaining.length > 0) {
     fail(
@@ -682,6 +689,7 @@ async function reportAndPruneStale(
   connection: SeedConnection,
   currentIds: ReadonlySet<string>,
   prune: boolean,
+  progress: WriteRunProgress,
 ): Promise<boolean> {
   const existing = await findAllSeededDocuments(connection);
 
@@ -699,7 +707,7 @@ async function reportAndPruneStale(
     return false;
   }
 
-  await deleteInDependencySafeOrder(connection, stale);
+  await deleteInDependencySafeOrder(connection, stale, progress);
   console.log(`Deleted ${stale.length} stale document(s).`);
   return true;
 }
@@ -728,7 +736,8 @@ async function main(): Promise<void> {
       token: requiredEnvSetting("SANITY_SEED_TOKEN"),
     });
     console.log(formatWriteTarget(connection));
-    await deleteAllSeededDocuments(connection);
+    writeProgress = new WriteRunProgress(connection);
+    await deleteAllSeededDocuments(connection, writeProgress);
     return;
   }
 
@@ -811,11 +820,10 @@ async function main(): Promise<void> {
   // cannot skew them either way. Pruning first is still done here simply
   // because it is the more useful order to report in: the operator sees
   // what changed before seeing whether the new state reads back correctly.
-  await reportAndPruneStale(connection, new Set(documents.map((doc) => doc._id)), prune);
+  await reportAndPruneStale(connection, new Set(documents.map((doc) => doc._id)), prune, progress);
   await runLiveVerification(connection, documents);
 }
 
 main().catch((cause) => {
-  if (writeProgress?.started) console.error(formatPartialRunLine(writeProgress.toRecord()));
-  fail(cause instanceof Error ? cause.message : String(cause));
+  fail(cause instanceof SanitySeedConfigurationError || cause instanceof SanitySeedHttpError ? cause.message : "unexpected failure");
 });

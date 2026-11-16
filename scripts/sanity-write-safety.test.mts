@@ -6,7 +6,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { canonicalJson } from "./joomla-intro-summary.mts";
 import { reuploadApprovalDigest } from "./legacy-image-reupload-match.mts";
-import { parseSeedConnection, runSeedMutationBatches } from "./sanity-seed-http.mts";
+import { buildSeedFixtures, collectSeedIdentities, GALLERY_PLACEMENT_TYPE_NAME } from "./sanity-seed-fixtures.mts";
+import { MUTATION_BATCH_SIZE, parseSeedConnection, runSeedMutationBatches } from "./sanity-seed-http.mts";
 import {
   formatPartialRunLine,
   formatWriteTarget,
@@ -243,6 +244,58 @@ describe("a run that fails after it began writing leaves a partial-run record (A
     return JSON.parse((line as string).slice(PARTIAL_RUN_LINE_PREFIX.length));
   }
   const EMPTY_PREFLIGHT = [{ singletons: [], media: [], categories: [], services: [], content: [] }];
+  const { documents } = buildSeedFixtures();
+  const documentBatches = Math.ceil(documents.length / MUTATION_BATCH_SIZE);
+  const preflightResults = [
+    ...EMPTY_PREFLIGHT,
+    // Placement identity preflight queries use chunks of 100 ids.
+    ...Array.from({ length: Math.ceil(collectSeedIdentities(documents).placementIds.length / 100) }, () => []),
+  ];
+
+  it.each(["--delete-all", "--prune-stale"])("seed:sanity %s records the deletion batch committed before a rejection", (mode) => {
+    const stale = Array.from({ length: MUTATION_BATCH_SIZE + 1 }, (_, index) => ({
+      _id: `seed--stale-placement-${index}`,
+      _type: GALLERY_PLACEMENT_TYPE_NAME,
+    }));
+    const result = runWriterCliWithFakeSanity("seed-sanity-content.mts", [mode, "--yes"], { SANITY_SEED_TOKEN: TOKEN }, {
+      failWhenBodyContains: '"delete"',
+      failAt: 2,
+      queryResults: mode === "--delete-all" ? [stale] : [...preflightResults, stale],
+    });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("Mutation batch 2/2 failed with HTTP 500");
+    expect(partialRecord(result.stderr)).toMatchObject({
+      version: 1,
+      target: TARGET,
+      completedBatches: mode === "--delete-all" ? 1 : documentBatches + 1,
+      lastCompletedBatch: "deletions wave 1/1 1/2",
+      ...(mode === "--delete-all" ? { uploadedAssetIds: [] } : {}),
+    });
+    expect(result.stderr.split("\n").filter((entry) => entry.startsWith(PARTIAL_RUN_LINE_PREFIX))).toHaveLength(1);
+    expect(result.stdout + result.stderr).not.toContain(TOKEN);
+  }, CLI_TIMEOUT);
+
+  it("seed:sanity reports all uploaded assets and completed batches when post-write verification fails", () => {
+    const result = runWriterCliWithFakeSanity("seed-sanity-content.mts", ["--yes"], { SANITY_SEED_TOKEN: TOKEN }, {
+      failWhenBodyContains: '"createOrReplace"',
+      failAt: 0,
+      // No stale documents, then two missing singletons and an invalid count carrying sensitive error text.
+      queryResults: [...preflightResults, [], null, null, { error: `raw verification error ${TOKEN}` }],
+    });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("Sanity seeding failed: 9 live verification check(s) failed. The write already completed — see docs/sanity-seeding.md.");
+    const record = partialRecord(result.stderr);
+    expect(record).toMatchObject({
+      version: 1,
+      target: TARGET,
+      completedBatches: documentBatches,
+      lastCompletedBatch: `documents ${documentBatches}/${documentBatches}`,
+    });
+    expect([...record.uploadedAssetIds].sort()).toEqual(Array.from({ length: 6 }, (_, index) => `image-fixture${index + 1}-10x10-webp`).sort());
+    expect(result.stderr.split("\n").filter((entry) => entry.startsWith(PARTIAL_RUN_LINE_PREFIX))).toHaveLength(1);
+    expect(result.stdout + result.stderr).not.toContain("raw verification error");
+    expect(result.stdout + result.stderr).not.toContain(TOKEN);
+  }, CLI_TIMEOUT);
 
   it("seed:sanity records an asset whose filename cleanup failed after the upload was accepted", () => {
     const result = runWriterCliWithFakeSanity("seed-sanity-content.mts", ["--yes"], { SANITY_SEED_TOKEN: TOKEN }, {
