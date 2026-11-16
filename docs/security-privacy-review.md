@@ -181,7 +181,7 @@ infrastructure (a live Vercel/Resend account) that does not exist yet.
 | Contact form delivery | Resend (HTTP API) | The enquiry's field values, sent server-side only; nothing is stored by this application | `docs/contact-data-flow.md` |
 | Cache invalidation | Sanity → this application's `/api/revalidate` | A signed webhook naming which document changed; no document body is logged | `docs/cache-revalidation.md`, ADR-0004 |
 | Opt-in video embed | YouTube (`youtube-nocookie.com`) | Only after a visitor explicitly clicks; no request before that | `youtube-embed.tsx`, `AGENTS.md`'s privacy-by-default rule |
-| Source control / CI | GitHub, Azure DevOps (Pipelines + Boards) | Source code (public repo), pipeline secrets (`VERCEL_TOKEN`, `SANITY_READ_TOKEN`, etc. as pipeline-scoped variables), work-item text | `azure-pipelines.yml`, this review's own AC3 section |
+| Source control / CI | GitHub, Azure DevOps (Pipelines + Boards) | Source code (public repo), pipeline secrets (`VERCEL_TOKEN`, `SANITY_BUILD_READ_TOKEN`, etc. as pipeline-scoped variables), work-item text | `azure-pipelines.yml`, this review's own AC3 section |
 | Operational logs | Vercel Runtime Logs | Redacted correlation-id-keyed events only (see AC3) | `docs/contact-data-flow.md`, `docs/cache-revalidation.md` |
 
 This corrects a gap the plan-review phase flagged: an earlier draft of this review
@@ -266,7 +266,7 @@ AB#287 remains Active pending its evidence PR; AB#117’s final acceptance stays
   the rulesets were already in place.
 - **Pipeline secret scoping.** `azure-pipelines.yml`'s `DeployPreview` stage reads
   `VERCEL_ORG_ID`/`VERCEL_PROJECT_ID`/`VERCEL_TOKEN`/`VERCEL_AUTOMATION_BYPASS_SECRET`
-  and `SANITY_READ_TOKEN` as pipeline-scoped variables, never printed and never
+  and `SANITY_BUILD_READ_TOKEN` (the Azure-scoped, read-only build credential, distinct from Vercel's runtime `SANITY_READ_TOKEN`) as pipeline-scoped variables, never printed and never
   committed; the stage explicitly checks all four Vercel variables are present before
   running rather than silently deploying with a partial credential set.
 
@@ -428,6 +428,27 @@ of this review rather than newly written:
 ADR-0011's Context section for the full reasoning — `revalidateTag` is naturally
 idempotent, so there is nothing a replay ledger would prevent that isn't already a
 harmless no-op.
+
+**Corrected 2026-11-16 (AB#422): the endpoint set grew.** The table above is the
+AC4 contract for the two endpoints this review first covered. The route handlers
+under `src/app/api` today (`git ls-files 'src/app/api/**/route.ts'`) are:
+
+| Route | Methods | Authentication / origin control (from the route code) |
+| - | - | - |
+| `/api/contact` | POST | Header same-origin check, rate limit, honeypot (table above) |
+| `/api/enquiry` | POST | Same header check and throttle as contact, plus a public item reference resolved server-side (AB#60) |
+| `/api/revalidate` | POST | HMAC signature over the raw body (table above) |
+| `/api/gallery` | GET | Same-origin check; signed continuation cursor; public data, `no-store` |
+| `/api/article-gallery` | GET | Same-origin check; signed continuation cursor; public data |
+| `/api/keyword-gallery` | GET | Same-origin check; signed continuation cursor; public data |
+| `/api/search` | POST | Header same-origin check, bounded body; no application rate limit (ADR-0033); term not stored or logged |
+| `/api/keyword-suggest` | POST | Header same-origin check, bounded body; reads the cached keyword index |
+| `/api/poll-vote` | GET, POST | GET reads public results (strict query validation, read rate limit; the cookie-preparing form also needs an `x-poll-prepare` header and a same-origin `Sec-Fetch-Site`); POST uses the header check, a rate limit, a closed two-field body and a per-poll `HttpOnly` visitor cookie |
+| `/api/proof-selection` | POST | Off unless `PROOF_SELECTION=enabled`; header same-origin check, client rate limit, selection key from the link fragment |
+| `/api/proof-gallery/publish` | OPTIONS, POST | Off unless `PROOF_PUBLICATION=enabled`; exact Studio origin (CORS without credentials), editor token verified through project-member metadata |
+| `/api/proof-reminders` | GET | Off unless `PROOF_REMINDERS=enabled`; `Authorization: Bearer <CRON_SECRET>` compared in constant time |
+| `/api/client-gallery-cleanup` | GET | Off unless configured; `Authorization: Bearer <cron secret>` compared in constant time; other methods answer 405 |
+| `/api/site-maintenance` | all methods | No authentication; internal fallback target that answers 404 when maintenance mode is off, otherwise the maintenance response |
 
 ## AC5 — Draft, private, non-discoverable, full-resolution data cannot leak
 
@@ -632,6 +653,23 @@ now (any future auto-loading third-party script or embed would be blocked by
 `script-src`/`frame-src`/`connect-src` unless the CSP is explicitly widened for it),
 not only a code-review convention.
 
+**Corrected 2026-11-16 (AB#422): browser storage the site now writes.** The grep
+above covers cookies and tracking scripts; it does not cover `localStorage`. The
+site writes two kinds of visitor-chosen state there, never sent to the server:
+
+- `photosite-theme` (`THEME_STORAGE_KEY` in `src/lib/theme-preference.ts`): the
+  visitor's pinned light/dark choice.
+- `photosite.reading-positions.v1` and `photosite.reading-positions-disabled.v1`
+  (`READING_POSITIONS_KEY`, `READING_DISABLED_KEY` in
+  `src/lib/reading-position-store.ts`): bounded reading positions and the flag that
+  switches them off (see [article-reading-position.md](article-reading-position.md)).
+
+Separately, `/api/poll-vote` sets a per-poll `HttpOnly`, `Secure`, `SameSite=Lax`
+cookie scoped to path `/api/poll-vote` with a one-year lifetime
+(`withVoterCookie` in `src/app/api/poll-vote/route.ts`); the "zero `Set-Cookie`
+matches" statement above does not hold for this route. Whether this satisfies the no-banner goal
+is an owner assessment and is not decided here.
+
 ## AC7 — Dependency audit and accepted residual risks
 
 Before this review: `npm audit --omit=dev` reported 4 high-severity findings; a full
@@ -728,7 +766,7 @@ release behavior or provider concurrency. No live operation or activation perfor
 
 2026-10-23 AB#130 proof page: `/client-proof/<handle>` is a default-off, read-only public page for published proof galleries. It projects only display data (no filenames, high-water mark, terms or selection data), reads the published document by its own ID and refuses drafts, dotted private records, private-only assets and unnumbered proofs, and carries the reserved-path hygiene. The selection key in the link's fragment is neither read nor sent. Public files and metadata remain enumerable, as ADR-0038 records.
 
-2026-10-22 AB#130: a new write route, `/api/proof-gallery/publish`, is off by default. It accepts only an exact Studio origin (CORS without credentials), checks `/users/me` and performs every read and its one atomic transaction with that editor token, so it holds no write credential; selection keys are stored hashed plus AES-256-GCM-encrypted under a server-only secret and returned once after commit. **Corrected 2026-10-24:** an Editor robot passed this identity check; it did not prove a human user session ([AB#401 evidence](audits/client-gallery-lifecycle-rehearsal-2026-10-24.md), follow-up AB#402). The 2026-10-25 AB#402 source correction uses documented project-member flags; actual intended-role/hosted acceptance is still pending under the [current contract](sanity-setup.md#proof-gallery-publication-ab130-adr-0038). Activation waits for the terms and Studio-action slices and an owner-run hosted check ([ADR-0038 amendment](adr/0038-proof-selection-in-existing-sanity.md)).
+2026-10-22 AB#130: a new write route, `/api/proof-gallery/publish`, is off by default. It accepts only an exact Studio origin (CORS without credentials), checks the editor's identity and performs every read and its one atomic transaction with that editor token, so it holds no write credential; selection keys are stored hashed plus AES-256-GCM-encrypted under a server-only secret and returned once after commit. **Corrected 2026-10-24:** an Editor robot passed this identity check; it did not prove a human user session ([AB#401 evidence](audits/client-gallery-lifecycle-rehearsal-2026-10-24.md), follow-up AB#402). The 2026-10-25 AB#402 source correction replaced the `/users/me` call: `verifyEditorSession` in `src/lib/proof-publication-sanity.ts` now reads the project's member list (`includeMembers`) and requires exactly one current-user entry that is a unique member with `isRobot === false` (restated 2026-11-16, AB#422); actual intended-role/hosted acceptance is still pending under the [current contract](sanity-setup.md#proof-gallery-publication-ab130-adr-0038). Activation waits for the terms and Studio-action slices and an owner-run hosted check ([ADR-0038 amendment](adr/0038-proof-selection-in-existing-sanity.md)).
 
 2026-10-22 AB#130 Studio action: the publish action exists only in a Studio built with `SANITY_STUDIO_PROOF_GALLERIES=enabled`, and only that Studio signs in with `loginMethod: 'token'`, which makes the editor's token readable by scripts on the Studio origin (accepted in the ADR-0038 amendment). The action posts once, cookieless, to the configured site origin; the route binds publication to the validated draft revision and refuses unrequested terms; the customer's address is stored only when a reminder is on. Any answer other than the route's own rejection is shown as an unknown outcome without retry. Native unpublish and delete are removed so no private terms are orphaned.
 

@@ -1,3 +1,5 @@
+import { readdirSync } from "node:fs";
+import { join } from "node:path";
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { NextConfig } from "next";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -290,6 +292,14 @@ describe("public image Next.js configuration", () => {
     },
   );
 
+  it("adds immutable caching to every versioned file that exists in public/gallery", async () => {
+    const files = readdirSync(join(process.cwd(), "public", "gallery")).filter((name) => /\.[0-9a-f]{12}\.(?:avif|jpg|jpeg|png|webp)$/.test(name));
+    expect(files.length).toBeGreaterThan(0);
+    for (const name of files) {
+      expect((await getConfigResponse(`/gallery/${name}`)).headers.get("cache-control"), name).toBe(IMMUTABLE_CACHE_CONTROL);
+    }
+  });
+
   it("adds immutable caching only to a content-versioned gallery path", async () => {
     const response = await getConfigResponse(
       "/gallery/coastal-landscape.1683eecb7e65.webp",
@@ -305,6 +315,10 @@ describe("public image Next.js configuration", () => {
     "/gallery/coastal-landscape.1683EECB7E65.webp",
     "/gallery/coastal-landscape.1683eecb7e65.gif",
     "/gallery/coastal.landscape.1683eecb7e65.webp",
+    // Versioned shape, but no such file: its 404 must not be cached for a year (AB#420).
+    "/gallery/missing-image.000000000000.webp",
+    "/gallery/coastal-landscape.1683eecb7e66.webp",
+    "/gallery/coastal-landscape.1683eecb7e65.webpx",
   ])("does not cache a non-versioned source as immutable: %s", async (src) => {
     const response = await getConfigResponse(src);
 

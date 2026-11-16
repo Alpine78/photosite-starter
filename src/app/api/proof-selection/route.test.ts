@@ -85,4 +85,34 @@ describe("proof selection route boundaries", () => {
     }
     expect(limited?.status).toBe(429);
   });
+
+  it("logs neither header refusals nor repeated throttling (AB#420)", async () => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const lines = () => [...info.mock.calls, ...error.mock.calls].map((call) => String(call[0])).filter((line) => line.includes("proof.selection"));
+    try {
+      for (const options of [{ origin: "https://elsewhere.example" }, { type: "text/plain" }]) {
+        const response = await POST(request(options));
+        expect(response.status).toBeGreaterThanOrEqual(400);
+        expect((await response.json()).correlationId).toBeUndefined();
+      }
+      expect(lines()).toEqual([]);
+
+      const flood = () => POST(new Request("https://site.example/api/proof-selection", {
+        method: "POST", headers: { host: "site.example", origin: "https://site.example", "Content-Type": "application/json", "x-forwarded-for": "198.51.100.88" },
+        body: JSON.stringify({ operation: "read", handle, key }),
+      }));
+      const throttled: Response[] = [];
+      for (let attempt = 0; attempt < 130 && throttled.length < 5; attempt++) {
+        const response = await flood();
+        if (response.status === 429) throttled.push(response);
+      }
+      expect(throttled).toHaveLength(5);
+      expect(lines().filter((line) => line.includes("rate-limited"))).toHaveLength(1);
+      expect((await throttled[0].json()).correlationId).toEqual(expect.any(String));
+      for (const response of throttled.slice(1)) expect((await response.json()).correlationId).toBeUndefined();
+    } finally {
+      info.mockRestore(); error.mockRestore();
+    }
+  });
 });

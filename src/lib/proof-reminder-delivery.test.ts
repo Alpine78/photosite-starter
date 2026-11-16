@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { buildProofReminderSender, ProofReminderConfigurationError } from "@/lib/proof-reminder-delivery";
+import { buildProofNoticeSender, ProofNoticeConfigurationError } from "@/lib/proof-notice-delivery";
 
 const environment = { CONTACT_DELIVERY_ADAPTER: "resend", RESEND_API_KEY: "re_test", CONTACT_DELIVERY_FROM: "Site <site@example.com>", CONTACT_DELIVERY_TO: "owner@example.com", SITE_DEPLOYMENT_STAGE: "production" };
 
@@ -17,5 +18,12 @@ describe("the reminder transport", () => {
   it("refuses the sink in production and requires the mailbox settings", () => {
     expect(() => buildProofReminderSender({ ...environment, CONTACT_DELIVERY_ADAPTER: "sink" })).toThrow(ProofReminderConfigurationError);
     expect(() => buildProofReminderSender({ ...environment, CONTACT_DELIVERY_TO: "" })).toThrow(ProofReminderConfigurationError);
+  });
+
+  it("refuses a provider key mirrored under a NEXT_PUBLIC_ name in both proof senders (AB#420)", () => {
+    const leaked = { ...environment, NEXT_PUBLIC_RESEND_API_KEY: "re_leaked" };
+    expect(() => buildProofReminderSender(leaked)).toThrow(ProofReminderConfigurationError);
+    expect(() => buildProofNoticeSender(leaked)).toThrow(ProofNoticeConfigurationError);
+    expect(() => buildProofNoticeSender(leaked)).toThrow(/NEXT_PUBLIC_RESEND_API_KEY/);
   });
 });

@@ -73,7 +73,8 @@ async function call(options: SanityCallOptions, path: string, init: { method: "G
  * current-member and robot flags instead; never infer a person from an ID or role.
  * A non-admin human Editor is eligible here, subject to every later provider grant.
  */
-export async function verifyEditorSession(options: SanityCallOptions): Promise<void> {
+/** Proves one human project member behind the token and returns their member id. */
+export async function verifyEditorSession(options: SanityCallOptions): Promise<string> {
   const identityOptions = { ...options, config: { ...options.config, apiVersion: IDENTITY_API_VERSION } };
   const query = new URLSearchParams({ includeMembers: "true", includeFeatures: "false", includeOrganization: "false" });
   const project = await call(identityOptions, `/projects/${encodeURIComponent(options.config.projectId)}?${query}`, { method: "GET" });
@@ -90,6 +91,7 @@ export async function verifyEditorSession(options: SanityCallOptions): Promise<v
   const member = current[0];
   if (current.length !== 1 || typeof member.id !== "string" || member.id.trim().length === 0 || member.isRobot !== false ||
     members.filter((row) => row.id === member.id).length !== 1) throw new ProofPublicationStoreError("unauthenticated");
+  return member.id;
 }
 
 async function query(options: SanityCallOptions, groq: string, params: Record<string, unknown>): Promise<unknown> {

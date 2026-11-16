@@ -17,3 +17,13 @@ licenses/**            text eol=lf
 # exactly as they are stored.
 docs/architecture/*.d2   text eol=lf
 docs/architecture/*.svg  text eol=lf
+
+# The running feature-status log. Every work branch adds its dated entry at the
+# top, so two branches always collide at the same line even though neither
+# changes the other's text. `union` keeps both sides' lines instead of
+# stopping with a conflict. It applies to local merges only: GitHub's own
+# mergeability check ignores merge drivers, so a PR can still show a conflict
+# there until `main` is merged into it locally. If two branches edit the *same*
+# entry, union keeps both versions, and two new entries can end up without the
+# blank line between them; read the result before committing.
+docs/feature-status.md   merge=union

@@ -5,6 +5,8 @@ import {
   MAX_SANITY_WEBHOOK_BODY_BYTES,
   readSanityWebhook,
   SANITY_WEBHOOK_SECRET_SETTING,
+  SIGNATURE_MAX_AGE_MS,
+  SIGNATURE_MAX_FUTURE_MS,
 } from "@/lib/sanity-revalidation";
 import { SANITY_PUBLIC_CACHE_TAGS } from "@/lib/sanity-cache";
 
@@ -28,12 +30,13 @@ async function signedRequest(
     readonly signatureBody?: string;
     readonly contentType?: string;
     readonly idempotencyKey?: string;
+    readonly signedAt?: number;
   } = {},
 ): Promise<Request> {
   const body = overrides.body ?? JSON.stringify(payload);
   const signature = await encodeSignatureHeader(
     overrides.signatureBody ?? body,
-    Date.now(),
+    overrides.signedAt ?? Date.now(),
     secret,
   );
 
@@ -48,10 +51,11 @@ async function signedRequest(
   });
 }
 
-async function read(request: Request) {
+async function read(request: Request, now?: () => number) {
   return readSanityWebhook(request, {
     config,
     environment: { [SANITY_WEBHOOK_SECRET_SETTING]: secret },
+    ...(now === undefined ? {} : { now }),
   });
 }
 
@@ -79,6 +83,34 @@ describe("readSanityWebhook", () => {
         }),
       ),
     ).rejects.toMatchObject({ errorClass: "invalid-signature", status: 401 });
+  });
+
+  it("refuses a correctly signed delivery outside the timestamp window (AB#420)", async () => {
+    const now = 1_800_000_000_000;
+    const at = (signedAt: number) => signedRequest(articleUpdate, { signedAt });
+    // A captured delivery replayed later, and a timestamp far ahead of this server.
+    for (const signedAt of [now - SIGNATURE_MAX_AGE_MS - 1, now + SIGNATURE_MAX_FUTURE_MS + 1]) {
+      await expect(read(await at(signedAt), () => now)).rejects.toMatchObject({ errorClass: "stale-signature", status: 401 });
+    }
+    // Both edges of the window, a delayed delivery and a skewed clock, still pass.
+    for (const signedAt of [now - SIGNATURE_MAX_AGE_MS, now + SIGNATURE_MAX_FUTURE_MS, now]) {
+      await expect(read(await at(signedAt), () => now)).resolves.toMatchObject({ operation: "update" });
+    }
+  });
+
+  it("answers a forged stale timestamp as an invalid signature, not a stale one", async () => {
+    const now = 1_800_000_000_000;
+    const request = await signedRequest(articleUpdate, { signedAt: now });
+    const forged = new Request(request.url, {
+      method: "POST",
+      headers: (() => {
+        const headers = new Headers(request.headers);
+        headers.set(SIGNATURE_HEADER_NAME, (headers.get(SIGNATURE_HEADER_NAME) ?? "").replace(/^t=\d+/, `t=${now - SIGNATURE_MAX_AGE_MS - 1}`));
+        return headers;
+      })(),
+      body: await request.text(),
+    });
+    await expect(read(forged, () => now)).rejects.toMatchObject({ errorClass: "invalid-signature", status: 401 });
   });
 
   it("rejects a payload from another project or dataset", async () => {

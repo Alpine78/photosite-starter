@@ -30,6 +30,8 @@ export function buildProofNoticeSender(environment: Readonly<Record<string, stri
     return async (): Promise<ContactDeliveryOutcome> => ({ status: "delivered" });
   }
   if (adapter !== "resend") throw new ProofNoticeConfigurationError("CONTACT_DELIVERY_ADAPTER must be resend or sink.");
+  // A NEXT_PUBLIC_ value is compiled into the browser bundle (AB#420).
+  if (environment.NEXT_PUBLIC_RESEND_API_KEY !== undefined) throw new ProofNoticeConfigurationError("Invalid NEXT_PUBLIC_RESEND_API_KEY: the provider key must never be set under a NEXT_PUBLIC_ name.");
   const settings = { apiKey: required(environment, "RESEND_API_KEY"), from: required(environment, "CONTACT_DELIVERY_FROM"), fetchImplementation };
   const to = required(environment, "CONTACT_DELIVERY_TO");
   return (email, idempotencyKey) => sendResendEmail(settings, { to, subject: email.subject, text: email.text, providerIdempotencyKey: idempotencyKey }, PROOF_NOTICE_TIMEOUT_MS);

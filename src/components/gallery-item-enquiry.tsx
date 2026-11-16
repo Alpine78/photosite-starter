@@ -7,8 +7,9 @@ import { getStaticPageData } from "@/lib/static-pages";
 
 /**
  * The `?enquire=<itemId>` view of a gallery route (AB#60, ADR-0003 §8's
- * 2026-08-30 amendment): a `noindex` form for asking about one photograph,
- * shown instead of the grid.
+ * 2026-08-30 amendment) or a keyword gallery (ADR-0012's 2026-11-05 amendment): a
+ * `noindex` form for asking about one photograph, shown instead of the grid.
+ * A keyword gallery has no `contentId` and no breadcrumb trail.
  *
  * `contentId` and `locale` come from the route the visitor is on — the browser
  * only ever carries the public `itemId` and the parameter-free gallery path.
@@ -33,11 +34,11 @@ export async function GalleryItemEnquiry({
   labels,
 }: {
   locale: string;
-  contentId: string;
+  contentId?: string;
   itemId: string;
   galleryTitle: string;
   galleryPath: string;
-  breadcrumbs: readonly BreadcrumbStep[];
+  breadcrumbs?: readonly BreadcrumbStep[];
   labels: BuiltInLabels;
 }) {
   const data = await getStaticPageData("contact", locale);
@@ -46,7 +47,7 @@ export async function GalleryItemEnquiry({
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
-      <Breadcrumbs label={labels.navigation.breadcrumb} steps={breadcrumbs} />
+      {breadcrumbs !== undefined && <Breadcrumbs label={labels.navigation.breadcrumb} steps={breadcrumbs} />}
 
       <header className="mt-6 max-w-2xl">
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
@@ -64,7 +65,7 @@ export async function GalleryItemEnquiry({
         <EnquiryForm
           key={itemId}
           locale={locale}
-          contentId={contentId}
+          {...(contentId === undefined ? {} : { contentId })}
           itemId={itemId}
           galleryTitle={galleryTitle}
           labels={labels}

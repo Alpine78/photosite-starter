@@ -234,6 +234,49 @@ describe("restricted UI locale header ownership", () => {
   });
 });
 
+describe("percent-encoded spellings of reserved and unlisted namespaces (AB#420)", () => {
+  it.each([
+    "/priv%61te", "/priv%61te/some-handle", "/%61dmin/login", "/private-g%61llery/handle", "/private-gallery-%61dmin",
+    `/client-gall%65ry/${"1".repeat(32)}`, `/client-pro%6Ff/${"7".repeat(32)}`,
+  ])("answers %s with the namespace's hygienic 404", async (path) => {
+    const { proxy, request } = await loadProxy();
+    const response = proxy(request(path));
+    expect(response.status).toBe(404);
+    expect(headersOf(response)).toMatchObject(HYGIENE);
+  });
+
+  it("leaves an undecodable or unrelated encoded path to the ordinary routes", async () => {
+    const { proxy, request } = await loadProxy();
+    for (const path of ["/priv%ZZte", "/stories/caf%C3%A9"]) {
+      expect(headersOf(proxy(request(path)))["cache-control"]).toBeUndefined();
+    }
+  });
+});
+
+describe("project request headers on file-shaped paths (AB#420, ADR-0007)", () => {
+  const spoofed = {
+    "x-photosite-request-path": "/stories/forged",
+    "x-photosite-request-has-cursor": "1",
+    "x-photosite-request-has-section": "1",
+    "x-photosite-restricted-ui-locale": "fi",
+  };
+  const forwarded = (response: { headers: Headers }) =>
+    Object.keys(spoofed).filter((name) => response.headers.get(`x-middleware-request-${name}`) !== null);
+
+  it.each(["/gallery/missing-image.000000000000.webp", "/x.html", "/_next/not-a-file", "/favicon.ico"])(
+    "forwards none of them for %s",
+    async (path) => {
+      const { proxy, request } = await loadProxy();
+      expect(forwarded(proxy(request(path, spoofed)))).toEqual([]);
+    },
+  );
+
+  it("forwards none of them for a file-shaped path during maintenance", async () => {
+    const { proxy, request } = await loadProxy({ SITE_MAINTENANCE_MODE: "on" });
+    expect(forwarded(proxy(request("/gallery/missing-image.000000000000.webp", spoofed)))).toEqual([]);
+  });
+});
+
 describe("proof gallery namespace (ADR-0038)", () => {
   const handle = "7".repeat(32);
   it("renders only the literal handle grammar, with the reserved-namespace hygiene", async () => {

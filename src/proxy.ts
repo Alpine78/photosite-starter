@@ -172,6 +172,14 @@ export function proxy(request: NextRequest) {
   // A client can never choose the policy or nonce a page renders with.
   requestHeaders.delete(CONTENT_SECURITY_POLICY_HEADER);
   requestHeaders.delete(SCRIPT_NONCE_HEADER);
+  // ADR-0007: the project's own request headers are always the Proxy's fact,
+  // never the client's — removed here, before any early return, so not even a
+  // file-shaped path or the maintenance answer can carry a spoofed value to a
+  // render (AB#420). Later branches set them again where they apply.
+  requestHeaders.delete(REQUEST_PATH_HEADER);
+  requestHeaders.delete(REQUEST_HAS_CURSOR_HEADER);
+  requestHeaders.delete(REQUEST_HAS_SECTION_HEADER);
+  requestHeaders.delete(REQUEST_UI_LOCALE_HEADER);
   const assetCandidate = isStaticAssetCandidate(pathname);
   if (readSiteMaintenanceMode(process.env) !== "off") {
     if (!assetCandidate || isContentMetadataPath(pathname)) {
@@ -235,11 +243,14 @@ export function proxy(request: NextRequest) {
   // under — answers one hygienic 404 before any redirect, lookup or route.
   const { routePrefix: privateRoutePrefix, adminRoutePrefix } =
     getDeploymentConfig().privateGallery;
-  if (
-    isPrivateGalleryInternalPath(pathname) || isPrivateGalleryAdminInternalPath(pathname) ||
-    isPrivateRequestPath(pathname, privateRoutePrefix) ||
-    isPrivateAdminRequestPath(pathname, adminRoutePrefix)
-  ) {
+  // `skipProxyUrlNormalize` hands this Proxy the raw spelling while the router
+  // also matches the decoded one, so a percent-encoded spelling of a reserved
+  // segment is checked in its decoded form too (AB#420). The unlisted
+  // namespaces above already decode in their own predicates.
+  const reservedPath = (path: string) =>
+    isPrivateGalleryInternalPath(path) || isPrivateGalleryAdminInternalPath(path) ||
+    isPrivateRequestPath(path, privateRoutePrefix) || isPrivateAdminRequestPath(path, adminRoutePrefix);
+  if (reservedPath(pathname) || (pathname.includes("%") && reservedPath(decodedForClassification(pathname)))) {
     return withReservedNamespaceHygieneHeaders(new NextResponse(null, { status: 404 }));
   }
 
@@ -359,6 +370,15 @@ export function proxy(request: NextRequest) {
   }
 
   return nextWithScriptNonce(request, requestHeaders);
+}
+
+/** The path with each segment percent-decoded, or unchanged when it cannot be. */
+function decodedForClassification(pathname: string): string {
+  try {
+    return pathname.split("/").map((segment) => decodeURIComponent(segment)).join("/");
+  } catch {
+    return pathname;
+  }
 }
 
 /**
