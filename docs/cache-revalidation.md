@@ -153,6 +153,14 @@ signed project and dataset must equal deployment configuration. Draft/version
 IDs, unknown document types, extra fields, mismatched before/after identities,
 and impossible operation/state combinations fail closed.
 
+A signed delivery is accepted for ten minutes after the time in its signature, and up
+to five minutes ahead of this server's clock (AB#420). `@sanity/webhook` authenticates
+that time but enforces no window, so without this check a captured delivery could be
+replayed for as long as the secret lives. An older delivery is refused with a terminal
+401 (`stale-signature`); the change it announced is picked up by the next delivery or
+the cache's own lifetime, as with a lost one. Refusals are logged once per class per
+minute, since most of them can be caused by anyone.
+
 Sanity delivers at least once, so the same idempotency key may arrive more than
 once. The endpoint does not need a process-local or external replay ledger:
 hard-expiring the same stable tag again has the same result, making duplicate,

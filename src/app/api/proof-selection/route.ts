@@ -32,14 +32,19 @@ export async function POST(request: Request): Promise<Response> {
     log("failed", "misconfigured");
     return jsonNoStore({ status: "failed", correlationId }, 503);
   }
+  // As in the contact route: a header refusal never became a request and is not
+  // logged, and a throttled client is logged once per window, not per request,
+  // so neither can be used as an unbounded log-volume lever (AB#420). An
+  // unlogged refusal carries no correlation id, because one nobody can find is
+  // worse than none.
   const headerRejection = checkContactRequestHeaders(request);
   if (headerRejection) {
-    log("rejected", headerRejection === "cross-origin" ? "origin" : "malformed-request");
-    return jsonNoStore({ status: "rejected", reason: headerRejection, correlationId }, CONTACT_REJECTION_STATUS[headerRejection]);
+    return jsonNoStore({ status: "rejected", reason: headerRejection }, CONTACT_REJECTION_STATUS[headerRejection]);
   }
-  if (!clientLimiter.tryConsume(deriveClientKey(request), Date.now()).allowed) {
-    log("rejected", "rate-limited");
-    return jsonNoStore({ status: "rejected", reason: "rate-limited", retryable: true, correlationId }, 429);
+  const rateLimit = clientLimiter.tryConsume(deriveClientKey(request), Date.now());
+  if (!rateLimit.allowed) {
+    if (rateLimit.firstRefusalInWindow) log("rejected", "rate-limited");
+    return jsonNoStore({ status: "rejected", reason: "rate-limited", retryable: true, ...(rateLimit.firstRefusalInWindow ? { correlationId } : {}) }, 429);
   }
   const parsed = parseProofSelectionBody(await readBoundedBody(request, PROOF_SELECTION_BODY_BYTES));
   if (!parsed) {

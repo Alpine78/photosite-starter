@@ -8,7 +8,19 @@ import {
   type SanityWebhookErrorClass,
 } from "@/lib/sanity-revalidation";
 
+import { createContactRateLimiter } from "@/lib/contact-rate-limit";
+
 export const runtime = "nodejs";
+
+/**
+ * Most refusals arrive before the signature is checked, so anyone can cause
+ * them. One line per refusal class per minute keeps the log useful for a real
+ * misconfiguration without letting a stranger fill it (AB#420). Accepted and
+ * failed invalidations stay logged every time: only a signed delivery reaches
+ * them.
+ */
+const REJECTION_LOG_WINDOW_MS = 60_000;
+const rejectionLogBudget = createContactRateLimiter({ maxAttempts: 1, windowMs: REJECTION_LOG_WINDOW_MS });
 
 type RevalidationErrorClass = SanityWebhookErrorClass | "cache-unavailable";
 
@@ -49,6 +61,10 @@ export async function POST(request: Request): Promise<Response> {
         ? cause.errorClass
         : "configuration";
     const status = cause instanceof SanityWebhookError ? cause.status : 500;
+    // An unlogged refusal carries no correlation id: nobody could find it.
+    if (!rejectionLogBudget.tryConsume(errorClass, Date.now()).allowed) {
+      return response({ status: "rejected" }, status);
+    }
     logEvent({ correlationId, state: "rejected", errorClass });
     return response({ status: "rejected", correlationId }, status);
   }

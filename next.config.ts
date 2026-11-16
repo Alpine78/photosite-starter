@@ -1,3 +1,5 @@
+import { readdirSync } from "node:fs";
+import { join } from "node:path";
 import type { NextConfig } from "next";
 import { MAINTENANCE_FALLBACK_HEADER, MAINTENANCE_FALLBACK_PATH } from "@/lib/maintenance-routing";
 import {
@@ -12,6 +14,22 @@ import {
 } from "@/lib/preview-noindex-alias";
 
 const ONE_YEAR_SECONDS = 31_536_000;
+
+/**
+ * The content-versioned files that actually exist in `public/gallery/`, read
+ * once when the configuration loads. A header rule matched by URL shape alone
+ * also marked a 404 for a missing versioned path as publicly cacheable for a
+ * year (AB#420), so the immutable rule names only these files.
+ */
+const VERSIONED_GALLERY_FILE = /^[a-z0-9]+(?:-[a-z0-9]+)*\.[0-9a-f]{12}\.(?:avif|jpg|jpeg|png|webp)$/;
+function existingVersionedGalleryFiles(): readonly string[] {
+  try {
+    return readdirSync(join(process.cwd(), "public", "gallery")).filter((name) => VERSIONED_GALLERY_FILE.test(name)).sort();
+  } catch {
+    return [];
+  }
+}
+const VERSIONED_GALLERY_FILES = existingVersionedGalleryFiles();
 
 type RemotePattern = NonNullable<
   NonNullable<NextConfig["images"]>["remotePatterns"]
@@ -397,16 +415,15 @@ const nextConfig: NextConfig = {
         has: [{ type: "host" as const, value: previewNoindexAliasHostPattern(host) }],
         headers: [{ key: "X-Robots-Tag", value: "noindex" }],
       })),
-      {
-        source:
-          "/gallery/:name([a-z0-9]+(?:-[a-z0-9]+)*).:version([0-9a-f]{12}).:extension(avif|jpg|jpeg|png|webp)",
+      ...(VERSIONED_GALLERY_FILES.length === 0 ? [] : [{
+        source: `/gallery/:file(${VERSIONED_GALLERY_FILES.map((name) => name.replaceAll(".", "\\.")).join("|")})`,
         headers: [
           {
             key: "Cache-Control",
             value: `public, max-age=${ONE_YEAR_SECONDS}, immutable`,
           },
         ],
-      },
+      }]),
     ];
   },
 };

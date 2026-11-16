@@ -59,8 +59,10 @@ export default defineConfig({
 
   // Tests share no state, so they may run in any order and in parallel.
   fullyParallel: true,
-  // Two cores on a hosted agent, and the server under test shares them; four
-  // locally, where the machine is bigger and iteration speed is the point.
+  // CI runs on the self-hosted agent and passes `--workers=$(ciE2eWorkers)`
+  // (4, `azure-pipelines.yml`), which overrides this value. The CI fallback of 2
+  // applies only to a CI-flagged run without that flag; locally it is four, where
+  // iteration speed is the point. The server under test shares the machine.
   workers: isContinuousIntegration ? 2 : 4,
   /**
    * One retry in CI surfaces flake as a "flaky" result instead of a red build,
@@ -74,7 +76,7 @@ export default defineConfig({
    * Two residual failures occur only under deliberate CPU oversubscription and
    * have not reproduced in the supported default run. They are recorded as
    * stress observations, not known default-suite flakiness. The CI retry
-   * remains defence against variable hosted-agent contention.
+   * remains defence against variable agent contention.
    */
   retries: isContinuousIntegration ? 1 : 0,
   // A `test.only` left in a commit would silently shrink the gate.
