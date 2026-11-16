@@ -918,6 +918,14 @@ It reuses unchanged bounded inspection, streams ZIP hashes and produces only a
 redacted summary. It writes no files or remote objects and grants no upload lease;
 watermarks and ZIP contents retain their explicit existing verification limits.
 
+AB#313 slice A1, 2026-11-15 (removal, pending merge): the owner cleared removal of the
+inactive protected S3/Postgres implementation. This slice deletes the two offline
+protected-upload source commands above (`plan:private-gallery-upload`,
+`verify:private-upload-sources`), their modules and tests. They have no replacement;
+the unlisted and legacy-delivery tools are separate and unchanged. The entries above
+stay as history. Later slices are listed in
+[the removal audit](audits/protected-gallery-removal-2026-10-17.md).
+
 AB#310 / AB#29 offline whole-package integrity, 2026-10-17 (AB#310 merged;
 parent AB#29 Active):
 a read-only owner CLI verifies a bounded ZIP32 entry set, local/central headers,
