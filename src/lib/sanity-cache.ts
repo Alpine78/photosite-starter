@@ -20,6 +20,8 @@ export const SANITY_PUBLIC_CACHE_TAGS = {
   articles: "sanity:articles",
   categories: "sanity:categories",
   galleries: "sanity:galleries",
+  keywords: "sanity:keywords",
+  keywordClosures: "sanity:keyword-closures",
   media: "sanity:media",
   metadata: "sanity:metadata",
   sitemap: "sanity:sitemap",
@@ -95,6 +97,11 @@ const QUERY_CACHE_TAGS: Readonly<
   "gallery.placements.count": [T.galleries, T.media, T.metadata, T.sitemap],
   "gallery.capture-sequence.window": [T.galleries, T.media, T.metadata, T.sitemap],
   "gallery.capture-sequence.count": [T.galleries, T.media, T.metadata, T.sitemap],
+  // The keyword index (AB#59). Its closures read every eligible medium, so a media change expires
+  // them, and only them: the vocabulary does not depend on media. A keyword gallery's own reads
+  // stay uncached, including its vocabulary, so a retired keyword stops working at once.
+  "keyword-index.vocabulary": [T.keywords],
+  "keyword-index.closures": [T.keywordClosures],
   "media.detail": [T.media],
   "media.list": [T.media],
 };
@@ -128,7 +135,11 @@ const DOCUMENT_INVALIDATION_TAGS: Readonly<
   gallery: [T.galleries, T.categories, T.metadata, T.sitemap],
   galleryPlacement: [T.galleries, T.metadata, T.sitemap],
   articleEndGalleryPlacement: [T.articles, T.media, T.metadata],
+  keyword: [T.keywords],
+  keywordCategory: [T.keywords],
+  keywordTaxonomyState: [T.keywords],
   media: [
+    T.keywordClosures,
     T.media,
     T.home,
     T.services,

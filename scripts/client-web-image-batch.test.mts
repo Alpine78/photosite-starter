@@ -101,7 +101,8 @@ describe("private batch files and actual CLI", () => {
     const names = Array.from({ length: 256 }, (_, i) => `source-${i}.jpg`), f = await setup(names);
     const { stdout } = await exec(process.execPath, ["scripts/prepare-client-web-image-batch.mts", "--root", f.root, "--selection", f.selection, "--out", f.out, "--classification", "processed-exports"]);
     expect(JSON.parse(stdout).count).toBe(256); expect((await readdir(f.out)).length).toBe(257);
-  }, 60_000);
+    // 256 real images take about 42 s alone, and the suite shares this machine with the CI agent's browsers.
+  }, 180_000);
   it.each(["SIGINT", "SIGTERM"] as const)("cleans partial real CLI outputs on %s and exits130", async signal => {
     const f = await setup(Array.from({ length: 32 }, (_, i) => `source-${i}.jpg`));
     const originals = await Promise.all((await readdir(f.root)).map(async name => ({ name, bytes: await readFile(path.join(f.root, name)) })));

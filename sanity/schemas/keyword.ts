@@ -200,7 +200,7 @@ export function defineKeywordType(options: KeywordSchemaOptions = {}): SchemaTyp
         type: "array",
         of: [{ type: "string" }],
         description:
-          "Other spellings, former names and Lightroom synonyms. They are used for import matching and Studio search, never in public URLs.",
+          "Other spellings, former names and Lightroom synonyms, used for import matching and search. On a public keyword anyone can read them and a visitor's search matches them, though they never appear in public URLs.",
         validation: (rule) => rule.custom(rejectsEmptyAliases),
       },
       {

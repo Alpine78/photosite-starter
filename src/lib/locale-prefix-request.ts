@@ -492,6 +492,7 @@ export async function resolveLocalePrefixRequest({
   articleEndGalleryCursorNamesASlice,
   gallerySectionExists,
   articleSectionSelection,
+  keywordSelectionCanonicalQuery,
   pathHasTrailingSlash = false,
 }: {
   readonly config: LocaleRouteConfig;
@@ -503,6 +504,11 @@ export async function resolveLocalePrefixRequest({
   readonly segments?: readonly string[];
   readonly searchParams: LocalePrefixSearchParams;
   readonly defaultLocaleRouteExists: DefaultLocaleRouteExists;
+  /** The canonical query of a valid keyword selection; without it nothing vouches for one. */
+  readonly keywordSelectionCanonicalQuery?: (
+    locale: string,
+    searchParams: LocalePrefixSearchParams,
+  ) => Promise<string | undefined>;
   /**
    * Consulted only when a continuation token arrives at a path that needs
    * normalizing, to choose between redirecting with it and refusing it. Absent,
@@ -678,13 +684,14 @@ export async function resolveLocalePrefixRequest({
 
     // The search page (ADR-0033 §1, ADR-0012 §8) refuses an invalid keyword
     // selection *instead of* redirecting it: a redirect would only move the
-    // request to a URL that answers 404 anyway, and an invalid selection is never
-    // redirected. No taxonomy exists yet, so every non-empty `keywords` is one.
+    // request to a URL that answers 404 anyway. A valid one redirects once, straight
+    // to its canonical spelling, carrying a cursor already validated.
     if (
       target === buildSearchPath(config, defaultRoute.locale) &&
       readSearchRequest(searchParams).mode === "keywords"
     ) {
-      return NOT_FOUND;
+      const query = await keywordSelectionCanonicalQuery?.(defaultRoute.locale, searchParams);
+      return query === undefined ? NOT_FOUND : ({ kind: "redirect", location: `${target}?${query}` } as const);
     }
     return redirectTo(target);
   }

@@ -2,6 +2,51 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Scriptless 404 upstream recheck, 2026-11-07 — AB#132 and AB#370 **Active**: Next.js 16.4.5 is
+now `latest`, and a third-party report on
+[#62228](https://github.com/vercel/next.js/issues/62228) says the empty `__next_error__` shell
+persists on 16.4.5 and canary 43. Issues #62228, #99287 and #99793 and candidate fixes
+#98455 and #98583 are open. No local build was run on 16.4.5; the repository is on 16.4.4.
+The comment's workaround covers only unmatched URLs, not our `notFound()` cases, so no code
+changed. The owner accepted that assessment; the 2026-12-19 review stands. See
+[ADR-0007](adr/0007-proxy-request-path-boundary.md#upstream-recheck-on-nextjs-1645--2026-11-07-ab370).
+
+Keyword gallery smoke tests, 2026-11-05 — AB#90 **Active**: `e2e/keyword-gallery-continuation.spec.ts` covers continuing in place and in the viewer, reloading, history, refused cursors and what stays eager.
+
+Keyword selector, 2026-11-05 — AB#74 **Active**: a keyboard-operable combobox on the search landing state builds a selection of up to
+five keywords from a bounded suggestion endpoint and navigates to its canonical gallery.
+
+Keyword browser, 2026-11-05 — AB#75 **Active**: the search landing state lists public keywords by category and hierarchy, as plain
+links with counts. Absent until media has keywords.
+
+Public keyword index, 2026-11-05 — AB#59 **Active**: a server-side, per-language value with public counts for the
+typeahead and browsable index, documented in [keyword-index.md](keyword-index.md). Nothing renders it yet. The live webhook's
+filter needs the three keyword types added after this deploys; until then the index converges within an hour.
+
+Keyword gallery page, 2026-11-05 — AB#71 **Active**: `?keywords=` on the search route now renders a server-side
+gallery with the shared grid, lightbox and continuation, instead of a 404. Every spelling defect redirects once after
+validation; an invalid selection or cursor answers 404 and is never redirected. `noindex`, no sitemap entry. It shows
+nothing on a real site until media has keywords (AB#69), and nothing links to it yet (AB#74, AB#75).
+
+Keyword sync, 2026-11-05 — AB#69 **Active**: `npm run sync:keywords` writes media keywords, closures and the private record, dry-run by default, under
+revision guards and the taxonomy state's guard, and resumes by re-planning. See [keyword-sync.md](keyword-sync.md). It has not run on a real dataset, and Studio has no `keywordRecord` schema until AB#70.
+
+Dynamic keyword query, 2026-11-04 — AB#58 **Active**: `src/lib/keyword-gallery-selection.ts` canonicalizes a
+selection, `keyword-gallery.ts` reads one bounded page under a signed cursor, and `sanity-keyword-gallery.ts`
+and `mock-keyword-gallery.ts` are its sources. Media gained `dynamicallyDiscoverable`, off by default. No route
+uses this yet; AB#71 is next. No medium has the field or keywords yet, so a real query would return nothing.
+
+Media keyword model, 2026-11-04 — AB#68 **Active**: `src/lib/media-keywords.ts` is the server-side
+model of a medium's public keywords, keyed by `mediaId`, with mock data and the Sanity queries and
+parsers in `sanity-media-keywords.ts`. `ImageMedia` and `VideoMedia` stay free of keywords, so the grid
+and lightbox payloads are unchanged. Nothing renders, routes or fetches keywords yet; AB#58 is next.
+
+Keyword import mapping, 2026-11-04 — AB#57 **Active**: `scripts/keyword-import-mapping.mts` maps one
+medium's Lightroom fields to the controlled vocabulary and returns a proposal: mapped keywords, review
+items, canonicalized overrides, the effective public and internal sets and the closure. It is pure and
+writes nothing. Nothing calls it yet; the writer is AB#69 and the review workflow AB#70. The rules are in
+[ADR-0039's AB#57 amendment](adr/0039-keyword-taxonomy-and-ingest-boundary.md).
+
 Legacy re-upload tooling, 2026-11-05 — AB#391 **Active**: `plan:legacy-image-reupload` now matches sources to published media, and `write:legacy-image-reupload` replaces
 the assets, dry-run by default, with a sensitive list and optional deletion of the old assets. See [the guide](legacy-image-reupload.md). It has not written to any dataset; the location review and the run are the owner's.
 
@@ -873,6 +918,14 @@ source files, then compares current JPEG/ZIP bytes and metadata with that plan.
 It reuses unchanged bounded inspection, streams ZIP hashes and produces only a
 redacted summary. It writes no files or remote objects and grants no upload lease;
 watermarks and ZIP contents retain their explicit existing verification limits.
+
+AB#313 slice A1, 2026-11-15 (removal, pending merge): the owner cleared removal of the
+inactive protected S3/Postgres implementation. This slice deletes the two offline
+protected-upload source commands above (`plan:private-gallery-upload`,
+`verify:private-upload-sources`), their modules and tests. They have no replacement;
+the unlisted and legacy-delivery tools are separate and unchanged. The entries above
+stay as history. Later slices are listed in
+[the removal audit](audits/protected-gallery-removal-2026-10-17.md).
 
 AB#310 / AB#29 offline whole-package integrity, 2026-10-17 (AB#310 merged;
 parent AB#29 Active):

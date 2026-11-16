@@ -236,6 +236,14 @@ describe("theme contract: text + focus contrast is AA (AC5)", () => {
       });
     }
 
+    // Headings, strong text and form fields use it, on the page and on a surface.
+    it(`--foreground meets 4.5:1 on --background and --surface (${name})`, () => {
+      const foreground = parseColor(props.get("--foreground")!);
+      const fill = resolveToken("--surface", props);
+      expect(contrast(foreground, background)).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(foreground, over(fill.color, background, fill.alpha))).toBeGreaterThanOrEqual(4.5);
+    });
+
     // AB#384: a gallery caption below its image sits on the figure's
     // `--surface-muted` fill, not on `--background` (axe on Production: 4.43:1
     // for `--subtle`). The caption uses `--muted`, which must clear AA there.
