@@ -509,6 +509,54 @@ describe("CLI UTF-8 input integrity", () => {
     expect(at).toBeGreaterThan(-1);
     return Buffer.concat([Buffer.from(text.slice(0, at)), Buffer.from(bad), Buffer.from(text.slice(at + 1))]);
   }
+  it("records all uploads and completed batches when read-back disagrees with the plan", async () => {
+    const { createHash } = await import("node:crypto");
+    const { mkdtemp, writeFile, readFile, stat, rm } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const path = await import("node:path");
+    const { default: sharp } = await import("sharp");
+    const support = await import("./write-safety-cli-support.mts");
+    const root = await mkdtemp(path.join(tmpdir(), "conversion-mismatch-"));
+    try {
+      const bytes = await sharp({ create: { width: 10, height: 10, channels: 3, background: "gray" } }).jpeg().toBuffer();
+      const plan = { ...buildPlan(),
+        newMediaDocuments: [{ _id: mediaDocIdOf(4), _type: "media", mediaId: mediaIdOf(4), mediaType: "image",
+          publiclyRenderable: true, alt: [{ _key: "fi", _type: "localizedText", language: "fi", value: "Photograph" }],
+          captureSequence: { galleryContentId: CONTENT_ID, sequence: 4, sectionId: "category-2" },
+          image: { _type: "image", asset: { _type: "reference", _ref: `pending-asset:${mediaIdOf(4)}` } } }],
+        newAssetRequirements: [{ mediaId: mediaIdOf(4), documentId: mediaDocIdOf(4), relativePath: "photo.jpg",
+          contentHash: createHash("sha256").update(bytes).digest("hex"), width: 10, height: 10 }],
+      };
+      await writeFile(path.join(root, "photo.jpg"), bytes);
+      await writeFile(path.join(root, "plan.json"), JSON.stringify(plan));
+      // Synthetic stat-only fixture, not evidence of a recoverable dataset export.
+      await writeFile(path.join(root, "backup.tar.gz"), Buffer.alloc(4096));
+      const snapshot = snapshotOf(plan);
+      const out = path.join(root, "out");
+      const result = support.runWriterCliWithFakeSanity("write-rally-conversion.mts", [
+        "--plan", path.join(root, "plan.json"), "--folder", root, "--out", out,
+        "--approved-digest", recomputeConversionPlanDigest(plan), "--backup-archive", path.join(root, "backup.tar.gz"), "--yes",
+      ], { SANITY_MIGRATION_TOKEN: support.SYNTHETIC_TOKEN }, {
+        failWhenBodyContains: "", failAt: 0,
+        queryResults: [snapshot.galleries, snapshot.media, [],
+          { galleries: [], remainingPlacementCount: 1, memberMediaCount: 0, error: "raw provider text" }],
+      });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toBe(`The read-back disagrees with the plan in 4 way(s). See ${path.join(out, "rally-conversion-write-report.json")}.\n`);
+      const report = JSON.parse(await readFile(path.join(out, "rally-conversion-write-report.json"), "utf8"));
+      expect(report.readBackIssues).toHaveLength(4);
+      const recordPath = path.join(out, "partial-run.json");
+      expect((await stat(recordPath)).mode & 0o777).toBe(0o600);
+      const record = await readFile(recordPath, "utf8");
+      expect(JSON.parse(record)).toEqual({ version: 1, target: support.SYNTHETIC_TARGET,
+        uploadedAssetIds: ["image-fixture1-10x10-webp"], completedBatches: 4,
+        lastCompletedBatch: `${plan.galleries.at(-1)?._id} 1/1`,
+        note: "The run stopped after it began writing. Nothing was rolled back. Reconcile the target's current state before any re-run." });
+      expect(result.stdout + result.stderr + record).not.toContain(support.SYNTHETIC_TOKEN);
+      expect(record).not.toContain("raw provider text");
+    } finally { await rm(root, { recursive: true, force: true }); }
+  }, 60_000); // Plain Node CLI and image derivation run in a subprocess.
+
   it("prints the write target before its first request with --yes (AB#421)", async () => {
     const { mkdtemp, writeFile, rm } = await import("node:fs/promises");
     const { tmpdir } = await import("node:os");

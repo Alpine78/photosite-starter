@@ -1909,6 +1909,7 @@ async function uploadAndWrite(
   if (verification.found === verification.expected) {
     console.log(`Verification PASS: ${verification.found}/${verification.expected} document(s) read back.`);
   } else {
+    await writeReport(options.out, PARTIAL_RUN_FILE, progress.toRecord());
     console.error(`Verification FAIL: only ${verification.found}/${verification.expected} document(s) read back.`);
     process.exitCode = 1;
   }

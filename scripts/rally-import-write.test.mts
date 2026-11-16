@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -429,6 +429,37 @@ describe("plan:rally then write:rally, as real Node processes", () => {
   afterAll(async () => {
     await rm(root, { recursive: true, force: true });
   });
+
+  it("records all uploads and completed batches when read-back disagrees with the plan", async () => {
+    const support = await import("./write-safety-cli-support.mts");
+    const recovery = path.join(root, "mismatch-out");
+    const result = support.runWriterCliWithFakeSanity("write-rally-import.mts", [
+      "--plan", path.join(out, "rally-import-plan.json"), "--folder", folder,
+      "--out", recovery, "--approved-digest", digest, "--yes",
+    ], { SANITY_MIGRATION_TOKEN: support.SYNTHETIC_TOKEN }, {
+      failWhenBodyContains: "", failAt: 0,
+      queryResults: [
+        [{ _id: CATEGORY_DOC, categoryId: "rally",
+          label: ["fi", "en"].map(language => ({ language, value: "Rally" })),
+          slug: ["fi", "en"].map(language => ({ language, value: "rally" })) }],
+        [], [], emptySnapshot(),
+        { galleries: [], memberMediaCount: 0, error: "raw provider text" },
+      ],
+    });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toBe(`The read-back disagrees with the plan in 3 way(s). See ${path.join(recovery, "rally-write-report.json")}.\n`);
+    const report = JSON.parse(await readFile(path.join(recovery, "rally-write-report.json"), "utf8"));
+    expect(report.readBackIssues).toHaveLength(3);
+    const recordPath = path.join(recovery, "partial-run.json");
+    expect((await stat(recordPath)).mode & 0o777).toBe(0o600);
+    const record = await readFile(recordPath, "utf8");
+    expect(JSON.parse(record)).toEqual({ version: 1, target: support.SYNTHETIC_TARGET,
+      uploadedAssetIds: [1, 2, 3].map(index => `image-fixture${index}-10x10-webp`),
+      completedBatches: 2, lastCompletedBatch: "galleries 1/1",
+      note: "The run stopped after it began writing. Nothing was rolled back. Reconcile the target's current state before any re-run." });
+    expect(result.stdout + result.stderr + record).not.toContain(support.SYNTHETIC_TOKEN);
+    expect(record).not.toContain("raw provider text");
+  }, 60_000); // Plain Node CLI and image derivation run in a subprocess.
 
   const run = (args: readonly string[]) =>
     execFileAsync(process.execPath, [writeScript, ...args], { env: noCredentialEnv }).catch(

@@ -419,6 +419,7 @@ async function uploadAndWrite(
   });
   await writeReport(options.out, "rally-conversion-write-report.json", { work: summarizeWork(work), readBackIssues });
   if (readBackIssues.length > 0) {
+    await writeReport(options.out, PARTIAL_RUN_FILE, progress.toRecord());
     console.error(`The read-back disagrees with the plan in ${readBackIssues.length} way(s). See ${path.join(options.out, "rally-conversion-write-report.json")}.`);
     process.exitCode = 1;
     return;
