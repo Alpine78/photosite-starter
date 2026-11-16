@@ -5,6 +5,7 @@ Older entries are also kept verbatim in [the October 2026 archive](feature-statu
 Protected-gallery removal slice A2, 2026-11-15 — AB#313 **Active**: the unwired retention workflow script and its test are removed. The secret generator moves to slice B2, with the administrator surface that names it. See [the removal audit](audits/protected-gallery-removal-2026-10-17.md).
 
 Protected-gallery removal slices B1/B2, 2026-11-15 — AB#313 **Active**: the protected customer and administrator pages, endpoints, components, journeys and the secret generator are removed. Their URL prefixes stay reserved and every path under them answers one hygienic 404, by owner decision. The domain modules follow in slice C. Entries below that describe these routes are history. See [the removal audit](audits/protected-gallery-removal-2026-10-17.md).
+
 Enquiry from a keyword gallery, 2026-11-05 — AB#60 **Active**: the viewer in a keyword gallery offers the same enquiry as a curated gallery, and the Sanity source now resolves a
 dynamic result by its `mediaId` instead of refusing it. See [ADR-0012's amendment](adr/0012-dynamic-keyword-gallery-query-contract.md). It has not run against a live dataset.
 
