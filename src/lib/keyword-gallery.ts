@@ -37,7 +37,7 @@ const ORDER_KEY = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:
 
 export type KeywordGalleryBoundary = Readonly<{ orderKey: string; mediaId: string }>;
 
-export type KeywordGalleryRow = Readonly<{ orderKey: string; media: ImageMedia }>;
+export type KeywordGalleryRow = Readonly<{ orderKey: string; enquiryAllowed: boolean; media: ImageMedia }>;
 
 export type KeywordGalleryCursorCodec = Readonly<{
   encode: (scope: KeysetCursorScope, mediaId: string) => string;
@@ -179,7 +179,7 @@ export async function readKeywordGalleryPage({
   assertWindow(candidates, after, limit);
 
   const rows = candidates.slice(0, pageSize);
-  const items = rows.map(({ media }): DynamicGalleryResultItem => ({ itemId: media.mediaId, mediaId: media.mediaId, media }));
+  const items = rows.map(({ media, enquiryAllowed }): DynamicGalleryResultItem => ({ itemId: media.mediaId, mediaId: media.mediaId, enquiryAllowed, media }));
   if (candidates.length <= pageSize) return { items, page: { size: pageSize, hasNextPage: false, endCursor: null } };
   return {
     items,

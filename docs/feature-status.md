@@ -10,6 +10,12 @@ Protected-gallery removal slice A2, 2026-11-15 — AB#313 **Active**: the unwire
 
 Protected-gallery removal slices B1/B2, 2026-11-15 — AB#313 **Active**: the protected customer and administrator pages, endpoints, components, journeys and the secret generator are removed. Their URL prefixes stay reserved and every path under them answers one hygienic 404, by owner decision. The domain modules follow in slice C. Entries below that describe these routes are history. See [the removal audit](audits/protected-gallery-removal-2026-10-17.md).
 
+Enquiry from a keyword gallery, 2026-11-05 — AB#60 **Active**: the viewer in a keyword gallery offers the same enquiry as a curated gallery, and the Sanity source now resolves a
+dynamic result by its `mediaId` instead of refusing it. See [ADR-0012's amendment](adr/0012-dynamic-keyword-gallery-query-contract.md). It has not run against a live dataset.
+
+Keyword gallery at archive scale, 2026-11-05 — AB#73 **Active**: an 8000-media fixture runs the real route and GROQ for hierarchy, intersections, cursors and isolation in CI, and
+[budgets are proposed](keyword-gallery-scale.md) from local measurements. Live CMS latency, real images, physical devices and screen readers remain.
+
 Scriptless 404 upstream recheck, 2026-11-07 — AB#132 and AB#370 **Active**: Next.js 16.4.5 is
 now `latest`, and a third-party report on
 [#62228](https://github.com/vercel/next.js/issues/62228) says the empty `__next_error__` shell

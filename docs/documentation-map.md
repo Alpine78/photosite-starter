@@ -41,6 +41,7 @@ there is no other documentation to hunt for.
 | `docs/availability-monitoring-plan.md` | the site owner setting up uptime monitoring (AB#158) | the monitor contract, the owner-run probe, provider options or the launch record change |
 | `docs/backlog-agent-readiness.md` | agents and the owner planning work | the decision/agent-readiness map is reviewed; Azure Boards stays authoritative |
 | `docs/cache-revalidation.md` | whoever operates or changes the published-content cache (AB#83) | the cache boundary, tags, revalidation endpoint or its authentication change |
+| `docs/keyword-gallery-scale.md` | whoever changes keyword gallery queries, paging or rendering (AB#73) | a budget, a measurement or the archive-scale checks change |
 | `docs/keyword-sync.md` | the owner running the keyword sync (AB#69) | `npm run sync:keywords`, its inputs, guards or refusals change |
 | `docs/keyword-index.md` | whoever changes keyword search, the typeahead or the browsable keyword index (AB#59) | the public keyword index's fields, rules, invalidation or budget change |
 | `docs/legacy-image-reupload.md` | the owner running the legacy image re-upload (AB#391) | the re-upload commands, their inputs, guards or limits change |
