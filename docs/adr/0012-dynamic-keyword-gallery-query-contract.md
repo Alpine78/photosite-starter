@@ -796,3 +796,23 @@ continue in another language.
 would change their cursors for no gain to either side.
 
 **Affected sections:** §5, §6, §7, §9 and Action Items 3 and 4.
+
+## Scoped amendment — 2026-11-05: enquiring from a keyword gallery (AB#60)
+
+**Previous rule:** ADR-0003 §8's 2026-08-30 amendment recognizes `?enquire=` only on a gallery route, and §8 here names
+`keywords` and `cursor` as a selection's only recognized parameters. The Sanity source refused a dynamic enquiry.
+
+**Replacement:** `?keywords=<canonical>&enquire=<mediaId>` opens the same `noindex` form, under ADR-0003's rules for the
+parameter: one value in the public-identity grammar is recognized; with `cursor` it is a 404; anything else is an ordinary
+unknown parameter. An invalid selection is still a 404, and canonicalizing a selection redirects once with `enquire` carried.
+The canonical link is the selection's first page.
+
+- **The request names only the photograph.** `itemId` is the `mediaId` (ADR-0002 §1) and the selection is not sent or
+  checked, because the resolver's conditions already decide the question and a selection could claim no more. Nothing
+  invents a placement or a gallery, so the email has neither.
+- **Conditions:** `publiclyRenderable`, `enquiryEligible` and `dynamicallyDiscoverable` are true, `privateOnly` is not, and
+  `mediaType` is `image`. Each is read on submit. A row's `enquiryAllowed` only decides whether the viewer shows the control,
+  and grants nothing. The archive locator stays server-side and private-dataset only.
+- **A curated gallery's `allowPhotoEnquiries` does not reach here.** It subtracts permission within its own gallery, and a
+  keyword gallery has no gallery. A photograph opted in and discoverable can be asked about from a keyword result, whichever curated
+  gallery also holds it.

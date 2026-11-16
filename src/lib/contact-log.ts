@@ -37,12 +37,6 @@
 
 import { randomUUID } from "node:crypto";
 
-import type {
-  PrivateGalleryAdminFailure,
-  PrivateGalleryExchangeFailure,
-  PrivateGalleryMintFailure,
-  PrivateGalleryViewFailure,
-} from "@/lib/private-gallery-access";
 import type { ContactDeliveryErrorClass } from "@/lib/contact-delivery";
 import type { ContactRejectionReason } from "@/lib/contact-request";
 import type { EnquiryResolutionRejection } from "@/lib/enquiry-media";
@@ -95,10 +89,6 @@ export type SubmissionState =
 type SubmissionEventName =
   | "contact.submission"
   | "enquiry.submission"
-  | "private-gallery.exchange"
-  | "private-gallery.view"
-  | "private-gallery.mint"
-  | "private-gallery.admin"
   | "poll.vote"
   | "proof.publication"
   | "proof.selection"
@@ -126,51 +116,6 @@ export type EnquiryEvent =
       readonly correlationId: string;
       readonly state: "rejected" | "delivery-failed";
       readonly errorClass: EnquiryErrorClass;
-    };
-
-/**
- * One private-gallery exchange event (AB#29, ADR-0014 §3). The class is the
- * facade's own refusal reason, imported as a type so the two cannot drift; the
- * route emits an event only for the refusals the facade marks `logWorthy`, so a
- * prober sending well-formed handles cannot flood the log.
- */
-export type PrivateGalleryExchangeEvent =
-  | {
-      readonly correlationId: string;
-      readonly state: "accepted";
-      readonly errorClass?: never;
-    }
-  | {
-      readonly correlationId: string;
-      readonly state: "rejected";
-      readonly errorClass: PrivateGalleryExchangeFailure["reason"];
-    };
-
-/**
- * One private-gallery view authorization event (AB#29, ADR-0014 §5 Stage 1).
- * Only the defects are recorded — an absent, expired, or superseded session is
- * an ordinary state, and logging it would let anyone fill the log by loading a
- * private URL repeatedly.
- */
-export type PrivateGalleryViewEvent = {
-  readonly correlationId: string;
-  readonly state: "rejected";
-  readonly errorClass: PrivateGalleryViewFailure["reason"];
-};
-
-/**
- * One private-gallery asset-mint event (AB#29, ADR-0014 §5). Only classified
- * defects and the first budget refusal are logged; request identifiers, object
- * keys, session cookies, and signed URLs never enter an event.
- */
-export type PrivateGalleryMintEvent =
-  | { readonly correlationId: string; readonly state: "accepted" }
-  | {
-      readonly correlationId: string;
-      readonly state: "rejected";
-      readonly errorClass:
-        | PrivateGalleryMintFailure["reason"]
-        | PrivateGalleryViewFailure["reason"];
     };
 
 /**
@@ -243,10 +188,6 @@ function writeSubmissionLine(
   errorClass?:
     | ContactErrorClass
     | EnquiryErrorClass
-    | PrivateGalleryExchangeFailure["reason"]
-    | PrivateGalleryViewFailure["reason"]
-    | PrivateGalleryMintFailure["reason"]
-    | PrivateGalleryAdminFailure["reason"]
     | PollVoteErrorClass
     | ProofPublicationErrorClass
     | ProofSelectionErrorClass
@@ -283,72 +224,6 @@ export function logEnquiryEvent(event: EnquiryEvent): void {
     event.correlationId,
     event.state,
     event.errorClass,
-  );
-}
-
-/** Emits one private-gallery capability-exchange event (AB#29). */
-export function logPrivateGalleryExchangeEvent(
-  event: PrivateGalleryExchangeEvent,
-): void {
-  writeSubmissionLine(
-    "private-gallery.exchange",
-    event.correlationId,
-    event.state,
-    event.errorClass,
-  );
-}
-
-/**
- * Emits one administrator boundary event (AB#145, ADR-0015 §3).
- *
- * Carries a correlation id, a state, and a redacted class — never the submitted
- * secret, never a session identifier, and never anything that would let a reader
- * tell a throttled attempt from a wrong one beyond the class the facade already
- * decided was worth recording.
- */
-export type PrivateGalleryAdminEvent =
-  | { readonly correlationId: string; readonly state: "accepted" }
-  | {
-      readonly correlationId: string;
-      readonly state: "rejected";
-      /**
-       * The facade's own refusal reason, imported as a type so the two cannot
-       * drift — never a secret, never a session identifier, and never anything
-       * that would distinguish a refusal for the caller rather than the log.
-       */
-      readonly errorClass: PrivateGalleryAdminFailure["reason"];
-    };
-
-export function logPrivateGalleryAdminEvent(
-  event: PrivateGalleryAdminEvent,
-): void {
-  writeSubmissionLine(
-    "private-gallery.admin",
-    event.correlationId,
-    event.state,
-    event.state === "rejected" ? event.errorClass : undefined,
-  );
-}
-
-/** Emits one private-gallery view authorization event (AB#29). */
-export function logPrivateGalleryViewEvent(
-  event: PrivateGalleryViewEvent,
-): void {
-  writeSubmissionLine(
-    "private-gallery.view",
-    event.correlationId,
-    event.state,
-    event.errorClass,
-  );
-}
-
-/** Emits one private-gallery asset-mint event (AB#29). */
-export function logPrivateGalleryMintEvent(event: PrivateGalleryMintEvent): void {
-  writeSubmissionLine(
-    "private-gallery.mint",
-    event.correlationId,
-    event.state,
-    event.state === "rejected" ? event.errorClass : undefined,
   );
 }
 

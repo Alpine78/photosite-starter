@@ -60,7 +60,8 @@ export type SubmissionContext =
   | {
       readonly kind: "enquiry";
       readonly locale: string;
-      readonly contentId: string;
+      /** The curated gallery. Absent for a dynamic result, which has none. */
+      readonly contentId?: string;
       readonly itemId: string;
     };
 
@@ -127,14 +128,10 @@ function createSubmissionId(): string {
 
 /** The gallery context a submission POSTs, beyond its validated fields. */
 function contextBody(context: SubmissionContext): Record<string, string> {
-  return context.kind === "enquiry"
-    ? {
-        kind: "curated",
-        locale: context.locale,
-        contentId: context.contentId,
-        itemId: context.itemId,
-      }
-    : {};
+  if (context.kind !== "enquiry") return {};
+  return context.contentId === undefined
+    ? { kind: "dynamic", locale: context.locale, itemId: context.itemId }
+    : { kind: "curated", locale: context.locale, contentId: context.contentId, itemId: context.itemId };
 }
 
 // A field's boundary is what identifies it, so it takes the border token that
