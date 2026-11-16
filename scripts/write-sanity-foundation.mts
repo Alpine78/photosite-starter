@@ -477,12 +477,12 @@ async function main(): Promise<void> {
   let result: Awaited<ReturnType<typeof runSeedMutationBatches>>;
   try {
     result = await runSeedMutationBatches(connection, validated.plan.documents.map((document) => ({ createIfNotExists: document })), { onBatchCommitted: progress.batchRecorder("singletons") });
+    console.log(`Wrote ${validated.plan.documents.length} foundation document(s) in ${result.batchesRun} batch(es).`);
+    if (!(await verifyWritten(connection, validated.plan.documents))) throw new Error("post-write verification did not read back the approved foundation documents");
   } catch (error) {
     console.error(formatPartialRunLine(progress.toRecord()));
     throw error;
   }
-  console.log(`Wrote ${validated.plan.documents.length} foundation document(s) in ${result.batchesRun} batch(es).`);
-  if (!(await verifyWritten(connection, validated.plan.documents))) throw new Error("post-write verification did not read back the approved foundation documents");
   console.log(`Verification PASS: ${validated.plan.documents.length}/${validated.plan.documents.length} document(s).`);
 }
 

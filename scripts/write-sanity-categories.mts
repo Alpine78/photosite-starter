@@ -455,12 +455,12 @@ async function main(): Promise<void> {
     for (const [index, wave] of waves.entries()) {
       batches += (await runSeedMutationBatches(connection, wave.map((document) => ({ createIfNotExists: document })), { onBatchCommitted: progress.batchRecorder(`wave ${index + 1}/${waves.length}`) })).batchesRun;
     }
+    console.log(`Wrote ${documents.length} category document(s) in ${batches} batch(es).`);
+    if (!(await verifyWritten(connection, documents))) throw new Error("post-write verification did not read back the approved documents");
   } catch (error) {
     console.error(formatPartialRunLine(progress.toRecord()));
     throw error;
   }
-  console.log(`Wrote ${documents.length} category document(s) in ${batches} batch(es).`);
-  if (!(await verifyWritten(connection, documents))) throw new Error("post-write verification did not read back the approved documents");
   console.log(`Verification PASS: ${documents.length}/${documents.length} document(s).`);
 }
 

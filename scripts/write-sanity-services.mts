@@ -733,13 +733,13 @@ async function main(): Promise<void> {
       );
       batches += result.batchesRun;
     }
+    console.log(`Wrote ${documents.length} service document(s) in ${batches} batch(es).`);
+    if (!(await verifyWritten(connection, documents))) {
+      throw new Error("post-write verification did not read back the approved documents");
+    }
   } catch (error) {
     console.error(formatPartialRunLine(progress.toRecord()));
     throw error;
-  }
-  console.log(`Wrote ${documents.length} service document(s) in ${batches} batch(es).`);
-  if (!(await verifyWritten(connection, documents))) {
-    throw new Error("post-write verification did not read back the approved documents");
   }
   console.log(`Verification PASS: ${documents.length}/${documents.length} document(s).`);
 }
