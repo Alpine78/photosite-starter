@@ -244,3 +244,20 @@ established for a gallery reseed. Every other decision in this record — the ke
 visibility version, the shared HMAC secret, and the route/canonical/indexing behaviour —
 is unchanged; only the value the boundary's first field names is different. See
 [ADR-0017](0017-authored-event-date-ordering-key.md) decisions 2–4 for the full reasoning.
+
+## Amendment (2026-11-16, AB#422): current users of the shared signing key
+
+The Consequences above name two modules reading `GALLERY_CURSOR_SIGNING_KEY`. Searching
+the importers of `keyset-cursor.ts` today (`loadKeysetCursorSigningKey` and
+`createHmacKeysetCursorCodec`) finds four cursor families signed with that one key, and
+the original text is otherwise unchanged:
+
+1. the curated gallery continuation, including section filters
+   (`gallery-cursor.ts`, `gallery-pagination.ts`, `gallery-sections.ts`);
+2. the article-end gallery (`article-end-gallery-pagination.ts`, through the same
+   `galleryCursorCodec`);
+3. the category listing (`content-listing-cursor.ts`);
+4. the keyword gallery (`keyword-gallery.ts`).
+
+Rotating the key therefore retires every issued and indexed continuation URL for all
+four at once, not only for galleries and category branches.

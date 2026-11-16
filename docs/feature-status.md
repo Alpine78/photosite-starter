@@ -2,6 +2,8 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Security hardening batch, 2026-11-16 — AB#420 **Active**: the reminder cron refuses HEAD and other methods with the cleanup route's shared guard; the Proxy removes spoofed project headers before any early return and checks decoded spellings of reserved prefixes; versioned `/gallery/` caching names only files that exist; a signed webhook older than ten minutes is refused and webhook and proof-selection refusals no longer log one line each; the proof publication allowance is per member; the published cursor-key placeholder is refused in production; the poll write refuses redirects; and every `RESEND_API_KEY` reader refuses a `NEXT_PUBLIC_` copy.
+
 Owner-run CMS writer safety, 2026-11-16 — AB#421 **Active**: every Sanity writer reads its write token through one shared
 check (`scripts/sanity-write-safety.mts`) that refuses a `NEXT_PUBLIC_` copy, and prints `Sanity target: project …, dataset …,
 API version …` before its first request. The upload and multi-batch writers leave a partial-run record (uploaded asset ids, last
@@ -11,6 +13,16 @@ the documented manual commands no longer type a token on the command line, and
 unchanged and accepted with the existing retire-or-adapt decision in [sanity-seeding.md](sanity-seeding.md).
 
 Protected-gallery removal slice C, 2026-11-16 — AB#313 **Active**: the protected domain, fixture and notification modules are removed, with their log events and import bans. Only the shared deployment leaf remains for slice D, which covers configuration, CSP, labels and runbooks. See [the removal audit](audits/protected-gallery-removal-2026-10-17.md).
+
+Documentation drift correction, 2026-11-16 — AB#422 **Active**: seven statements found stale by the
+2026-11 review were corrected, documentation and comments only, no behaviour change. In
+`docs/security-privacy-review.md` the publish-route identity check now names project-member metadata
+instead of `/users/me`, the pipeline variable is `SANITY_BUILD_READ_TOKEN`, the endpoint list covers all
+fourteen route handlers under `src/app/api`, and AC6 lists the `localStorage` keys and the poll-vote
+cookie. The `playwright.config.ts` worker comment and the `azure-pipelines.yml` "Verify" reference match the
+self-hosted agent, `docs/deployment.md` lists the Studio checks, and ADR-0013 carries a dated amendment naming
+four cursor families on the shared signing key. The `AGENTS.md` "until Sanity is integrated" sentence is
+proposed in the pull request, not applied.
 
 Protected-gallery removal slice A2, 2026-11-15 — AB#313 **Active**: the unwired retention workflow script and its test are removed. The secret generator moves to slice B2, with the administrator surface that names it. See [the removal audit](audits/protected-gallery-removal-2026-10-17.md).
 
@@ -421,6 +433,7 @@ confirmation. Studio shows confirmed versions and notices read-only, with a list
 notices failed or pending over five minutes. No resend (owner answer 2). Not yet: the
 reopen action, reminders, the data-flow and retention documentation (action item 6) and
 the owner-run hosted check.
+
 Proof selection page, 2026-10-23 — AB#130 **Active** (ADR-0038 action item 3, slice 3b):
 with a `#select=` key in the proof link, the proof page shows per-proof select toggles
 (`aria-pressed`, keyboard), the counts and extra-image total, a two-step confirmation
@@ -430,6 +443,7 @@ block changes until a read succeeds; a new key starts a fresh session; the langu
 switch keeps the key. FI/EN copy. `PROOF_SELECTION=fixture` gives the harness one
 synthetic selection per key. Not yet: the photographer email and Studio notice list,
 reopen and reminders.
+
 Proof selection write route, 2026-10-23 — AB#130 **Active** (ADR-0038 action item 3,
 server side): default-off `POST /api/proof-selection` with its own
 `SANITY_PROOF_SELECTION_TOKEN` reads, saves (full set under `ifRevisionID`) and confirms a
@@ -439,6 +453,7 @@ any private read; confirmation creates the immutable version and its `pending` n
 guards the selection and terms revisions in one transaction; a lost transaction answer is
 reported as unknown. Recorded in the ADR-0038 implementation note. Not yet: the selection
 page (3b), the photographer email and Studio notice list, reopen and reminders.
+
 Proof replacement by the delivery gallery, 2026-10-23 — AB#130 **Active** (ADR-0038
 owner answer 5): a proof gallery's optional `replacedBy` weak reference (Studio offers
 only published client galleries, so no `_strengthenOnPublish` reaches the custom
@@ -449,6 +464,7 @@ configured `?locale=` and ends in an empty fragment, so the selection key does n
 the customer to the delivery URL. A deleted target is ignored; legacy handles, a disabled
 delivery adapter or another document owning the handle never redirect. Selection writes
 will refuse a replaced gallery when the write path lands.
+
 Proof page read path, 2026-10-23 — AB#130 **Active** (ADR-0038 action item 2):
 default-off `PROOF_GALLERY_ADAPTER` serves `/client-proof/<handle>` read-only —
 complete, uncropped proofs in authored order with their permanent numbers in the grid
@@ -492,8 +508,6 @@ AB#401 correction, 2026-10-24: the actual Editor robot passed that `/users/me`
 check. That earlier check did not establish a human user session. AB#402's
 source correction is recorded above; actual intended-role/hosted acceptance
 remains an activation prerequisite. See the dated evidence above.
-
-
 
 Import path inventory and backlog map, 2026-10-22 — AB#391 **New**, AB#130, AB#377:
 [the import path inventory](audits/ab391-import-path-inventory-2026-10-22.md) finds that
@@ -837,7 +851,6 @@ new ZIP delivery remains unimplemented. No S3/Postgres, new dependency, live CMS
 write, hosted deployment or production activation. See the [runtime contract](deployment.md#ongoing-unlisted-client-galleries-adr-0034).
 AB#29/63/145/302/303 remain Active pending accepted merges/live follow-ups;
 AB#130 remains New; optional availability planner AB#304 is Active.
-
 
 AB#302 / AB#145 Sanity authoring, 2026-10-16 (partial, Active): a separate
 client-delivery document and ordered image-item schema now support native
@@ -3775,7 +3788,6 @@ The compatible Production renderer is active on the existing Vercel aliases and 
 
 The owner supplied a fresh Joomla backup and the new private K2 gallery's separate files. Archive CRC checks pass; the database contains the new gallery and the exact paths of all 34 JPEGs and its delivery ZIP, which also passes CRC and holds 34 images. Hash receipts cover both the backup and separate files; the Joomla ZIP does not embed these images, and no live restore is claimed. Customer-access continuity still needs a decision before DNS cutover/October 15 retirement. The private gallery is absent from the approved public import. No custom-domain cutover, complete AB#137 acceptance or launch-parent closure is claimed. AB#137, AB#19, AB#117, AB#132 and AB#18 remain Active.
 
-
 ### AB#288 — service price wrapping (2026-10-14)
 
 Service listing prices and both default/prefixed detail-page pricing rows keep
@@ -3839,7 +3851,6 @@ protected AB#29/145 workflow. The unlisted route and its own delivery checks
 remain to build. The [dated audit follow-up](audits/ab18-launch-finalization-2026-10-09.md#owner-continuity-decisions--october-10-follow-up)
 records the unchanged launch boundary. No paid service, promotion, DNS/CMS write
 or customer publication occurred. AB#18/29 remain Active; no item was closed.
-
 
 ### AB#18 — accepted unlisted legacy-gallery direction (2026-10-10)
 
@@ -4232,7 +4243,6 @@ source/CDN-byte proof, recovery evidence or full AB#250 acceptance. Supported in
 transfer, live atomic collision enforcement, usage/notice reconciliation, actual import,
 legacy links and deployed customer verification remain open. AB#250/18/117 stay Active.
 See [sanity-seeding](sanity-seeding.md#offline-first-import-collision-preflight).
-
 
 ### AB#18 — Current-main alias-indexing release preparation (2026-10-11)
 
@@ -5040,7 +5050,6 @@ browser-free test files / 5,696 tests, all three diagram renditions, the product
 build and the same 140 focused Chromium/WebKit journeys (eight intentional mobile
 skips). The required full Azure PR pipeline remains the final merge gate.
 
-
 PR #355 subsequently merged as `4382537b6be57fa903dfdb39e9e2c4fec87b438e`;
 AB#262's Active → Closed transition was verified before the follow-up below.
 The other agent's original checkout remains untouched.
@@ -5094,7 +5103,6 @@ The owner committed the reviewed slice as `d2cd187` and PR #357 merged as
 `ce43481939438f75136621f30b1aa16b77c05136` after successful full PR run 843.
 AB#265's Active → Closed transition was verified after merge. See [the operator contract](sanity-seeding.md#offline-canonical-alias-payload-ab265).
 
-
 Validation passed: 24 new synthetic planner/CLI cases, 149 focused interop cases,
 all 239 browser-free test files / 5,720 tests, lint, the synthetic mock production
 build and all three diagram renditions. Test-only imports pin the format, grammar
@@ -5103,14 +5111,12 @@ boundaries, wrapper LF/digest, private no-overwrite output and direct pinned-Nod
 execution are covered. No runtime default, public journey or Studio/schema change
 exists, so local journey/Studio gates were not rerun; required CI still applies.
 
-
 The final Claude diff review attempt hit the session limit before substantive
 review. The owner subsequently explicitly waived this review for AB#265 and
 AB#266 on 2026-10-12. The one-time plan review and Codex gates are complete;
 no final Claude verdict is claimed. This waiver applies to these two changes
 only, not future reviews. The accepted PR #357 merge and AB#265 closure are
 verified above; no live CMS or deployment operation was performed.
-
 
 ### AB#266 — Terminal gallery headings at every supported level (2026-10-12, Closed)
 
@@ -5142,14 +5148,12 @@ The owner committed the reviewed slice as `72e781c` and authorized PR #358
 merge after CI, including the documentation conflict correction. AB#264 and
 the independent AB#265 branch remained separate during integration.
 
-
 The final Claude diff review attempt hit the session limit before substantive
 review. The owner subsequently explicitly waived this review for AB#265 and
 AB#266 on 2026-10-12. The one-time plan review and Codex gates are complete;
 no final Claude verdict is claimed. This waiver applies to these two changes
 only, not future reviews. The owner reviewed and committed the source and
 authorized integration corrections; required CI and accepted merge still apply.
-
 
 Integrating the accepted PR #357 main into PR #358 required one documentation
 conflict resolution. Both complete story sections and their owner-waived review
@@ -5199,7 +5203,6 @@ The first sandboxed focused run could not capture child-command output; its
 unsandboxed retry and the complete test suite both passed. AB#185's media writer
 and all five restored code/test blobs match owner commit `c53e5a8`.
 
-
 **Sequential PR integration, 2026-10-13 (AB#255, Active):** PR #359 merged as
 `6a7d714` after full CI #859; PR #363 as `c29ac72` after CI #855; PR #364 as
 `7e47904` after CI #856. Every final merged tree and source-head ancestry was
@@ -5226,7 +5229,6 @@ The initial Next.js attempt lacked worktree-local dependencies; existing caches
 were preserved and matching dependencies copied locally. A sandboxed retry
 stalled during compilation and was stopped; the unrestricted synthetic retry
 passed. Full Playwright remains the updated required CI gate.
-
 
 AB#250 legacy visitor notice, 2026-10-14: retained delivery pages now display FI/EN text describing public unauthenticated gallery/files, public dataset enumeration, sharing, original dimensions/metadata, whole ZIPs and the limits of page expiry/removal. The semantic labelled section appears before the download and photographs. Ordinary public and protected-gallery surfaces retain their existing policy. Customer import and deployment remain gated; AB#250/117/18 remain Active.
 
@@ -5263,7 +5265,6 @@ cover four project entries, one current CI/local value and the enabled native Pr
 hook. Three entry consumers still need identification. Replacement, coordinated
 consumer changes and per-old-key revocation are planned; none was executed and
 AB#117's final security/privacy acceptance remains open.
-
 
 ### AB#250 — Owner-local retained customer source links (2026-10-14)
 
@@ -5685,7 +5686,6 @@ Synthetic tests exercise total time, byte boundaries, tiny/empty chunks and
 redacted failures. No live benchmark, production taxonomy, schema or dependency
 changed; AB#55 acceptance and Feature AB#62 remain separate. AB#328 moved
 New → Active before implementation and awaits owner review/merge.
-
 
 ### AB#338 — header reflow with enlarged root text (2026-10-17)
 

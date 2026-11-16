@@ -30,6 +30,7 @@
  */
 
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { readDeploymentStage } from "@/lib/deployment-stage";
 
 export const MAX_KEYSET_CURSOR_LENGTH = 2048;
 export const MAX_KEYSET_SCOPE_FIELD_LENGTH = 256;
@@ -359,6 +360,9 @@ export const KEYSET_CURSOR_SIGNING_KEY_SETTING = "GALLERY_CURSOR_SIGNING_KEY";
 
 export type KeysetCursorEnvironment = Record<string, string | undefined>;
 
+/** The placeholder `.env.example` ships; refused in production. */
+export const PUBLISHED_PLACEHOLDER_SIGNING_KEY = "development-only-gallery-cursor-signing-key";
+
 export class KeysetCursorConfigurationError extends Error {
   constructor(message: string, options?: ErrorOptions) {
     super(message, options);
@@ -392,6 +396,15 @@ export function loadKeysetCursorSigningKey(
   if (signingKey === undefined || signingKey.length === 0) {
     throw new KeysetCursorConfigurationError(
       `Missing ${setting}: a gallery or a category branch larger than one page issues a continuation cursor, which this deployment signs with its own key. Set one stable secret value per environment — rotating it retires every continuation URL already issued and indexed.`,
+    );
+  }
+
+  // The `.env.example` value is published in this repository, so a production
+  // deployment that kept it would accept cursors anyone can mint (AB#420).
+  // Development may keep it; that is what the placeholder is for.
+  if (signingKey === PUBLISHED_PLACEHOLDER_SIGNING_KEY && readDeploymentStage(environment) === "production") {
+    throw new KeysetCursorConfigurationError(
+      `Invalid ${setting}: this is the published development placeholder from .env.example. Set a generated secret value for this deployment.`,
     );
   }
 

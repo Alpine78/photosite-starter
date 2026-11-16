@@ -1,7 +1,7 @@
 /**
  * The one entry point a route uses for proof publication and key rotation
  * (ADR-0038 amendment 2026-10-22, AB#130). It owns the order a route must not
- * reassemble: prove the editor's session, then spend the gallery allowance,
+ * reassemble: prove the editor's session, then spend that member's gallery allowance,
  * read with the editor's token, plan, and commit one atomic transaction.
  * A selection key is returned only after that transaction committed.
  */
@@ -45,8 +45,11 @@ export async function runProofPublication(
   }
   const options = { config, token, fetchImplementation: dependencies.fetchImplementation };
   try {
-    await verifyEditorSession(options);
-    if (!galleryLimiter.tryConsume(request.galleryId, Date.now()).allowed) return { outcome: "rejected", reason: "rate-limited" };
+    const memberId = await verifyEditorSession(options);
+    // Per member as well as per gallery: write permission is Sanity's to refuse
+    // at commit, after the allowance, so a member without it could otherwise
+    // spend the gallery's whole allowance and lock its editors out (AB#420).
+    if (!galleryLimiter.tryConsume(`${request.galleryId}\u0000${memberId}`, Date.now()).allowed) return { outcome: "rejected", reason: "rate-limited" };
     const read = await readPublicationState(request.galleryId, options);
     const relatedInput = request.operation === "publish" ? relatedQueryInput(request.galleryId, read) : undefined;
     const related = relatedInput === undefined ? undefined
