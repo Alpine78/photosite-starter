@@ -291,6 +291,9 @@ polls and the separately gated retained legacy-delivery types. Studio's normal
 editorial navigation excludes those importer-owned legacy types, whose creation
 and publication remain outside this application setup.
 
+**Keyword review** (AB#70) is a Studio tool listing imported terms that do not resolve to one keyword, one row per term. An editor adds a flat term as an alias of a keyword, after confirming it may be public on a public keyword, creates a new
+keyword as a draft to publish, or, for a path or a flat term several keywords share, records privately which keyword it means. The decision reaches the photographs on the next `npm run sync:keywords`. It reads private records with the editor's own access.
+
 **Keywords** ([ADR-0039](adr/0039-keyword-taxonomy-and-ingest-boundary.md), AB#56) add
 `keyword`, `keywordCategory` and the system document `keywordTaxonomyState`. Studio publishes a
 keyword only with its own action, which takes a revision guard on that state, so do not write

@@ -32,6 +32,9 @@ gallery with the shared grid, lightbox and continuation, instead of a 404. Every
 validation; an invalid selection or cursor answers 404 and is never redirected. `noindex`, no sitemap entry. It shows
 nothing on a real site until media has keywords (AB#69), and nothing links to it yet (AB#74, AB#75).
 
+Keyword review, 2026-11-05 — AB#70 **Active**: a Studio tool aggregates unresolved imported terms per term, and an editor adds an alias or creates a draft keyword under the
+publication guard. It has not been opened in a running Studio; it needs a Studio deployment and an editor's look.
+
 Keyword sync, 2026-11-05 — AB#69 **Active**: `npm run sync:keywords` writes media keywords, closures and the private record, dry-run by default, under
 revision guards and the taxonomy state's guard, and resumes by re-planning. See [keyword-sync.md](keyword-sync.md). It has not run on a real dataset, and Studio has no `keywordRecord` schema until AB#70.
 
