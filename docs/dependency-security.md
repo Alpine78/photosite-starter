@@ -164,6 +164,15 @@ consumers, so no compatible fix exists today:
 | [GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5) (high) | `zod` 3.22.4, pinned exactly by `@vercel/backends`, `@vercel/express`, `@vercel/hono` and `@vercel/python-analysis` | Vercel CLI on the operator's machine and the release job | Memory exhaustion needs an attacker-supplied large array reaching an unbounded array schema. The CLI validates its own and the provider's data; no public request reaches it. |
 | [GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249) (moderate) | `minimatch` 3.1.5 through ESLint 9 and its plugins, and through `@ts-morph/common` inside Vercel CLI | Lint and the CLI on the developer's or operator's machine and in CI | Denial of service needs an attacker-controlled glob pattern. Both tools run only on this repository's own configuration and source. |
 
+**Update 2026-11-16:** `npm audit` no longer reports the `minimatch` advisory or the Studio
+`sprintf-js` advisory, so both exceptions are removed from
+`scripts/npm-audit-accepted-advisories.json`; a recurrence fails the audit again. Only the
+`zod` exception remains. Vercel CLI 65.16.0, the newest release that day, still pins `zod`
+3.22.4 in the same four packages, and the advisory has no 3.x fix, so updating the CLI does
+not clear it. Its acceptance still ends at 00:00 UTC on 2026-11-19 unless the owner extends
+it or a fixed CLI is published. The pipeline's own `capture:audit`, run locally, reported
+root `accepted` (that one exception) and Studio `clean`.
+
 Verified locally: lint, all unit suites, the CSP journeys on desktop Chromium and mobile
 WebKit, the help output for the deploy flags the pipeline uses, and `vercel build --target=preview`
 with CLI 65.10.0 against a throwaway unlinked project and mock content. The Studio audit is
