@@ -70,8 +70,13 @@ describe("RESERVED_ROOT_SEGMENTS", () => {
     // A missing entry would let a deployment configure a locale prefix that the
     // file system shadows, so the reservation is checked against the routes
     // themselves rather than against a remembered list.
+    // The three retired protected-gallery segments own no file any more
+    // (AB#313) and stay reserved, so a story or locale prefix cannot take an
+    // address that customer links and old documentation once used.
+    const retired = ["private-gallery", "private-gallery-admin", "private-gallery-bootstrap.js"];
+    expect(readRootSegments()).not.toEqual(expect.arrayContaining(retired));
     expect([...RESERVED_ROOT_SEGMENTS].sort()).toEqual(
-      [...new Set(readRootSegments())].sort(),
+      [...new Set([...readRootSegments(), ...retired])].sort(),
     );
   });
 });

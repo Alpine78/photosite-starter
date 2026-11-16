@@ -205,6 +205,34 @@ describe("paths", () => {
     expect(mapImportedKeywords(paths(["Beta|Leaf"]), rows, none).mapped).toEqual(["leaf"]);
   });
 
+  it("follows an editor's private decision about one exact path, whatever the hierarchy says", () => {
+    const rows = [keywordRow({ id: "sport", title: "Sport", category: subject }), keywordRow({ id: "moved", title: "Moved", category: subject })];
+    const decisions = new Map([["sport|moved", "doc-moved"]]);
+    const decided = mapImportedKeywords(paths(["Sport | Moved"], ["Sport"]), rows, none, { termDecisions: decisions });
+    expect(decided).toMatchObject({ mapped: ["moved", "sport"], review: [] });
+    expect(mapImportedKeywords(paths(["Other|Moved"]), rows, none, { termDecisions: decisions }).review).toMatchObject([{ reason: "path-mismatch" }]);
+    expect(mapImportedKeywords(paths(["Sport|Moved"]), rows, none, { termDecisions: new Map([["sport|moved", "doc-gone"]]) }).review).toMatchObject([{ reason: "path-mismatch" }]);
+  });
+
+  it("does not treat a whole path as an alias, because an alias on a public keyword is public", () => {
+    const rows = [keywordRow({ id: "moved", title: "Moved", category: subject, aliases: ["old root|moved"] })];
+    expect(mapImportedKeywords(paths(["Old Root|Moved"]), rows, none).review).toMatchObject([{ reason: "path-mismatch" }]);
+  });
+
+  it("honours a flat choice when the term arrives as a one-level path too", () => {
+    const rows = [keywordRow({ id: "one", title: "Shared", category: subject }), keywordRow({ id: "two", title: "Shared", category: "category-other" })];
+    expect(mapImportedKeywords(paths(["Shared"], ["Shared"]), rows, none, { termDecisions: new Map([["shared", "doc-two"]]) })).toMatchObject({ mapped: ["two"], review: [] });
+  });
+
+  it("follows an editor's choice for a flat name two categories share, while it stays one of the options", () => {
+    const rows = [keywordRow({ id: "one", title: "Shared", category: subject }), keywordRow({ id: "two", title: "Shared", category: "category-other" })];
+    const chosen = (documentId: string) => mapImportedKeywords(flat("Shared"), rows, none, { termDecisions: new Map([["shared", documentId]]) });
+    expect(chosen("doc-two")).toMatchObject({ mapped: ["two"], review: [] });
+    expect(chosen("doc-gone").review).toMatchObject([{ reason: "ambiguous" }]);
+    const unrelated = [...rows, keywordRow({ id: "three", title: "Other", category: subject })];
+    expect(mapImportedKeywords(flat("Shared"), unrelated, none, { termDecisions: new Map([["shared", "doc-three"]]) }).review).toMatchObject([{ reason: "ambiguous" }]);
+  });
+
   it("keeps a keyword the site moved on a medium already holding it, and still asks about the path", () => {
     const rows = [
       keywordRow({ id: "sport", title: "Sport", category: subject }),

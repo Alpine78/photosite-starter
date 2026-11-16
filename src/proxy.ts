@@ -34,9 +34,6 @@ import {
   isPrivateGalleryAdminInternalPath,
   isPrivateGalleryInternalPath,
   isPrivateRequestPath,
-  privateGalleryAdminInternalPath,
-  privateGalleryInternalPath,
-  readRequestPath,
 } from "@/lib/request-path";
 
 /**
@@ -54,7 +51,7 @@ import {
  * which is why the private rewrite below is followed by a `next()` pass rather
  * than being the response the client receives — see the internal-path branch.
  * Found by measuring a production build, not by reading: the rewrite silently
- * lost only `Referrer-Policy`, and `e2e/private-route-hygiene.spec.ts` is what
+ * lost only `Referrer-Policy`, and `e2e/reserved-namespace-hygiene.spec.ts` is what
  * caught it.
  *
  * This is the namespace-level application response contract only. Dynamic
@@ -203,13 +200,9 @@ export function proxy(request: NextRequest) {
   const hasTrailingSlash = pathname.length > 1 && pathname.endsWith("/");
 
   const routes = getDeploymentConfig().localeRoutes;
-  const privateConfig = getDeploymentConfig().privateGallery;
   // Always replace a client value, including on the rewrite's second pass.
   requestHeaders.delete(REQUEST_UI_LOCALE_HEADER);
-  if (isLegacyGalleryNamespace(pathname, []) || isProofGalleryNamespace(pathname, []) ||
-    isPrivateRequestPath(pathname, privateConfig.routePrefix) ||
-    isPrivateAdminRequestPath(pathname, privateConfig.adminRoutePrefix) ||
-    isPrivateGalleryInternalPath(pathname) || isPrivateGalleryAdminInternalPath(pathname)) {
+  if (isLegacyGalleryNamespace(pathname, []) || isProofGalleryNamespace(pathname, [])) {
     requestHeaders.set(REQUEST_UI_LOCALE_HEADER, restrictedLocaleFromSearch(request.nextUrl.searchParams, routes));
   }
   const galleryPrefixes = routes.locales.flatMap((route) => [route.prefix, route.locale.split("-")[0]]).filter((value): value is string => typeof value === "string" && value.length > 0);
@@ -233,71 +226,22 @@ export function proxy(request: NextRequest) {
     return withReservedNamespaceHygieneHeaders(nextWithScriptNonce(request, requestHeaders));
   }
 
-  // The two reserved namespaces: the private client-gallery one (ADR-0014 §9)
-  // and the administrator one (ADR-0015 §1). Both prefixes are validated and
-  // reserved by `loadDeploymentConfig` — including against each other and
-  // against a legacy-redirect root — so neither is ever also a legacy path, and
-  // the legacy lookup below is skipped for both. Every response the Proxy
-  // returns for such a path carries §6's hygiene headers.
+  // The two reserved namespaces: the former protected client-gallery one
+  // (ADR-0014 §9) and its administrator one (ADR-0015 §1). Their routes were
+  // removed with AB#313 after ADR-0034 chose unlisted delivery. The prefixes
+  // stay validated and reserved by `loadDeploymentConfig`, so no story, gallery
+  // or legacy row can take them, and every method on every such path — the
+  // configured prefixes and the two literal segments the routes used to live
+  // under — answers one hygienic 404 before any redirect, lookup or route.
   const { routePrefix: privateRoutePrefix, adminRoutePrefix } =
     getDeploymentConfig().privateGallery;
-
-  // The internal rewrite target (`privateGalleryInternalPath`). **This Proxy
-  // runs again on the path it rewrote to** — verified against a production
-  // build, not assumed — so this branch is both the second pass of a genuine
-  // private request and the door a stranger might try directly.
-  //
-  // The two are told apart by the request path the first pass carried, which is
-  // this exact rewrite's source. A client can send that header itself, and this
-  // does not pretend otherwise: it is a namespace-hygiene rule, not an
-  // authorization one. What it buys is that no crawler, link, or ordinary
-  // client ever reaches a second URL shape for a private gallery — and what a
-  // forged header would reach is a bootstrap page that looks nothing up and an
-  // exchange that still demands the real capability and answers with a cookie
-  // scoped to the *public* path, which no browser would then send here.
-  // Authorization is the capability and the session, never the URL shape.
-  if (isPrivateGalleryInternalPath(pathname)) {
-    const carried = readRequestPath(request.headers.get(REQUEST_PATH_HEADER));
-    const isOwnRewrite =
-      carried !== undefined &&
-      isPrivateRequestPath(carried, privateRoutePrefix) &&
-      privateGalleryInternalPath(carried, privateRoutePrefix) === pathname;
-    if (!isOwnRewrite) return new NextResponse(null, { status: 404 });
-
-    // A pass-through, not a second rewrite — and that is also what makes §6's
-    // `Referrer-Policy: no-referrer` stick: a `next()` response's headers
-    // replace `next.config.ts`'s site-wide value, while a `rewrite()` response's
-    // do not (see `RESERVED_NAMESPACE_HYGIENE_HEADERS` above).
-    return withReservedNamespaceHygieneHeaders(
-      NextResponse.next({ request: { headers: requestHeaders } }),
-    );
+  if (
+    isPrivateGalleryInternalPath(pathname) || isPrivateGalleryAdminInternalPath(pathname) ||
+    isPrivateRequestPath(pathname, privateRoutePrefix) ||
+    isPrivateAdminRequestPath(pathname, adminRoutePrefix)
+  ) {
+    return withReservedNamespaceHygieneHeaders(new NextResponse(null, { status: 404 }));
   }
-
-  // The administrator namespace's own second pass, told from a direct request
-  // exactly as the customer one is: by the request path the first pass carried,
-  // which is this rewrite's own source. Namespace hygiene, not authorization —
-  // a forged header reaches a login form that still demands the credential.
-  if (isPrivateGalleryAdminInternalPath(pathname)) {
-    const carried = readRequestPath(request.headers.get(REQUEST_PATH_HEADER));
-    const isOwnRewrite =
-      carried !== undefined &&
-      isPrivateAdminRequestPath(carried, adminRoutePrefix) &&
-      privateGalleryAdminInternalPath(carried, adminRoutePrefix) === pathname;
-    if (!isOwnRewrite) return new NextResponse(null, { status: 404 });
-
-    return withReservedNamespaceHygieneHeaders(
-      NextResponse.next({ request: { headers: requestHeaders } }),
-    );
-  }
-
-  const privatePath = isPrivateRequestPath(pathname, privateRoutePrefix);
-
-  // The reserved administrator namespace (ADR-0015 §1).
-  //
-  // `readPrivateGalleryDeployment` refuses a configuration where the two
-  // prefixes are equal, so `privatePath` and `adminPath` are mutually exclusive.
-  const adminPath = isPrivateAdminRequestPath(pathname, adminRoutePrefix);
-  const reservedNamespacePath = privatePath || adminPath;
 
   // Checked against the exact requested pathname, trailing slash and all,
   // and *before* the generic trailing-slash normalization below — a legacy
@@ -313,9 +257,7 @@ export function proxy(request: NextRequest) {
   // so a request that only differs from a decided row by its query still
   // gets that row's outcome; what the query string itself does about it is
   // decided below, per outcome kind.
-  const legacyOutcome = reservedNamespacePath
-    ? undefined
-    : resolveLegacyRedirect(LEGACY_REDIRECTS, pathname);
+  const legacyOutcome = resolveLegacyRedirect(LEGACY_REDIRECTS, pathname);
   if (legacyOutcome !== undefined) {
     if (legacyOutcome.kind === "redirect") {
       const destination = new URL(legacyOutcome.target, request.url);
@@ -341,15 +283,13 @@ export function proxy(request: NextRequest) {
   // Owner-local retained links follow reserved namespaces and the public registry.
   // Drop all historical query values; only the validated UI locale can survive.
   let retainedTarget: string | undefined;
-  if (!reservedNamespacePath) {
-    try {
-      retainedTarget = retainedGalleryRedirect(pathname, process.env);
-    } catch (error) {
-      if (!(error instanceof InvalidLegacyGalleryRedirectConfiguration)) throw error;
-      if (!warnedInvalidRetainedRedirects) {
-        console.warn("Retained-gallery redirects disabled: invalid deployment configuration");
-        warnedInvalidRetainedRedirects = true;
-      }
+  try {
+    retainedTarget = retainedGalleryRedirect(pathname, process.env);
+  } catch (error) {
+    if (!(error instanceof InvalidLegacyGalleryRedirectConfiguration)) throw error;
+    if (!warnedInvalidRetainedRedirects) {
+      console.warn("Retained-gallery redirects disabled: invalid deployment configuration");
+      warnedInvalidRetainedRedirects = true;
     }
   }
   if (retainedTarget !== undefined) {
@@ -382,10 +322,7 @@ export function proxy(request: NextRequest) {
     // slash back into Location, producing a self-redirect.
     const destination = new URL(request.url);
     destination.pathname = pathname.slice(0, -1);
-    const redirect = NextResponse.redirect(destination, 308);
-    return reservedNamespacePath
-      ? withReservedNamespaceHygieneHeaders(redirect)
-      : redirect;
+    return NextResponse.redirect(destination, 308);
   }
 
   if (pathname === "/api" || pathname.startsWith("/api/")) {
@@ -421,39 +358,7 @@ export function proxy(request: NextRequest) {
     requestHeaders.delete(REQUEST_HAS_SECTION_HEADER);
   }
 
-  // One rewrite reconciles the configured administrator prefix with its literal
-  // file-system route, the same way the customer namespace's does.
-  if (adminPath) {
-    const adminTarget = request.nextUrl.clone();
-    adminTarget.pathname = privateGalleryAdminInternalPath(
-      pathname,
-      adminRoutePrefix,
-    );
-    return withReservedNamespaceHygieneHeaders(
-      NextResponse.rewrite(adminTarget, {
-        request: { headers: requestHeaders },
-      }),
-    );
-  }
-
-  if (!privatePath) {
-    return nextWithScriptNonce(request, requestHeaders);
-  }
-
-  // One rewrite reconciles the deployment-configured public prefix with the
-  // literal file-system route (`src/app/private-gallery/...`). The browser keeps
-  // the address it asked for, which is also what the session cookie's own
-  // `Path` is scoped to.
-  //
-  // `nextUrl.clone()` is the framework's own idiom for an internal rewrite, and
-  // the trailing-slash hazard that made the 308 above avoid `clone()` cannot
-  // arise here: a private path with a trailing slash is never a potential story
-  // path, so it was already redirected.
-  const target = request.nextUrl.clone();
-  target.pathname = privateGalleryInternalPath(pathname, privateRoutePrefix);
-  return withReservedNamespaceHygieneHeaders(
-    NextResponse.rewrite(target, { request: { headers: requestHeaders } }),
-  );
+  return nextWithScriptNonce(request, requestHeaders);
 }
 
 /**

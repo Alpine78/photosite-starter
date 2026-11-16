@@ -12,6 +12,10 @@ self-hosted agent, `docs/deployment.md` lists the Studio checks, and ADR-0013 ca
 four cursor families on the shared signing key. The `AGENTS.md` "until Sanity is integrated" sentence is
 proposed in the pull request, not applied.
 
+Protected-gallery removal slice A2, 2026-11-15 — AB#313 **Active**: the unwired retention workflow script and its test are removed. The secret generator moves to slice B2, with the administrator surface that names it. See [the removal audit](audits/protected-gallery-removal-2026-10-17.md).
+
+Protected-gallery removal slices B1/B2, 2026-11-15 — AB#313 **Active**: the protected customer and administrator pages, endpoints, components, journeys and the secret generator are removed. Their URL prefixes stay reserved and every path under them answers one hygienic 404, by owner decision. The domain modules follow in slice C. Entries below that describe these routes are history. See [the removal audit](audits/protected-gallery-removal-2026-10-17.md).
+
 Scriptless 404 upstream recheck, 2026-11-07 — AB#132 and AB#370 **Active**: Next.js 16.4.5 is
 now `latest`, and a third-party report on
 [#62228](https://github.com/vercel/next.js/issues/62228) says the empty `__next_error__` shell
@@ -38,6 +42,9 @@ gallery with the shared grid, lightbox and continuation, instead of a 404. Every
 validation; an invalid selection or cursor answers 404 and is never redirected. `noindex`, no sitemap entry. It shows
 nothing on a real site until media has keywords (AB#69), and nothing links to it yet (AB#74, AB#75).
 
+Keyword review, 2026-11-05 — AB#70 **Active**: a Studio tool aggregates unresolved imported terms per term, and an editor adds an alias or creates a draft keyword under the
+publication guard. It has not been opened in a running Studio; it needs a Studio deployment and an editor's look.
+
 Keyword sync, 2026-11-05 — AB#69 **Active**: `npm run sync:keywords` writes media keywords, closures and the private record, dry-run by default, under
 revision guards and the taxonomy state's guard, and resumes by re-planning. See [keyword-sync.md](keyword-sync.md). It has not run on a real dataset, and Studio has no `keywordRecord` schema until AB#70.
 
@@ -56,6 +63,9 @@ medium's Lightroom fields to the controlled vocabulary and returns a proposal: m
 items, canonicalized overrides, the effective public and internal sets and the closure. It is pure and
 writes nothing. Nothing calls it yet; the writer is AB#69 and the review workflow AB#70. The rules are in
 [ADR-0039's AB#57 amendment](adr/0039-keyword-taxonomy-and-ingest-boundary.md).
+
+Legacy re-upload tooling, 2026-11-05 — AB#391 **Active**: `plan:legacy-image-reupload` now matches sources to published media, and `write:legacy-image-reupload` replaces
+the assets, dry-run by default, with a sensitive list and optional deletion of the old assets. See [the guide](legacy-image-reupload.md). It has not written to any dataset; the location review and the run are the owner's.
 
 Import metadata tool, 2026-11-04 — AB#391 **Active**: `exiftool-vendored` is added as a
 devDependency, and `prepareJpegForImport` applies ADR-0039 decision 8 and verifies each result.
