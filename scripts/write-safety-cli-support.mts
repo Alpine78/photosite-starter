@@ -67,7 +67,14 @@ export function runWriterCliWithFakeSanity(
   script: string,
   args: readonly string[],
   environment: Record<string, string>,
-  failure: { readonly failWhenBodyContains: string; readonly failAt: number; readonly queryResults?: readonly unknown[] },
+  failure: {
+    readonly failWhenBodyContains: string;
+    readonly failAt: number;
+    readonly queryResults?: readonly unknown[];
+    /** Answers this upload (1-based, in request order) with HTTP 500 at once, and delays every accepted one. */
+    readonly failUploadAt?: number;
+    readonly acceptedUploadDelayMs?: number;
+  },
 ): CliResult {
   const shim = `let uploads = 0, matching = 0;
 const queryResults = ${JSON.stringify(failure.queryResults ?? [])};
@@ -78,7 +85,10 @@ globalThis.fetch = async (url, init) => {
   if (text.includes("/data/query/")) return json({ result: queryResults.length > 0 ? queryResults.shift() : [] });
   if (text.includes("/assets/images/")) {
     uploads += 1;
-    return json({ document: { _id: "image-fixture" + uploads + "-10x10-webp", extension: "webp", mimeType: "image/webp", metadata: { dimensions: { width: 10, height: 10 } } } });
+    if (uploads === ${failure.failUploadAt ?? 0}) return json({ error: "synthetic" }, 500);
+    const id = uploads;
+    await new Promise((resolve) => setTimeout(resolve, ${failure.acceptedUploadDelayMs ?? 0}));
+    return json({ document: { _id: "image-fixture" + id + "-10x10-webp", extension: "webp", mimeType: "image/webp", metadata: { dimensions: { width: 10, height: 10 } } } });
   }
   if (text.includes("/data/mutate/")) {
     if (String(init?.body ?? "").includes(${JSON.stringify(failure.failWhenBodyContains)})) {

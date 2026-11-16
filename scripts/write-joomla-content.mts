@@ -1862,7 +1862,7 @@ async function uploadAndWrite(
       const uploaded = await uploadSeedImageAsset(connection, outcome.derivative, {
         maxDimension: MAX_PUBLIC_DELIVERY_DIMENSION,
         formatsByExtension: PUBLIC_DELIVERY_FORMATS,
-      });
+      }, { onAccepted: (assetId) => progress.recordUpload(assetId) });
       assetIdByMediaId.set(outcome.mediaId, uploaded.assetId);
       progress.recordUpload(uploaded.assetId);
     } catch (error) {

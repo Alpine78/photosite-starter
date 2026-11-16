@@ -28,7 +28,8 @@ import { formatWriteTarget, readWriteToken, WriteCredentialError } from "./sanit
 
 export type ReuploadPort = Readonly<{
   readSource: (sourceLocator: string) => Promise<Uint8Array>;
-  upload: (bytes: Uint8Array) => Promise<Readonly<{ assetId: string; width: number; height: number }>>;
+  /** `onAccepted` receives the asset id as soon as the dataset accepts the bytes, before any later check can throw. */
+  upload: (bytes: Uint8Array, onAccepted?: (assetId: string) => void) => Promise<Readonly<{ assetId: string; width: number; height: number }>>;
   patchAsset: (medium: ReuploadPlanned, assetId: string) => Promise<void>;
   deleteAsset: (assetId: string) => Promise<void>;
 }>;
@@ -81,6 +82,7 @@ export async function runLegacyImageReupload(
   const failed: { mediaId: string; code: string }[] = [];
   const undeleted: { mediaId: string; assetRef: string }[] = [];
   const uploadedAssetIds: string[] = [];
+  const recordUpload = (assetId: string) => { if (!uploadedAssetIds.includes(assetId)) uploadedAssetIds.push(assetId); };
   let prepared = 0, preparedBytes = 0, written = 0, alreadyDone = 0, deleted = 0, keptReferenced = 0;
   const totals = () => ({ digest, prepared, preparedBytes, failed, written, alreadyDone, deleted, keptReferenced, undeleted, uploadedAssetIds });
   // One at a time, so no more than one prepared photograph is held in memory.
@@ -97,8 +99,8 @@ export async function runLegacyImageReupload(
     if (options.yes !== true) continue;
     let uploaded: Awaited<ReturnType<ReuploadPort["upload"]>>;
     try {
-      uploaded = await port.upload(output.bytes);
-      uploadedAssetIds.push(uploaded.assetId);
+      uploaded = await port.upload(output.bytes, recordUpload);
+      recordUpload(uploaded.assetId);
     } catch {
       failed.push({ mediaId: row.mediaId, code: "WRITE_INTERRUPTED" });
       return { outcome: "interrupted", ...totals() };
@@ -191,7 +193,7 @@ export async function main(argv: readonly string[]): Promise<ReuploadResult> {
   if (connection !== undefined) console.error(formatWriteTarget(connection));
   const port: ReuploadPort = {
     readSource: async (sourceLocator) => new Uint8Array(await readFile(resolveSource(options.imageRoot, sourceLocator))),
-    upload: async (bytes) => uploadSeedImageAsset(connection!, { bytes, contentType: "image/jpeg" }, { maxDimension: MAX_PUBLIC_DELIVERY_DIMENSION, formatsByExtension: PUBLIC_DELIVERY_FORMATS }),
+    upload: async (bytes, onAccepted) => uploadSeedImageAsset(connection!, { bytes, contentType: "image/jpeg" }, { maxDimension: MAX_PUBLIC_DELIVERY_DIMENSION, formatsByExtension: PUBLIC_DELIVERY_FORMATS }, onAccepted === undefined ? undefined : { onAccepted }),
     patchAsset: async (medium, assetId) => {
       await runSeedMutationBatches(connection!, [{ patch: { id: medium._id, ifRevisionID: medium._rev, set: { "image.asset._ref": assetId } } }], { batchSize: 1 });
     },

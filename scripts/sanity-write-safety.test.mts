@@ -236,4 +236,39 @@ describe("a run that fails after it began writing leaves a partial-run record (A
     expect([...record.uploadedAssetIds].sort()).toEqual(Array.from({ length: 6 }, (_, index) => `image-fixture${index + 1}-10x10-webp`).sort());
     expect(result.stdout + result.stderr).not.toContain(TOKEN);
   }, CLI_TIMEOUT);
+
+  function partialRecord(stderr: string) {
+    const line = stderr.split("\n").find((entry) => entry.startsWith(PARTIAL_RUN_LINE_PREFIX));
+    expect(line).toBeDefined();
+    return JSON.parse((line as string).slice(PARTIAL_RUN_LINE_PREFIX.length));
+  }
+  const EMPTY_PREFLIGHT = [{ singletons: [], media: [], categories: [], services: [], content: [] }];
+
+  it("seed:sanity records an asset whose filename cleanup failed after the upload was accepted", () => {
+    const result = runWriterCliWithFakeSanity("seed-sanity-content.mts", ["--yes"], { SANITY_SEED_TOKEN: TOKEN }, {
+      failWhenBodyContains: '"originalFilename"',
+      failAt: 1,
+      queryResults: EMPTY_PREFLIGHT,
+    });
+    expect(result.status).toBe(1);
+    const record = partialRecord(result.stderr);
+    expect(record.completedBatches).toBe(0);
+    // Every upload was accepted; the first cleanup failed, yet no accepted asset is missing.
+    expect([...record.uploadedAssetIds].sort()).toEqual(Array.from({ length: 6 }, (_, index) => `image-fixture${index + 1}-10x10-webp`).sort());
+  }, CLI_TIMEOUT);
+
+  it("seed:sanity waits for every concurrent upload before recording a rejected one", () => {
+    const result = runWriterCliWithFakeSanity("seed-sanity-content.mts", ["--yes"], { SANITY_SEED_TOKEN: TOKEN }, {
+      failWhenBodyContains: '"createOrReplace"',
+      failAt: 1,
+      queryResults: EMPTY_PREFLIGHT,
+      failUploadAt: 1,
+      acceptedUploadDelayMs: 200,
+    });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("Asset upload failed with HTTP 500");
+    const record = partialRecord(result.stderr);
+    expect(record.completedBatches).toBe(0);
+    expect([...record.uploadedAssetIds].sort()).toEqual([2, 3, 4, 5, 6].map((index) => `image-fixture${index}-10x10-webp`).sort());
+  }, CLI_TIMEOUT);
 });

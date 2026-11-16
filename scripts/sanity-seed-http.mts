@@ -185,7 +185,14 @@ export async function uploadSeedImageAsset(
     readonly maxDimension: number;
     readonly formatsByExtension: Readonly<Record<string, string>>;
   },
-  options?: RequestOptions,
+  options?: RequestOptions & {
+    /**
+     * Called with the asset id as soon as the dataset has accepted the upload, before the response
+     * policy checks and the filename cleanup that can still throw, so a caller recording a failed
+     * run never loses an asset that already exists (AB#421).
+     */
+    readonly onAccepted?: (assetId: string) => void;
+  },
 ): Promise<UploadedAsset> {
   const url = `https://${connection.projectId}.api.sanity.io/${connection.apiVersion}/assets/images/${connection.dataset}`;
   const response = await sendSanityHttpRequest(
@@ -204,6 +211,7 @@ export async function uploadSeedImageAsset(
   const document = record(body?.document);
   const dimensions = record(record(document?.metadata)?.dimensions);
   const id = document?._id;
+  if (typeof id === "string" && id.trim()) options?.onAccepted?.(id);
   const extension = document?.extension;
   const mimeType = document?.mimeType;
   const width = dimensions?.width;
@@ -238,7 +246,7 @@ export async function uploadSeedImageAsset(
   await runSeedMutationBatches(
     connection,
     [{ patch: { id, unset: ["originalFilename"] } }],
-    { ...options, batchSize: 1 },
+    { ...(options?.fetchImplementation === undefined ? {} : { fetchImplementation: options.fetchImplementation }), batchSize: 1 },
   );
 
   return { assetId: id, width, height, extension, mimeType };

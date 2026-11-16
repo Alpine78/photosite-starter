@@ -768,21 +768,28 @@ async function main(): Promise<void> {
   console.log("\nUploading demo photographs...");
   // The six uploads are fully independent — none depends on another's
   // result, `assetRefsByKey` is only assembled afterward — so they run
-  // concurrently rather than one at a time.
-  const uploads = await Promise.all(
+  // concurrently rather than one at a time. Every upload is allowed to settle
+  // before a failure is reported, so the partial-run record names every asset
+  // an outstanding request created (AB#421); the first failure is rethrown.
+  const outcomes = await Promise.allSettled(
     [...assetFiles].map(async ([key, fileUrl]) => {
       const bytes = new Uint8Array(await readFile(fileUrl));
       const uploaded = await uploadSeedImageAsset(
         connection,
         { bytes, contentType: "image/webp" },
         { maxDimension: MAX_PUBLIC_DELIVERY_DIMENSION, formatsByExtension: PUBLIC_DELIVERY_FORMATS },
+        { onAccepted: (assetId) => progress.recordUpload(assetId) },
       );
       progress.recordUpload(uploaded.assetId);
       console.log(`  uploaded ${key} -> ${uploaded.assetId} (${uploaded.width}x${uploaded.height})`);
       return [key, uploaded.assetId] as const;
     }),
   );
-  const assetRefsByKey = new Map(uploads);
+  const rejected = outcomes.find((outcome) => outcome.status === "rejected");
+  if (rejected !== undefined) throw rejected.reason;
+  const assetRefsByKey = new Map(
+    outcomes.map((outcome) => (outcome as PromiseFulfilledResult<readonly [string, string]>).value),
+  );
 
   const { documents } = buildSeedFixtures({ assetRefsByKey });
   const violations = validateSeedFixtures(documents);

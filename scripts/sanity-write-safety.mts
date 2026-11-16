@@ -97,8 +97,9 @@ export class WriteRunProgress {
     return this.#started;
   }
 
+  /** Idempotent: an id reported on acceptance and again on return is recorded once. */
   recordUpload(assetId: string): void {
-    this.#uploadedAssetIds.push(assetId);
+    if (!this.#uploadedAssetIds.includes(assetId)) this.#uploadedAssetIds.push(assetId);
   }
 
   recordBatch(label: string): void {

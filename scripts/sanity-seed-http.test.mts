@@ -292,6 +292,26 @@ describe("uploadSeedImageAsset", () => {
     expect(fetchImplementation).toHaveBeenCalledTimes(2);
   });
 
+  it("reports an accepted asset before a failing filename cleanup or policy check can throw (AB#421)", async () => {
+    const accepted: string[] = [];
+    const cleanupFails = vi.fn(async () => fetchImplementation.mock.calls.length === 1
+      ? jsonResponse({ document: { _id: "image-cleanup-1200x800-webp", extension: "webp", mimeType: "image/webp", metadata: { dimensions: { width: 1200, height: 800 } } } })
+      : jsonResponse({ error: "synthetic" }, 500));
+    const fetchImplementation = cleanupFails;
+    await expect(uploadSeedImageAsset(connection, { bytes: new Uint8Array([1]), contentType: "image/webp" }, policy, {
+      fetchImplementation: fetchImplementation as unknown as typeof fetch,
+      onAccepted: (assetId) => accepted.push(assetId),
+    })).rejects.toBeInstanceOf(SanitySeedHttpError);
+    expect(fetchImplementation).toHaveBeenCalledTimes(2);
+
+    const oversized = vi.fn(async () => jsonResponse({ document: { _id: "image-oversized-4000x3000-webp", extension: "webp", mimeType: "image/webp", metadata: { dimensions: { width: 4000, height: 3000 } } } }));
+    await expect(uploadSeedImageAsset(connection, { bytes: new Uint8Array([1]), contentType: "image/webp" }, policy, {
+      fetchImplementation: oversized as unknown as typeof fetch,
+      onAccepted: (assetId) => accepted.push(assetId),
+    })).rejects.toBeInstanceOf(SanitySeedHttpError);
+    expect(accepted).toEqual(["image-cleanup-1200x800-webp", "image-oversized-4000x3000-webp"]);
+  });
+
   it("refuses an asset past the maximum public-delivery dimension", async () => {
     const fetchImplementation = vi.fn(async () =>
       jsonResponse({
