@@ -90,7 +90,7 @@ Protected-only UI includes `src/components/private-gallery-*.tsx`,
 page). Do not infer public reuse from filenames or delete shared child components.
 
 The protected facade is
-[`private-gallery-access.ts`](../../src/lib/private-gallery-access.ts).
+`private-gallery-access.ts` (removed in slice C).
 `getPrivateGalleryStores()` and `getPrivateGalleryAdminStores()` return fixture
 stores only for `memory`; both **throw for `enabled` because production adapters
 are unimplemented**, and for inappropriate calls while off. Memory is rejected
@@ -340,6 +340,24 @@ headers, the legacy and client-gallery branches of the Proxy, and every
 One journey is lost without a replacement: the language switch's unsaved-edit warning was
 exercised only on the administrator sign-in form. The shared component remains; no
 remaining restricted page has an editable field to drive it from a browser test.
+
+### C removal, domain and notification modules — 2026-11-16
+
+After the B patch a reverse-import search over tracked source found three edges into the
+`src/lib/private-gallery-*` and `src/lib/gallery-notification*` family from outside it:
+`contact-log.ts` (types from the facade), `deployment-config.ts` (the shared deployment
+leaf) and `resend-email.test.ts` (the notification transport). The patch removes the whole
+family, 99 files with their tests, **except** `private-gallery-deployment.ts` and its test,
+which the public configuration still needs.
+
+With it go the four protected event names, types and wrappers in `contact-log.ts`, the
+gallery case of the shared Resend caller test, and the ESLint import ban whose modules no
+longer exist. `resend-email.ts`, the closed log writer and the contact, enquiry, poll and
+proof events are unchanged. No package changes: the family used Node builtins only.
+
+Left for slice D: the store mode and prefix settings in `private-gallery-deployment.ts`,
+`private-object-store-origin.ts` and its CSP grant, the protected labels in
+`deployment-config.ts`, `.env.example`, the runbook section and the diagrams.
 
 ## Operational evidence for the clearance table — 2026-10-20
 
