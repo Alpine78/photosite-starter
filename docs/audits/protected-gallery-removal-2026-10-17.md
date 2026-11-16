@@ -289,6 +289,32 @@ unchanged: the ten script files reference only each other, and outside them only
 subsection has moved to lines 1478-1546; use the heading, not the old line numbers. No
 clearance row is answered and nothing is deleted.
 
+### Owner clearance and A1 removal — 2026-11-15
+
+On 2026-11-15 the owner, who is the deployment owner, pipeline owner and operator of the
+reference deployment, decided that the S3/Postgres protected-gallery code is not kept and
+asked for it to be removed slice by slice. This answers those three clearance columns for
+every slice for the reference deployment. Other clones remain unknown, and each patch still
+needs its own review.
+
+Slice A1 is removed in the patch that adds this note, from `origin/main`
+`0fc48a7`. The searches above were repeated first with the same result. The patch deletes
+the ten script files, the two `package.json` commands, the README paragraph and the
+`docs/deployment.md` subsection. `sharp` stays, because other scripts import it. Statements
+above that nothing is cleared or deleted describe their own dates.
+### A2 removal, retention worker — 2026-11-15
+
+Under the owner's decision of 2026-11-15 that the S3/Postgres protected-gallery code is not
+kept, `scripts/private-gallery-retention-workflow.mts` and its test are removed from
+`origin/main` `0fc48a7`. A tracked search found no importer, package command, pipeline step
+or document naming the file, apart from a comment in `src/lib/private-gallery-retention.ts`,
+which is updated. The deployment runbook describes the worker as a concept, not this file,
+and is left for slice D.
+
+The secret generator moves from A2 to B2. `src/lib/private-gallery-admin-credential.ts`
+names `npm run admin:secret` in its configuration error, and `.env.example`,
+`docs/deployment.md` and `docs/owner-run-commands.md` instruct its use. Removing the command
+before the administrator surface would leave those pointing at nothing.
 ### B1/B2 removal, customer and administrator surfaces — 2026-11-15
 
 Under the owner's decision of 2026-11-15, both surfaces are removed in one patch from

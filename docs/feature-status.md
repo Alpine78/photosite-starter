@@ -2,6 +2,7 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Protected-gallery removal slice A2, 2026-11-15 — AB#313 **Active**: the unwired retention workflow script and its test are removed. The secret generator moves to slice B2, with the administrator surface that names it. See [the removal audit](audits/protected-gallery-removal-2026-10-17.md).
 Protected-gallery removal slices B1/B2, 2026-11-15 — AB#313 **Active**: the protected customer and administrator pages, endpoints, components, journeys and the secret generator are removed. Their URL prefixes stay reserved and every path under them answers one hygienic 404, by owner decision. The domain modules follow in slice C. Entries below that describe these routes are history. See [the removal audit](audits/protected-gallery-removal-2026-10-17.md).
 
 Scriptless 404 upstream recheck, 2026-11-07 — AB#132 and AB#370 **Active**: Next.js 16.4.5 is
@@ -917,6 +918,14 @@ source files, then compares current JPEG/ZIP bytes and metadata with that plan.
 It reuses unchanged bounded inspection, streams ZIP hashes and produces only a
 redacted summary. It writes no files or remote objects and grants no upload lease;
 watermarks and ZIP contents retain their explicit existing verification limits.
+
+AB#313 slice A1, 2026-11-15 (removal, pending merge): the owner cleared removal of the
+inactive protected S3/Postgres implementation. This slice deletes the two offline
+protected-upload source commands above (`plan:private-gallery-upload`,
+`verify:private-upload-sources`), their modules and tests. They have no replacement;
+the unlisted and legacy-delivery tools are separate and unchanged. The entries above
+stay as history. Later slices are listed in
+[the removal audit](audits/protected-gallery-removal-2026-10-17.md).
 
 AB#310 / AB#29 offline whole-package integrity, 2026-10-17 (AB#310 merged;
 parent AB#29 Active):

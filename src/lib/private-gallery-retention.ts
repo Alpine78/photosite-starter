@@ -3,9 +3,9 @@
  * (ADR-0014 §7).
  *
  * Pure, and deliberately so. The worker itself is a scheduled `scripts/*.mts`
- * job the ADR names as its own action item. Provider-free orchestration now lives
- * in scripts/private-gallery-retention-workflow.mts; concrete store adapters
- * and scheduling remain unbuilt. Its policy stays here, in
+ * job the ADR names as its own action item. Its provider-free orchestration was
+ * removed with AB#313 slice A2; store adapters and scheduling were never built.
+ * Its policy stays here until slice C, in
  * a module with no IO, no clock of its own, and no store. That is the same
  * split `evaluatePrivateGalleryExchangeRate` already uses for the persistent
  * exchange counter: the policy is testable today and the adapter later has an
