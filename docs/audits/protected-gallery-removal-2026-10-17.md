@@ -302,6 +302,19 @@ Slice A1 is removed in the patch that adds this note, from `origin/main`
 the ten script files, the two `package.json` commands, the README paragraph and the
 `docs/deployment.md` subsection. `sharp` stays, because other scripts import it. Statements
 above that nothing is cleared or deleted describe their own dates.
+### A2 removal, retention worker — 2026-11-15
+
+Under the owner's decision of 2026-11-15 that the S3/Postgres protected-gallery code is not
+kept, `scripts/private-gallery-retention-workflow.mts` and its test are removed from
+`origin/main` `0fc48a7`. A tracked search found no importer, package command, pipeline step
+or document naming the file, apart from a comment in `src/lib/private-gallery-retention.ts`,
+which is updated. The deployment runbook describes the worker as a concept, not this file,
+and is left for slice D.
+
+The secret generator moves from A2 to B2. `src/lib/private-gallery-admin-credential.ts`
+names `npm run admin:secret` in its configuration error, and `.env.example`,
+`docs/deployment.md` and `docs/owner-run-commands.md` instruct its use. Removing the command
+before the administrator surface would leave those pointing at nothing.
 
 ## Operational evidence for the clearance table — 2026-10-20
 

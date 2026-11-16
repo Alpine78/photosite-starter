@@ -2,6 +2,8 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Protected-gallery removal slice A2, 2026-11-15 — AB#313 **Active**: the unwired retention workflow script and its test are removed. The secret generator moves to slice B2, with the administrator surface that names it. See [the removal audit](audits/protected-gallery-removal-2026-10-17.md).
+
 Scriptless 404 upstream recheck, 2026-11-07 — AB#132 and AB#370 **Active**: Next.js 16.4.5 is
 now `latest`, and a third-party report on
 [#62228](https://github.com/vercel/next.js/issues/62228) says the empty `__next_error__` shell
