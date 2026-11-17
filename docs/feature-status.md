@@ -6,6 +6,14 @@ Next.js 16.4.6, 2026-11-16 — AB#160 **Active**: `next` and `eslint-config-next
 
 Security hardening batch, 2026-11-16 — AB#420 **Active**: the reminder cron refuses HEAD and other methods with the cleanup route's shared guard; the Proxy removes spoofed project headers before any early return and checks decoded spellings of reserved prefixes; versioned `/gallery/` caching names only files that exist; a signed webhook older than ten minutes is refused and webhook and proof-selection refusals no longer log one line each; the proof publication allowance is per member; the published cursor-key placeholder is refused in production; the poll write refuses redirects; and every `RESEND_API_KEY` reader refuses a `NEXT_PUBLIC_` copy.
 
+Owner-run CMS writer safety, 2026-11-16 — AB#421 **Active**: every Sanity writer reads its write token through one shared
+check (`scripts/sanity-write-safety.mts`) that refuses a `NEXT_PUBLIC_` copy, and prints `Sanity target: project …, dataset …,
+API version …` before its first request. The upload and multi-batch writers leave a partial-run record (uploaded asset ids, last
+completed batch) when a run stops after it began writing. `repoint:preview` withholds raw failure messages like its siblings;
+the documented manual commands no longer type a token on the command line, and
+[owner-run-commands.md](owner-run-commands.md) lists every current writer. `write:joomla`'s dependent `createOrReplace` is
+unchanged and accepted with the existing retire-or-adapt decision in [sanity-seeding.md](sanity-seeding.md).
+
 Protected-gallery removal slice C, 2026-11-16 — AB#313 **Active**: the protected domain, fixture and notification modules are removed, with their log events and import bans. Only the shared deployment leaf remains for slice D, which covers configuration, CSP, labels and runbooks. See [the removal audit](audits/protected-gallery-removal-2026-10-17.md).
 
 Documentation drift correction, 2026-11-16 — AB#422 **Active**: seven statements found stale by the

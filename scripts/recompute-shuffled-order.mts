@@ -42,6 +42,13 @@ import {
 } from "./sanity-seed-http.mts";
 import { sendSanityHttpRequest } from "./sanity-read-http.mts";
 import {
+  formatPartialRunLine,
+  formatWriteTarget,
+  readWriteToken,
+  refusePublicTokenCopy,
+  WriteRunProgress,
+} from "./sanity-write-safety.mts";
+import {
   planShuffledOrderRecompute,
   RecomputePlanError,
   type RecomputePatch,
@@ -50,9 +57,27 @@ import {
 
 const MAX_CONFLICT_RETRIES = 5;
 
+/** Set before the first patch, so a failure can print how far the run got (AB#421). */
+let writeProgress: WriteRunProgress | undefined;
+
 function fail(message: string): never {
+  if (writeProgress?.started) console.error(formatPartialRunLine(writeProgress.toRecord()));
   console.error(`recompute:shuffled-order failed: ${message}`);
   process.exit(1);
+}
+
+/**
+ * Write-scoped `SANITY_SEED_TOKEN` for `--yes`; the dry run also accepts the read token. Either
+ * way a `NEXT_PUBLIC_` copy of the seed token is refused by the shared writer check.
+ */
+function connectionToken(write: boolean): string {
+  try {
+    if (write) return readWriteToken(process.env, "SANITY_SEED_TOKEN");
+    refusePublicTokenCopy(process.env, "SANITY_SEED_TOKEN");
+  } catch (error) {
+    fail(error instanceof Error ? error.message : String(error));
+  }
+  return process.env.SANITY_SEED_TOKEN ?? process.env.SANITY_READ_TOKEN ?? fail("missing SANITY_SEED_TOKEN or SANITY_READ_TOKEN");
 }
 
 function readFlag(name: string): string | undefined {
@@ -277,12 +302,9 @@ async function main(): Promise<void> {
     apiVersion: requiredSetting("api-version", "SANITY_API_VERSION"),
     // Read-only for the dry run, write-scoped for `--yes`. Both are the same
     // Editor credential in practice; the environment-only rule is unchanged.
-    token: write
-      ? (process.env.SANITY_SEED_TOKEN ?? fail("missing SANITY_SEED_TOKEN (required with --yes)"))
-      : (process.env.SANITY_SEED_TOKEN ??
-          process.env.SANITY_READ_TOKEN ??
-          fail("missing SANITY_SEED_TOKEN or SANITY_READ_TOKEN")),
+    token: connectionToken(write),
   });
+  console.log(formatWriteTarget(connection));
 
   const gallery = await readGallery(connection, contentId, language);
   const placements = await readPlacements(connection, gallery.id);
@@ -340,8 +362,12 @@ async function main(): Promise<void> {
     );
   }
 
+  const progress = new WriteRunProgress(connection);
+  writeProgress = progress;
+  progress.start();
   for (const [index, patch] of plan.patches.entries()) {
     await applyPatch(connection, patch);
+    progress.recordBatch(`patch ${index + 1}/${plan.patches.length}`);
     if ((index + 1) % 25 === 0 || index + 1 === plan.patches.length) {
       console.log(`  applied ${index + 1}/${plan.patches.length}`);
     }
@@ -405,4 +431,6 @@ async function main(): Promise<void> {
   );
 }
 
-await main();
+await main().catch((error: unknown) => {
+  fail(error instanceof Error ? error.message : String(error));
+});

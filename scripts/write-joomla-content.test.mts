@@ -2041,4 +2041,82 @@ describe("CLI UTF-8 input integrity", () => {
     expect(result.code).toBe(1);
     expect(result.stdout).toBe("");
   });
+  it("prints the write target before its first request with --yes (AB#421)", async () => {
+    const { mkdtemp, writeFile, rm } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const path = await import("node:path");
+    const support = await import("./write-safety-cli-support.mts");
+    const root = await mkdtemp(path.join(tmpdir(), "joomla-target-"));
+    try {
+      const plan = fixture();
+      const planPath = path.join(root, "plan.json");
+      await writeFile(planPath, JSON.stringify(plan));
+      const parsed = JSON.parse(JSON.stringify(plan));
+      const digest = writablePlanDigest(parsed.documents, parsed.assetRequirements, parsed.errors, parsed.blocked);
+      const result = support.runWriterCli("write-joomla-content.mts", ["--plan", planPath, "--image-root", root, "--out", path.join(root, "out"), "--approved-digest", digest, "--yes"], { SANITY_MIGRATION_TOKEN: support.SYNTHETIC_TOKEN });
+      support.expectTargetBeforeNetwork(result, "stdout");
+    } finally { await rm(root, { recursive: true, force: true }); }
+  }, 60_000);
+  it("leaves an owner-only partial-run.json when a later batch fails (AB#421)", async () => {
+    const { mkdtemp, writeFile, rm, readFile, stat } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const path = await import("node:path");
+    const support = await import("./write-safety-cli-support.mts");
+    const root = await mkdtemp(path.join(tmpdir(), "joomla-partial-"));
+    try {
+      // 51 polls and their tallies: 102 documents, two batches in the poll wave.
+      const documents = Array.from({ length: 51 }, (_, index) => [
+        { _id: `migrated--poll--${index + 1}`, _type: "poll", pollId: `migrated-poll-${index + 1}`, language: "fi", question: "Question?",
+          options: [{ _key: "option-1", optionId: "option-1", label: "Yes" }, { _key: "option-2", optionId: "option-2", label: "No" }], closeDate: "1970-01-01T00:00:00Z" },
+        { _id: `pollTally-migrated-poll-${index + 1}`, _type: "pollTally", pollId: `migrated-poll-${index + 1}`, counts: { "option-1": 1, "option-2": 0 } },
+      ]).flat();
+      const plan = goodPlan({ documents, documentsDigest: writablePlanDigest(documents, [], [], []), assetRequirements: [], categoryRequirements: [] });
+      const planPath = path.join(root, "plan.json");
+      await writeFile(planPath, JSON.stringify(plan));
+      const parsed = JSON.parse(JSON.stringify(plan));
+      const digest = writablePlanDigest(parsed.documents, parsed.assetRequirements, parsed.errors, parsed.blocked);
+      const out = path.join(root, "out");
+      const result = support.runWriterCliWithFakeSanity("write-joomla-content.mts", ["--plan", planPath, "--image-root", root, "--out", out, "--approved-digest", digest, "--yes"], { SANITY_MIGRATION_TOKEN: support.SYNTHETIC_TOKEN }, { failWhenBodyContains: '"createOrReplace"', failAt: 2 });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("partial-run.json");
+      const recordPath = path.join(out, "partial-run.json");
+      expect((await stat(recordPath)).mode & 0o777).toBe(0o600);
+      const record = JSON.parse(await readFile(recordPath, "utf8"));
+      expect(record).toMatchObject({ version: 1, target: support.SYNTHETIC_TARGET, uploadedAssetIds: [], completedBatches: 1, lastCompletedBatch: "wave 2/3 1/2" });
+      expect(result.stdout + result.stderr + JSON.stringify(record)).not.toContain(support.SYNTHETIC_TOKEN);
+    } finally { await rm(root, { recursive: true, force: true }); }
+  }, 60_000);
+  it("records all uploads and completed batches when read-back disagrees with the plan", async () => {
+    const { readFile, stat } = await import("node:fs/promises");
+    const support = await import("./write-safety-cli-support.mts");
+    const root = await mkdtemp(path.join(tmpdir(), "joomla-mismatch-"));
+    try {
+      const bytes = await sharp({ create: { width: 10, height: 10, channels: 3, background: "gray" } }).jpeg().toBuffer();
+      const documents = [{ ...goodDocuments()[0], mediaType: "image", publiclyRenderable: true,
+        alt: [{ _key: "fi", _type: "localizedText", language: "fi", value: "Photograph" }] }];
+      const assetRequirements = [{ mediaId: "photo-1", sourceLocator: "photo.jpg", contentHash: createHash("sha256").update(bytes).digest("hex") }];
+      const digest = writablePlanDigest(documents, assetRequirements, [], []);
+      const plan = goodPlan({ documents, assetRequirements, categoryRequirements: [], documentsDigest: digest });
+      await writeFile(path.join(root, "photo.jpg"), bytes);
+      await writeFile(path.join(root, "plan.json"), JSON.stringify(plan));
+      const out = path.join(root, "out");
+      const result = support.runWriterCliWithFakeSanity("write-joomla-content.mts", [
+        "--plan", path.join(root, "plan.json"), "--image-root", root, "--out", out, "--approved-digest", digest, "--yes",
+      ], { SANITY_MIGRATION_TOKEN: support.SYNTHETIC_TOKEN }, {
+        failWhenBodyContains: "", failAt: 0,
+        // Empty planned-id, media-identity and merge reads; then a mismatching document count.
+        queryResults: [[], [], [], 0],
+      });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toBe("Verification FAIL: only 0/1 document(s) read back.\n");
+      expect(result.stdout).toContain("Wrote 1 document(s) in 1 batch(es).");
+      const recordPath = path.join(out, "partial-run.json");
+      expect((await stat(recordPath)).mode & 0o777).toBe(0o600);
+      const record = await readFile(recordPath, "utf8");
+      expect(JSON.parse(record)).toEqual({ version: 1, target: support.SYNTHETIC_TARGET,
+        uploadedAssetIds: ["image-fixture1-10x10-webp"], completedBatches: 1, lastCompletedBatch: "wave 1/2 1/1",
+        note: "The run stopped after it began writing. Nothing was rolled back. Reconcile the target's current state before any re-run." });
+      expect(result.stdout + result.stderr + record).not.toContain(support.SYNTHETIC_TOKEN);
+    } finally { await rm(root, { recursive: true, force: true }); }
+  }, 60_000); // Plain Node CLI and image derivation run in a subprocess.
 });

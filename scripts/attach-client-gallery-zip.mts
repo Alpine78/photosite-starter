@@ -11,10 +11,19 @@ import { inspectLargeDeliveryZip } from "./delivery-zip-streaming.mts";
 import { verifyRemoteDeliveryZip } from "./delivery-zip-remote-integrity.mts";
 import { parseClientGalleryZipAsset } from "../src/lib/client-gallery-zip-contract.ts";
 import { parseReadConnection, readSanityJsonResponse, sendSanityHttpRequest, SanityReadHttpError } from "./sanity-read-http.mts";
+import { formatWriteTarget, readWriteToken, WriteCredentialError } from "./sanity-write-safety.mts";
 export const ZIP_ATTACHMENT_OPERATION_MS = 1_200_000;
 export const ZIP_ATTACHMENT_READBACK_MS = 20_000;
 type Options = ReturnType<typeof parseAttachmentArguments>;
-type Dependencies = { fetchImplementation?: typeof fetch; environment?: Readonly<Record<string, string | undefined>>; signal?: AbortSignal };
+type Dependencies = { fetchImplementation?: typeof fetch; environment?: Readonly<Record<string, string | undefined>>; signal?: AbortSignal; log?: (line: string) => void };
+/** The shared writer check (AB#421), reported as this command's fixed codes. */
+function migrationToken(environment: Readonly<Record<string, string | undefined>>): string {
+  try { return readWriteToken(environment, "SANITY_MIGRATION_TOKEN"); }
+  catch (error) {
+    if (error instanceof WriteCredentialError) return refuseAttachment(error.code === "PUBLIC_TOKEN_REFUSED" ? "PUBLIC_TOKEN_REFUSED" : "CREDENTIAL_REQUIRED");
+    throw error;
+  }
+}
 function network(fetcher: typeof fetch, signal: AbortSignal): typeof fetch {
   return (url, init) => fetcher(url, { ...init, signal: AbortSignal.any([signal, ...(init?.signal ? [init.signal] : [])]) });
 }
@@ -39,10 +48,10 @@ export async function runZipAttachment(options: Options, dependencies: Dependenc
     const bytes = await source.read(0, source.size); if (bytes.length !== source.size) refuseAttachment("SOURCE_CHANGED");
     const input = parseAttachmentInput(privateJson(bytes));
     const env = dependencies.environment ?? process.env;
-    if (env.NEXT_PUBLIC_SANITY_MIGRATION_TOKEN !== undefined) refuseAttachment("PUBLIC_TOKEN_REFUSED");
-    const token = env.SANITY_MIGRATION_TOKEN;
-    if (typeof token !== "string") refuseAttachment("CREDENTIAL_REQUIRED");
+    const token = migrationToken(env);
     try { parseReadConnection({ ...input.target, token }); } catch { refuseAttachment("INVALID_CREDENTIAL_OR_TARGET"); }
+    // stdout carries only the JSON result, so the target line goes to stderr by default.
+    (dependencies.log ?? console.error)(formatWriteTarget(input.target));
     const identities = new Set([`${source.before.dev}:${source.before.ino}`]);
     async function openInput(filename: string, maximum: number) {
       active(); const file = await openZipBuildInput(filename, maximum); allInputs.push(file);

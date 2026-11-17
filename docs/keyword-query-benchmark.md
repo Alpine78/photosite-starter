@@ -130,12 +130,15 @@ descendant sets in memory where it needs them.
 # 1. Inspect the corpus and the matrix (no network):
 npm run benchmark:keywords -- plan
 
+# SANITY_BENCHMARK_TOKEN comes from the environment (a private env file), never
+# typed into a command below.
+
 # 2. Seed the disposable dataset:
-SANITY_BENCHMARK_TOKEN=… npm run benchmark:keywords -- \
+npm run benchmark:keywords -- \
   seed --project <id> --dataset kwbench-YYYYMMDD --api-version vYYYY-MM-DD --yes
 
 # 3. Execute the matrix (writes a results JSON + prints a Markdown table):
-SANITY_BENCHMARK_TOKEN=… npm run benchmark:keywords -- \
+npm run benchmark:keywords -- \
   run --project <id> --dataset kwbench-YYYYMMDD --api-version vYYYY-MM-DD
 
 # 4. Measure the hierarchy moves (AC7). The results table wants all four
@@ -144,14 +147,14 @@ SANITY_BENCHMARK_TOKEN=… npm run benchmark:keywords -- \
 #    lag is measurable) and reverts it (visibility=sync):
 for scenario in broad deep; do
   for strategy in a b; do
-    SANITY_BENCHMARK_TOKEN=… npm run benchmark:keywords -- \
+    npm run benchmark:keywords -- \
       move --scenario "$scenario" --strategy "$strategy" \
       --project <id> --dataset kwbench-YYYYMMDD --api-version vYYYY-MM-DD --yes
   done
 done
 
 # 5. Tear down:
-SANITY_BENCHMARK_TOKEN=… npm run benchmark:keywords -- \
+npm run benchmark:keywords -- \
   clean --project <id> --dataset kwbench-YYYYMMDD --api-version vYYYY-MM-DD --yes
 # then: npx sanity dataset delete kwbench-YYYYMMDD
 ```

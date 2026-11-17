@@ -82,7 +82,8 @@ describe("publication CLI offline/private boundaries", () => {
       const out = phase === "apply" ? applyOut : restoreOut;
       const initial = phase === "apply" ? p.source : { ...p.proposed, _rev: "source-post" };
       const script = `import {readFile} from 'node:fs/promises'; let doc=${JSON.stringify(initial)}; let writes=0;
-        globalThis.fetch=async(url,init)=>{if(!String(url).startsWith('https://synthetic-project.api.sanity.io/v2026-03-01/'))throw Error('BAD_HOST');
+        globalThis.fetch=async(url,init)=>{if(!globalThis.reached){globalThis.reached=true;process.stderr.write('NETWORK_REACHED\\n');}
+          if(!String(url).startsWith('https://synthetic-project.api.sanity.io/v2026-03-01/'))throw Error('BAD_HOST');
           if(init.method==='GET')return new Response(JSON.stringify({result:[doc]}));
           if(++writes!==1)throw Error('RETRY'); const receipt=JSON.parse(await readFile(${JSON.stringify(out + ".prepared.json")},'utf8'));
           if(receipt.status!=='prepared')throw Error('NO_DURABLE_PREPARE');
@@ -95,6 +96,8 @@ describe("publication CLI offline/private boundaries", () => {
         env: { ...process.env, NODE_NO_WARNINGS: "1", SANITY_PROJECT_ID: target.projectId, SANITY_DATASET: target.dataset, SANITY_API_VERSION: target.apiVersion,
           SANITY_PUBLICATION_TOKEN: "synthetic-operator-token", NEXT_PUBLIC_SANITY_PUBLICATION_TOKEN: "" }, timeout: 15_000 });
       expect(JSON.parse(result.stdout).status).toBe(phase === "apply" ? "applied" : "restored");
+      // AB#421: the target line reaches stderr before the first request; the token never does.
+      expect(result.stderr).toBe("Sanity target: project synthetic-project, dataset production, API version v2026-03-01\nNETWORK_REACHED\n");
       expect(JSON.parse(await readFile(out, "utf8"))).toMatchObject({ visibleUpdateVerified: false, genuineWebhookVerified: false, canonicalLaunchVerified: false, automaticRetry: false });
       expect(JSON.parse(await readFile(out + ".prepared.json", "utf8"))).toMatchObject({ status: "prepared", expectedRevision: initial._rev });
     }

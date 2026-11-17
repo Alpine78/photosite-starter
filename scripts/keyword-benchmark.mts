@@ -76,6 +76,7 @@ import {
   type ReadConnection,
 } from "./keyword-benchmark-http.mts";
 import { parseReadConnection, SanityReadConfigurationError } from "./sanity-read-http.mts";
+import { formatWriteTarget, readWriteToken, refusePublicTokenCopy } from "./sanity-write-safety.mts";
 import {
   runSeedMutationBatches,
   type SeedMutation,
@@ -135,17 +136,24 @@ function connectionFromFlags({ tokenRequired }: { tokenRequired: boolean }): Rea
     fail("project, dataset, and api-version are required (flag or SANITY_PROJECT_ID/SANITY_DATASET/SANITY_API_VERSION)");
   }
   // A dry run (seed/move/clean without --yes) prints its plan and issues no
-  // request, so it needs no token.
-  const token = process.env.SANITY_BENCHMARK_TOKEN?.trim() ?? (tokenRequired ? undefined : "dry-run-no-token");
-  if (!token) {
-    fail("missing SANITY_BENCHMARK_TOKEN (temporary, write-scoped for seed/move/clean; a read-capable token is enough for run)");
-  }
+  // request, so it needs no token. Either way a `NEXT_PUBLIC_` copy is refused
+  // by the shared writer check (AB#421).
+  let token: string;
   try {
-    return parseReadConnection({ projectId, dataset, apiVersion, token });
+    refusePublicTokenCopy(process.env, "SANITY_BENCHMARK_TOKEN");
+    token = tokenRequired ? readWriteToken(process.env, "SANITY_BENCHMARK_TOKEN").trim() : (process.env.SANITY_BENCHMARK_TOKEN?.trim() || "dry-run-no-token");
+  } catch (cause) {
+    fail(`${cause instanceof Error ? cause.message : String(cause)} — temporary, write-scoped for seed/move/clean; a read-capable token is enough for run`);
+  }
+  let connection: ReadConnection;
+  try {
+    connection = parseReadConnection({ projectId, dataset, apiVersion, token });
   } catch (cause) {
     if (cause instanceof SanityReadConfigurationError) fail(cause.message);
     throw cause;
   }
+  if (tokenRequired) console.log(formatWriteTarget(connection));
+  return connection;
 }
 
 function buildFixtures(): KeywordBenchmarkFixtures {

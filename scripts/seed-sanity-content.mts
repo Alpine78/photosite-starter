@@ -63,9 +63,11 @@ import {
   runSeedMutationBatches,
   runSeedQuery,
   SanitySeedConfigurationError,
+  SanitySeedHttpError,
   uploadSeedImageAsset,
   type SeedConnection,
 } from "./sanity-seed-http.mts";
+import { formatPartialRunLine, formatWriteTarget, readWriteToken, WriteRunProgress } from "./sanity-write-safety.mts";
 
 /**
  * A self-chosen, conservative chunk size for verifying the archive gallery's
@@ -86,6 +88,7 @@ const EXPECTED_ARTICLE_DOCUMENT_COUNT = ARTICLE_FIXTURES.reduce(
 const GALLERY_DIRECTORY = new URL("../public/gallery/", import.meta.url);
 
 function fail(message: string): never {
+  if (writeProgress?.started) console.error(formatPartialRunLine(writeProgress.toRecord()));
   console.error(`Sanity seeding failed: ${message}`);
   process.exit(1);
 }
@@ -116,13 +119,19 @@ function requiredSetting(flagName: string, envName: string): string {
  * Environment-only — no CLI flag. A process's argument list is visible to
  * every other process on the same machine (`ps`) and is commonly persisted
  * to shell history; a write-scoped credential must never pass through it.
- * Used only for `SANITY_SEED_TOKEN`.
+ * Used only for `SANITY_SEED_TOKEN`; a `NEXT_PUBLIC_` copy is refused by the
+ * shared writer check (`sanity-write-safety.mts`, AB#421).
  */
 function requiredEnvSetting(envName: string): string {
-  const value = process.env[envName];
-  if (!value) fail(`missing ${envName}`);
-  return value;
+  try {
+    return readWriteToken(process.env, envName);
+  } catch (error) {
+    fail(error instanceof Error ? error.message : String(error));
+  }
 }
+
+/** Set once the write path starts, so a failure can print what it uploaded and wrote (AB#421). */
+let writeProgress: WriteRunProgress | undefined;
 
 // ---------------------------------------------------------------------------
 // Locating the six demo image files
@@ -543,9 +552,10 @@ async function runLiveVerification(connection: SeedConnection, documents: readon
     try {
       await check.run();
       console.log(`  PASS  ${check.name}`);
-    } catch (cause) {
+    } catch {
+      // The check's own message can quote the provider's response, so only its name is printed.
       failures += 1;
-      console.log(`  FAIL  ${check.name} — ${cause instanceof Error ? cause.message : String(cause)}`);
+      console.log(`  FAIL  ${check.name}`);
     }
   }
   if (failures > 0) {
@@ -627,11 +637,15 @@ async function findAllSeededDocuments(connection: SeedConnection): Promise<reado
 async function deleteInDependencySafeOrder(
   connection: SeedConnection,
   docs: readonly FoundSeedDocument[],
+  progress: WriteRunProgress,
 ): Promise<void> {
-  for (const wave of orderSeedDocumentsForDeletion(docs)) {
+  const waves = orderSeedDocumentsForDeletion(docs);
+  for (const [index, wave] of waves.entries()) {
+    progress.start();
     await runSeedMutationBatches(
       connection,
       wave.map((doc) => ({ delete: { id: doc._id } })),
+      { onBatchCommitted: progress.batchRecorder(`deletions wave ${index + 1}/${waves.length}`) },
     );
   }
 }
@@ -646,7 +660,7 @@ async function deleteInDependencySafeOrder(
  * path only ever queries and deletes; it never builds fixtures, uploads an
  * asset, or writes anything.
  */
-async function deleteAllSeededDocuments(connection: SeedConnection): Promise<void> {
+async function deleteAllSeededDocuments(connection: SeedConnection, progress: WriteRunProgress): Promise<void> {
   const existing = await findAllSeededDocuments(connection);
 
   if (existing.length === 0) {
@@ -655,7 +669,7 @@ async function deleteAllSeededDocuments(connection: SeedConnection): Promise<voi
   }
 
   console.log(`Deleting ${existing.length} seed-owned document(s)...`);
-  await deleteInDependencySafeOrder(connection, existing);
+  await deleteInDependencySafeOrder(connection, existing, progress);
   const remaining = await findAllSeededDocuments(connection);
   if (remaining.length > 0) {
     fail(
@@ -675,6 +689,7 @@ async function reportAndPruneStale(
   connection: SeedConnection,
   currentIds: ReadonlySet<string>,
   prune: boolean,
+  progress: WriteRunProgress,
 ): Promise<boolean> {
   const existing = await findAllSeededDocuments(connection);
 
@@ -692,7 +707,7 @@ async function reportAndPruneStale(
     return false;
   }
 
-  await deleteInDependencySafeOrder(connection, stale);
+  await deleteInDependencySafeOrder(connection, stale, progress);
   console.log(`Deleted ${stale.length} stale document(s).`);
   return true;
 }
@@ -720,7 +735,9 @@ async function main(): Promise<void> {
       apiVersion: requiredSetting("api-version", "SANITY_API_VERSION"),
       token: requiredEnvSetting("SANITY_SEED_TOKEN"),
     });
-    await deleteAllSeededDocuments(connection);
+    console.log(formatWriteTarget(connection));
+    writeProgress = new WriteRunProgress(connection);
+    await deleteAllSeededDocuments(connection, writeProgress);
     return;
   }
 
@@ -750,26 +767,38 @@ async function main(): Promise<void> {
   } catch (cause) {
     fail(cause instanceof SanitySeedConfigurationError ? cause.message : String(cause));
   }
+  console.log(formatWriteTarget(connection));
 
   await preflightIdentityCollisions(connection, dryRunDocuments);
+  const progress = new WriteRunProgress(connection);
+  writeProgress = progress;
+  progress.start();
 
   console.log("\nUploading demo photographs...");
   // The six uploads are fully independent — none depends on another's
   // result, `assetRefsByKey` is only assembled afterward — so they run
-  // concurrently rather than one at a time.
-  const uploads = await Promise.all(
+  // concurrently rather than one at a time. Every upload is allowed to settle
+  // before a failure is reported, so the partial-run record names every asset
+  // an outstanding request created (AB#421); the first failure is rethrown.
+  const outcomes = await Promise.allSettled(
     [...assetFiles].map(async ([key, fileUrl]) => {
       const bytes = new Uint8Array(await readFile(fileUrl));
       const uploaded = await uploadSeedImageAsset(
         connection,
         { bytes, contentType: "image/webp" },
         { maxDimension: MAX_PUBLIC_DELIVERY_DIMENSION, formatsByExtension: PUBLIC_DELIVERY_FORMATS },
+        { onAccepted: (assetId) => progress.recordUpload(assetId) },
       );
+      progress.recordUpload(uploaded.assetId);
       console.log(`  uploaded ${key} -> ${uploaded.assetId} (${uploaded.width}x${uploaded.height})`);
       return [key, uploaded.assetId] as const;
     }),
   );
-  const assetRefsByKey = new Map(uploads);
+  const rejected = outcomes.find((outcome) => outcome.status === "rejected");
+  if (rejected !== undefined) throw rejected.reason;
+  const assetRefsByKey = new Map(
+    outcomes.map((outcome) => (outcome as PromiseFulfilledResult<readonly [string, string]>).value),
+  );
 
   const { documents } = buildSeedFixtures({ assetRefsByKey });
   const violations = validateSeedFixtures(documents);
@@ -781,6 +810,7 @@ async function main(): Promise<void> {
   const summary = await runSeedMutationBatches(
     connection,
     documents.map((doc) => ({ createOrReplace: doc })),
+    { onBatchCommitted: progress.batchRecorder("documents") },
   );
   console.log(`Wrote ${summary.mutationCount} documents in ${summary.batchesRun} batch(es).`);
 
@@ -790,10 +820,10 @@ async function main(): Promise<void> {
   // cannot skew them either way. Pruning first is still done here simply
   // because it is the more useful order to report in: the operator sees
   // what changed before seeing whether the new state reads back correctly.
-  await reportAndPruneStale(connection, new Set(documents.map((doc) => doc._id)), prune);
+  await reportAndPruneStale(connection, new Set(documents.map((doc) => doc._id)), prune, progress);
   await runLiveVerification(connection, documents);
 }
 
 main().catch((cause) => {
-  fail(cause instanceof Error ? cause.message : String(cause));
+  fail(cause instanceof SanitySeedConfigurationError || cause instanceof SanitySeedHttpError ? cause.message : "unexpected failure");
 });

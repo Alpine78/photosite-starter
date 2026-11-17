@@ -23,16 +23,20 @@
  * and sent only as a request header on the alias probe, never in a URL or log.
  * The decision logic lives in `preview-alias.mts` and has tests; this file
  * reads settings, builds the real probe and the git resolver, prints, and sets
- * an exit code.
+ * an exit code. An unexpected failure is reported without its raw message, the
+ * same boundary its sibling Preview CLIs keep (AB#249, AB#421): only this
+ * project's own `VercelApiError` diagnostics are printed.
  */
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { fileURLToPath } from "node:url";
 
 import {
   createAliasProbe,
   repointAndVerifyPreviewAlias,
   type RepointOutcome,
 } from "./preview-alias.mts";
+import { describePreviewFailure } from "./preview-probe.mts";
 import { parsePreviewAliasHost, type PreviewCheck } from "./preview-verification.mts";
 import { readVercelPreviewApiSettings } from "./vercel-preview-api.mts";
 
@@ -62,9 +66,9 @@ async function resolveCurrentMainRevision(): Promise<string> {
 const BYPASS_SECRET_SETTING = "VERCEL_AUTOMATION_BYPASS_SECRET";
 const ALIAS_SETTING = "PREVIEW_STABLE_ALIAS";
 
-function fail(message: string): never {
+function fail(message: string): 1 {
   console.error(`Preview alias repoint failed: ${message}`);
-  process.exit(1);
+  return 1;
 }
 
 function printChecks(checks: readonly PreviewCheck[]): void {
@@ -73,34 +77,49 @@ function printChecks(checks: readonly PreviewCheck[]): void {
   }
 }
 
-async function main(): Promise<void> {
-  const deploymentUrl = process.argv[2];
-  const deploymentId = process.argv[3];
-  const deployedRevision = process.argv[4];
+type Dependencies = {
+  readSettings?: typeof readVercelPreviewApiSettings;
+  repoint?: typeof repointAndVerifyPreviewAlias;
+};
+
+export async function main(
+  argv: readonly string[] = process.argv.slice(2),
+  environment: NodeJS.ProcessEnv = process.env,
+  dependencies: Dependencies = {},
+): Promise<number> {
+  const [deploymentUrl, deploymentId, deployedRevision] = argv;
   if (!deploymentUrl || !deploymentId || !deployedRevision) {
-    fail(
+    return fail(
       "deployment URL, immutable ID, and the deployed commit SHA are required. Usage: npm run repoint:preview -- https://<deployment>.vercel.app dpl_<id> <deployed-commit-sha>",
     );
   }
 
   let aliasHost: string;
   try {
-    aliasHost = parsePreviewAliasHost(process.env[ALIAS_SETTING] ?? "");
+    aliasHost = parsePreviewAliasHost(environment[ALIAS_SETTING] ?? "");
   } catch (cause) {
-    fail(cause instanceof Error ? cause.message : String(cause));
+    return fail(
+      `${ALIAS_SETTING} must be a dedicated bare non-production *.vercel.app host; ${describePreviewFailure(cause)}. See docs/deployment.md.`,
+    );
   }
 
-  const bypassSecret = process.env[BYPASS_SECRET_SETTING]?.trim();
+  const bypassSecret = environment[BYPASS_SECRET_SETTING]?.trim();
   if (!bypassSecret) {
-    fail(
+    return fail(
       `${BYPASS_SECRET_SETTING} is not set. It is needed to read the alias's noindex header the way a reviewer would.`,
     );
   }
 
+  let settings: ReturnType<typeof readVercelPreviewApiSettings>;
+  try {
+    settings = (dependencies.readSettings ?? readVercelPreviewApiSettings)(environment);
+  } catch (cause) {
+    return fail(`the Vercel settings could not be read (VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID): ${describePreviewFailure(cause)}`);
+  }
+
   let outcome: RepointOutcome;
   try {
-    const settings = readVercelPreviewApiSettings();
-    outcome = await repointAndVerifyPreviewAlias({
+    outcome = await (dependencies.repoint ?? repointAndVerifyPreviewAlias)({
       deploymentUrl,
       deploymentId,
       aliasHost,
@@ -114,23 +133,22 @@ async function main(): Promise<void> {
       },
     });
   } catch (cause) {
-    fail(cause instanceof Error ? cause.message : String(cause));
+    return fail(describePreviewFailure(cause));
   }
 
   switch (outcome.kind) {
     case "already-current":
       console.log(`Stable Preview alias ${aliasHost}: ${outcome.detail}.`);
-      return;
+      return 0;
     case "assigned":
       console.log(
         `Stable Preview alias ${aliasHost} -> ${deploymentId} (was ${outcome.previousTarget ?? "unassigned"}).`,
       );
       printChecks(outcome.checks);
       console.log("Access protection and noindex verified on the alias host.");
-      return;
+      return 0;
     case "refused":
-      fail(`${outcome.detail}. Nothing was changed. See docs/deployment.md.`);
-      break;
+      return fail(`${outcome.detail}. Nothing was changed. See docs/deployment.md.`);
     case "superseded":
       // Not a failure: this deployment's commit is no longer main's tip, so it
       // is not an eligible target for the durable alias. The alias is left
@@ -141,26 +159,26 @@ async function main(): Promise<void> {
       console.log(
         `Stable Preview alias ${aliasHost} left unchanged: ${outcome.detail}. The alias is only advanced by a DeployPreview run whose commit is the current main tip; if none has succeeded yet, the alias stays on its last verified target.`,
       );
-      return;
+      return 0;
     case "abandoned":
       printChecks(outcome.checks);
-      fail(
+      return fail(
         `alias verification failed; the alias no longer points at this run's deployment (now: ${outcome.movedOnTo}), so it was left in place rather than restored.`,
       );
-      break;
     case "restored":
       printChecks(outcome.checks);
-      fail(
+      return fail(
         `alias verification failed; restored to ${outcome.restoredTo ?? "unassigned (alias removed)"}. Confirm Standard Protection covers this alias.`,
       );
-      break;
     case "unreconciled":
       printChecks(outcome.checks);
-      fail(
+      return fail(
         `${outcome.detail}. Run "npm run verify:preview-alias" and repoint the alias by hand — see docs/deployment.md.`,
       );
-      break;
   }
 }
 
-await main();
+if (import.meta.main || process.argv[1] === fileURLToPath(import.meta.url)) {
+  const status = await main().catch(() => fail("operation failed; details withheld"));
+  if (status !== 0) process.exit(status);
+}

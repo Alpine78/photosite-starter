@@ -271,6 +271,9 @@ describe("running the re-upload", () => {
     expect(reuploadExitCode(interrupted)).toBe(1);
     const noUpload = portOf(files, { upload: async () => { throw new Error("server"); } });
     expect(await runLegacyImageReupload(plan, new Set(), noUpload.port, tool, { yes: true, approvedDigest: digest })).toMatchObject({ outcome: "interrupted", failed: [{ code: "WRITE_INTERRUPTED" }] });
+    // AB#421: an asset the dataset accepted before a later step threw is still recorded.
+    const acceptedThenFailed = portOf(files, { upload: async (_bytes: Uint8Array, onAccepted?: (assetId: string) => void) => { onAccepted?.("image-accepted-10x10-jpg"); throw new Error("cleanup"); } });
+    expect(await runLegacyImageReupload(plan, new Set(), acceptedThenFailed.port, tool, { yes: true, approvedDigest: digest })).toMatchObject({ outcome: "interrupted", uploadedAssetIds: ["image-accepted-10x10-jpg"] });
   }, TOOL_TIMEOUT_MS);
 });
 
