@@ -82,7 +82,7 @@
     "@sanity/webhook": "4.0.4",
     "@vercel/analytics": "2.0.1",
     "@vercel/speed-insights": "2.0.0",
-    "next": "16.4.4",
+    "next": "16.4.6",
     "photoswipe": "5.4.4",
     "react": "19.2.1",
     "react-dom": "19.2.1",
