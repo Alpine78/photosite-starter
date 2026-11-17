@@ -137,6 +137,17 @@ changed during this check. This procedure is defined but has not been verified
 as completed. Until receipt is evidenced, AC1's delivery requirement, AC2's
 maintainer-visibility requirement and AC4's notification step remain open.
 
+### 2026-11-16 Next.js 16.4.6 for a root-params disclosure advisory (AB#160)
+
+`npm audit --omit=dev` reported a moderate advisory against `next` 16.3.0 to 16.4.4,
+"Information disclosure across root params when a 'use cache' function is called through
+`unstable_cache()`", and `next build` refused to finish while it was installed. `next` and
+`eslint-config-next` move to 16.4.6, the patched release the audit names; no override or
+other package changes. Afterwards the production audit is clean and the full audit shows
+only the accepted `zod` chain. This site has no `use cache` function called through
+`unstable_cache()` (*assessment from a source search, not an exploit attempt*), but the
+update is taken rather than accepted because the build refuses the old version.
+
 ### 2026-11-03 Studio undici and minimatch advisories (AB#160)
 
 The Studio's scheduled audit reported `undici` 7.29.1 and 7.30.0 (one high-severity path
