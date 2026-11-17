@@ -18,6 +18,8 @@ self-hosted agent, `docs/deployment.md` lists the Studio checks, and ADR-0013 ca
 four cursor families on the shared signing key. The `AGENTS.md` "until Sanity is integrated" sentence is
 proposed in the pull request, not applied.
 
+Dependency audit exceptions, 2026-11-16 — AB#160 **Active**: the `minimatch` and Studio `sprintf-js` exceptions are removed because `npm audit` no longer reports either. The `zod` exception remains: Vercel CLI 65.16.0 still pins `zod` 3.22.4, and its acceptance ends on 2026-11-19 unless the owner extends it. See [dependency security](dependency-security.md).
+
 Protected-gallery removal slice A2, 2026-11-15 — AB#313 **Active**: the unwired retention workflow script and its test are removed. The secret generator moves to slice B2, with the administrator surface that names it. See [the removal audit](audits/protected-gallery-removal-2026-10-17.md).
 
 Protected-gallery removal slices B1/B2, 2026-11-15 — AB#313 **Active**: the protected customer and administrator pages, endpoints, components, journeys and the secret generator are removed. Their URL prefixes stay reserved and every path under them answers one hygienic 404, by owner decision. The domain modules follow in slice C. Entries below that describe these routes are history. See [the removal audit](audits/protected-gallery-removal-2026-10-17.md).
