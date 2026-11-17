@@ -2,9 +2,19 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Next.js 16.4.6, 2026-11-16 — AB#160 **Active**: `next` and `eslint-config-next` move from 16.4.4 to 16.4.6 for a moderate root-params disclosure advisory that also made `next build` refuse to finish. See [dependency security](dependency-security.md).
+
 Security hardening batch, 2026-11-16 — AB#420 **Active**: the reminder cron refuses HEAD and other methods with the cleanup route's shared guard; the Proxy removes spoofed project headers before any early return and checks decoded spellings of reserved prefixes; versioned `/gallery/` caching names only files that exist; a signed webhook older than ten minutes is refused and webhook and proof-selection refusals no longer log one line each; the proof publication allowance is per member; the published cursor-key placeholder is refused in production; the poll write refuses redirects; and every `RESEND_API_KEY` reader refuses a `NEXT_PUBLIC_` copy.
 
 Protected-gallery removal slice D, 2026-11-16 — AB#313 **Active**: the last configuration remnants are removed: the store modes, the private object-store origin and its CSP grant, the `/private-gallery` headers rule, the unused protected UI labels, the internal rewrite helpers, the `.env.example` blocks and the runbook section. `PRIVATE_GALLERY_STORE` is accepted only unset or `off`; any other value now fails the build. The two route prefixes stay validated and reserved, and the namespaces still answer one hygienic 404. The data-flow record and diagrams describe the removal. AB#313 can close after this merges once the owner accepts. See [the removal audit](audits/protected-gallery-removal-2026-10-17.md).
+
+Owner-run CMS writer safety, 2026-11-16 — AB#421 **Active**: every Sanity writer reads its write token through one shared
+check (`scripts/sanity-write-safety.mts`) that refuses a `NEXT_PUBLIC_` copy, and prints `Sanity target: project …, dataset …,
+API version …` before its first request. The upload and multi-batch writers leave a partial-run record (uploaded asset ids, last
+completed batch) when a run stops after it began writing. `repoint:preview` withholds raw failure messages like its siblings;
+the documented manual commands no longer type a token on the command line, and
+[owner-run-commands.md](owner-run-commands.md) lists every current writer. `write:joomla`'s dependent `createOrReplace` is
+unchanged and accepted with the existing retire-or-adapt decision in [sanity-seeding.md](sanity-seeding.md).
 
 Protected-gallery removal slice C, 2026-11-16 — AB#313 **Active**: the protected domain, fixture and notification modules are removed, with their log events and import bans. Only the shared deployment leaf remains for slice D, which covers configuration, CSP, labels and runbooks. See [the removal audit](audits/protected-gallery-removal-2026-10-17.md).
 
@@ -17,6 +27,8 @@ cookie. The `playwright.config.ts` worker comment and the `azure-pipelines.yml` 
 self-hosted agent, `docs/deployment.md` lists the Studio checks, and ADR-0013 carries a dated amendment naming
 four cursor families on the shared signing key. The `AGENTS.md` "until Sanity is integrated" sentence is
 proposed in the pull request, not applied.
+
+Dependency audit exceptions, 2026-11-16 — AB#160 **Active**: the `minimatch` and Studio `sprintf-js` exceptions are removed because `npm audit` no longer reports either. The `zod` exception remains: Vercel CLI 65.16.0 still pins `zod` 3.22.4, and its acceptance ends on 2026-11-19 unless the owner extends it. See [dependency security](dependency-security.md).
 
 Protected-gallery removal slice A2, 2026-11-15 — AB#313 **Active**: the unwired retention workflow script and its test are removed. The secret generator moves to slice B2, with the administrator surface that names it. See [the removal audit](audits/protected-gallery-removal-2026-10-17.md).
 

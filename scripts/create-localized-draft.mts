@@ -1,6 +1,7 @@
 /** Owner-run AB#125 action. Reads raw drafts, plans a linked target, and writes only after --yes. */
 import { planLocalizedDraft, selectCurrentPlacementVersions } from "./localized-draft-plan.mts";
 import { parseSeedConnection, runSeedMutationBatches, runSeedQuery } from "./sanity-seed-http.mts";
+import { formatWriteTarget, readWriteToken } from "./sanity-write-safety.mts";
 
 function option(name: string): string {
   const at = process.argv.indexOf(`--${name}`);
@@ -48,13 +49,13 @@ async function main(): Promise<void> {
   const yes = process.argv.includes("--yes");
   const languages = languagesFromRoutes(process.env.SITE_LOCALE_ROUTES);
   if (!languages.includes(from) || !languages.includes(to) || from === to) throw new Error("Source and target must be different configured languages");
-  if (process.env.NEXT_PUBLIC_SANITY_LOCALIZATION_TOKEN?.trim()) throw new Error("Remove NEXT_PUBLIC_SANITY_LOCALIZATION_TOKEN; the write credential must be server-only");
   const connection = parseSeedConnection({
     projectId: process.env.SANITY_PROJECT_ID ?? "",
     dataset: process.env.SANITY_DATASET ?? "",
     apiVersion: process.env.SANITY_API_VERSION ?? "",
-    token: process.env.SANITY_LOCALIZATION_TOKEN ?? "",
+    token: readWriteToken(process.env, "SANITY_LOCALIZATION_TOKEN"),
   });
+  console.log(formatWriteTarget(connection));
   const versions = await runSeedQuery(connection, {
     query: '*[_type in ["article", "gallery"] && contentId == $contentId]',
     params: { contentId }, perspective: "raw",

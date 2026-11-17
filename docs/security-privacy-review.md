@@ -1308,6 +1308,12 @@ service of that tooling. Both are dated exceptions in
 stay installed. *Review:* 2026-11-19 together with `sprintf-js`, or sooner when a compatible
 fix is published; the audit fails from 00:00 UTC that day.
 
+*Update 2026-11-16:* `npm audit` no longer reports the `minimatch` advisory or the Studio
+`sprintf-js` advisory, so their exceptions are removed. The `zod` exception stays until the
+2026-11-19 review: Vercel CLI 65.16.0 still pins `zod` 3.22.4, and no 3.x fix exists. It
+needs an owner decision by then: extend it with a new date, or let the scheduled audit fail
+until a fixed CLI is published.
+
 ## Optional site analytics — 2026-10-19 (AB#371 / AB#117)
 
 **2026-10-20 (AB#376):** `@vercel/speed-insights` 2.0.0 (Apache-2.0) adds a second,

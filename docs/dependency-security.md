@@ -137,6 +137,17 @@ changed during this check. This procedure is defined but has not been verified
 as completed. Until receipt is evidenced, AC1's delivery requirement, AC2's
 maintainer-visibility requirement and AC4's notification step remain open.
 
+### 2026-11-16 Next.js 16.4.6 for a root-params disclosure advisory (AB#160)
+
+`npm audit --omit=dev` reported a moderate advisory against `next` 16.3.0 to 16.4.4,
+"Information disclosure across root params when a 'use cache' function is called through
+`unstable_cache()`", and `next build` refused to finish while it was installed. `next` and
+`eslint-config-next` move to 16.4.6, the patched release the audit names; no override or
+other package changes. Afterwards the production audit is clean and the full audit shows
+only the accepted `zod` chain. This site has no `use cache` function called through
+`unstable_cache()` (*assessment from a source search, not an exploit attempt*), but the
+update is taken rather than accepted because the build refuses the old version.
+
 ### 2026-11-03 Studio undici and minimatch advisories (AB#160)
 
 The Studio's scheduled audit reported `undici` 7.29.1 and 7.30.0 (one high-severity path
@@ -163,6 +174,15 @@ consumers, so no compatible fix exists today:
 | --- | --- | --- | --- |
 | [GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5) (high) | `zod` 3.22.4, pinned exactly by `@vercel/backends`, `@vercel/express`, `@vercel/hono` and `@vercel/python-analysis` | Vercel CLI on the operator's machine and the release job | Memory exhaustion needs an attacker-supplied large array reaching an unbounded array schema. The CLI validates its own and the provider's data; no public request reaches it. |
 | [GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249) (moderate) | `minimatch` 3.1.5 through ESLint 9 and its plugins, and through `@ts-morph/common` inside Vercel CLI | Lint and the CLI on the developer's or operator's machine and in CI | Denial of service needs an attacker-controlled glob pattern. Both tools run only on this repository's own configuration and source. |
+
+**Update 2026-11-16:** `npm audit` no longer reports the `minimatch` advisory or the Studio
+`sprintf-js` advisory, so both exceptions are removed from
+`scripts/npm-audit-accepted-advisories.json`; a recurrence fails the audit again. Only the
+`zod` exception remains. Vercel CLI 65.16.0, the newest release that day, still pins `zod`
+3.22.4 in the same four packages, and the advisory has no 3.x fix, so updating the CLI does
+not clear it. Its acceptance still ends at 00:00 UTC on 2026-11-19 unless the owner extends
+it or a fixed CLI is published. The pipeline's own `capture:audit`, run locally, reported
+root `accepted` (that one exception) and Studio `clean`.
 
 Verified locally: lint, all unit suites, the CSP journeys on desktop Chromium and mobile
 WebKit, the help output for the deploy flags the pipeline uses, and `vercel build --target=preview`

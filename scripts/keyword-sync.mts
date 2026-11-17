@@ -35,6 +35,7 @@ import {
   type KeywordSyncSummary,
 } from "./keyword-sync-plan.mts";
 import { parseSeedConnection, runSeedMutationBatches, runSeedQuery, type SeedConnection, type SeedMutation } from "./sanity-seed-http.mts";
+import { formatWriteTarget, readWriteToken, WriteCredentialError } from "./sanity-write-safety.mts";
 
 const READ_PAGE_SIZE = 1000;
 const MAX_READ_PAGES = 200;
@@ -232,6 +233,18 @@ export async function runKeywordSync(port: KeywordSyncPort, options: RunOptions)
   return { ...base, outcome: "written", written };
 }
 
+/** The shared writer check (AB#421), mapped onto this command's fixed codes. */
+function migrationToken(): string {
+  try {
+    return readWriteToken(process.env, "SANITY_MIGRATION_TOKEN");
+  } catch (error) {
+    if (error instanceof WriteCredentialError) {
+      throw new KeywordSyncError(error.code === "PUBLIC_TOKEN_REFUSED" ? "PUBLIC_TOKEN_REFUSED" : "SANITY_MIGRATION_TOKEN_REQUIRED");
+    }
+    throw error;
+  }
+}
+
 function requiredEnvironment(name: string): string {
   const value = process.env[name];
   if (value === undefined || value.trim() === "") throw new KeywordSyncError(`${name}_REQUIRED`);
@@ -247,13 +260,15 @@ function deploymentPort(connection: SeedConnection): KeywordSyncPort {
 
 export async function main(argv: readonly string[]): Promise<KeywordSyncResult> {
   const options = parseArguments(argv);
-  if (process.env.NEXT_PUBLIC_SANITY_MIGRATION_TOKEN?.trim()) throw new KeywordSyncError("PUBLIC_TOKEN_REFUSED");
+  const token = migrationToken();
   const connection = parseSeedConnection({
     projectId: requiredEnvironment("SANITY_PROJECT_ID"),
     dataset: requiredEnvironment("SANITY_DATASET"),
     apiVersion: requiredEnvironment("SANITY_API_VERSION"),
-    token: requiredEnvironment("SANITY_MIGRATION_TOKEN"),
+    token,
   });
+  // stdout carries only the JSON result, so the target line goes to stderr.
+  console.error(formatWriteTarget(connection));
   const imports = options.imports === undefined ? undefined : parseImports(await readFile(options.imports, "utf8"));
   const out = path.resolve(options.out);
   // Not recursive: an existing directory is refused rather than mixed with an older report.

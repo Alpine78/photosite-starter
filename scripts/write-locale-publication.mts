@@ -5,6 +5,7 @@ import { planLocaleAdditions, planReviewedArticlePublication, type LocalePublica
 import { parseReadConnection, runReadQuery } from "./sanity-read-http.mts";
 import { canonicalJson } from "./joomla-intro-summary.mts";
 import { boundedPublicationFetch, publicationHttp, runLocalePublication } from "./locale-publication-run.mts";
+import { formatWriteTarget, readWriteToken, WriteCredentialError } from "./sanity-write-safety.mts";
 async function main() {
   const input = process.argv.slice(2), apply = input.includes("--apply");
   if (input.filter(v => v === "--apply").length > 1) throw new Error("INVALID_ARGUMENTS");
@@ -18,8 +19,10 @@ async function main() {
   if (recovery.snapshotSha256 !== plan.snapshotSha256 || recovery.documentCount !== documents.length || recovery.assetCount !== assets.length || recovery.localBytesRecoveredAndReadBack !== true || !Array.isArray(recovery.assets) || recovery.assets.length !== assets.length || new Set(recovery.assets.map((a: { assetId?: unknown }) => a.assetId)).size !== assets.length) throw new Error("RECOVERY_BASELINE_MISMATCH");
   const recovered = new Map<string, { bytes: number; sha256: string }>(recovery.assets.map((a: { assetId: string; bytes: number; sha256: string }) => [a.assetId, a]));
   if (assets.some(d => recovered.get(d._id)?.bytes !== d.size || !/^[a-f0-9]{64}$/.test(recovered.get(d._id)?.sha256 ?? ""))) throw new Error("RECOVERY_ASSET_COVERAGE_MISMATCH");
-  const connection = parseReadConnection({ ...plan.target, token: process.env.SANITY_LOCALIZATION_TOKEN ?? "" });
+  const connection = parseReadConnection({ ...plan.target, token: readWriteToken(process.env, "SANITY_LOCALIZATION_TOKEN") });
   if (apply && args["approved-digest"] !== plan.digest) throw new Error("PUBLICATION_NOT_APPROVED");
+  // stdout carries only the final JSON summary, so the target line goes to stderr.
+  console.error(formatWriteTarget(connection));
   const manifest = await runReadQuery(connection, { query: "*[] | order(_id) {_id,_rev,_type}", perspective: "raw" }, { fetchImplementation: boundedPublicationFetch });
   const expected = documents.map(({ _id, _rev, _type }) => ({ _id, _rev, _type })).sort((a, b) => a._id < b._id ? -1 : a._id > b._id ? 1 : 0);
   if (canonicalJson(manifest) !== canonicalJson(expected)) throw new Error("COMPLETE_LIVE_BASELINE_CHANGED");
@@ -29,4 +32,9 @@ async function main() {
   await writePrivateBytes(folder, "receipt.json", JSON.stringify(result, null, 2) + "\n");
   console.log(JSON.stringify({ digest: result.digest, applied: result.applied, transactions: result.transactions, fullDatasetAuditPerformed: false, credentialRevocationVerified: false, launchApproved: false }));
 }
-main().catch(() => { console.error("[write-locale-publication] Publication stopped. Preserve private intent/receipts and reconcile live state before any retry."); process.exitCode = 1; });
+main().catch((error: unknown) => {
+  // A credential refusal happens before any request, so its fixed code is safe to name.
+  if (error instanceof WriteCredentialError) console.error(`[write-locale-publication] ${error.code}: ${error.variable}`);
+  console.error("[write-locale-publication] Publication stopped. Preserve private intent/receipts and reconcile live state before any retry.");
+  process.exitCode = 1;
+});

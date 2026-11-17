@@ -135,6 +135,56 @@ describe("CLI UTF-8 input integrity", () => {
     } finally { await rm(root, { recursive: true, force: true }); }
   }
   function fixture() { return { ...plan, documents: plan.documents.map((d) => d._type === "siteSettings" ? { ...d, photographerName: marker } : d) }; }
+  it("prints the write target before its first request with --yes (AB#421)", async () => {
+    const { mkdtemp, writeFile, rm } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const path = await import("node:path");
+    const support = await import("./write-safety-cli-support.mts");
+    const root = await mkdtemp(path.join(tmpdir(), "target-line-"));
+    try {
+      const planPath = path.join(root, "plan.json");
+      await writeFile(planPath, JSON.stringify(fixture()));
+      const result = support.runWriterCli("write-sanity-foundation.mts", ["--plan", planPath, "--approved-digest", foundationDocumentsDigest(fixture().documents), "--yes"], { SANITY_MIGRATION_TOKEN: support.SYNTHETIC_TOKEN });
+      support.expectTargetBeforeNetwork(result, "stdout");
+    } finally { await rm(root, { recursive: true, force: true }); }
+  }, 60_000);
+  it("refuses a NEXT_PUBLIC_ copy of the token through the shared check (AB#421)", async () => {
+    const { mkdtemp, writeFile, rm } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const path = await import("node:path");
+    const support = await import("./write-safety-cli-support.mts");
+    const root = await mkdtemp(path.join(tmpdir(), "target-line-"));
+    try {
+      const planPath = path.join(root, "plan.json");
+      await writeFile(planPath, JSON.stringify(fixture()));
+      const result = support.runWriterCli("write-sanity-foundation.mts", ["--plan", planPath, "--approved-digest", foundationDocumentsDigest(fixture().documents), "--yes"], { SANITY_MIGRATION_TOKEN: support.SYNTHETIC_TOKEN, NEXT_PUBLIC_SANITY_MIGRATION_TOKEN: support.SYNTHETIC_TOKEN });
+      support.expectRefusedBeforeNetwork(result, "SANITY_MIGRATION_TOKEN");
+    } finally { await rm(root, { recursive: true, force: true }); }
+  }, 60_000);
+  it("emits the partial-run record when post-write verification fails (AB#421)", async () => {
+    const { mkdtemp, writeFile, rm } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const path = await import("node:path");
+    const support = await import("./write-safety-cli-support.mts");
+    const { PARTIAL_RUN_LINE_PREFIX } = await import("./sanity-write-safety.mts");
+    const root = await mkdtemp(path.join(tmpdir(), "verify-fail-"));
+    try {
+      const planPath = path.join(root, "plan.json");
+      await writeFile(planPath, JSON.stringify(fixture()));
+      // The preflight finds no singletons and both references; the read-back then finds nothing.
+      const documents = fixture().documents as readonly Record<string, unknown>[];
+      const home = documents.find((document) => document._type === "homePage") as { heroMedia: { _ref: string } };
+      const site = documents.find((document) => document._type === "siteSettings") as { featuredGalleryId?: string };
+      const refs = [{ _id: home.heroMedia._ref, _type: "media" }, ...(site.featuredGalleryId === undefined ? [] : [{ _id: "gallery-ref", _type: "gallery", contentId: site.featuredGalleryId }])];
+      const result = support.runWriterCliWithFakeSanity("write-sanity-foundation.mts", ["--plan", planPath, "--approved-digest", foundationDocumentsDigest(fixture().documents), "--yes"], { SANITY_MIGRATION_TOKEN: support.SYNTHETIC_TOKEN }, { failWhenBodyContains: "never-matches", failAt: 0, queryResults: [[], refs] });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("post-write verification did not read back");
+      const lines = result.stderr.split("\n").filter((entry) => entry.startsWith(PARTIAL_RUN_LINE_PREFIX));
+      expect(lines).toHaveLength(1);
+      expect(JSON.parse(lines[0].slice(PARTIAL_RUN_LINE_PREFIX.length)).completedBatches).toBeGreaterThan(0);
+      expect(result.stdout + result.stderr).not.toContain(support.SYNTHETIC_TOKEN);
+    } finally { await rm(root, { recursive: true, force: true }); }
+  }, 60_000);
   function corrupt(bad: number[]) {
     const text = JSON.stringify(fixture());
     const at = text.indexOf("\uFFFD");

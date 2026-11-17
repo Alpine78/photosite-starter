@@ -19,6 +19,7 @@ import {
   type SeedConnection,
   type SeedQueryRequest,
 } from "./sanity-seed-http.mts";
+import { formatPartialRunLine, formatWriteTarget, readWriteToken, WriteRunProgress } from "./sanity-write-safety.mts";
 
 export const FOUNDATION_WRITE_PLAN_VERSION = "sanity-foundation-write-plan-v1";
 
@@ -444,7 +445,8 @@ export function parseArguments(argv: readonly string[]): Options {
 }
 
 function required(value: string | undefined, message: string): string { if (value === undefined || value.trim().length === 0) throw new Error(message); return value; }
-function migrationToken(): string { if (process.env.NEXT_PUBLIC_SANITY_MIGRATION_TOKEN?.trim()) throw new Error("NEXT_PUBLIC_SANITY_MIGRATION_TOKEN must be removed; a write credential must never be public"); return required(process.env.SANITY_MIGRATION_TOKEN, "SANITY_MIGRATION_TOKEN is required for --yes"); }
+/** The shared writer check (AB#421): environment only, never a `NEXT_PUBLIC_` copy. */
+function migrationToken(): string { return readWriteToken(process.env, "SANITY_MIGRATION_TOKEN"); }
 
 
 export function parseFoundationPlanBytes(bytes: Uint8Array): unknown {
@@ -467,11 +469,20 @@ async function main(): Promise<void> {
   if (options.approvedDigest === undefined || !DIGEST_PATTERN.test(options.approvedDigest)) throw new Error("--approved-digest <sha256> is required with --yes");
   if (options.approvedDigest !== digest) throw new Error("the foundation plan differs from the reviewed dry run; refusing to write");
   const connection = parseSeedConnection({ projectId: required(options.project ?? process.env.SANITY_PROJECT_ID, "SANITY_PROJECT_ID is required for --yes (or pass --project)"), dataset: required(options.dataset ?? process.env.SANITY_DATASET, "SANITY_DATASET is required for --yes (or pass --dataset)"), apiVersion: required(options.apiVersion ?? process.env.SANITY_API_VERSION, "SANITY_API_VERSION is required for --yes (or pass --api-version)"), token: migrationToken() });
+  console.log(formatWriteTarget(connection));
   const issues = await preflightFoundation(connection, validated.plan.documents);
   if (issues.length > 0) throw new Error(`target dataset failed ${issues.length} foundation preflight check(s): ${issues.join("; ")}`);
-  const result = await runSeedMutationBatches(connection, validated.plan.documents.map((document) => ({ createIfNotExists: document })));
-  console.log(`Wrote ${validated.plan.documents.length} foundation document(s) in ${result.batchesRun} batch(es).`);
-  if (!(await verifyWritten(connection, validated.plan.documents))) throw new Error("post-write verification did not read back the approved foundation documents");
+  const progress = new WriteRunProgress(connection);
+  progress.start();
+  let result: Awaited<ReturnType<typeof runSeedMutationBatches>>;
+  try {
+    result = await runSeedMutationBatches(connection, validated.plan.documents.map((document) => ({ createIfNotExists: document })), { onBatchCommitted: progress.batchRecorder("singletons") });
+    console.log(`Wrote ${validated.plan.documents.length} foundation document(s) in ${result.batchesRun} batch(es).`);
+    if (!(await verifyWritten(connection, validated.plan.documents))) throw new Error("post-write verification did not read back the approved foundation documents");
+  } catch (error) {
+    console.error(formatPartialRunLine(progress.toRecord()));
+    throw error;
+  }
   console.log(`Verification PASS: ${validated.plan.documents.length}/${validated.plan.documents.length} document(s).`);
 }
 

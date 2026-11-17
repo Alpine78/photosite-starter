@@ -261,7 +261,11 @@ them exported for local development. The token has **no CLI flag at all,
 deliberately**: a process's arguments are visible to other processes on the
 same machine and commonly end up in shell history, which is not where a
 write-scoped credential belongs. Set `SANITY_SEED_TOKEN` and nothing else —
-**never `SANITY_READ_TOKEN`**: see *The write token* below.
+**never `SANITY_READ_TOKEN`**: see *The write token* below. The script refuses to run while
+`NEXT_PUBLIC_SANITY_SEED_TOKEN` is set, and with `--yes` it prints the project, dataset and
+API version it will write to before its first request. If a `--yes` run stops after it began
+uploading or writing, it prints one `PARTIAL_RUN {…}` line on stderr with the uploaded asset
+ids and the last completed batch (AB#421).
 
 ### The write token
 
@@ -481,7 +485,8 @@ one a production deployment reads), remove every document this script wrote:
 2. **Delete every seed-owned document:**
 
    ```bash
-   SANITY_SEED_TOKEN=... npm run seed:sanity -- --project <id> --dataset <name> --api-version v2026-06-24 --delete-all --yes
+   # SANITY_SEED_TOKEN comes from the environment (a private env file), never typed into the command
+   npm run seed:sanity -- --project <id> --dataset <name> --api-version v2026-06-24 --delete-all --yes
    ```
 
    This is the real cleanup command — `--delete-all` never builds or
@@ -1269,7 +1274,8 @@ readback compare price fields exactly; differing existing prices are refused rat
 than patched or silently ignored. This remains a create-only operation.
 
 ```bash
-SANITY_MIGRATION_TOKEN=<temporary-editor-token> npm run write:services -- \
+# SANITY_MIGRATION_TOKEN comes from the environment (a private env file), never typed into the command
+npm run write:services -- \
   --plan <service-write-plan.json> \
   --approved-digest <dry-run-digest> \
   --project <project-id> --dataset <dataset> --api-version <api-version> \
@@ -1290,7 +1296,8 @@ or page.
 npm run write:categories -- --plan <category-write-plan.json>
 
 # Apply only the exact reviewed digest with a temporary Editor token.
-SANITY_MIGRATION_TOKEN=<temporary-editor-token> npm run write:categories -- \
+# SANITY_MIGRATION_TOKEN comes from the environment (a private env file), never typed into the command
+npm run write:categories -- \
   --plan <category-write-plan.json> \
   --approved-digest <reviewed-sha256> \
   --project <project-id> --dataset <dataset> --api-version <api-version> --yes
@@ -1323,7 +1330,8 @@ already exists before either singleton is created.
 npm run write:foundation -- --plan <foundation-write-plan.json>
 
 # Apply the exact reviewed foundation plan after its referenced gallery exists.
-SANITY_MIGRATION_TOKEN=<temporary-editor-token> npm run write:foundation -- \
+# SANITY_MIGRATION_TOKEN comes from the environment (a private env file), never typed into the command
+npm run write:foundation -- \
   --plan <foundation-write-plan.json> \
   --approved-digest <dry-run-digest> \
   --project <project-id> --dataset <dataset> --api-version <api-version> --yes
@@ -1359,7 +1367,8 @@ npm run write:joomla -- \
   --approved-digest <plan-digest>
 
 # Real write, against a temporary write-scoped credential.
-SANITY_MIGRATION_TOKEN=<temporary-editor-token> npm run write:joomla -- \
+# SANITY_MIGRATION_TOKEN comes from the environment (a private env file), never typed into the command
+npm run write:joomla -- \
   --plan <report-dir>/import-plan.json \
   --image-root <image-tree> \
   --out <write-report-dir> \
@@ -1566,7 +1575,12 @@ matching the same pattern this project's security-review skill and
 elsewhere: a `NEXT_PUBLIC_`-prefixed variable is compiled into the browser
 bundle by Next.js, so a write-scoped credential must never answer to that
 name even as an accidental leftover copy (Codex round 9, finding "Reject a
-public copy of the migration token"). Separately, `checkReferenceShape` — the
+public copy of the migration token"). Since AB#421 every owner-run writer uses the same
+check (`scripts/sanity-write-safety.mts`), prints its target before the first request, and,
+when a run stops after it began uploading or writing, leaves `partial-run.json` (owner-only)
+in `--out` with the uploaded asset ids and the last completed batch. Dependent non-media
+documents are still sent as `createOrReplace`; that path is retired or adapted as described
+under the AB#257 retained-document mapping above, not guarded in place. Separately, `checkReferenceShape` — the
 contract check every `canonicalCategory`, `secondaryCategories`, `gallery`,
 `article`, `endGallery`, and `media` reference in a planned document passes
 through — used to accept any object carrying a syntactically valid `_ref`

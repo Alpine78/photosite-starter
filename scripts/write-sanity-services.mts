@@ -18,6 +18,7 @@ import {
   type SeedConnection,
   type SeedQueryRequest,
 } from "./sanity-seed-http.mts";
+import { formatPartialRunLine, formatWriteTarget, readWriteToken, WriteRunProgress } from "./sanity-write-safety.mts";
 
 export const SERVICE_WRITE_PLAN_VERSION = "sanity-service-write-plan-v1";
 
@@ -651,16 +652,9 @@ function requiredValue(value: string | undefined, message: string): string {
   return value;
 }
 
+/** The shared writer check (AB#421): environment only, never a `NEXT_PUBLIC_` copy. */
 function migrationToken(): string {
-  if (process.env.NEXT_PUBLIC_SANITY_MIGRATION_TOKEN?.trim()) {
-    throw new Error(
-      "NEXT_PUBLIC_SANITY_MIGRATION_TOKEN must be removed; a write credential must never be public",
-    );
-  }
-  return requiredValue(
-    process.env.SANITY_MIGRATION_TOKEN,
-    "SANITY_MIGRATION_TOKEN is required for --yes",
-  );
+  return readWriteToken(process.env, "SANITY_MIGRATION_TOKEN");
 }
 
 
@@ -718,6 +712,7 @@ async function main(): Promise<void> {
     ),
     token: migrationToken(),
   });
+  console.log(formatWriteTarget(connection));
 
   const preflightIssues = await preflightServices(connection, documents);
   if (preflightIssues.length > 0) {
@@ -727,16 +722,24 @@ async function main(): Promise<void> {
   }
 
   let batches = 0;
-  for (const wave of waves) {
-    const result = await runSeedMutationBatches(
-      connection,
-      wave.map((document) => ({ createIfNotExists: document })),
-    );
-    batches += result.batchesRun;
-  }
-  console.log(`Wrote ${documents.length} service document(s) in ${batches} batch(es).`);
-  if (!(await verifyWritten(connection, documents))) {
-    throw new Error("post-write verification did not read back the approved documents");
+  const progress = new WriteRunProgress(connection);
+  progress.start();
+  try {
+    for (const [index, wave] of waves.entries()) {
+      const result = await runSeedMutationBatches(
+        connection,
+        wave.map((document) => ({ createIfNotExists: document })),
+        { onBatchCommitted: progress.batchRecorder(`wave ${index + 1}/${waves.length}`) },
+      );
+      batches += result.batchesRun;
+    }
+    console.log(`Wrote ${documents.length} service document(s) in ${batches} batch(es).`);
+    if (!(await verifyWritten(connection, documents))) {
+      throw new Error("post-write verification did not read back the approved documents");
+    }
+  } catch (error) {
+    console.error(formatPartialRunLine(progress.toRecord()));
+    throw error;
   }
   console.log(`Verification PASS: ${documents.length}/${documents.length} document(s).`);
 }

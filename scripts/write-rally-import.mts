@@ -50,6 +50,7 @@ import {
   uploadSeedImageAsset,
   type SeedConnection,
 } from "./sanity-seed-http.mts";
+import { formatWriteTarget, PARTIAL_RUN_FILE, readWriteToken, WriteRunProgress } from "./sanity-write-safety.mts";
 import {
   chunkIdsByByteBudget,
   resolveCategoryReferences,
@@ -131,14 +132,11 @@ function requiredSetting(value: string | undefined, envName: string, flagName: s
 
 /** The write token is never a flag, so it never lands in shell history or a process listing. */
 function requiredToken(envName: string): string {
-  if (process.env[`NEXT_PUBLIC_${envName}`]?.trim()) {
-    fail(
-      `NEXT_PUBLIC_${envName} is set: a NEXT_PUBLIC_ value is compiled into the browser bundle, so this write credential must never use that name. Remove it and set ${envName} instead.`,
-    );
+  try {
+    return readWriteToken(process.env, envName);
+  } catch (error) {
+    fail(error instanceof Error ? error.message : String(error));
   }
-  const value = process.env[envName];
-  if (value === undefined || value.trim().length === 0) fail(`${envName} is required (this tool never accepts a token as a flag)`);
-  return value;
 }
 
 async function writeReport(outDir: string, fileName: string, data: unknown): Promise<string> {
@@ -305,6 +303,7 @@ async function main(): Promise<void> {
     apiVersion: requiredSetting(options.apiVersion, "SANITY_API_VERSION", "api-version"),
     token: requiredToken("SANITY_MIGRATION_TOKEN"),
   });
+  console.log(formatWriteTarget(connection));
 
   // --- 4: category and preflight ---
   const categoryResolution = await resolveCategoryReferences(
@@ -332,6 +331,27 @@ async function main(): Promise<void> {
   }
 
   // --- 5: upload, then write media before galleries ---
+  const progress = new WriteRunProgress(connection);
+  try {
+    await uploadAndWrite(options, folder, plan, connection, categoryDocumentId, preflight, progress);
+  } catch (error) {
+    if (progress.started) {
+      const recordPath = await writeReport(options.out, PARTIAL_RUN_FILE, progress.toRecord());
+      console.error(`The run stopped after it began writing. Uploaded asset ids and the last completed batch: ${recordPath}.`);
+    }
+    throw error;
+  }
+}
+
+async function uploadAndWrite(
+  options: Options,
+  folder: string,
+  plan: RallyImportPlan,
+  connection: SeedConnection,
+  categoryDocumentId: string,
+  preflight: ReturnType<typeof evaluateRallyPreflight>,
+  progress: WriteRunProgress,
+): Promise<void> {
   const assetIdByMediaId = new Map<string, string>();
   for (const requirement of plan.assetRequirements) {
     const outcome = await deriveAsset(folder, requirement);
@@ -339,17 +359,20 @@ async function main(): Promise<void> {
       const reportPath = await writeReport(options.out, "rally-upload-failures.json", [
         { relativePath: requirement.relativePath, reason: outcome.reason },
       ]);
+      if (progress.started) await writeReport(options.out, PARTIAL_RUN_FILE, progress.toRecord());
       console.error(
         `A file changed during the run after ${assetIdByMediaId.size} upload(s); no document was written. See ${reportPath}.`,
       );
       process.exitCode = 1;
       return;
     }
+    progress.start();
     const uploaded = await uploadSeedImageAsset(connection, outcome.derivative, {
       maxDimension: MAX_PUBLIC_DELIVERY_DIMENSION,
       formatsByExtension: PUBLIC_DELIVERY_FORMATS,
-    });
+    }, { onAccepted: (assetId) => progress.recordUpload(assetId) });
     assetIdByMediaId.set(requirement.mediaId, uploaded.assetId);
+    progress.recordUpload(uploaded.assetId);
   }
   console.log(`Uploaded ${assetIdByMediaId.size} image(s).`);
 
@@ -359,8 +382,13 @@ async function main(): Promise<void> {
     existingMediaDocumentIds: preflight.existingMediaDocumentIds,
     existingGalleries: preflight.existingGalleries,
   });
-  if (mutations.mediaWave.length > 0) await runSeedMutationBatches(connection, mutations.mediaWave);
-  if (mutations.galleryWave.length > 0) await runSeedMutationBatches(connection, mutations.galleryWave);
+  progress.start();
+  if (mutations.mediaWave.length > 0) {
+    await runSeedMutationBatches(connection, mutations.mediaWave, { onBatchCommitted: progress.batchRecorder("media") });
+  }
+  if (mutations.galleryWave.length > 0) {
+    await runSeedMutationBatches(connection, mutations.galleryWave, { onBatchCommitted: progress.batchRecorder("galleries") });
+  }
   const { summary } = mutations;
   console.log(
     `Media: ${summary.mediaCreated} created, ${summary.mediaUpdated} updated. Galleries: ${summary.galleriesCreated} created, ${summary.galleriesUpdated} updated (${summary.sectionsAdded} section(s) added).`,
@@ -381,6 +409,7 @@ async function main(): Promise<void> {
   });
   await writeReport(options.out, "rally-write-report.json", { summary, readBackIssues });
   if (readBackIssues.length > 0) {
+    await writeReport(options.out, PARTIAL_RUN_FILE, progress.toRecord());
     console.error(`The read-back disagrees with the plan in ${readBackIssues.length} way(s). See ${path.join(options.out, "rally-write-report.json")}.`);
     process.exitCode = 1;
     return;

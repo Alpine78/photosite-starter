@@ -52,6 +52,7 @@ import {
   runSeedQuery,
   type SeedConnection,
 } from "./sanity-seed-http.mts";
+import { formatWriteTarget, readWriteToken } from "./sanity-write-safety.mts";
 
 class IntroSummaryWriteError extends Error {
   constructor(message: string) {
@@ -139,12 +140,11 @@ function requiredSetting(value: string | undefined, envName: string, flag: strin
 }
 
 function requiredToken(envName: string): string {
-  if (process.env[`NEXT_PUBLIC_${envName}`]?.trim()) {
-    fail(`NEXT_PUBLIC_${envName} is set: a NEXT_PUBLIC_ value is compiled into the browser bundle, so this write credential must never use that name. Remove it and set ${envName} instead.`);
+  try {
+    return readWriteToken(process.env, envName);
+  } catch (error) {
+    fail(error instanceof Error ? error.message : String(error));
   }
-  const value = process.env[envName];
-  if (value === undefined || value.trim().length === 0) fail(`${envName} is required (this tool never accepts a token as a flag)`);
-  return value;
 }
 
 async function ensureOutDir(outDir: string): Promise<void> {
@@ -213,6 +213,7 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
 
   if (!options.apply) {
     const publicTarget = parsePublicReadTarget({ projectId, dataset, apiVersion });
+    console.log(formatWriteTarget(publicTarget));
     const rows = await runPublicReadQuery(publicTarget, {
       query: DOCUMENTS_QUERY,
       params: { types: [...INTRO_SUMMARY_DOCUMENT_TYPES] },
@@ -233,6 +234,7 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
 
   const approvedDigest = options.approvedDigest as string;
   const connection = parseSeedConnection({ projectId, dataset, apiVersion, token: requiredToken("SANITY_MIGRATION_TOKEN") });
+  console.log(formatWriteTarget(connection));
 
   const record = await readRecoveryRecord(options.out, approvedDigest);
   if (record !== undefined) {

@@ -59,6 +59,7 @@ import {
   uploadSeedImageAsset,
   type SeedConnection,
 } from "./sanity-seed-http.mts";
+import { formatWriteTarget, PARTIAL_RUN_FILE, readWriteToken, WriteRunProgress } from "./sanity-write-safety.mts";
 import type { RequestOptions } from "./sanity-read-http.mts";
 import { chunkIdsByByteBudget, resolveContainedSourcePath } from "./write-joomla-content.mts";
 
@@ -206,12 +207,11 @@ function requiredSetting(value: string | undefined, envName: string, flag: strin
 }
 
 function requiredToken(envName: string): string {
-  if (process.env[`NEXT_PUBLIC_${envName}`]?.trim()) {
-    fail(`NEXT_PUBLIC_${envName} is set: a NEXT_PUBLIC_ value is compiled into the browser bundle, so this write credential must never use that name. Remove it and set ${envName} instead.`);
+  try {
+    return readWriteToken(process.env, envName);
+  } catch (error) {
+    fail(error instanceof Error ? error.message : String(error));
   }
-  const value = process.env[envName];
-  if (value === undefined || value.trim().length === 0) fail(`${envName} is required (this tool never accepts a token as a flag)`);
-  return value;
 }
 
 /**
@@ -313,6 +313,7 @@ async function main(): Promise<void> {
     apiVersion: requiredSetting(options.apiVersion, "SANITY_API_VERSION", "api-version"),
     token: requiredToken("SANITY_MIGRATION_TOKEN"),
   });
+  console.log(formatWriteTarget(connection));
 
   const snapshot = await readSnapshot(connection, plan);
   const { work, conflicts } = reconcileRallyConversion(plan, snapshot);
@@ -335,6 +336,26 @@ async function main(): Promise<void> {
     );
   }
 
+  const progress = new WriteRunProgress(connection);
+  try {
+    await uploadAndWrite(options, folder, plan, connection, work, progress);
+  } catch (error) {
+    if (progress.started) {
+      const recordPath = await writeReport(options.out, PARTIAL_RUN_FILE, progress.toRecord());
+      console.error(`The run stopped after it began writing. Uploaded asset ids and the last completed batch: ${recordPath}.`);
+    }
+    throw error;
+  }
+}
+
+async function uploadAndWrite(
+  options: Options,
+  folder: string,
+  plan: RallyConversionPlan,
+  connection: SeedConnection,
+  work: ReturnType<typeof reconcileRallyConversion>["work"],
+  progress: WriteRunProgress,
+): Promise<void> {
   const assetIdByMediaId = new Map<string, string>();
   for (const document of work.newMediaRemaining) {
     const mediaId = document.mediaId as string;
@@ -345,20 +366,30 @@ async function main(): Promise<void> {
       const reportPath = await writeReport(options.out, "rally-conversion-upload-failures.json", [
         { relativePath: requirement.relativePath, reason: outcome.reason },
       ]);
+      if (progress.started) await writeReport(options.out, PARTIAL_RUN_FILE, progress.toRecord());
       console.error(`A file changed during the run; no document was written for it. See ${reportPath}.`);
       process.exitCode = 1;
       return;
     }
+    progress.start();
     const uploaded = await uploadSeedImageAsset(connection, outcome.derivative, {
       maxDimension: MAX_PUBLIC_DELIVERY_DIMENSION,
       formatsByExtension: PUBLIC_DELIVERY_FORMATS,
-    });
+    }, { onAccepted: (assetId) => progress.recordUpload(assetId) });
     assetIdByMediaId.set(mediaId, uploaded.assetId);
+    progress.recordUpload(uploaded.assetId);
   }
 
   const { newMediaBatches, patchBatches } = buildMediaWaves(work, assetIdByMediaId);
-  for (const batch of newMediaBatches) await runSeedMutationBatches(connection, batch, { batchSize: batch.length });
-  for (const batch of patchBatches) await runSeedMutationBatches(connection, batch, { batchSize: batch.length });
+  progress.start();
+  for (const [index, batch] of newMediaBatches.entries()) {
+    await runSeedMutationBatches(connection, batch, { batchSize: batch.length });
+    progress.recordBatch(`new media ${index + 1}/${newMediaBatches.length}`);
+  }
+  for (const [index, batch] of patchBatches.entries()) {
+    await runSeedMutationBatches(connection, batch, { batchSize: batch.length });
+    progress.recordBatch(`media patches ${index + 1}/${patchBatches.length}`);
+  }
   console.log(`Media written: ${newMediaBatches.flat().length} created, ${patchBatches.flat().length} patched.`);
 
   for (const gallery of plan.galleries) {
@@ -366,7 +397,10 @@ async function main(): Promise<void> {
     const needsSwitch = work.galleriesToSwitch.has(gallery._id);
     if (remaining.length === 0 && !needsSwitch) continue;
     const batches = buildGalleryDeletionAndSwitchBatches(gallery._id, remaining, needsSwitch);
-    for (const batch of batches) await runSeedMutationBatches(connection, batch, { batchSize: batch.length });
+    for (const [index, batch] of batches.entries()) {
+      await runSeedMutationBatches(connection, batch, { batchSize: batch.length });
+      progress.recordBatch(`${gallery._id} ${index + 1}/${batches.length}`);
+    }
     console.log(`${gallery._id}: deleted ${remaining.length} placement(s)${needsSwitch ? ", switched to capture-sequence" : ""}.`);
   }
 
@@ -385,6 +419,7 @@ async function main(): Promise<void> {
   });
   await writeReport(options.out, "rally-conversion-write-report.json", { work: summarizeWork(work), readBackIssues });
   if (readBackIssues.length > 0) {
+    await writeReport(options.out, PARTIAL_RUN_FILE, progress.toRecord());
     console.error(`The read-back disagrees with the plan in ${readBackIssues.length} way(s). See ${path.join(options.out, "rally-conversion-write-report.json")}.`);
     process.exitCode = 1;
     return;
