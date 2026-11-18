@@ -234,8 +234,7 @@ function wouldExceedDocumentIdLimit(...segments: readonly string[]): boolean {
  * tree's naming happened to be at the moment this tool first saw the file,
  * exactly the environmental dependency the rule exists to keep out.
  *
- * A CSPRNG token (64 bits — the same "opaque, unguessable token" shape this
- * project already uses for a private-gallery object key) carries no such
+ * A CSPRNG token (64 bits — an opaque, unguessable token) carries no such
  * dependency. The caller (`identityFor` in `convert-joomla-content.mts`)
  * still owns not calling this twice for the same photograph: it checks the
  * persisted locator and content-hash indexes first, and only calls this once

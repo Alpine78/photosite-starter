@@ -8,7 +8,7 @@ Record at least one real proposed sale before choosing a platform: who buys (pub
 
 ## Current boundary
 
-ADR-0002 gives a media identity and placement model. ADR-0005 permits only public web derivatives on public pages; originals and sales/fulfilment assets remain behind a server-only adapter. ADR-0014 grants short-lived protected delivery only to its own private client-gallery capability; it does not authorize sale downloads. An enquiry is a human contact path, not payment or fulfilment.
+ADR-0002 gives a media identity and placement model. ADR-0005 permits only public web derivatives on public pages; originals and sales/fulfilment assets remain behind a server-only adapter. ADR-0014 granted short-lived protected delivery only to its own private client-gallery capability (that implementation was removed under AB#313); it never authorized sale downloads. An enquiry is a human contact path, not payment or fulfilment.
 
 Keep these independent states in any future model:
 

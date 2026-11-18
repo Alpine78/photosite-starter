@@ -88,7 +88,7 @@ describe("production unlisted Sanity composition without private services", () =
   it.each([["fi-FI", "Toimitus", "Rannikko"], ["en-GB", "Delivery", "Coast"]])("serves %s through real configuration and HTTP transports", async (language, title, alt) => {
     const { getClientGallery } = await import("../src/lib/client-gallery-access");
     const { getDeploymentConfig } = await import("../src/lib/deployment-config");
-    expect(getDeploymentConfig()).toMatchObject({ stage: "production", contentSource: "sanity", privateGallery: { store: "off" } });
+    expect(getDeploymentConfig()).toMatchObject({ stage: "production", contentSource: "sanity", privateGallery: { routePrefix: "private", adminRoutePrefix: "admin" } });
     expect(Object.keys(process.env).filter((name) => /^(?:PRIVATE_GALLERY_|AWS_|S3_|POSTGRES_|PG|DATABASE_)/u.test(name))).toEqual([]);
     expect(process.env.SANITY_READ_TOKEN).toBeUndefined();
     const view = await getClientGallery(handle, language);

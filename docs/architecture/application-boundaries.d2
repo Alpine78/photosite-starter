@@ -44,12 +44,8 @@ routes: "src/app — App Router" {
     class: built
   }
 
-  private: "Private client galleries (inactive alternative — ADR-0034)\nBUILT: reserved prefix rewritten onto an internal route;\nlink bootstrap + capability exchange -> session cookie;\nalways dynamic, never cached, never indexed\nPLANNED: two-stage per-asset auth, delivery" {
-    class: planned
-  }
-
-  admin: "Administrator boundary (inactive alternative — ADR-0034)\nBUILT: its own reserved root prefix, separate from the\ncustomer one and never nested under it; same response\nhygiene (no-store, noindex/nofollow, no-referrer) and\nrobots Disallow, feature on or off; the __Host- session\nmodel + cookie contract, sharing no store, name or field\nwith the customer session; secret rotation revokes centrally;\nre-auth gate for irreversible operations; the reused request\nboundary + two-layer login throttle, deployment-wide and\npersisted, consumed before any verification; the scrypt-verified\ngenerated credential and the two facade entry points that\ncompose it (throttle before verify; rotation revokes);\nsign-in, sign-out and the signed-in surface on the\nconfigured prefix, rewritten onto their own internal segment.\nProtected administration is deferred.\nThis is not the Sanity authoring workflow (AB#145)." {
-    class: planned
+  reserved: "Reserved namespaces (protected gallery removed — AB#313)\nNo routes: the Proxy answers every path and method under the\nconfigured customer and administrator prefixes and the literal\n/private-gallery and /private-gallery-admin segments with one\nempty 404 (no-store, noindex/nofollow, no-referrer);\nrobots Disallow. Prefixes stay validated and reserved." {
+    class: built
   }
 
   unlisted: "Unlisted client delivery (selected — ADR-0034)\n/client-gallery/<handle>; no customer login.\n21 legacy pages observed live 2026-10-15.\nPublic Sanity metadata/files. Page: noindex, no-store.\nNew authoring + customer reader built, default-off.\nNative Studio roles; optional verified public whole ZIP.\nProof selection + reviewed replacement deletion built, default-off.\nDelivery cleanup GET: cron bearer, counts only; source-built, off." {
@@ -130,10 +126,6 @@ restricted: "Server-only modules" {
   delivery-cleanup: "Delivery cleanup facade -> worker -> dedicated Sanity transport (AB#397–398)\nSOURCE BUILT, DEFAULT OFF; hosted role/deletion acceptance pending.\nOne full-readable snapshot + strict Doc reads; retain reference metadata only.\nPrivate control/cursor fence, fresh policy/revision guards; atomic gallery + images + optional ZIP.\nShared images/ZIPs kept; closed ZIP counts. Late weak/release writers remain an activation boundary.\nPublic projection and proof/legacy timers unchanged." {
     class: built
   }
-
-  private-gallery: "private-gallery modules (inactive alternative — ADR-0034)\nBUILT: capability envelope, session + cookie contract,\nrate-limited exchange, and the one route-facing facade\n(private-gallery-access.ts) every other module hides behind;\na memory fixture store for development only.\nProtected adapters/outbox/retention are deferred.\nServer-only, ESLint-bounded; never reached by a public read." {
-    class: planned
-  }
 }
 
 external: "Outside the deployment" {
@@ -146,14 +138,6 @@ external: "Outside the deployment" {
 
   delivery: "Resend HTTP API\nOr the sink adapter, which a\nproduction deployment refuses to build" {
     class: external
-  }
-
-  private-store: "Private object store (deferred — ADR-0034)\nS3-compatible, customer-owned, separate\nfrom Sanity and any public bucket;\nwatermarked proofs, web previews, one ZIP" {
-    class: [store; planned]
-  }
-
-  private-db: "Private Postgres (deferred — ADR-0034)\ncustomer-owned; galleries, capabilities,\nsessions, proof selections, notification outbox,\nretention state" {
-    class: [store; planned]
   }
 }
 
@@ -168,5 +152,5 @@ lib -> restricted: "The only crossing there is.\nESLint refuses these imports fr
   style.bold: true
 }
 
-restricted -> external: "Published/unlisted Sanity reads; default-off delivery cleanup\nuses full dataset READ; reference Editor WRITE risk accepted (ADR-0040),\nhosted verification pending; off by default.\nPrivate-gallery S3 + Postgres deferred (ADR-0034);\natomic public poll writes through the separate voting token" {class: pending-flow}
+restricted -> external: "Published/unlisted Sanity reads; default-off delivery cleanup\nuses full dataset READ; reference Editor WRITE risk accepted (ADR-0040),\nhosted verification pending; off by default.\nAtomic public poll writes through the separate voting token" {class: pending-flow}
 lib -> external: "Delivers one enquiry.\nNo form content is stored anywhere."

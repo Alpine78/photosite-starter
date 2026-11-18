@@ -19,7 +19,7 @@ dataset visibility. Copy the **complete** `SITE_LOCALE_ROUTES` into
 `SANITY_STUDIO_LOCALE_ROUTES`; this derives every locale's story root for the
 navigation validator. Set the Studio title for its editor header. These settings
 are public browser configuration. Never copy site read/write tokens, webhook
-secrets, import credentials or private-gallery credentials into this file.
+secrets, import credentials or any other server credential into this file.
 
 In Sanity Manage, allow `http://localhost:3333` as a CORS origin with credentials
 for this project. Then:

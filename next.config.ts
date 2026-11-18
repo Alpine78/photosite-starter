@@ -6,7 +6,6 @@ import {
   YOUTUBE_EMBED_ALLOW_FEATURES,
   YOUTUBE_NOCOOKIE_ORIGIN,
 } from "@/lib/embed-origins";
-import { readPrivateObjectStoreOrigin } from "@/lib/private-object-store-origin";
 import { contentSecurityPolicy } from "@/lib/content-security-policy";
 import {
   previewNoindexAliasHostPattern,
@@ -252,8 +251,8 @@ function permissionsPolicy(): string {
  * replaces this header (ADR-0011 amendment 2026-10-22, AB#390;
  * `src/lib/content-security-policy.ts`). Here `script-src`/`style-src` keep
  * `'unsafe-inline'` as documented residual risk for the responses the Proxy
- * does not tag: redirects, API and maintenance responses and the inactive
- * private and administrator namespaces (ADR-0034). The two
+ * does not tag: redirects, API and maintenance responses and the empty 404s
+ * of the reserved, retired private and administrator namespaces (AB#313). The two
  * `dangerouslySetInnerHTML` uses are a `</script>`-safe JSON-LD serializer and
  * the constant theme bootstrap (AB#173), and there is no raw-HTML content
  * block.
@@ -270,11 +269,9 @@ function permissionsPolicy(): string {
  */
 function staticContentSecurityPolicy(
   settings: SanityBuildSettings | null,
-  privateObjectStoreOrigin?: string,
 ): string {
   return contentSecurityPolicy({
     sanityImageScope: settings,
-    privateObjectStoreOrigin,
     development: process.env.NODE_ENV === "development",
   });
 }
@@ -298,7 +295,6 @@ function staticContentSecurityPolicy(
  */
 function securityHeaders(
   sanitySettings: SanityBuildSettings | null,
-  privateObjectStoreOrigin?: string,
 ): { key: string; value: string }[] {
   return [
     { key: "X-Content-Type-Options", value: "nosniff" },
@@ -307,7 +303,7 @@ function securityHeaders(
     { key: "Permissions-Policy", value: permissionsPolicy() },
     {
       key: "Content-Security-Policy",
-      value: staticContentSecurityPolicy(sanitySettings, privateObjectStoreOrigin),
+      value: staticContentSecurityPolicy(sanitySettings),
     },
   ];
 }
@@ -320,7 +316,6 @@ function securityHeaders(
  * re-deriving (and re-validating, and potentially re-throwing) it separately.
  */
 const sanitySettings = sanityBuildSettings(process.env);
-const privateObjectStoreOrigin = readPrivateObjectStoreOrigin(process.env);
 
 /**
  * The stable Preview integration alias, when this is a Vercel Preview build
@@ -414,38 +409,12 @@ const nextConfig: NextConfig = {
           ]),
       // Assigned Production aliases need their own crawl guidance. Match only
       // explicitly configured, noncanonical hosts, never a wildcard or every
-      // route on the canonical site. Private-route hygiene below stays stronger.
+      // route on the canonical site. The Proxy's reserved-namespace hygiene stays stronger.
       ...productionNoindexAliasHosts.map((host) => ({
         source: "/:path*",
         has: [{ type: "host" as const, value: previewNoindexAliasHostPattern(host) }],
         headers: [{ key: "X-Robots-Tag", value: "noindex" }],
       })),
-      // ADR-0011 action item 4 / ADR-0014 §6: the private routes, and only they,
-      // may load images from the private object store. `img-src` is widened by
-      // exactly that origin and nothing else is — in particular no `connect-src`
-      // grant, because a preview is delivered by an `<img>` and never by a script
-      // `fetch` (§8c), which is also why the bucket needs no CORS policy at all.
-      //
-      // Sourced at the internal rewrite target rather than the configured public
-      // prefix, because that segment is a build-time constant while the prefix is
-      // not. Measured against a production build rather than assumed: a
-      // `headers()` rule matches both the original request path and the path the
-      // Proxy rewrote to, and among matching rules the **last** one wins for a
-      // given header name — which is why these sit after the site-wide entry.
-      // `e2e/reserved-namespace-hygiene.spec.ts` is what would notice if either
-      // behaviour changed.
-      ...(privateObjectStoreOrigin === undefined
-        ? []
-        : [
-            {
-              source: "/private-gallery",
-              headers: securityHeaders(sanitySettings, privateObjectStoreOrigin),
-            },
-            {
-              source: "/private-gallery/:path*",
-              headers: securityHeaders(sanitySettings, privateObjectStoreOrigin),
-            },
-          ]),
       ...(VERSIONED_GALLERY_FILES.length === 0 ? [] : [{
         source: `/gallery/:file(${VERSIONED_GALLERY_FILES.map((name) => name.replaceAll(".", "\\.")).join("|")})`,
         headers: [

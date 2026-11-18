@@ -10,44 +10,61 @@ import {
 } from "@/lib/private-gallery-deployment";
 
 describe("readPrivateGalleryDeployment", () => {
-  it("defaults to off with the default route prefix when nothing is set", () => {
-    expect(readPrivateGalleryDeployment({}, "development")).toEqual({
-      store: "off",
+  it("reserves the default route prefixes when nothing is set", () => {
+    expect(readPrivateGalleryDeployment({})).toEqual({
       routePrefix: DEFAULT_PRIVATE_GALLERY_ROUTE_PREFIX,
       adminRoutePrefix: DEFAULT_PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX,
     });
   });
 
-  it("accepts an explicit enabled switch and a custom prefix", () => {
+  it("accepts the store explicitly off and custom prefixes", () => {
     expect(
       readPrivateGalleryDeployment({
-        PRIVATE_GALLERY_STORE: " enabled ",
+        PRIVATE_GALLERY_STORE: " off ",
         PRIVATE_GALLERY_ROUTE_PREFIX: "clients",
         PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX: " studio ",
-      }, "development"),
+      }),
     ).toEqual({
-      store: "enabled",
       routePrefix: "clients",
       adminRoutePrefix: "studio",
     });
   });
 
-  it("accepts the memory fixture store in a development deployment", () => {
-    expect(
-      readPrivateGalleryDeployment(
-        { PRIVATE_GALLERY_STORE: "memory" },
-        "development",
-      ),
-    ).toEqual({
-      store: "memory",
+  it("treats a blank store setting as unset", () => {
+    expect(readPrivateGalleryDeployment({ PRIVATE_GALLERY_STORE: "  " })).toEqual({
       routePrefix: DEFAULT_PRIVATE_GALLERY_ROUTE_PREFIX,
       adminRoutePrefix: DEFAULT_PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX,
     });
   });
 
+  // AB#313: the protected store modes were removed. A stale value fails the
+  // build with a message naming the removal, rather than being ignored.
+  it.each(["enabled", "memory", " enabled ", "on", "OFF", "disabled"])(
+    "refuses the stale store setting %j with the removal message",
+    (value) => {
+      expect(() =>
+        readPrivateGalleryDeployment({ PRIVATE_GALLERY_STORE: value }),
+      ).toThrow(PrivateGalleryDeploymentError);
+      expect(() =>
+        readPrivateGalleryDeployment({ PRIVATE_GALLERY_STORE: value }),
+      ).toThrow(
+        /PRIVATE_GALLERY_STORE.*protected client gallery was removed \(AB#313\).*Remove PRIVATE_GALLERY_STORE/,
+      );
+    },
+  );
+
+  it("reports a stale store setting before a bad prefix", () => {
+    expect(() =>
+      readPrivateGalleryDeployment({
+        PRIVATE_GALLERY_STORE: "enabled",
+        PRIVATE_GALLERY_ROUTE_PREFIX: "Bad",
+      }),
+    ).toThrow(/PRIVATE_GALLERY_STORE/);
+  });
+
   describe("the administrator route prefix (ADR-0015 §1)", () => {
     it("defaults to a segment that is not the customer namespace", () => {
-      const deployment = readPrivateGalleryDeployment({}, "development");
+      const deployment = readPrivateGalleryDeployment({});
       expect(deployment.adminRoutePrefix).toBe(
         DEFAULT_PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX,
       );
@@ -65,8 +82,7 @@ describe("readPrivateGalleryDeployment", () => {
       ]) {
         expect(() =>
           readPrivateGalleryDeployment(
-            { PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX: value },
-            "development",
+            { PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX: value }
           ),
         ).toThrow(PrivateGalleryDeploymentError);
       }
@@ -75,8 +91,7 @@ describe("readPrivateGalleryDeployment", () => {
     it("names the setting that supplied a bad value, not the other one", () => {
       expect(() =>
         readPrivateGalleryDeployment(
-          { PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX: "Admin" },
-          "development",
+          { PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX: "Admin" }
         ),
       ).toThrow(/PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX/);
     });
@@ -92,8 +107,7 @@ describe("readPrivateGalleryDeployment", () => {
           {
             PRIVATE_GALLERY_ROUTE_PREFIX: "clients",
             PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX: "clients",
-          },
-          "development",
+          }
         ),
       ).toThrow(/must not overlap/);
     });
@@ -101,8 +115,7 @@ describe("readPrivateGalleryDeployment", () => {
     it("refuses the collision that only appears once one side is left at its default", () => {
       expect(() =>
         readPrivateGalleryDeployment(
-          { PRIVATE_GALLERY_ROUTE_PREFIX: "admin" },
-          "development",
+          { PRIVATE_GALLERY_ROUTE_PREFIX: "admin" }
         ),
       ).toThrow(PrivateGalleryDeploymentError);
     });
@@ -121,31 +134,10 @@ describe("readPrivateGalleryDeployment", () => {
     });
   });
 
-  it.each(["preview", "production"] as const)(
-    "refuses the memory fixture store in a %s deployment",
-    (stage) => {
-      // The fixture's capability is a published constant, so any deployment
-      // that reached this configuration would serve a gallery anyone holding
-      // this repository could open. Preview is refused as well as production:
-      // it is a shared, access-protected environment standing in for
-      // production, not a developer's machine. It fails the build, the same way
-      // `SITE_CONTENT_SOURCE=mock` and `CONTACT_DELIVERY_ADAPTER=sink` do.
-      expect(() =>
-        readPrivateGalleryDeployment({ PRIVATE_GALLERY_STORE: "memory" }, stage),
-      ).toThrow(PrivateGalleryDeploymentError);
-    },
-  );
-
-  it("rejects an unknown store mode", () => {
-    expect(() =>
-      readPrivateGalleryDeployment({ PRIVATE_GALLERY_STORE: "on" }, "development"),
-    ).toThrow(PrivateGalleryDeploymentError);
-  });
-
   it("rejects a prefix that is not one lowercase segment", () => {
     for (const bad of ["Private", "a/b", "with space", "trailing-", "-lead", "a".repeat(33)]) {
       expect(() =>
-        readPrivateGalleryDeployment({ PRIVATE_GALLERY_ROUTE_PREFIX: bad }, "development"),
+        readPrivateGalleryDeployment({ PRIVATE_GALLERY_ROUTE_PREFIX: bad }),
       ).toThrow(PrivateGalleryDeploymentError);
     }
   });
@@ -155,7 +147,7 @@ describe("readPrivateGalleryDeployment", () => {
       readPrivateGalleryDeployment({
         PRIVATE_GALLERY_STORE: "off",
         NEXT_PUBLIC_PRIVATE_GALLERY_DATABASE_URL: "postgres://x/y",
-      }, "development"),
+      }),
     ).toThrow(/NEXT_PUBLIC_PRIVATE_GALLERY_DATABASE_URL/);
   });
 

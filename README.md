@@ -615,7 +615,7 @@ ADR-0028 (AB#250). The first production site's retained galleries are live:
 on 2026-10-15, all 21 published gallery routes returned HTTP 200 with image markup;
 the published dataset contained 1,792 image placements and 12 ZIP assets.
 Customers use their direct `/client-gallery/<handle>` links without signing in;
-`/admin` belongs to the separate protected-gallery workflow below.
+`/admin` is the reserved namespace of the removed protected gallery and answers 404.
 This check did not download or hash the images/ZIPs or verify old-link redirects,
 browser interactions or the remaining launch acceptance evidence. See the
 [access and verification instructions](docs/deployment.md#retained-legacy-customer-galleries-adr-0028)
@@ -661,11 +661,10 @@ to Sanity; ordinary changes stay in Studio.
   curated galleries
 - Video showcase in galleries, articles, and service pages; video delivery/sharing
   in client galleries
-- Protected client galleries are an inactive alternative described by
-  [ADR-0014](docs/adr/0014-private-gallery-security-delivery-retention-boundary.md)
-  and ADR-0015. The reference-deployment owner has rejected their S3/Postgres
-  target; do not continue it under AB#29/145. Existing code stays off pending
-  a separate removal audit. AB#29/145 now track unlisted Sanity delivery and
+- Protected client galleries ([ADR-0014](docs/adr/0014-private-gallery-security-delivery-retention-boundary.md),
+  ADR-0015) were removed from the code under AB#313 on 2026-11-15/16 after the
+  reference-deployment owner rejected their S3/Postgres target; their URL
+  prefixes stay reserved and answer 404. AB#29/145 now track unlisted Sanity delivery and
   administration. AB#130 proof selection follows ADR-0038 in existing Sanity:
   the proof page, publication, customer selection, photographer notice, reminders
   and manual gallery deletion are built and default-off; the owner's activation decision
