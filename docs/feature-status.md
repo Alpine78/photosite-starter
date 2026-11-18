@@ -2,6 +2,8 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Self-hosted CI isolation, 2026-11-18 — AB#416 **Active**: the deployment guide records the isolated runner model and cutover checks. The service still uses the operator account; host and pool changes and live verification remain pending.
+
 Next.js 16.4.6, 2026-11-16 — AB#160 **Active**: `next` and `eslint-config-next` move from 16.4.4 to 16.4.6 for a moderate root-params disclosure advisory that also made `next build` refuse to finish. See [dependency security](dependency-security.md).
 
 Security hardening batch, 2026-11-16 — AB#420 **Active**: the reminder cron refuses HEAD and other methods with the cleanup route's shared guard; the Proxy removes spoofed project headers before any early return and checks decoded spellings of reserved prefixes; versioned `/gallery/` caching names only files that exist; a signed webhook older than ten minutes is refused and webhook and proof-selection refusals no longer log one line each; the proof publication allowance is per member; the published cursor-key placeholder is refused in production; the poll write refuses redirects; and every `RESEND_API_KEY` reader refuses a `NEXT_PUBLIC_` copy.

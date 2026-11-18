@@ -1497,10 +1497,48 @@ suite exhausted that quota (2026-09-16), and an additional Microsoft-hosted para
 is a recurring $40/month while an additional self-hosted one is $15/month — the
 organization already had one self-hosted parallel job free and unused. The move saved
 hosted minutes, but `npm ci` and repository scripts execute on a persistent machine.
-No deployment credential is injected into the `Verify` job, but the current agent
-runs under the operator's Unix account and can read credentials stored on that host.
-It must admit only trusted same-repository code (see AB#184 below), and it must never
-share its host with `DeployPreview` or another secret-bearing job.
+The current agent runs under the operator's Unix account and can read credentials
+stored on that host. Same-repository PRs can run automatically, including dependency
+updates ([Dependabot PR #229](https://github.com/Alpine78/photosite-starter/pull/229)).
+Review before execution is not an enforced boundary. AB#416 tracks the
+move to a dedicated, unprivileged agent account. `DeployPreview` and other secret-bearing
+jobs must remain off the PR runner.
+
+#### Isolate the self-hosted agent before admitting PR code (AB#416)
+
+The reference runner still uses the operator account (service settings checked
+2026-11-18). The target is a separate unprivileged Linux service account, with its
+own agent installation, home, workspace and caches. This is account and service
+isolation on a shared host. Use a separate host or VM if that boundary cannot be
+enforced on the current machine.
+
+1. Provision an isolated pool for `Verify`, Studio and the scheduled dependency
+   audit. Restrict the pool to this pipeline. Under the service account, deny
+   access to operator homes, credentials, sockets and release tools and deny
+   writes to the operator checkout. Exclude elevated groups, sudo, host mounts
+   and any host interop that would expose another account. Keep the runner's
+   credentials and writable files separate from release work.
+2. Verify the boundaries from the running service context with synthetic marker
+   files and sockets, plus a readable workspace control. Record the service
+   account, effective groups, agent name and pass/fail results. Inspect names only
+   when checking the effective environment and pipeline variables. Keep deployment
+   credentials and artifacts used for releases off this pool.
+3. Until cutover, the shared-account runner can still execute PR code. To stop
+   that exposure while preparing the new runner, disable dispatch to the old agent
+   and let reviewed jobs finish or cancel the remaining jobs. At cutover, revoke
+   this pipeline's access to the old pool before running the pool-switch PR.
+   Route all three jobs to the isolated pool in that PR and verify its required
+   check before merging. Update open PRs that still reference the old pool and
+   remove the old registration and service.
+4. Read back the new pool permission, agent list and running service identity.
+   Confirm the old pool no longer authorizes this pipeline, the old registration
+   is gone and the old service is no longer installed. Record the evidence on
+   AB#416 and update the current pool references in the
+   pipeline, deployment and dependency-security docs. Add a structure check
+   for pool selection and secret-bearing inputs as a review aid. The effective
+   controls are host permissions and Azure pool authorization. If cutover fails,
+   hold CI until the isolated runner is usable. Review whether earlier shared-account
+   runs warrant credential rotation separately.
 
 **Quality-gate timing and concurrency (AB#378, 2026-10-20).** Baseline from PR runs
 1316/1320/1325: Verify stage 1 391/1 507/1 387 s, of which end-to-end 1 176/1 298/1 178 s;
@@ -1590,22 +1628,29 @@ the way a Preview is. On 2026-09-24 it was replaced with a release built from th
 the promote; the previous deployment (`photosite-starter-bx2ijzv9x`) stays available as the
 `vercel rollback` target. Whether this address stays public is AB#18's decision.
 
+### Register the isolated self-hosted agent
+
 Registering the agent (owner-run, on the machine that will build):
 
 1. Azure DevOps → user settings → **Personal access tokens** → create one scoped to
    **Agent Pools (Read & manage)** only, with a short expiry. This token is typed once
    into the agent's own setup prompt and is not this project's `az devops` credential.
 2. Download the Linux x64 agent package from the organization's **Organization
-   settings → Agent pools → Default → New agent** page (the download link is
+   settings → Agent pools → the isolated CI pool → New agent** page (the download link is
    version-pinned per organization; there is no stable public URL to hardcode here).
-3. Extract it into its own directory and run interactively:
+3. As the dedicated account, extract the agent into its own directory. Set
+   `CI_POOL_NAME` and `CI_AGENT_NAME` to the new pool and agent names and run interactively:
    ```bash
    ./config.sh --url https://dev.azure.com/ilkkarytkonen --auth pat \
-     --pool Default --agentName <machine-name>
+     --pool "$CI_POOL_NAME" --agentName "$CI_AGENT_NAME"
    ```
    Enter the PAT from step 1 when prompted; accept the default work folder.
-4. Run it as a persistent service so a queued build does not wait on the machine being
-   awake with a terminal open: `sudo ./svc.sh install && sudo ./svc.sh start`.
+4. A host administrator runs these commands from the new agent's installation
+   directory. Set `CI_AGENT_USER` to the dedicated account and run
+   `sudo ./svc.sh install "$CI_AGENT_USER"`. Inspect the installed service's user
+   and the agent's captured environment before `sudo ./svc.sh start`.
+   Revoke the short-lived PAT once the agent is registered. See
+   [Microsoft's Linux agent service instructions](https://learn.microsoft.com/en-us/azure/devops/pipelines/agents/linux-agent?view=azure-devops#run-as-a-systemd-service).
 5. `UseNode@1` installs the pinned Node major itself, but Playwright's browser OS
    dependencies are the operator's own one-time step, not the pipeline's: run
    `sudo npx playwright install-deps chromium webkit` once on the agent host. Playwright's
@@ -1662,10 +1707,9 @@ The Verify job requests `workspace.clean: all`, which deletes its previous
 `$(Pipeline.Workspace)` **before** the next job once this YAML is merged. It does not
 erase files or processes elsewhere on the persistent host and is not a sandbox. The
 observed host shares the operator's user account and credentials. No separate automatic
-host reset was found in the inspected service or schedules; no isolated agent user is
-configured. Treat the runner as **trusted-code only**; review every same-repository PR
-and dependency change before it executes here. If host integrity is in doubt, disable
-the agent and rebuild the host before admitting another trusted run.
+host reset was found in the inspected service or schedules. The account boundary is
+pending AB#416. If host integrity is in doubt, disable the agent and rebuild the host
+before admitting another trusted run.
 
 Never enable external fork PRs by flipping either Azure gate alone. First decide and
 record an ephemeral or isolated execution model with no trusted host-state reuse, no
