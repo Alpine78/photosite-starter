@@ -305,12 +305,36 @@ authoritative for the exact clicks. What this project needs from it:
     protected resource before any branch containing its reference is merged. Add and
     verify every other value — including `PREVIEW_STABLE_ALIAS` (step 6), which the deploy
     stage now treats as required — then change the flag to `true`. Do not grant open
-    access to all pipelines. Finally, on the group's **Approvals and checks** tab, add an
-    **Exclusive lock** check: the `DeployPreview` stage declares `lockBehavior:
-    sequential`, and the lock only engages because the stage consumes this group, so two
-    `DeployPreview` runs never repoint the alias at the same time. (Serializing execution
-    is not the same as ordering by commit — see the known limitation in
-    [The stable Preview integration alias](#the-stable-preview-integration-alias).)
+    access to all pipelines. Before changing checks on an existing group, confirm
+    which pipelines can use it and that their deployment stages all originate from
+    protected `main`. On the group's **Approvals and checks** tab, configure both:
+
+    - **Branch control (AB#417):** allow only `refs/heads/main`, require branch
+      protection and configure the check to fail if protection status is unknown.
+      Configure the rule on the variable group so it applies independently of
+      the pipeline YAML. See [Microsoft's Branch control instructions](https://learn.microsoft.com/en-us/azure/devops/pipelines/process/approvals?view=azure-devops#branch-control).
+    - **Exclusive lock:** add this check if it is missing. The `DeployPreview` stage declares
+      `lockBehavior: sequential`, so two deployments using this group cannot repoint
+      the alias at the same time. See the ordering limit in
+      [The stable Preview integration alias](#the-stable-preview-integration-alias).
+
+    Read back the group's pipeline authorization and both enabled checks. Record
+    the allowed ref, protection requirement and unknown-status policy with a dated,
+    redacted screenshot or a filtered configuration response. Verify branch protection
+    in the Git provider. Before rollout, authorize a test pipeline to use a separate
+    group with dummy values and identical checks. Give its test stage no branch
+    condition and no access to deployment secrets. Confirm that Azure admits protected
+    `main` and that a PR or other non-`main` ref is refused by **Branch control**.
+    A skipped stage or a resource authorization error does not verify the rule.
+
+    If Azure reports GitHub protection as unknown on `main`, stop the rollout and
+    verify how the repository protection is configured. Repeat the test before
+    applying the check to the real group. Once it passes, confirm the next approved
+    `main` Preview run with `PREVIEW_DEPLOYMENT_ENABLED=true` accepts both checks.
+
+    Reference project status (2026-11-18): GitHub reports `main` protected.
+    The Azure checks read-back returned HTTP 403, so the live group configuration
+    and Azure's evaluation of GitHub branch protection are pending verification.
 
 11. **On Pro, keep Observability Plus disabled** and limit Owner, Member, and Developer
     seats to the people who need Runtime Logs; everyone else gets Pro Viewer. Both are
@@ -1719,8 +1743,8 @@ settings. Microsoft documents the [fork controls](https://learn.microsoft.com/en
 **Preview release candidate** runs only when all four of these hold:
 
 - every gate above passed;
-- the run is not a pull-request build — a PR branch, a fork's above all, never receives
-  Preview, provider, or protection-bypass secrets;
+- the stage's YAML condition excludes pull-request builds. The independent group-level
+  branch rule and its verification are covered in provisioning step 10 (AB#417);
 - the branch is `main`, which is what a release candidate is;
 - `PREVIEW_DEPLOYMENT_ENABLED=true`, set only after the customer-owned variable group,
   Vercel project settings, and every credential are ready.
