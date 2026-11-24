@@ -1391,6 +1391,15 @@ not a rerun of AB#401 or the launch review. Hosted permission/error-shape accept
 controlled writers and unsupported weak references remain open. See the
 [deletion procedure](proof-selection-data-flow.md).
 
+### Keyword-gallery cursor authentication before source reads — 2026-11-23 (AB#418)
+
+The search page and continuation API share the early shape and signature check.
+A signature failure returns 404 before any Sanity read. An authenticated token still
+requires the canonical selection and latest change to check its scope, plus a current
+boundary and result window for a valid continuation. Those reads remain available on
+each valid request. Per-client limiting, malformed service slug validation and controls
+for other anonymous lookup misses remain open in AB#418.
+
 ### Verified optional delivery ZIP source — 2026-10-26 (AB#407)
 
 The owner-accepted public whole-ZIP contract now has source attachment, reader and

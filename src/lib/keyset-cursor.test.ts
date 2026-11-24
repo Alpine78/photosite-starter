@@ -75,6 +75,17 @@ describe("createHmacKeysetCursorCodec", () => {
     ).toThrow(/stale/);
   });
 
+  it("can authenticate before either scope is known and still requires both matches", () => {
+    const codec = createHmacKeysetCursorCodec(KEY);
+    const cursor = codec.encode(scope, 42, "id-42");
+    const matchScope = codec.authenticate(cursor);
+
+    expect(matchScope(scope)).toEqual(codec.decode(cursor, scope));
+    expect(() => matchScope({ ...scope, pageSize: 12 })).toThrow(/wrong-scope/);
+    expect(() => matchScope({ ...scope, visibilityVersion: "new-version" })).toThrow(/stale/);
+    expect(() => createHmacKeysetCursorCodec(OTHER_KEY).authenticate(cursor)).toThrow(/tampered/);
+  });
+
   it("refuses an insecurely short signing key", () => {
     expect(() => createHmacKeysetCursorCodec("too-short")).toThrow();
   });

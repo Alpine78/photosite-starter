@@ -238,11 +238,7 @@ function encodeHmacCursor(
   return `${encodedPayload}.${signature}`;
 }
 
-function parseHmacCursor(
-  cursor: unknown,
-  scope: KeysetCursorScope,
-  signingKey: string,
-): DecodedKeysetCursor {
+function authenticateHmacCursor(cursor: unknown, signingKey: string): CursorPayload {
   if (
     typeof cursor !== "string" ||
     cursor.length === 0 ||
@@ -284,6 +280,14 @@ function parseHmacCursor(
   if (!isCursorPayload(payload)) {
     throw new KeysetCursorError("malformed");
   }
+  return payload;
+}
+
+function matchHmacCursorScope(
+  payload: CursorPayload,
+  scope: KeysetCursorScope,
+  signingKey: string,
+): DecodedKeysetCursor {
   if (!matchesDigest(payload.queryScope, queryScopeDigest(scope, signingKey))) {
     throw new KeysetCursorError("wrong-scope");
   }
@@ -332,13 +336,19 @@ function isCursorPayload(value: unknown): value is CursorPayload {
  */
 export function createHmacKeysetCursorCodec(
   signingKey: string,
-): KeysetCursorCodec {
+): KeysetCursorCodec & Readonly<{
+  authenticate: (cursor: unknown) => (scope: KeysetCursorScope) => DecodedKeysetCursor;
+}> {
   assertKeysetSigningKey(signingKey);
 
   return {
     encode: (scope, afterKey, afterId) =>
       encodeHmacCursor(scope, afterKey, afterId, signingKey),
-    decode: (cursor, scope) => parseHmacCursor(cursor, scope, signingKey),
+    decode: (cursor, scope) => matchHmacCursorScope(authenticateHmacCursor(cursor, signingKey), scope, signingKey),
+    authenticate: (cursor) => {
+      const payload = authenticateHmacCursor(cursor, signingKey);
+      return (scope) => matchHmacCursorScope(payload, scope, signingKey);
+    },
   };
 }
 

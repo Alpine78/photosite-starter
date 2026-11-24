@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { createKeywordGalleryCursorCodec } from "@/lib/keyword-gallery";
 import {
@@ -9,6 +9,7 @@ import {
   type KeywordGalleryStore,
 } from "@/lib/keyword-gallery-route";
 import { buildGalleryHref, galleryContinuationHref } from "@/lib/gallery-slice";
+import { KeysetCursorConfigurationError } from "@/lib/keyset-cursor";
 import { createMockKeywordGallerySource, getMockKeywordVocabulary } from "@/lib/mock-keyword-gallery";
 
 const store: KeywordGalleryStore = {
@@ -103,6 +104,35 @@ describe("resolving a keyword gallery request", () => {
     const cursor = first!.page.page.endCursor!;
     expect(await route("coast", cursor)).toBeUndefined();
     expect(await resolveKeywordGalleryRoute("fi", "archive", cursor, store)).toBeUndefined();
+  });
+
+  it("rejects an invalid signature before the vocabulary or source is requested", async () => {
+    const first = await route("archive");
+    const readVocabulary = vi.fn(store.readVocabulary);
+    const source = vi.fn(store.source);
+    const cursorCodec = createKeywordGalleryCursorCodec("x".repeat(32));
+    const result = await resolveKeywordGalleryRoute("en", "archive", first!.page.page.endCursor!, {
+      readVocabulary,
+      source,
+      cursorCodec,
+    });
+    expect(result).toBeUndefined();
+    expect(readVocabulary).not.toHaveBeenCalled();
+    expect(source).not.toHaveBeenCalled();
+  });
+
+  it("requires the deployment signing key only when a cursor needs it", async () => {
+    const { readVocabulary, source } = store;
+    vi.stubEnv("GALLERY_CURSOR_SIGNING_KEY", undefined);
+    try {
+      const withoutKey = { readVocabulary: vi.fn(readVocabulary), source };
+      expect(await resolveKeywordGalleryRoute("en", "coast", undefined, withoutKey)).toBeDefined();
+      withoutKey.readVocabulary.mockClear();
+      await expect(resolveKeywordGalleryRoute("en", "coast", "cursor", withoutKey)).rejects.toBeInstanceOf(KeysetCursorConfigurationError);
+      expect(withoutKey.readVocabulary).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("raises when the store fails, because that is not a visitor's 404", async () => {

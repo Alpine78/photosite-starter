@@ -2,6 +2,8 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Keyword-gallery early authentication, 2026-11-23 — AB#418 **Active**: the page and continuation endpoint validate the cursor signature before the vocabulary or gallery source reads. The existing scope, visibility and boundary checks still apply to signed cursors. Route regression tests cover success, refusal and no-read signature failure. Per-client limits, malformed service slugs and other anonymous lookup controls remain open.
+
 Self-hosted CI isolation, 2026-11-18 — AB#416 **Active**: the deployment guide records the isolated runner model and cutover checks. The service still uses the operator account; host and pool changes and live verification remain pending.
 
 Next.js 16.4.6, 2026-11-16 — AB#160 **Active**: `next` and `eslint-config-next` move from 16.4.4 to 16.4.6 for a moderate root-params disclosure advisory that also made `next build` refuse to finish. See [dependency security](dependency-security.md).
