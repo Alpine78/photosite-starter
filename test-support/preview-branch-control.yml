@@ -1,0 +1,23 @@
+# AB#417: run manually in a separate Azure pipeline with the synthetic group.
+# Keep the stage unconditional, with manual triggers and no checkout. Only the
+# dummy group belongs here, so Azure's resource checks decide both outcomes.
+trigger: none
+pr: none
+
+stages:
+  - stage: CheckPreviewBranch
+    lockBehavior: sequential
+    variables:
+      - group: photosite-preview-branch-control-probe
+    jobs:
+      - job: Probe
+        pool:
+          vmImage: "ubuntu-latest"
+        steps:
+          - checkout: none
+          - bash: |
+              set -euo pipefail
+              test "$BRANCH_CONTROL_PROBE" = "synthetic-preview-check"
+            displayName: "Confirm synthetic group access"
+            env:
+              BRANCH_CONTROL_PROBE: $(BRANCH_CONTROL_PROBE)

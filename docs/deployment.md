@@ -304,10 +304,13 @@ authoritative for the exact clicks. What this project needs from it:
     `PREVIEW_DEPLOYMENT_ENABLED=false` first; the YAML must be able to resolve the
     protected resource before any branch containing its reference is merged. Add and
     verify every other value — including `PREVIEW_STABLE_ALIAS` (step 6), which the deploy
-    stage now treats as required — then change the flag to `true`. Do not grant open
+    stage now treats as required. Keep the flag `false` through the rehearsal
+    and live checks read-back for a new group. Do not grant open
     access to all pipelines. Before changing checks on an existing group, confirm
     which pipelines can use it and that their deployment stages all originate from
-    protected `main`. On the group's **Approvals and checks** tab, configure both:
+    protected `main`. Complete the dummy-group rehearsal below and record both
+    outcomes before adding or changing either live check. Then configure both in
+    the deployment group's **Approvals and checks** tab:
 
     - **Branch control (AB#417):** allow only `refs/heads/main`, require branch
       protection and configure the check to fail if protection status is unknown.
@@ -321,20 +324,34 @@ authoritative for the exact clicks. What this project needs from it:
     Read back the group's pipeline authorization and both enabled checks. Record
     the allowed ref, protection requirement and unknown-status policy with a dated,
     redacted screenshot or a filtered configuration response. Verify branch protection
-    in the Git provider. Before rollout, authorize a test pipeline to use a separate
-    group with dummy values and identical checks. Give its test stage no branch
-    condition and no access to deployment secrets. Confirm that Azure admits protected
-    `main` and that a PR or other non-`main` ref is refused by **Branch control**.
-    A skipped stage or a resource authorization error does not verify the rule.
+    in the Git provider. After merging
+    [the probe YAML](../test-support/preview-branch-control.yml) to protected `main`,
+    create a separate Azure pipeline from that existing YAML in this GitHub
+    repository. Create a `photosite-preview-branch-control-probe` variable
+    group with one Azure secret-marked variable `BRANCH_CONTROL_PROBE`, whose value
+    is the synthetic string `synthetic-preview-check`. Authorize only the probe
+    pipeline for that group and configure both checks to match the intended live
+    settings. The probe uses a hosted job that skips checkout and reads only the
+    dummy value. Run it manually from protected `main` and a trusted branch that
+    contains the same YAML. These runs exercise two branch refs. Verify
+    **Branch control** explicitly admitted and refused the respective runs in
+    Azure's checks view. A skipped stage or a resource authorization error does
+    not verify the rule.
 
     If Azure reports GitHub protection as unknown on `main`, stop the rollout and
     verify how the repository protection is configured. Repeat the test before
-    applying the check to the real group. Once it passes, confirm the next approved
-    `main` Preview run with `PREVIEW_DEPLOYMENT_ENABLED=true` accepts both checks.
+    applying the check to the real group. Once the probe passes and the live
+    settings are verified, enable Preview for a new group. Confirm the next
+    approved `main` Preview run with `PREVIEW_DEPLOYMENT_ENABLED=true` accepts both checks.
 
-    Reference project status (2026-11-18): GitHub reports `main` protected.
-    The Azure checks read-back returned HTTP 403, so the live group configuration
-    and Azure's evaluation of GitHub branch protection are pending verification.
+    Reference project status (2026-11-23): GitHub reports `main` protected and
+    Azure's pipeline-permissions read-back lists only deployment pipeline
+    definition `1` authorized for the Preview group. The checks read-back was
+    inconclusive: the 2026-11-23 request to
+    `_apis/pipelines/checks/configurations` for variable group `1` returned an
+    empty list after a prior HTTP 403. Verify the actual list in **Approvals and
+    checks** before changing it and record both probe results before applying the
+    rule to the deployment group.
 
 11. **On Pro, keep Observability Plus disabled** and limit Owner, Member, and Developer
     seats to the people who need Runtime Logs; everyone else gets Pro Viewer. Both are
