@@ -39,9 +39,12 @@ export type KeywordGalleryBoundary = Readonly<{ orderKey: string; mediaId: strin
 
 export type KeywordGalleryRow = Readonly<{ orderKey: string; enquiryAllowed: boolean; media: ImageMedia }>;
 
+type AuthenticatedKeywordGalleryCursor = (scope: KeysetCursorScope) => string;
+
 export type KeywordGalleryCursorCodec = Readonly<{
   encode: (scope: KeysetCursorScope, mediaId: string) => string;
   decode: (cursor: unknown, scope: KeysetCursorScope) => string;
+  authenticate: (cursor: unknown) => AuthenticatedKeywordGalleryCursor;
 }>;
 
 export type KeywordGallerySource = Readonly<{
@@ -67,36 +70,44 @@ export function compareKeywordGalleryOrder(left: KeywordGalleryBoundary, right: 
   return left.mediaId < right.mediaId ? -1 : 1;
 }
 
+function withGalleryCursorErrors<T>(read: () => T): T {
+  try {
+    return read();
+  } catch (error) {
+    if (error instanceof KeysetCursorError) throw new GalleryCursorError(error.code);
+    throw error;
+  }
+}
+
 /** Signature, scope and boundary failures all surface as `GalleryCursorError`, which a route answers with a 404. */
 export function createKeywordGalleryCursorCodec(signingKey: string): KeywordGalleryCursorCodec {
   const inner = createHmacKeysetCursorCodec(signingKey);
+  function authenticate(cursor: unknown): AuthenticatedKeywordGalleryCursor {
+    const matchScope = withGalleryCursorErrors(() => inner.authenticate(cursor));
+    return (scope) => withGalleryCursorErrors(() => {
+      const { afterKey, afterId } = matchScope(scope);
+      if (afterKey !== CURSOR_KEY) throw new GalleryCursorError("malformed");
+      return afterId;
+    });
+  }
   return {
     encode: (scope, mediaId) => inner.encode(scope, CURSOR_KEY, mediaId),
-    decode: (cursor, scope) => {
-      try {
-        const { afterKey, afterId } = inner.decode(cursor, scope);
-        if (afterKey !== CURSOR_KEY) throw new GalleryCursorError("malformed");
-        return afterId;
-      } catch (error) {
-        if (error instanceof KeysetCursorError) throw new GalleryCursorError(error.code);
-        throw error;
-      }
-    },
+    decode: (cursor, scope) => authenticate(cursor)(scope),
+    authenticate,
   };
 }
 
 let cachedCodec: KeywordGalleryCursorCodec | undefined;
 
+function deploymentCursorCodec(): KeywordGalleryCursorCodec {
+  return cachedCodec ??= createKeywordGalleryCursorCodec(loadKeysetCursorSigningKey(process.env));
+}
+
 /** The deployment's codec, with the signing key read only when a cursor is actually used. */
 export const keywordGalleryCursorCodec: KeywordGalleryCursorCodec = {
-  encode: (scope, mediaId) => {
-    cachedCodec ??= createKeywordGalleryCursorCodec(loadKeysetCursorSigningKey(process.env));
-    return cachedCodec.encode(scope, mediaId);
-  },
-  decode: (cursor, scope) => {
-    cachedCodec ??= createKeywordGalleryCursorCodec(loadKeysetCursorSigningKey(process.env));
-    return cachedCodec.decode(cursor, scope);
-  },
+  encode: (scope, mediaId) => deploymentCursorCodec().encode(scope, mediaId),
+  decode: (cursor, scope) => deploymentCursorCodec().decode(cursor, scope),
+  authenticate: (cursor) => deploymentCursorCodec().authenticate(cursor),
 };
 
 export function keywordGalleryScope(
@@ -159,7 +170,7 @@ export async function readKeywordGalleryPage({
   locale: string;
   canonicalIds: readonly string[];
   taxonomyVersion: number;
-  cursor?: string;
+  cursor?: string | AuthenticatedKeywordGalleryCursor;
   source: KeywordGallerySource;
   cursorCodec?: KeywordGalleryCursorCodec;
   pageSize?: number;
@@ -167,8 +178,9 @@ export async function readKeywordGalleryPage({
   if (!Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > MAX_GALLERY_PAGE_SIZE) {
     throw new RangeError(`A keyword gallery page size must be an integer between 1 and ${MAX_GALLERY_PAGE_SIZE}`);
   }
+  const matchScope = typeof cursor === "string" ? cursorCodec.authenticate(cursor) : cursor;
   const scope = keywordGalleryScope(canonicalIds, taxonomyVersion, await source.readLatestChange(canonicalIds), pageSize, locale);
-  const afterMediaId = cursor === undefined ? undefined : cursorCodec.decode(cursor, scope);
+  const afterMediaId = matchScope?.(scope);
   // The named item must still be eligible, whatever the coarse version says. If it moved, its
   // own `_updatedAt` already changed the scope above.
   const boundary = afterMediaId === undefined ? undefined : await source.readBoundary(canonicalIds, afterMediaId);

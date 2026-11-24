@@ -13,7 +13,7 @@ import { dispatchContentSource } from "@/lib/content-source";
 import { getDeploymentConfig } from "@/lib/deployment-config";
 import { GalleryCursorError, MAX_GALLERY_CURSOR_LENGTH } from "@/lib/gallery-pagination";
 import type { DynamicGalleryResultItem, GalleryPage } from "@/lib/gallery-result";
-import { readKeywordGalleryPage, type KeywordGalleryCursorCodec, type KeywordGallerySource } from "@/lib/keyword-gallery";
+import { keywordGalleryCursorCodec, readKeywordGalleryPage, type KeywordGalleryCursorCodec, type KeywordGallerySource } from "@/lib/keyword-gallery";
 import { canonicalizeKeywordSelection, MAX_RAW_KEYWORD_TOKENS, parseKeywordTokens, type KeywordVocabularySnapshot } from "@/lib/keyword-gallery-selection";
 import { createMockKeywordGallerySource, getMockKeywordVocabulary } from "@/lib/mock-keyword-gallery";
 import { isPublicIdentity } from "@/lib/public-identity";
@@ -109,18 +109,20 @@ export async function resolveKeywordGalleryRoute(
   }
   // Costs nothing to check and needs no store, so an oversized link cannot amplify reads (§8).
   if (parseKeywordTokens(rawKeywords).length > MAX_RAW_KEYWORD_TOKENS) return undefined;
-  const { readVocabulary, source, cursorCodec } = store ?? await deploymentKeywordGalleryStore();
-  const vocabulary = await readVocabulary(locale);
-  const selection = canonicalizeKeywordSelection(rawKeywords, vocabulary);
-  if (selection.state !== "selection") return undefined;
   try {
+    const cursorCodec = store?.cursorCodec ?? keywordGalleryCursorCodec;
+    const cursor = rawCursor === undefined ? undefined : cursorCodec.authenticate(rawCursor);
+    const { readVocabulary, source } = store ?? await deploymentKeywordGalleryStore();
+    const vocabulary = await readVocabulary(locale);
+    const selection = canonicalizeKeywordSelection(rawKeywords, vocabulary);
+    if (selection.state !== "selection") return undefined;
     const page = await readKeywordGalleryPage({
       locale,
       canonicalIds: selection.canonicalIds,
       taxonomyVersion: vocabulary.taxonomyVersion,
       source: source(locale),
-      ...(cursorCodec === undefined ? {} : { cursorCodec }),
-      ...(rawCursor === undefined ? {} : { cursor: rawCursor }),
+      cursorCodec,
+      ...(cursor === undefined ? {} : { cursor }),
     });
     return {
       canonicalParam: selection.canonicalParam,

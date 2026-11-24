@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { GalleryCursorError } from "@/lib/gallery-pagination";
 import {
@@ -173,6 +173,22 @@ async function walk(source: KeywordGallerySource, pageSize: number) {
 }
 
 describe("reading pages", () => {
+  it("requires a valid cursor signature before even reading the latest change", async () => {
+    const scope = keywordGalleryScope(["aa"], 1, undefined, 24, "en");
+    const cursor = createKeywordGalleryCursorCodec("x".repeat(32)).encode(scope, "boundary");
+    const source = {
+      readLatestChange: vi.fn(),
+      readBoundary: vi.fn(),
+      readWindow: vi.fn(),
+    };
+
+    await expect(readKeywordGalleryPage({ locale: "en", canonicalIds: ["aa"], taxonomyVersion: 1, cursor, source, cursorCodec: codec }))
+      .rejects.toMatchObject({ code: "tampered" });
+    expect(source.readLatestChange).not.toHaveBeenCalled();
+    expect(source.readBoundary).not.toHaveBeenCalled();
+    expect(source.readWindow).not.toHaveBeenCalled();
+  });
+
   const rows = [
     row("2025-01-01T00:00:00Z", "a"), row("2025-01-01T00:00:00Z", "b"), row("2024-01-01T00:00:00Z", "c"),
     row("", "d"), row("", "e"), row("", "f"), row("", "g"), row("", "h"),

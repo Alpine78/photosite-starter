@@ -338,16 +338,19 @@ redirected, the same rule this project's gallery cursor handling already follows
 malformed or wrong-scope token 404s without creating a redirect first). Concretely:
 
 1. Raw-count ceiling on the parsed token list. Over it exits immediately as **over-limit**
-   below, before any token is resolved.
+   below, before any token is resolved. If `?cursor=` is present, bound and authenticate it
+   before selecting or reading the store (AB#418, 2026-11-23).
 2. Canonicalize (§3, steps 1–4). An unresolvable token exits immediately as
    **unknown-keyword** below — canonicalization does not proceed past a token it cannot
    resolve.
 3. Bound-check the canonicalized list (§3 step 5). Still over five after collapsing exits
    as **over-limit** below.
-4. If `?cursor=` is present, decode and validate it against the scope built from the
-   now-canonicalized selection (§5–§7). A cursor that fails exits with its own
+4. If `?cursor=` is present, validate the authenticated token against the scope built
+   from the now-canonicalized selection and its latest change (§5–§7). A cursor that fails exits with its own
    `GalleryCursorError` code (`malformed`/`tampered`/`wrong-scope`/`stale`), independent
-   of whether the `?keywords=` spelling itself was canonical.
+   of whether the `?keywords=` spelling itself was canonical. A bad signature makes zero
+   source reads. A signed token rejected for scope can still cause the vocabulary and
+   latest-change reads. A valid continuation also reads the boundary and result window.
 5. Only once 1–4 all succeed: if the request's `?keywords=` spelling differs from the
    canonical form §3 produces, redirect once to the canonical `?keywords=` form, preserving
    a validated `?cursor=` unchanged — **but not every non-canonical spelling redirects the
