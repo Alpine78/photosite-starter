@@ -2,6 +2,8 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Preview branch-control probe source, 2026-11-23 — AB#417 **Active**: a manual hosted pipeline can test the intended checks against one synthetic variable in a separate group. GitHub reports `main` protected, and Azure's permission read-back lists only pipeline definition `1` for the real group. The checks API read-back was inconclusive. Portal confirmation, hosted probe runs and live rule rollout remain open.
+
 Self-hosted CI isolation, 2026-11-18 — AB#416 **Active**: the deployment guide records the isolated runner model and cutover checks. The service still uses the operator account; host and pool changes and live verification remain pending.
 
 Next.js 16.4.6, 2026-11-16 — AB#160 **Active**: `next` and `eslint-config-next` move from 16.4.4 to 16.4.6 for a moderate root-params disclosure advisory that also made `next build` refuse to finish. See [dependency security](dependency-security.md).

@@ -257,9 +257,9 @@ stages:
     # Serialize this stage's *execution* across concurrent runs. The
     # DeployPreview stage repoints the stable Preview alias (AB#136); running
     # the repoints one at a time keeps two of them from racing the same alias.
-    # `sequential` takes effect because the customer-owned
-    # `photosite-starter-vercel-preview` variable group carries an Exclusive
-    # lock check (added during provisioning — see docs/deployment.md). The lock
+    # `sequential` takes effect when the customer-owned
+    # `photosite-starter-vercel-preview` variable group has an Exclusive
+    # lock check (see provisioning in docs/deployment.md). The lock
     # orders execution, not commit ancestry: what stops an older `main` commit
     # (whose deployment can be created later, giving it a newer `createdAt`)
     # from winning the alias is the repoint's own revision gate (AB#144) — it
