@@ -28,9 +28,12 @@ a dependency update automatically.
   owner decision recorded in [the security review](security-privacy-review.md). Logs contain fixed statuses only;
   allowlisted details are in the current redacted audit artifact. A scheduled run skips the normal quality gates and
   Preview deployment; push and PR runs retain them.
-  The audit uses the `Default` self-hosted pool, so it does not consume the
-  Microsoft-hosted monthly minute allowance. It still needs an available agent
-  and self-hosted parallel-job capacity; see [Azure's parallel-job limits](https://learn.microsoft.com/en-us/azure/devops/pipelines/licensing/concurrent-jobs?view=azure-devops).
+  The AB#416 cutover moves the audit from `Default` to `photosite-pr-isolated`
+  with a clean job workspace. Both pools use self-hosted capacity and leave the
+  Microsoft-hosted monthly minute allowance for hosted jobs. The audit still
+  needs an available agent and self-hosted parallel-job capacity. See
+  [the cutover steps](deployment.md#isolate-the-self-hosted-agent-before-admitting-pr-code-ab416)
+  and [Azure's parallel-job limits](https://learn.microsoft.com/en-us/azure/devops/pipelines/licensing/concurrent-jobs?view=azure-devops).
 - The repository owner is the accountable reviewer. In Azure Pipelines, the
   owner must subscribe to failed runs for this pipeline and verify delivery to
   an address they monitor. In GitHub, the owner must watch the repository with
