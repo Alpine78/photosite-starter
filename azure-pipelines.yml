@@ -58,14 +58,10 @@ stages:
     jobs:
       - job: Verify
         displayName: "Lint, test, build, journeys"
-        # Self-hosted (docs/deployment.md § "The Verify stage runs on a self-hosted
-        # agent"): npm ci and repository scripts execute on a persistent machine.
-        # Azure's central and definition gates admit trusted same-repository PRs but
-        # block fork PRs. This host's agent currently shares the operator's Unix user
-        # and can read local credentials. The absence of an injected pipeline
-        # secret does not isolate this runner. DeployPreview is Microsoft-hosted.
-        # The Default agent needs Playwright OS dependencies installed by its owner.
-        pool: "Default"
+        # AB#416: Azure pool permissions and the dedicated agent's OS account
+        # enforce isolation from operator credentials. Install Playwright's OS
+        # dependencies on that host during provisioning (docs/deployment.md).
+        pool: "photosite-pr-isolated"
         # Remove the previous job's workspace before checkout. This is hygiene for
         # trusted code, not isolation from writes elsewhere on the persistent host.
         workspace:
@@ -194,7 +190,7 @@ stages:
       # Synthetic settings validate schemas/build without reading customer content.
       - job: Studio
         displayName: "Standalone Studio schemas and build"
-        pool: "Default"
+        pool: "photosite-pr-isolated"
         workspace:
           clean: all
         steps:
@@ -231,7 +227,9 @@ stages:
         # No repository or deployment secret is passed to this job. npm audit
         # reads package-lock.json and queries the configured advisory registry;
         # it does not install packages or run their scripts.
-        pool: "Default"
+        pool: "photosite-pr-isolated"
+        workspace:
+          clean: all
         steps:
           - task: UseNode@1
             inputs:

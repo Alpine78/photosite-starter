@@ -246,6 +246,7 @@ covered by the licence distribution below.
 | `vitest` | 4.1.12 | MIT | Browser-free TypeScript test runner (CI gate) |
 | `@playwright/test` | 1.63.0 | Apache-2.0 | Public-journey tests run against a production build |
 | `tailwindcss`, `@tailwindcss/postcss` | 4.3.3 | MIT | Build-time CSS generation |
+| `js-yaml` | 4.3.2 | MIT | Read the Azure pipeline structure in the CI isolation test (AB#416). Already present in the locked ESLint tree. |
 
 The package counts below are an older audited snapshot and are not recomputed here.
 

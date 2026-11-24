@@ -1387,7 +1387,8 @@ report, and cancellation. Missing JUnit warnings remain a separate existing
 reporting behavior; this does not alter their task or the quality gates.
 
 **DependencyAudit** runs daily at 06:00 UTC on `main`, even without a source
-change, in the `Default` self-hosted pool. It audits the committed production
+change. AB#416 moves it from `Default` to the `photosite-pr-isolated`
+self-hosted pool. It audits the committed production
 and development dependency tree without installing packages. Scheduled runs
 skip Verify and DeployPreview, so the audit does not spend Microsoft-hosted
 minutes or deploy a release candidate. The [dependency response process](dependency-security.md)
@@ -1514,8 +1515,10 @@ Azure's normal cancellation process.
 
 ### The Verify stage runs on a self-hosted agent
 
-`Verify` runs in the organization's `Default` pool, a self-hosted agent, not a
-Microsoft-hosted `vmImage`. The free Microsoft-hosted tier for a private Azure DevOps
+`Verify`, the Studio job and the scheduled dependency audit target the
+`photosite-pr-isolated` self-hosted pool in the AB#416 cutover source. The reference
+deployment continues to use `Default` until that source is merged and the cutover
+is verified. The free Microsoft-hosted tier for a private Azure DevOps
 project is one parallel job capped at 1,800 minutes/month; this pipeline's own journey
 suite exhausted that quota (2026-09-16), and an additional Microsoft-hosted parallel job
 is a recurring $40/month while an additional self-hosted one is $15/month — the
@@ -1531,7 +1534,9 @@ jobs must remain off the PR runner.
 #### Isolate the self-hosted agent before admitting PR code (AB#416)
 
 The reference runner still uses the operator account (service settings checked
-2026-11-18). The target is a separate unprivileged Linux service account, with its
+2026-11-23). The project has a queue for the `photosite-pr-isolated` organization
+pool. It was created without automatic pipeline authorization. The pool still
+needs an agent. The target is a separate unprivileged Linux service account, with its
 own agent installation, home, workspace and caches. This is account and service
 isolation on a shared host. Use a separate host or VM if that boundary cannot be
 enforced on the current machine.
@@ -1540,10 +1545,13 @@ enforced on the current machine.
    audit. Restrict the pool to this pipeline. Under the service account, deny
    access to operator homes, credentials, sockets and release tools and deny
    writes to the operator checkout. Exclude elevated groups, sudo, host mounts
-   and any host interop that would expose another account. Keep the runner's
-   credentials and writable files separate from release work.
-2. Verify the boundaries from the running service context with synthetic marker
-   files and sockets, plus a readable workspace control. Record the service
+   and any host interop that would expose another account. The reference WSL host
+   has Windows drives mounted and the WSL executable interop handler enabled.
+   Include both in the job-level isolation proof. Keep the runner's
+   credentials, workspace, tool and npm caches, and writable files separate
+   from release work.
+2. Verify the boundaries in an Azure job run by the service with synthetic
+   marker files and sockets, plus a readable workspace control. Record the service
    account, effective groups, agent name and pass/fail results. Inspect names only
    when checking the effective environment and pipeline variables. Keep deployment
    credentials and artifacts used for releases off this pool.
@@ -1554,14 +1562,18 @@ enforced on the current machine.
    Route all three jobs to the isolated pool in that PR and verify its required
    check before merging. Update open PRs that still reference the old pool and
    remove the old registration and service.
-4. Read back the new pool permission, agent list and running service identity.
-   Confirm the old pool no longer authorizes this pipeline, the old registration
-   is gone and the old service is no longer installed. Record the evidence on
-   AB#416 and update the current pool references in the
-   pipeline, deployment and dependency-security docs. Add a structure check
-   for pool selection and secret-bearing inputs as a review aid. The effective
-   controls are host permissions and Azure pool authorization. If cutover fails,
-   hold CI until the isolated runner is usable. Review whether earlier shared-account
+4. Read back the project queue name and its permitted pipeline, the agent list
+   and the running service identity. Confirm the queue name matches the
+   pipeline's `photosite-pr-isolated` pool reference. Verify open access is disabled on reachable
+   self-hosted queues and that this pipeline can use only the isolated queue for
+   self-hosted jobs. Verify project-scoped job authorization, the old agent's
+   retirement and the other projects' continued access if they share the old
+   pool. Record the evidence on AB#416 and update the deployment and
+   dependency-security docs. The structure test checks job pools and the
+   Preview credential references in source. Host permissions and Azure pool
+   authorization enforce the live boundary. An unavailable isolated agent
+   leaves Verify and Studio waiting and blocks the dependent Preview stage.
+   Restore the isolated agent to resume CI. Review whether earlier shared-account
    runs warrant credential rotation separately.
 
 **Quality-gate timing and concurrency (AB#378, 2026-10-20).** Baseline from PR runs

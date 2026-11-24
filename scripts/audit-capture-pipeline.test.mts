@@ -12,7 +12,6 @@ describe("scheduled audit capture wiring", () => {
     expect(schedule).toMatch(/include:\s+- main/); expect(schedule).toContain("always: true");
     expect(audit).toContain("dependsOn: []");
     expect(audit).toContain("condition: and(succeeded(), eq(variables['Build.Reason'], 'Schedule'))");
-    expect(audit).toContain('pool: "Default"');
   });
   it("runs one orchestrator for both trees and publishes only the current ready leaf", () => {
     expect(packageJson.scripts["capture:audit"]).toBe("node scripts/capture-npm-audit.mts");
