@@ -485,6 +485,24 @@ seams to dispatch on this setting. The reference Preview uses `sanity` with its 
 Preview dataset; `mock` remains an explicit non-Production choice for local development,
 CI, and isolated fixture previews.
 
+### Reference staging dataset
+
+Set Vercel Preview to `SANITY_DATASET=preview` and
+`SANITY_DATASET_VISIBILITY=public`. The existing Sanity `preview` dataset holds
+demo content for the home page, article listings and detail pages, services, and
+galleries. The Sanity API and CDN can expose this dataset's published content and
+uploaded files. Use demo photos and synthetic records for staging.
+
+Run the [sample seeder](sanity-seeding.md#running-it) only when bootstrapping the
+sample set. A repeat run replaces the matching fixture documents, including
+editorial changes to them. Both Sanity datasets share the project's document
+quota. The seeder adds 474 content documents and six demo images. The
+reference dataset also includes three Finnish versions of the demo services.
+
+Azure Pipelines builds and verifies the protected Preview release from `main`.
+The Preview Sanity webhook listens to `preview` and targets the stable Preview
+integration alias. For staging authoring, use a separate [Studio session](sanity-setup.md#staging-authoring).
+
 ### Sensitive variables and the prebuilt build
 
 Vercel's **Sensitive** type makes a value non-readable after creation, and `vercel pull`
