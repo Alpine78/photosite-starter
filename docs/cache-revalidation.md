@@ -116,6 +116,10 @@ Configure one Sanity **document webhook per deployment environment**:
   }
   ```
 
+The reference staging webhook listens to `preview`. Its protected integration
+alias follows verified main deployments. The Production webhook listens to
+`production`. See [staging deployment](deployment.md#reference-staging-dataset).
+
 **Preview additionally requires a Vercel Authentication bypass header on the
 webhook itself.** Every generated Preview URL sits behind Vercel's own SSO
 wall (`docs/deployment.md`'s access-protection requirement, verified by

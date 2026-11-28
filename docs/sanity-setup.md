@@ -658,6 +658,30 @@ Both select their source explicitly; neither reaches a real project.
   it cannot be a production build — a production build with demo content is exactly what
   the guard above refuses.
 
+### Staging authoring
+
+From the reference project's configured checkout, start a local Studio session
+against `preview`. The command keeps the existing project and locale settings and
+applies the staging values to this session.
+
+```bash
+SANITY_STUDIO_DATASET=preview \
+SANITY_STUDIO_DATASET_VISIBILITY=public \
+SANITY_STUDIO_TITLE='PhotoSite Staging' \
+SANITY_STUDIO_SITE_ORIGIN=https://photosite-starter-preview.vercel.app \
+SANITY_STUDIO_PROOF_GALLERIES=off \
+SANITY_STUDIO_CLIENT_GALLERY_CLEANUP=off \
+npm --prefix studio run dev
+```
+
+Sign in with a project Editor or Administrator account. Check the dataset and
+Studio title before saving or publishing. Open the protected site from the latest
+successful **Preview release candidate** run summary to see published changes.
+Use the demo images for editorial exercises. The **Staging sample client gallery**
+draft uses one demo image and is available in Studio's client-gallery list. The
+deployed Preview has client delivery and proof serving off. See
+[the deployment settings](deployment.md#reference-staging-dataset).
+
 ## Published caching and the webhook
 
 AB#83 keeps published reads on the Content Lake origin and makes Next.js's tagged Data

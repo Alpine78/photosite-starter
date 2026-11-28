@@ -2,6 +2,20 @@
 
 Older entries are also kept verbatim in [the October 2026 archive](feature-status-archive-2026-10.md); search both files.
 
+Reference staging dataset, 2026-11-28 — Vercel Preview and its Sanity webhook
+select `preview`. It holds 477 published sample documents, six demo images, and
+one synthetic client delivery draft for Studio exercises. The sample includes
+services in both site languages. Customer-gallery serving stays off in Preview.
+The [main Preview run](https://dev.azure.com/ilkkarytkonen/photosite-starter/_build/results?buildId=1679)
+passed the quality and protected deployment checks. Hosted article, gallery,
+service and search routes passed checks against the staging fixture, and the
+image optimizer served a derivative from `preview`. Sanity delivered both a
+temporary home-page edit and its restoration to the Preview webhook with HTTP
+200. The hosted page rendered both changes. The live
+Sanity adapter suite passed all ten tests, including the 400-placement gallery.
+The [deployment guide](deployment.md#reference-staging-dataset) and
+[Studio setup](sanity-setup.md#staging-authoring) record the configuration.
+
 Preview branch-control probe source, 2026-11-23 — AB#417 **Active**: a manual hosted pipeline can test the intended checks against one synthetic variable in a separate group. GitHub reports `main` protected, and Azure's permission read-back lists only pipeline definition `1` for the real group. The checks API read-back was inconclusive. Portal confirmation, hosted probe runs and live rule rollout remain open.
 
 Self-hosted CI isolation, 2026-11-18 — AB#416 **Active**: the deployment guide records the isolated runner model and cutover checks. The service still uses the operator account; host and pool changes and live verification remain pending.
